@@ -1,0 +1,168 @@
+// ============================================================
+// FREZO ERP — Header Component
+// Breadcrumb, page title, user actions
+// ============================================================
+
+import { useState, useRef, useEffect } from 'react'
+import { Search, Bell, ChevronRight, CheckCircle2, AlertCircle, Info } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
+import { useAuthStore } from '@/stores/authStore'
+import { useNotifications } from '@/modules/common/hooks/useNotification'
+
+// Route → Breadcrumb map
+const ROUTE_LABELS: Record<string, string> = {
+  '/':              'Dashboard',
+  '/dashboard':     'Dashboard',
+  '/qtht/users':    'Người dùng',
+  '/qtht/roles':    'Vai trò',
+  '/qtht/menus':    'Quản lý Menu',
+  '/qtht/departments': 'Phòng ban',
+  '/qtht/org':      'Tổ chức',
+  '/qlns/contract': 'Hợp đồng',
+  '/qlns/attendance': 'Chấm công',
+  '/qlns/leave':    'Nghỉ phép',
+  '/qlns/payroll':  'Bảng lương',
+  '/customer':      'Khách hàng',
+  '/customer/ncc':  'Nhà cung cấp',
+  '/customer/voucher': 'Voucher',
+  '/product':       'Sản phẩm',
+  '/product/orders': 'Đơn hàng',
+  '/task':          'Công việc',
+  '/task/tickets':  'Tickets',
+  '/dmdc/category': 'Danh mục',
+  '/dmdc/assets':   'Tài sản',
+}
+
+function buildBreadcrumbs(pathname: string) {
+  const parts = pathname.split('/').filter(Boolean)
+  const crumbs: { label: string; path: string }[] = [
+    { label: 'Trang chủ', path: '/' },
+  ]
+
+  let cumPath = ''
+  parts.forEach((part) => {
+    cumPath += '/' + part
+    const label = ROUTE_LABELS[cumPath] || part
+    crumbs.push({ label, path: cumPath })
+  })
+
+  return crumbs
+}
+
+export function Header() {
+  const { pathname } = useLocation()
+  const { user } = useAuthStore()
+  const breadcrumbs = buildBreadcrumbs(pathname)
+  const pageTitle = ROUTE_LABELS[pathname] || breadcrumbs[breadcrumbs.length - 1]?.label || 'Frezo ERP'
+
+  // Notifications
+  const { data: notifications } = useNotifications()
+  const [showNotif, setShowNotif] = useState(false)
+  const notifRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setShowNotif(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  return (
+    <header className="h-[60px] flex items-center justify-between px-6 bg-white border-b border-border shrink-0 gap-4">
+      {/* Left: Breadcrumb */}
+      <div className="flex flex-col min-w-0">
+        <h1 className="text-base font-semibold text-neutral-800 leading-tight truncate">
+          {pageTitle}
+        </h1>
+        <nav className="flex items-center gap-1 text-[11px] text-neutral-400 mt-0.5">
+          {breadcrumbs.map((crumb, i) => (
+            <span key={crumb.path} className="flex items-center gap-1">
+              {i > 0 && <ChevronRight size={10} />}
+              <span className={i === breadcrumbs.length - 1 ? 'text-primary-600 font-medium' : ''}>
+                {crumb.label}
+              </span>
+            </span>
+          ))}
+        </nav>
+      </div>
+
+      {/* Right: Actions */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Search */}
+        <div className="relative hidden sm:block">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="text"
+            placeholder="Tìm kiếm..."
+            className="h-8 pl-8 pr-3 text-xs border border-border rounded-lg bg-neutral-50
+              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+              placeholder:text-neutral-400 w-48 transition-all"
+          />
+        </div>
+
+        {/* Notification Bell */}
+        <div className="relative" ref={notifRef}>
+          <button 
+            onClick={() => setShowNotif(!showNotif)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-500 hover:text-primary-600 hover:bg-primary-50 transition-colors relative"
+          >
+            <Bell size={16} />
+            {notifications && notifications.length > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
+            )}
+          </button>
+          
+          {/* Dropdown */}
+          {showNotif && (
+            <div className="absolute top-10 right-0 w-80 bg-white rounded-xl shadow-lg border border-border overflow-hidden z-50">
+              <div className="px-4 py-3 border-b border-border flex justify-between items-center bg-neutral-50">
+                <span className="font-semibold text-neutral-800">Thông báo</span>
+                <span className="text-xs text-primary-600 font-medium cursor-pointer">Đánh dấu đã đọc</span>
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {!notifications || notifications.length === 0 ? (
+                  <div className="p-6 text-center text-neutral-500 text-sm">Không có thông báo mới</div>
+                ) : (
+                  notifications.map((n: any, idx: number) => (
+                    <div key={idx} className="px-4 py-3 border-b border-border hover:bg-neutral-50 cursor-pointer flex gap-3">
+                      <div className="mt-0.5">
+                        {n.type === 'SUCCESS' ? <CheckCircle2 size={16} className="text-green-500" /> :
+                         n.type === 'ERROR' ? <AlertCircle size={16} className="text-red-500" /> :
+                         <Info size={16} className="text-blue-500" />}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-neutral-800 leading-tight mb-1">{n.title}</div>
+                        <div className="text-xs text-neutral-500 leading-tight">{n.content}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* User avatar */}
+        <div className="flex items-center gap-2 pl-2 border-l border-border">
+          <div className="w-7 h-7 bg-primary-600 rounded-full flex items-center justify-center cursor-pointer
+            hover:bg-primary-700 transition-colors">
+            <span className="text-white text-xs font-bold uppercase">
+              {user?.fullName?.charAt(0) || user?.username?.charAt(0) || 'U'}
+            </span>
+          </div>
+          <div className="hidden md:block">
+            <div className="text-xs font-semibold text-neutral-700 leading-tight">
+              {user?.fullName || user?.username}
+            </div>
+            <div className="text-[10px] text-neutral-400 leading-tight">
+              {user?.isAdmin ? 'Admin' : user?.roles?.[0] || 'User'}
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+  )
+}
