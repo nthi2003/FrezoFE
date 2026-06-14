@@ -1,7 +1,3 @@
-// ============================================================
-// FREZO ERP — Auth Module: Login API Service
-// ============================================================
-
 import axiosClient from '@/lib/axios/axiosClient'
 import { API } from '@/lib/axios/apiEndpoints'
 import type { ApiResponse } from '@/types/api.types'
@@ -31,4 +27,16 @@ export const authApi = {
         params: { refreshToken },
       })
       .then((res) => res.data.data),
+
+  verifyOtp: (data: { username: string; otp: string }) =>
+    axiosClient.post<ApiResponse<any>>(API.AUTH.VERIFY_OTP, data).then(res => res.data),
+
+  forgotPassword: (username: string) =>
+    axiosClient.post<ApiResponse<any>>(API.AUTH.FORGOT_PW, null, { params: { username } }).then(res => res.data),
+
+  resetPassword: (data: { token: string; newPassword: string }) =>
+    axiosClient.post<ApiResponse<any>>(API.AUTH.RESET_PW, data).then(res => res.data),
+
+  getLoginHistory: (params?: { page?: number; size?: number }) =>
+    axiosClient.get<ApiResponse<any[]>>(API.AUTH.LOGIN_HISTORY, { params }).then(res => res.data.data),
 }

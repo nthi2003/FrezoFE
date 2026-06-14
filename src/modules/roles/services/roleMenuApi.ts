@@ -4,8 +4,8 @@ import type { ApiResponse } from '@/types/api.types'
 
 export const roleMenuApi = {
   getMenusByRole: (roleCode: string) =>
-    axiosClient.get<ApiResponse<any[]>>(`/qlht/role-menus/role/${roleCode}`).then(res => res.data.data),
+    axiosClient.get<ApiResponse<any[]>>(`/qtht/role-menu/role/${roleCode}`).then(res => res.data.data),
 
-  saveAll: (data: any[]) =>
-    axiosClient.post<ApiResponse<any>>(`/qlht/role-menus/save-all`, data).then(res => res.data.message)
+  saveAll: (data: { roleId: string; appCode: string; menuIds: string[] }) =>
+    axiosClient.post<ApiResponse<any>>(`/qtht/role-menu/save-all`, data).then(res => res.data.message)
 }

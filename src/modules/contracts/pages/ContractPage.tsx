@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button'
 import { AppModal } from '@/components/ui/AppModal'
 import { AppForm } from '@/components/shared/AppForm'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { contractApi } from '../services/contractApi'
+import { contractApi } from '@/modules/qlns/services/contractApi'
 import { personApi } from '@/modules/qlns/services/personApi'
-import { contractRejectSchema } from '../constants/schema'
+import { contractRejectSchema } from '@/modules/qlns/constants/schema'
 import { toast } from 'sonner'
 
 export function ContractPage() {
@@ -21,12 +21,13 @@ export function ContractPage() {
   // In Frezo ERP, we fetch from personApi and flatten contracts.
   const { data: personsData, isLoading } = useQuery({
     queryKey: ['persons_for_contracts'],
-    queryFn: () => personApi.getAll()
+    queryFn: () => personApi.getAll(),
+    select: (res: any) => res?.data ?? [],
   })
 
   // Extract contracts from persons
-  const contracts = Array.isArray(personsData?.items || personsData) 
-    ? (personsData?.items || personsData).flatMap((p: any) => p.contracts?.map((c: any) => ({ ...c, personName: p.fullName })) || [])
+  const contracts = Array.isArray(personsData)
+    ? personsData.flatMap((p: any) => p.contracts?.map((c: any) => ({ ...c, personName: p.fullName })) || [])
     : []
 
   const rejectContract = useMutation({

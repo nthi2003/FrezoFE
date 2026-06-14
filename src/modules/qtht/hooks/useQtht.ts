@@ -6,6 +6,7 @@ export function useDepartments() {
   return useQuery({
     queryKey: ['departments'],
     queryFn: () => departmentApi.getAll(),
+    select: (res: any) => res?.items ?? [],
   })
 }
 export function useCreateDepartment() {
@@ -29,12 +30,27 @@ export function useDeleteDepartment() {
     onSuccess: () => { toast.success('Xóa thành công'); queryClient.invalidateQueries({ queryKey: ['departments'] }) },
   })
 }
+export function useActivateDepartment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => departmentApi.activate(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['departments'] }) },
+  })
+}
+export function useDeactivateDepartment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => departmentApi.deactivate(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['departments'] }) },
+  })
+}
 
 // Organzation
 export function useOrganizations() {
   return useQuery({
     queryKey: ['organizations'],
     queryFn: () => organizationApi.getAll(),
+    select: (res: any) => res?.items ?? [],
   })
 }
 export function useCreateOrganization() {

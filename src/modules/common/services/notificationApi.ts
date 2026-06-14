@@ -3,5 +3,8 @@ import type { ApiResponse } from '@/types/api.types'
 
 export const notificationApi = {
   getMyNotifications: () =>
-    axiosClient.get<ApiResponse<any[]>>('/api/notifications/my').then(res => res.data.data),
+    axiosClient.get<ApiResponse<any[]>>('/qtht/notification/my').then(res => res.data.data),
+
+  markAsRead: (id: string) =>
+    axiosClient.patch<ApiResponse<any>>(`/qtht/notification/${id}/read`).then(res => res.data),
 }

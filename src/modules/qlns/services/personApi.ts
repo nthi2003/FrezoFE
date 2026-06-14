@@ -18,6 +18,9 @@ export const personApi = {
   getCombobox: (params?: any) =>
     axiosClient.get<ApiResponse<any>>('/qlns/person/combobox', { params }).then((res) => res.data),
 
+  getById: (id: string) =>
+    axiosClient.get<ApiResponse<any>>(`/qlns/person/${id}`).then((res) => res.data),
+
   activate: (id: string) =>
     axiosClient.put<ApiResponse<any>>(`/qlns/person/${id}/activate`).then((res) => res.data),
 

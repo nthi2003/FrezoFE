@@ -83,7 +83,7 @@ export function SettingsPage() {
         isLoading={isLoading} 
         pageIndex={1} 
         pageSize={50} 
-        totalElements={data.length} 
+        totalElements={data?.length ?? 0} 
       />
     </div>
   )

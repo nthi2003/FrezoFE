@@ -4,8 +4,9 @@ import { toast } from 'sonner'
 
 export function usePersons(params?: any) {
   return useQuery({
-    queryKey: ['persons', params],
+    queryKey: params ? ['persons', params] : ['persons'],
     queryFn: () => personApi.getAll(params),
+    select: (res: any) => res?.data?.items ?? [],
   })
 }
 

@@ -3,37 +3,30 @@
 // Breadcrumb, page title, user actions
 // ============================================================
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Search, Bell, ChevronRight, CheckCircle2, AlertCircle, Info } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotifications } from '@/modules/common/hooks/useNotification'
+import { useMenus } from '@/modules/menus/hooks/useMenus'
+import type { MenuTreeNode } from '@/modules/menus/types/menu.types'
 
-// Route → Breadcrumb map
-const ROUTE_LABELS: Record<string, string> = {
-  '/':              'Dashboard',
-  '/dashboard':     'Dashboard',
-  '/qtht/users':    'Người dùng',
-  '/qtht/roles':    'Vai trò',
-  '/qtht/menus':    'Quản lý Menu',
-  '/qtht/departments': 'Phòng ban',
-  '/qtht/org':      'Tổ chức',
-  '/qlns/contract': 'Hợp đồng',
-  '/qlns/attendance': 'Chấm công',
-  '/qlns/leave':    'Nghỉ phép',
-  '/qlns/payroll':  'Bảng lương',
-  '/customer':      'Khách hàng',
-  '/customer/ncc':  'Nhà cung cấp',
-  '/customer/voucher': 'Voucher',
-  '/product':       'Sản phẩm',
-  '/product/orders': 'Đơn hàng',
-  '/task':          'Công việc',
-  '/task/tickets':  'Tickets',
-  '/dmdc/category': 'Danh mục',
-  '/dmdc/assets':   'Tài sản',
+// Fallback tĩnh cho các route không có trong menu BE
+const FALLBACK_LABELS: Record<string, string> = {
+  '/':          'Dashboard',
+  '/dashboard': 'Dashboard',
 }
 
-function buildBreadcrumbs(pathname: string) {
+// Flatten menuTree thành map feUrl → name (tiếng Việt từ BE)
+function flattenMenuTree(nodes: MenuTreeNode[], map: Map<string, string> = new Map()) {
+  for (const node of nodes) {
+    if (node.feUrl) map.set(node.feUrl, node.name)
+    if (node.children?.length) flattenMenuTree(node.children, map)
+  }
+  return map
+}
+
+function buildBreadcrumbs(pathname: string, labelMap: Map<string, string>) {
   const parts = pathname.split('/').filter(Boolean)
   const crumbs: { label: string; path: string }[] = [
     { label: 'Trang chủ', path: '/' },
@@ -42,7 +35,7 @@ function buildBreadcrumbs(pathname: string) {
   let cumPath = ''
   parts.forEach((part) => {
     cumPath += '/' + part
-    const label = ROUTE_LABELS[cumPath] || part
+    const label = labelMap.get(cumPath) || FALLBACK_LABELS[cumPath] || part
     crumbs.push({ label, path: cumPath })
   })
 
@@ -52,8 +45,13 @@ function buildBreadcrumbs(pathname: string) {
 export function Header() {
   const { pathname } = useLocation()
   const { user } = useAuthStore()
-  const breadcrumbs = buildBreadcrumbs(pathname)
-  const pageTitle = ROUTE_LABELS[pathname] || breadcrumbs[breadcrumbs.length - 1]?.label || 'Frezo ERP'
+  const { menuTree } = useMenus()
+
+  // Build label map từ menuTree (tên tiếng Việt theo feUrl)
+  const labelMap = useMemo(() => flattenMenuTree(menuTree), [menuTree])
+
+  const breadcrumbs = buildBreadcrumbs(pathname, labelMap)
+  const pageTitle = labelMap.get(pathname) || FALLBACK_LABELS[pathname] || breadcrumbs[breadcrumbs.length - 1]?.label || 'Frezo ERP'
 
   // Notifications
   const { data: notifications } = useNotifications()

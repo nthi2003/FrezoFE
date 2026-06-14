@@ -58,8 +58,8 @@ export function TagsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-semibold">Quản lý Tags</h1></div>
-        <Button onClick={() => { setSelectedItem(null); setModalOpen(true) }} className="bg-primary-600 hover:bg-primary-700 text-white">
-          <Plus className="w-4 h-4 mr-2" /> Tạo Tag
+        <Button onClick={() => { setSelectedItem(null); setModalOpen(true) }} className="gap-2">
+          <Plus className="w-4 h-4" /> Thêm mới
         </Button>
       </div>
 
@@ -71,7 +71,7 @@ export function TagsPage() {
           defaultValues={selectedItem || { name: '', color: '' }}
           onSubmit={handleSubmit}
           fields={[{ name: 'name', label: 'Tên Tag' }, { name: 'color', label: 'Mã màu (Hex)' }]}
-          submitText="Lưu"
+          submitText="Xác nhận"
           isLoading={createReq.isPending || updateReq.isPending}
         />
       </AppModal>

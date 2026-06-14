@@ -134,7 +134,8 @@ export function PayrollsPage() {
             { name: 'bonusAmount', label: 'Số tiền (VNĐ)', type: 'number' },
             { name: 'reason', label: 'Lý do' },
           ]}
-          submitText="Lưu phụ cấp"
+          submitText="Xác nhận"
+          onCancel={() => setBonusModalOpen(false)}
           isLoading={bonusPayroll.isPending}
         />
       </AppModal>

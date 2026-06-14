@@ -1,17 +1,17 @@
 import * as z from 'zod'
 
 export const personFormSchema = z.object({
-  code: z.string().min(2, 'Mã nhân viên bắt buộc'),
-  name: z.string().min(2, 'Tên nhân viên bắt buộc'),
+  code: z.string().min(1, 'Mã nhân viên không được để trống'),
+  name: z.string().min(1, 'Tên nhân viên không được để trống'),
   email: z.string().email('Email không hợp lệ').optional().or(z.literal('')),
   phone: z.string().optional(),
   identityNumber: z.string().optional(),
   gender: z.string().optional(),
   birthDate: z.string().optional(),
   address: z.string().optional(),
-  departmentId: z.string().optional(),
+  orgId: z.string().optional(),
   jobTitle: z.string().optional(),
-  status: z.boolean().default(true),
+  activated: z.boolean().default(true),
 })
 
 export type PersonFormValues = z.infer<typeof personFormSchema>
@@ -34,3 +34,12 @@ export const bonusSchema = z.object({
 export const contractRejectSchema = z.object({
   reason: z.string().min(5, 'Lý do từ chối tối thiểu 5 ký tự')
 })
+
+export const contractFormSchema = z.object({
+  code: z.string().min(2, 'Mã hợp đồng bắt buộc'),
+  personId: z.string().min(1, 'Vui lòng chọn nhân sự'),
+  type: z.string().min(1, 'Vui lòng chọn loại hợp đồng'),
+  startDate: z.string().min(1, 'Ngày bắt đầu bắt buộc'),
+  endDate: z.string().optional(),
+})
+

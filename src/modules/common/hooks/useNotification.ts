@@ -5,6 +5,6 @@ export function useNotifications() {
   return useQuery({
     queryKey: ['notifications'],
     queryFn: notificationApi.getMyNotifications,
-    initialData: [],
+
   })
 }

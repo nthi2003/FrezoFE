@@ -17,7 +17,7 @@ import { ChevronLeft, ChevronRight, Inbox } from 'lucide-react'
 
 // ---- Types ----
 export interface AppTableColumn<T> {
-  key: string
+  key?: string
   title: string
   dataIndex?: keyof T
   align?: 'left' | 'center' | 'right'
@@ -48,8 +48,13 @@ export function AppTable<T>({
   totalElements = 0,
   onPageChange,
 }: AppTableProps<T>) {
+  const safeData = Array.isArray(data) ? data : []
   const totalPages = Math.ceil(totalElements / pageSize)
-  const isEmpty = !isLoading && data.length === 0
+  const colKey = (col: AppTableColumn<T>) => col.key ?? (col.dataIndex as string) ?? col.title
+  const isEmpty = !isLoading && safeData.length === 0
+  const sttCol: AppTableColumn<T> = { key: '__stt', title: 'STT', width: 60, align: 'center' }
+  const allColumns = [sttCol, ...columns]
+  const totalCols = allColumns.length
 
   return (
     <div className="space-y-4">
@@ -58,9 +63,9 @@ export function AppTable<T>({
         <Table>
           <TableHeader className="bg-neutral-50/80">
             <TableRow>
-              {columns.map((col) => (
+              {allColumns.map((col) => (
                 <TableHead
-                  key={col.key}
+                  key={colKey(col)}
                   style={{ width: col.width, textAlign: col.align || 'left' }}
                   className="font-semibold text-neutral-600"
                 >
@@ -74,8 +79,8 @@ export function AppTable<T>({
             {isLoading &&
               Array.from({ length: loadingRows }).map((_, i) => (
                 <TableRow key={`loading-${i}`}>
-                  {columns.map((col) => (
-                    <TableCell key={`loading-${i}-${col.key}`}>
+                  {allColumns.map((col) => (
+                    <TableCell key={`loading-${i}-${colKey(col)}`}>
                       <Skeleton className="h-5 w-full rounded" />
                     </TableCell>
                   ))}
@@ -85,7 +90,7 @@ export function AppTable<T>({
             {/* Empty State */}
             {isEmpty && (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-48 text-center">
+                <TableCell key="empty" colSpan={totalCols} className="h-48 text-center">
                   <div className="flex flex-col items-center justify-center text-neutral-400">
                     <Inbox size={40} className="mb-2 opacity-20" />
                     <p>Không có dữ liệu</p>
@@ -97,13 +102,20 @@ export function AppTable<T>({
             {/* Data Rows */}
             {!isLoading &&
               !isEmpty &&
-              data.map((row, rowIndex) => (
+              safeData.map((row, rowIndex) => (
                 <TableRow key={rowIndex}>
-                  {columns.map((col) => {
+                  {allColumns.map((col) => {
+                    if (col.key === '__stt') {
+                      return (
+                        <TableCell key="__stt" style={{ textAlign: 'center' }}>
+                          {(pageIndex - 1) * pageSize + rowIndex + 1}
+                        </TableCell>
+                      )
+                    }
                     const value = col.dataIndex ? row[col.dataIndex] : undefined
                     return (
                       <TableCell
-                        key={col.key}
+                        key={colKey(col)}
                         style={{ textAlign: col.align || 'left' }}
                       >
                         {col.render

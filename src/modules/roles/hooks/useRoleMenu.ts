@@ -7,7 +7,7 @@ export function useRoleMenus(roleCode?: string) {
     queryKey: ['role_menus', roleCode],
     queryFn: () => roleMenuApi.getMenusByRole(roleCode!),
     enabled: !!roleCode,
-    initialData: [],
+
   })
 }
 

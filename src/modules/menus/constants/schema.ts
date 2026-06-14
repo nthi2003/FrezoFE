@@ -9,8 +9,8 @@ export const menuFormSchema = z.object({
   feUrl: z.string().optional(),
   icon: z.string().optional(),
   orderIndex: z.number().int().optional(),
-  isPublic: z.boolean().default(false),
-  status: z.boolean().default(true),
+  isPublic: z.boolean().default(false).optional(),
+  status: z.boolean().default(true).optional(),
 })
 
 export type MenuFormValues = z.infer<typeof menuFormSchema>

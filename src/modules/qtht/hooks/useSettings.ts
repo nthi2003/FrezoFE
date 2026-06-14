@@ -6,7 +6,7 @@ export function useSettings() {
   return useQuery({
     queryKey: ['settings'],
     queryFn: settingApi.getSettings,
-    initialData: [],
+
   })
 }
 

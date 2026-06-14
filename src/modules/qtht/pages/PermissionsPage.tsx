@@ -40,7 +40,7 @@ export function PermissionsPage() {
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-semibold">Quản lý Phân quyền (Permissions)</h1></div>
         <Button onClick={() => setModalOpen(true)} className="bg-primary-600 hover:bg-primary-700 text-white">
-          <Plus className="w-4 h-4 mr-2" /> Thêm Quyền
+           <Plus className="w-4 h-4 mr-2" /> Thêm mới
         </Button>
       </div>
       <AppTable data={dataList} columns={columns} isLoading={isLoading} />

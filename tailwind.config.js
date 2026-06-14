@@ -50,6 +50,9 @@ export default {
         danger:  { DEFAULT: '#ef4444', light: '#fee2e2', dark: '#b91c1c' },
         info:    { DEFAULT: '#3b82f6', light: '#dbeafe', dark: '#1d4ed8' },
         // ===== SURFACE & BACKGROUND =====
+        background: {
+          DEFAULT: '#ffffff',
+        },
         surface: {
           DEFAULT: '#ffffff',
           secondary: '#f8fafc',

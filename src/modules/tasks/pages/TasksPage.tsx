@@ -126,7 +126,7 @@ export function TasksPage() {
           <p className="text-sm text-neutral-500">Quản lý và giao việc cho nhân sự</p>
         </div>
         <Button onClick={handleOpenCreate} className="bg-primary-600 hover:bg-primary-700 text-white">
-          <Plus className="w-4 h-4 mr-2" /> Thêm công việc
+           <Plus className="w-4 h-4 mr-2" /> Thêm mới
         </Button>
       </div>
 

@@ -6,6 +6,7 @@ export function useTickets(params?: any) {
   return useQuery({
     queryKey: ['tickets', params],
     queryFn: () => ticketApi.getAll(params),
+    select: (res: any) => res?.data ?? [],
   })
 }
 
@@ -46,6 +47,7 @@ export function useTags(params?: any) {
   return useQuery({
     queryKey: ['tags', params],
     queryFn: () => tagApi.getAll(params),
+    select: (res: any) => res?.data ?? [],
   })
 }
 

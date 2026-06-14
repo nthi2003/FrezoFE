@@ -6,6 +6,7 @@ export function usePayrolls(params?: any) {
   return useQuery({
     queryKey: ['payrolls', params],
     queryFn: () => payrollApi.getAll(params),
+    select: (res: any) => res?.data ?? [],
   })
 }
 

@@ -29,13 +29,7 @@ export interface MenuPermission {
 }
 
 // ---- FE Menu Tree Node (sau khi build từ flat list) ----
-export interface MenuTreeNode {
-  id: string
-  code: string
-  name: string
-  icon?: string | null
-  feUrl?: string | null       // null = group (có children)
-  orderIndex: number
+export interface MenuTreeNode extends MenuResponseItem {
   children: MenuTreeNode[]    // [] = leaf item
   isGroup: boolean            // parentCode === null hoặc không có feUrl
 }

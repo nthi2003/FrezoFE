@@ -10,7 +10,6 @@ export function useRoles(appCode?: string) {
   return useQuery({
     queryKey: ['roles', { appCode }],
     queryFn: () => roleApi.getRoles(appCode),
-    initialData: [],
   })
 }
 

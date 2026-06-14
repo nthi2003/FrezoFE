@@ -23,26 +23,26 @@ export const landingConfigApi = {
 }
 
 export const dashboardApi = {
-  getSummary: () => axiosClient.get<ApiResponse<any>>('/api/dashboard/summary').then(res => res.data),
-  exportAttendance: (params?: any) => axiosClient.get<ApiResponse<any>>('/api/dashboard/export/attendance', { params, responseType: 'blob' }).then(res => res.data),
+  getSummary: () => axiosClient.get<ApiResponse<any>>('/qtht/dashboard/summary').then(res => res.data),
+  exportAttendance: (params?: any) => axiosClient.get<ApiResponse<any>>('/qtht/dashboard/export/attendance', { params, responseType: 'blob' }).then(res => res.data),
 }
 
 export const apiLogApi = {
-  getAll: (params?: any) => axiosClient.get<ApiResponse<any>>('/apilogs', { params }).then(res => res.data),
-  getStats: () => axiosClient.get<ApiResponse<any>>('/apilogs/stats').then(res => res.data),
-  getById: (id: string) => axiosClient.get<ApiResponse<any>>(`/apilogs/${id}`).then(res => res.data),
-  deleteBulk: (days: number) => axiosClient.delete<ApiResponse<any>>(`/apilogs/bulk/${days}`).then(res => res.data),
-  delete: (id: string) => axiosClient.delete<ApiResponse<any>>(`/apilogs/${id}`).then(res => res.data),
+  getAll: (params?: any) => axiosClient.get<ApiResponse<any>>('/qtht/api-log', { params }).then(res => res.data),
+  getStats: () => axiosClient.get<ApiResponse<any>>('/qtht/api-log/stats').then(res => res.data),
+  getById: (id: string) => axiosClient.get<ApiResponse<any>>(`/qtht/api-log/${id}`).then(res => res.data),
+  deleteBulk: (days: number) => axiosClient.delete<ApiResponse<any>>(`/qtht/api-log/bulk/${days}`).then(res => res.data),
+  delete: (id: string) => axiosClient.delete<ApiResponse<any>>(`/qtht/api-log/${id}`).then(res => res.data),
 }
 
 export const notificationApi = {
-  getMy: (params?: any) => axiosClient.get<ApiResponse<any>>('/api/notifications/my', { params }).then(res => res.data),
+  getMy: (params?: any) => axiosClient.get<ApiResponse<any>>('/qtht/notification/my', { params }).then(res => res.data),
 }
 
 export const settingApi = {
-  create: (data: any) => axiosClient.post<ApiResponse<any>>('/settings', data).then(res => res.data),
-  update: (id: string, data: any) => axiosClient.put<ApiResponse<any>>(`/settings/${id}`, data).then(res => res.data),
-  getByOrg: (orgId: string) => axiosClient.get<ApiResponse<any>>(`/settings/org/${orgId}`).then(res => res.data),
+  create: (data: any) => axiosClient.post<ApiResponse<any>>('/qtht/setting', data).then(res => res.data),
+  update: (id: string, data: any) => axiosClient.put<ApiResponse<any>>(`/qtht/setting/${id}`, data).then(res => res.data),
+  getByOrg: (orgId: string) => axiosClient.get<ApiResponse<any>>(`/qtht/setting/org/${orgId}`).then(res => res.data),
 }
 
 export const systemApi = {

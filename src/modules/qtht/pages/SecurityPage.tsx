@@ -25,9 +25,9 @@ export function SecurityPage() {
   const queryClient = useQueryClient()
   
   // Queries
-  const { data: rawBlacklist, isLoading: loadingB } = useQuery({ queryKey: ['ip_blacklist'], queryFn: () => ipBlacklistApi.getAll() })
-  const { data: rawWhitelist, isLoading: loadingW } = useQuery({ queryKey: ['ip_whitelist'], queryFn: () => ipWhitelistApi.getAll() })
-  const { data: rawTrust, isLoading: loadingT } = useQuery({ queryKey: ['ip_trust'], queryFn: () => ipTrustApi.getAll() })
+  const { data: rawBlacklist, isLoading: loadingB } = useQuery({ queryKey: ['ip_blacklist'], queryFn: () => ipBlacklistApi.getAll(), select: (res: any) => res?.data })
+  const { data: rawWhitelist, isLoading: loadingW } = useQuery({ queryKey: ['ip_whitelist'], queryFn: () => ipWhitelistApi.getAll(), select: (res: any) => res?.data })
+  const { data: rawTrust, isLoading: loadingT } = useQuery({ queryKey: ['ip_trust'], queryFn: () => ipTrustApi.getAll(), select: (res: any) => res?.data })
 
   // Mutations - Blacklist
   const banMutation = useMutation({
@@ -101,7 +101,7 @@ export function SecurityPage() {
           <p className="text-sm text-neutral-500 mt-1">Quản lý danh sách truy cập IP</p>
         </div>
         <Button onClick={() => setModalOpen(true)} className="bg-primary-600 hover:bg-primary-700 text-white">
-          <Plus className="w-4 h-4 mr-2" /> Thêm IP {tab === 'blacklist' ? 'chặn' : tab === 'whitelist' ? 'Whitelist' : 'Trusted'}
+           <Plus className="w-4 h-4 mr-2" /> Thêm mới
         </Button>
       </div>
 

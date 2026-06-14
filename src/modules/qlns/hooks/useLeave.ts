@@ -5,7 +5,8 @@ import { toast } from 'sonner'
 export function useLeaveRequests() {
   return useQuery({
     queryKey: ['leave_requests'],
-    queryFn: () => leaveRequestApi.getPending(), // Placeholder: usually gets all/paginated
+    queryFn: () => leaveRequestApi.getPending(),
+    select: (res: any) => res?.data ?? [],
   })
 }
 

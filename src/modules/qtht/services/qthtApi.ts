@@ -5,28 +5,30 @@ import axiosClient from '@/lib/axios/axiosClient'
 import type { ApiResponse } from '@/types/api.types'
 
 export const departmentApi = {
-  getAll: () => axiosClient.get<ApiResponse<any>>('/qlht/departments').then(res => res.data),
-  create: (data: any) => axiosClient.post<ApiResponse<any>>('/qlht/departments', data).then(res => res.data),
-  update: (id: string, data: any) => axiosClient.put<ApiResponse<any>>(`/qlht/departments/${id}`, data).then(res => res.data),
-  delete: (id: string) => axiosClient.delete<ApiResponse<any>>(`/qlht/departments/${id}`).then(res => res.data),
+  getAll: () => axiosClient.get<ApiResponse<any>>('/qtht/department').then(res => res.data.data ?? res.data),
+  create: (data: any) => axiosClient.post<ApiResponse<any>>('/qtht/department', data).then(res => res.data.data ?? res.data),
+  update: (id: string, data: any) => axiosClient.put<ApiResponse<any>>(`/qtht/department/${id}`, data).then(res => res.data.data ?? res.data),
+  delete: (id: string) => axiosClient.delete<ApiResponse<any>>(`/qtht/department/${id}`).then(res => res.data.data ?? res.data),
+  activate: (id: string) => axiosClient.put<ApiResponse<any>>(`/qtht/department/${id}/activate`).then(res => res.data.data ?? res.data),
+  deactivate: (id: string) => axiosClient.put<ApiResponse<any>>(`/qtht/department/${id}/deactivate`).then(res => res.data.data ?? res.data),
 }
 
 export const organizationApi = {
-  getAll: (params?: any) => axiosClient.get<ApiResponse<any>>('/qlht/organization', { params }).then(res => res.data),
-  create: (data: any) => axiosClient.post<ApiResponse<any>>('/qlht/organization', data).then(res => res.data),
-  update: (id: string, data: any) => axiosClient.put<ApiResponse<any>>(`/qlht/organization/${id}`, data).then(res => res.data),
-  delete: (id: string) => axiosClient.delete<ApiResponse<any>>(`/qlht/organization/${id}`).then(res => res.data),
-  getCombobox: () => axiosClient.get<ApiResponse<any>>('/qlht/organization/combobox').then(res => res.data),
+  getAll: (params?: any) => axiosClient.get<ApiResponse<any>>('/qtht/organization', { params }).then(res => res.data.data ?? res.data),
+  create: (data: any) => axiosClient.post<ApiResponse<any>>('/qtht/organization', data).then(res => res.data.data ?? res.data),
+  update: (id: string, data: any) => axiosClient.put<ApiResponse<any>>(`/qtht/organization/${id}`, data).then(res => res.data.data ?? res.data),
+  delete: (id: string) => axiosClient.delete<ApiResponse<any>>(`/qtht/organization/${id}`).then(res => res.data.data ?? res.data),
+  getCombobox: () => axiosClient.get<ApiResponse<any>>('/qtht/organization/combobox').then(res => res.data.data ?? res.data),
 }
 
 export const permissionApi = {
-  getAll: (params?: any) => axiosClient.get<ApiResponse<any>>('/qlht/permissions', { params }).then(res => res.data),
-  create: (data: any) => axiosClient.post<ApiResponse<any>>('/qlht/permissions', data).then(res => res.data),
-  delete: (id: string) => axiosClient.delete<ApiResponse<any>>(`/qlht/permissions/${id}`).then(res => res.data),
-  getCombobox: () => axiosClient.get<ApiResponse<any>>('/qlht/permissions/combobox').then(res => res.data),
+  getAll: (params?: any) => axiosClient.get<ApiResponse<any>>('/qtht/permission', { params }).then(res => res.data.data ?? res.data),
+  create: (data: any) => axiosClient.post<ApiResponse<any>>('/qtht/permission', data).then(res => res.data.data ?? res.data),
+  delete: (id: string) => axiosClient.delete<ApiResponse<any>>(`/qtht/permission/${id}`).then(res => res.data.data ?? res.data),
+  getCombobox: () => axiosClient.get<ApiResponse<any>>('/qtht/permission/combobox').then(res => res.data.data ?? res.data),
 }
 
 export const roleMenuApi = {
-  getByRole: (roleCode: string) => axiosClient.get<ApiResponse<any>>(`/qlht/role-menus/role/${roleCode}`).then(res => res.data),
-  saveAll: (data: any) => axiosClient.post<ApiResponse<any>>('/qlht/role-menus/save-all', data).then(res => res.data),
+  getByRole: (roleCode: string) => axiosClient.get<ApiResponse<any>>(`/qtht/role-menu/role/${roleCode}`).then(res => res.data.data ?? res.data),
+  saveAll: (data: any) => axiosClient.post<ApiResponse<any>>('/qtht/role-menu/save-all', data).then(res => res.data.data ?? res.data),
 }

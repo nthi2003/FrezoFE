@@ -94,7 +94,7 @@ function TreeNode({
             <button 
               onClick={(e) => { e.stopPropagation(); onAddChild(node.code) }}
               className="p-1 text-primary-600 hover:bg-primary-100 rounded"
-              title="Thêm menu con"
+               title="Thêm mới"
             >
               <Plus size={12} />
             </button>
@@ -232,7 +232,7 @@ export function MenusPage() {
               />
             </div>
             <Button size="sm" className="w-full h-8 bg-primary-600 hover:bg-primary-700 text-white" onClick={() => handleCreateNew()}>
-              <Plus size={14} className="mr-1" /> Thêm Root Menu
+               <Plus size={14} className="mr-1" /> Thêm mới
             </Button>
           </div>
           <div className="flex-1 overflow-y-auto p-2">

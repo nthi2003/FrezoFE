@@ -33,7 +33,7 @@ export interface AuthState {
   isAuthenticated: boolean
 }
 
-// ---- Menu (from /qlht/menus) ----
+// ---- Menu (from /qtht/menu) ----
 export interface MenuItem extends BaseEntity {
   name: string
   icon?: string

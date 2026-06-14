@@ -6,6 +6,7 @@ export function useTasks(params?: any) {
   return useQuery({
     queryKey: ['tasks', params],
     queryFn: () => taskApi.getAll(params),
+    select: (res: any) => res?.data ?? [],
   })
 }
 

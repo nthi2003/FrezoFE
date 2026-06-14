@@ -12,8 +12,8 @@ export interface DashboardSummary {
 
 export const dashboardApi = {
   getSummary: () =>
-    axiosClient.get<ApiResponse<DashboardSummary>>('/api/dashboard/summary').then((res) => res.data.data),
+    axiosClient.get<ApiResponse<DashboardSummary>>('/qtht/dashboard/summary').then((res) => res.data.data),
     
   exportAttendance: () =>
-    axiosClient.get('/api/dashboard/export/attendance', { responseType: 'blob' }),
+    axiosClient.get('/qtht/dashboard/export/attendance', { responseType: 'blob' }),
 }

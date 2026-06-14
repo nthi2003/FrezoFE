@@ -3,21 +3,13 @@
 // ============================================================
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { userApi, type RegisterRequest } from '../services/userApi'
+import { userApi, type RegisterRequest, type UserDTO } from '../services/userApi'
 import { toast } from 'sonner'
 
 export function useUsers(page: number, size: number, search: string = '') {
   return useQuery({
     queryKey: ['users', { page, size, search }],
     queryFn: () => userApi.getUsers(page, size, search),
-    initialData: {
-      content: [],
-      pageNumber: page,
-      pageSize: size,
-      totalElements: 0,
-      totalPages: 0,
-      last: true,
-    },
   })
 }
 
@@ -31,6 +23,20 @@ export function useCreateUser() {
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || 'Lỗi khi thêm người dùng')
+    },
+  })
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string | number; data: Partial<UserDTO> }) => userApi.updateUser(id, data),
+    onSuccess: () => {
+      toast.success('Cập nhật người dùng thành công')
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Lỗi cập nhật')
     },
   })
 }

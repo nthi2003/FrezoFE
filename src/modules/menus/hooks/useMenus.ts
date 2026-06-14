@@ -4,7 +4,8 @@
 
 import React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { menuApi, type MenuSaveRequest } from '../services/menuApi'
+import { menuApi } from '../services/menuApi'
+import type { MenuResponseItem } from '../types/menu.types'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -21,7 +22,7 @@ export function useAllMenus() {
   return useQuery({
     queryKey: ['all_menus'],
     queryFn: () => menuApi.getAllMenus(),
-    initialData: [],
+
   })
 }
 
@@ -32,7 +33,6 @@ export function useMenus() {
     queryKey: ['menus_user', user?.username],
     queryFn: () => (user?.username ? menuApi.getMenusForUser(user.username) : []),
     enabled: !!user?.username,
-    initialData: [],
   })
 
   // Build tree
@@ -40,11 +40,11 @@ export function useMenus() {
     const nodeMap = new Map<string, any>()
     const roots: any[] = []
 
-    flatMenus.forEach((item: any) => {
+    ;(flatMenus ?? []).forEach((item: any) => {
       nodeMap.set(item.code, { ...item, children: [] })
     })
 
-    flatMenus.forEach((item: any) => {
+    ;(flatMenus ?? []).forEach((item: any) => {
       const node = nodeMap.get(item.code)
       if (item.parentCode && nodeMap.has(item.parentCode)) {
         nodeMap.get(item.parentCode).children.push(node)
@@ -76,7 +76,7 @@ export function useMenu(id: string) {
 export function useCreateMenu() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: MenuSaveRequest) => menuApi.createMenu(data),
+    mutationFn: (data: Partial<MenuResponseItem>) => menuApi.createMenu(data),
     onSuccess: () => {
       toast.success('Thêm mới menu thành công')
       queryClient.invalidateQueries({ queryKey: ['all_menus'] })
@@ -90,7 +90,7 @@ export function useCreateMenu() {
 export function useUpdateMenu() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: MenuSaveRequest }) =>
+    mutationFn: ({ id, data }: { id: string; data: Partial<MenuResponseItem> }) =>
       menuApi.updateMenu(id, data),
     onSuccess: () => {
       toast.success('Cập nhật menu thành công')

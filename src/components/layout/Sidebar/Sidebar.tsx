@@ -240,26 +240,6 @@ export function Sidebar() {
 
       {/* ---- MENU TREE ---- */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 scrollbar-thin">
-        {/* Dashboard — always present */}
-        <button
-          onClick={() => navigate('/')}
-          title={sidebarCollapsed ? 'Dashboard' : undefined}
-          className={`
-            w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-            transition-all duration-150
-            ${location.pathname === '/' || location.pathname === '/dashboard'
-              ? 'bg-[#1e3d26] text-primary-400'
-              : 'text-[#a3c4a8] hover:bg-[#1a2e1f] hover:text-[#86efac]'
-            }
-          `}
-        >
-          <LayoutDashboard size={16} className="shrink-0" />
-          {!sidebarCollapsed && <span className="flex-1 truncate">Dashboard</span>}
-        </button>
-
-        {/* Divider */}
-        <div className="my-2 border-t border-[#1e3a23]" />
-
         {/* Dynamic menus from BE */}
         {isLoading ? (
           <div className="space-y-2 px-2 py-4">

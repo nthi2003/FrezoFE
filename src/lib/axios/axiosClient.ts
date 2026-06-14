@@ -84,12 +84,12 @@ axiosClient.interceptors.response.use(
           { params: { refreshToken } }
         )
 
-        const { accessToken } = response.data.data
-        storage.set(STORAGE_KEYS.ACCESS_TOKEN, accessToken)
-        axiosClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
+        const newToken = response.data.data?.token || response.data.data?.accessToken
+        storage.set(STORAGE_KEYS.ACCESS_TOKEN, newToken)
+        axiosClient.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
 
-        processQueue(null, accessToken)
-        originalRequest.headers['Authorization'] = `Bearer ${accessToken}`
+        processQueue(null, newToken)
+        originalRequest.headers['Authorization'] = `Bearer ${newToken}`
         return axiosClient(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)

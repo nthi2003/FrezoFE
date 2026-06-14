@@ -15,6 +15,16 @@
   --sidebar-collapsed-width: 72px;
   --header-height: 60px;
   --transition-speed: 200ms;
+
+  /* shadcn theme variables */
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --border: #e2e8f0;
+  --ring: #22c55e;
+  --accent: #f0fdf4;
+  --accent-foreground: #15803d;
 }
 
 /* ===== BASE RESET ===== */

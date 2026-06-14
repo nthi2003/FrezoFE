@@ -79,8 +79,8 @@ export function LeavesPage() {
           <h1 className="text-2xl font-semibold text-neutral-900">Quản lý Nghỉ phép</h1>
           <p className="text-sm text-neutral-500">Duyệt đơn và theo dõi ngày nghỉ của nhân viên</p>
         </div>
-        <Button onClick={() => setCreateModalOpen(true)} className="bg-primary-600 hover:bg-primary-700 text-white">
-          <Plus className="w-4 h-4 mr-2" /> Tạo đơn xin nghỉ
+        <Button onClick={() => setCreateModalOpen(true)} className="gap-2">
+          <Plus className="w-4 h-4" /> Thêm mới
         </Button>
       </div>
 
@@ -100,7 +100,7 @@ export function LeavesPage() {
             { name: 'startDate', label: 'Từ ngày', type: 'date' },
             { name: 'endDate', label: 'Đến ngày', type: 'date' },
           ]}
-          submitText="Gửi đơn"
+          submitText="Xác nhận"
           isLoading={createReq.isPending}
         />
       </AppModal>
@@ -111,7 +111,7 @@ export function LeavesPage() {
           defaultValues={{ reason: '' }}
           onSubmit={(v) => selectedId && rejectReq.mutate({ id: selectedId, data: v }, { onSuccess: () => setRejectModalOpen(false) })}
           fields={[{ name: 'reason', label: 'Lý do từ chối' }]}
-          submitText="Xác nhận từ chối"
+          submitText="Xác nhận"
           isLoading={rejectReq.isPending}
         />
       </AppModal>

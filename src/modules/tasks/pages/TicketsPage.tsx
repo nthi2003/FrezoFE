@@ -67,8 +67,8 @@ export function TicketsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-semibold">Quản lý Tickets</h1></div>
-        <Button onClick={() => { setSelectedItem(null); setModalOpen(true) }} className="bg-primary-600 hover:bg-primary-700 text-white">
-          <Plus className="w-4 h-4 mr-2" /> Tạo Ticket
+        <Button onClick={() => { setSelectedItem(null); setModalOpen(true) }} className="gap-2">
+          <Plus className="w-4 h-4" /> Thêm mới
         </Button>
       </div>
 
@@ -80,7 +80,7 @@ export function TicketsPage() {
           defaultValues={selectedItem || { title: '', content: '' }}
           onSubmit={handleSubmit}
           fields={[{ name: 'title', label: 'Tiêu đề' }, { name: 'content', label: 'Nội dung' }, { name: 'status', label: 'Trạng thái' }]}
-          submitText="Lưu"
+          submitText="Xác nhận"
           isLoading={createReq.isPending || updateReq.isPending}
         />
       </AppModal>
