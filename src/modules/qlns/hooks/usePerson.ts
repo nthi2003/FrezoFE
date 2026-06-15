@@ -6,7 +6,7 @@ export function usePersons(params?: any) {
   return useQuery({
     queryKey: params ? ['persons', params] : ['persons'],
     queryFn: () => personApi.getAll(params),
-    select: (res: any) => res?.data?.items ?? [],
+    select: (res: any) => res?.data ?? { items: [], total: 0 },
   })
 }
 

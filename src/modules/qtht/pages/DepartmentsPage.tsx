@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search, Plus, Edit, Trash2, ChevronRight, ChevronDown, List, GitFork } from 'lucide-react'
+import { Search, Plus, Edit, Trash2, ChevronRight, ChevronDown, List, GitFork, Loader2 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import { AppModal } from '@/components/ui/AppModal'
 import { AppForm } from '@/components/shared/AppForm'
@@ -25,8 +25,8 @@ const defaultFormValues = {
 export function DepartmentsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any | null>(null)
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [viewMode, setViewMode] = useState<'tree' | 'table'>('tree')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const queryClient = useQueryClient()
   const { data: rawData, isLoading } = useDepartments()
@@ -43,12 +43,42 @@ export function DepartmentsPage() {
   const orgOptions = Array.isArray(orgList) ? orgList.map((o: any) => ({ value: o.value, label: o.label })) : []
   const dataList = rawData || []
 
-  // Build tree from flat list
+  // Filter departments based on search query
+  const filteredDataList = useMemo(() => {
+    if (!searchQuery.trim()) return dataList
+    const query = searchQuery.toLowerCase().trim()
+    
+    // Find all matching items
+    const matches = dataList.filter((item: any) => {
+      return (
+        item.name?.toLowerCase().includes(query) ||
+        item.code?.toLowerCase().includes(query) ||
+        item.email?.toLowerCase().includes(query) ||
+        item.organizationName?.toLowerCase().includes(query)
+      )
+    })
+
+    // To keep hierarchy intact, if a child matches, we must recursively include all parent ancestors
+    const result = new Set<any>()
+    const addWithAncestors = (item: any) => {
+      if (!item || result.has(item)) return
+      result.add(item)
+      if (item.parentId) {
+        const parent = dataList.find((p: any) => p.id === item.parentId)
+        if (parent) addWithAncestors(parent)
+      }
+    }
+
+    matches.forEach(addWithAncestors)
+    return Array.from(result)
+  }, [dataList, searchQuery])
+
+  // Build tree structure from filtered flat list
   const treeData = useMemo(() => {
     const map = new Map<string, any>()
     const roots: any[] = []
-    dataList.forEach((item: any) => { map.set(item.id, { ...item, children: [] }) })
-    dataList.forEach((item: any) => {
+    filteredDataList.forEach((item: any) => { map.set(item.id, { ...item, children: [] }) })
+    filteredDataList.forEach((item: any) => {
       const node = map.get(item.id)
       if (item.parentId && map.has(item.parentId)) {
         map.get(item.parentId).children.push(node)
@@ -62,14 +92,17 @@ export function DepartmentsPage() {
     }
     sortTree(roots)
     return roots
-  }, [dataList])
+  }, [filteredDataList])
 
-  const toggleExpand = (id: string) => {
-    setExpandedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
+  const handleOpenEdit = (node: any) => {
+    setSelectedItem(node)
+    setModalOpen(true)
+  }
+
+  const handleDelete = (node: any) => {
+    if (confirm(`Bạn có chắc chắn muốn xóa phòng ban "${node.name}"?`)) {
+      deleteReq.mutate(node.id)
+    }
   }
 
   const handleSubmit = (values: any) => {
@@ -92,112 +125,177 @@ export function DepartmentsPage() {
     else activateReq.mutate(row.id)
   }
 
-  // Render a tree node recursively
-  const renderNode = (node: any, level: number): React.ReactNode => {
-    const hasChildren = node.children?.length > 0
-    const isExpanded = expandedIds.has(node.id)
+  // Recursive Org Chart Node Component
+  const OrgChartNode = ({ node, onEdit, onDelete }: { node: any, onEdit: (node: any) => void, onDelete: (node: any) => void }) => {
+    const hasChildren = node.children && node.children.length > 0
     return (
-      <div key={node.id}>
-        <div
-          className={`flex items-center gap-2 px-2 py-2.5 border-b border-border hover:bg-neutral-50 transition-colors ${level > 0 ? 'ml-6' : ''}`}
-          style={{ paddingLeft: 12 + level * 24 }}
-        >
-          <button
-            className={`w-5 h-5 flex items-center justify-center rounded hover:bg-neutral-200 transition-colors ${hasChildren ? '' : 'invisible'}`}
-            onClick={() => toggleExpand(node.id)}
-          >
-            {isExpanded ? <ChevronDown size={14} className="text-neutral-500" /> : <ChevronRight size={14} className="text-neutral-500" />}
-          </button>
-          <span className="w-[120px] text-sm font-mono text-neutral-600 truncate">{node.code}</span>
-          <span className="flex-1 text-sm font-medium text-neutral-900 truncate">{node.name}</span>
-          <span className="w-[180px] text-sm text-neutral-500 truncate hidden md:block">{node.email || '—'}</span>
-          <span className="w-[140px] text-sm text-neutral-500 truncate hidden lg:block">{node.organizationName || '—'}</span>
-          <div className="w-[120px] flex items-center gap-2">
+      <div className="flex flex-col items-center">
+        {/* Node Card */}
+        <div className="relative p-4 rounded-xl border border-emerald-500/20 bg-white shadow-sm hover:shadow-md transition-all duration-200 w-56 text-center group border-t-4 border-t-emerald-600">
+          <div className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full inline-block mb-1.5">
+            {node.code}
+          </div>
+          <h4 className="text-sm font-bold text-neutral-800 line-clamp-2 min-h-[40px] flex items-center justify-center">
+            {node.name}
+          </h4>
+          {node.email && (
+            <p className="text-[11px] text-neutral-400 mt-1 truncate w-full" title={node.email}>
+              {node.email}
+            </p>
+          )}
+          {node.organizationName && (
+            <p className="text-[10px] text-neutral-500 mt-0.5 italic truncate w-full">
+              {node.organizationName}
+            </p>
+          )}
+
+          <div className="mt-2.5 pt-2 border-t border-neutral-100 flex items-center justify-center gap-2">
             <Switch
               checked={node.status === 'ACTIVE'}
               onChange={() => handleToggleStatus(node)}
             />
-            <span className={`text-xs font-medium ${node.status === 'ACTIVE' ? 'text-success' : 'text-neutral-500'}`}>
-              {node.status === 'ACTIVE' ? 'Hoạt động' : 'Không hoạt động'}
+            <span className={`text-[10px] font-semibold uppercase tracking-wider ${node.status === 'ACTIVE' ? 'text-success' : 'text-neutral-400'}`}>
+              {node.status === 'ACTIVE' ? 'Bật' : 'Tắt'}
             </span>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button title="Sửa" onClick={() => { setSelectedItem(node); setModalOpen(true) }} className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors">
-              <Edit size={15} />
+
+          {/* Action Overlay */}
+          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-white/95 backdrop-blur p-0.5 rounded border border-border shadow-sm">
+            <button
+              title="Chỉnh sửa"
+              onClick={() => onEdit(node)}
+              className="p-1 hover:bg-neutral-100 rounded text-neutral-500 hover:text-primary-600 transition-colors"
+            >
+              <Edit size={12} />
             </button>
-            <button title="Xóa" onClick={() => { if(confirm('Xóa?')) deleteReq.mutate(node.id) }} className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">
-              <Trash2 size={15} />
+            <button
+              title="Xóa"
+              onClick={() => onDelete(node)}
+              className="p-1 hover:bg-neutral-100 rounded text-neutral-500 hover:text-red-600 transition-colors"
+            >
+              <Trash2 size={12} />
             </button>
           </div>
         </div>
-        {hasChildren && isExpanded && node.children.map((child: any) => renderNode(child, level + 1))}
+
+        {/* Children */}
+        {hasChildren && (
+          <div className="flex flex-col items-center mt-4 w-full">
+            {/* Vertical connector from parent to horizontal line */}
+            <div className="w-0.5 h-6 bg-emerald-300" />
+
+            {/* Horizontal Line connector */}
+            <div className="flex gap-8 relative pt-4">
+              {node.children.length > 1 && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[calc(100%-224px)] h-0.5 bg-emerald-300" />
+              )}
+              {node.children.map((child: any, idx: number) => {
+                return (
+                  <div key={child.id} className="relative flex flex-col items-center">
+                    {/* Vertical connector line to child card */}
+                    <div className="absolute -top-4 w-0.5 h-4 bg-emerald-300" />
+                    
+                    {/* Edge line maskers for visual cleanliness */}
+                    {node.children.length > 1 && idx === 0 && (
+                      <div className="absolute -top-4 left-0 w-1/2 h-0.5 bg-white/0" />
+                    )}
+                    {node.children.length > 1 && idx === node.children.length - 1 && (
+                      <div className="absolute -top-4 right-0 w-1/2 h-0.5 bg-white/0" />
+                    )}
+
+                    <OrgChartNode node={child} onEdit={onEdit} onDelete={onDelete} />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     )
   }
 
   return (
     <div className="space-y-4 animate-fade-in p-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-neutral-900">Phòng ban</h2>
-          <p className="text-sm text-neutral-500 mt-1">Quản lý danh sách phòng ban trong hệ thống</p>
+          <h2 className="text-xl font-bold text-neutral-900">Sơ đồ phòng ban</h2>
+          <p className="text-sm text-neutral-500 mt-1">Quản lý cơ cấu và danh sách phòng ban của doanh nghiệp</p>
         </div>
         <Button onClick={() => { setSelectedItem(null); setModalOpen(true) }} className="gap-2 bg-primary-700 hover:bg-primary-800 text-white shadow-sm">
            <Plus size={16} /> Thêm mới
         </Button>
       </div>
+
+      {/* Toolbar View Mode selector */}
       <div className="p-4 rounded-xl border border-border bg-surface shadow-sm">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="relative flex-1 max-w-sm">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <Input placeholder="Tìm theo tên, mã phòng ban..." className="pl-9" />
+            <Input
+              placeholder="Tìm theo tên, mã phòng ban..."
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
           <div className="flex items-center gap-1 bg-neutral-100 rounded-lg p-0.5">
             <button
               onClick={() => setViewMode('tree')}
               className={`px-3 py-1.5 text-sm rounded-md transition-colors ${viewMode === 'tree' ? 'bg-white shadow-sm text-primary-600 font-medium' : 'text-neutral-500 hover:text-neutral-700'}`}
             >
-              <GitFork size={15} className="inline mr-1" />Cây
+              <GitFork size={15} className="inline mr-1" />Gia phả (Cây)
             </button>
             <button
               onClick={() => setViewMode('table')}
               className={`px-3 py-1.5 text-sm rounded-md transition-colors ${viewMode === 'table' ? 'bg-white shadow-sm text-primary-600 font-medium' : 'text-neutral-500 hover:text-neutral-700'}`}
             >
-              <List size={15} className="inline mr-1" />Bảng
+              <List size={15} className="inline mr-1" />Bảng chi tiết
             </button>
           </div>
         </div>
       </div>
+
+      {/* Main content display based on viewMode */}
       {viewMode === 'tree' ? (
-        <div className="rounded-xl border border-border bg-surface shadow-sm overflow-hidden">
-          {/* Tree header */}
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-neutral-50/80 border-b border-border text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-            <span className="w-5" />
-            <span className="w-[120px]">Mã</span>
-            <span className="flex-1">Tên phòng ban</span>
-            <span className="w-[180px] hidden md:block">Email</span>
-            <span className="w-[140px] hidden lg:block">Tổ chức</span>
-            <span className="w-[120px]">Trạng thái</span>
-            <span className="w-16 shrink-0">Thao tác</span>
-          </div>
+        <div className="w-full overflow-x-auto p-10 border border-border rounded-xl bg-neutral-50/40 shadow-inner flex justify-center min-h-[450px]">
           {isLoading ? (
-            <div className="p-8 text-center text-neutral-400">Đang tải...</div>
+            <div className="flex flex-col items-center justify-center text-neutral-400 h-64">
+              <Loader2 className="w-8 h-8 animate-spin mb-2 text-emerald-600" />
+              <span>Đang tải cơ cấu tổ chức...</span>
+            </div>
           ) : treeData.length === 0 ? (
-            <div className="p-8 text-center text-neutral-400">Không có dữ liệu</div>
+            <div className="flex flex-col items-center justify-center text-neutral-400 h-64">
+              <span>Không có dữ liệu cơ cấu phòng ban</span>
+            </div>
           ) : (
-            treeData.map(node => renderNode(node, 0))
+            <div className="flex gap-12 items-start justify-center">
+              {treeData.map((node) => (
+                <OrgChartNode
+                  key={node.id}
+                  node={node}
+                  onEdit={handleOpenEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
           )}
         </div>
       ) : (
         <AppTable
           data={dataList}
           columns={[
-            { title: 'Mã Phòng Ban', dataIndex: 'code' },
-            { title: 'Tên Phòng Ban', dataIndex: 'name' },
-            { title: 'Email', dataIndex: 'email' },
-            { title: 'Tổ chức', dataIndex: 'organizationName' },
+            { title: 'Mã phòng ban', dataIndex: 'code', filterType: 'text' },
+            { title: 'Tên phòng ban', dataIndex: 'name', filterType: 'text' },
+            { title: 'Email', dataIndex: 'email', filterType: 'text' },
+            { title: 'Tổ chức', dataIndex: 'organizationName', filterType: 'text' },
             {
               title: 'Trạng thái', dataIndex: 'status',
+              filterType: 'select',
+              filterOptions: [
+                { value: 'ACTIVE', label: 'Hoạt động' },
+                { value: 'INACTIVE', label: 'Không hoạt động' },
+              ],
               render: (_: any, row: any) => (
                 <div className="flex items-center gap-2">
                   <Switch checked={row.status === 'ACTIVE'} onChange={() => handleToggleStatus(row)} />
@@ -211,16 +309,20 @@ export function DepartmentsPage() {
               title: 'Thao tác', dataIndex: 'id',
               render: (_: any, row: any) => (
                 <div className="flex items-center gap-2">
-                  <button title="Sửa" onClick={() => { setSelectedItem(row); setModalOpen(true) }} className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"><Edit size={15} /></button>
-                  <button title="Xóa" onClick={() => { if(confirm('Xóa?')) deleteReq.mutate(row.id) }} className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={15} /></button>
+                  <button title="Sửa" onClick={() => handleOpenEdit(row)} className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"><Edit size={15} /></button>
+                  <button title="Xóa" onClick={() => handleDelete(row)} className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={15} /></button>
                 </div>
               ),
             },
           ]}
           isLoading={isLoading}
+          showSearch={true}
+          searchPlaceholder="Tìm kiếm nhanh phòng ban..."
         />
       )}
-      <AppModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={selectedItem ? 'Sửa phòng ban' : 'Thêm phòng ban'} maxWidth="4xl">
+
+      {/* Modal Thêm / Sửa */}
+      <AppModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={selectedItem ? 'Sửa thông tin phòng ban' : 'Thêm phòng ban mới'} maxWidth="4xl">
         <AppForm
           schema={depSchema}
           defaultValues={selectedItem ? { ...defaultFormValues, ...selectedItem, status: selectedItem.status === 'ACTIVE' } : defaultFormValues}

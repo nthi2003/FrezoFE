@@ -32,11 +32,11 @@ export function ProductsPage() {
   }
 
   const columns = [
-    { title: 'Mã SP', dataIndex: 'code' },
-    { title: 'Tên sản phẩm', dataIndex: 'name' },
+    { title: 'Mã SP', dataIndex: 'code', filterType: 'text' },
+    { title: 'Tên sản phẩm', dataIndex: 'name', filterType: 'text' },
     { title: 'Giá', dataIndex: 'price' },
-    { title: 'Đơn vị', dataIndex: 'unit' },
-    { title: 'Danh mục', dataIndex: 'categoryName' },
+    { title: 'Đơn vị', dataIndex: 'unit', filterType: 'text' },
+    { title: 'Danh mục', dataIndex: 'categoryName', filterType: 'text' },
     {
       title: 'Thao tác',
       dataIndex: 'id',
@@ -73,7 +73,13 @@ export function ProductsPage() {
         </Button>
       </div>
 
-      <AppTable data={dataList} columns={columns} isLoading={isLoading} />
+      <AppTable
+        data={dataList}
+        columns={columns as any}
+        isLoading={isLoading}
+        showSearch={true}
+        searchPlaceholder="Tìm theo tên, mã sản phẩm..."
+      />
 
       <AppModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={selectedItem ? 'Cập nhật Sản phẩm' : 'Thêm Sản phẩm mới'}>
         <AppForm

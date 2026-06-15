@@ -4,9 +4,11 @@
 // ============================================================
 
 import { lazy, Suspense } from 'react'
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { useAuthStore } from '@/stores/authStore'
+import { menuApi } from '@/modules/menus/services/menuApi'
 
 // ---- Lazy load pages per module ----
 const LoginPage       = lazy(() => import('@/modules/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })))
@@ -43,6 +45,9 @@ const TicketsPage     = lazy(() => import('@/modules/tasks/pages/TicketsPage').t
 const TagsPage        = lazy(() => import('@/modules/tasks/pages/TagsPage').then(m => ({ default: m.TagsPage })))
 const LeavesPage      = lazy(() => import('@/modules/qlns/pages/LeavesPage').then(m => ({ default: m.LeavesPage })))
 
+// Error / Not Found Page
+import { NotFoundPage } from '@/components/shared/NotFoundPage'
+
 // ---- Page loading fallback ----
 function PageLoader() {
   return (
@@ -57,10 +62,48 @@ function PageLoader() {
 
 // ---- Protected Route Guard ----
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, user } = useAuthStore()
+  const location = useLocation()
+
+  const { data: flatMenus, isLoading } = useQuery({
+    queryKey: ['menus_user', user?.username],
+    queryFn: () => (user?.username ? menuApi.getMenusForUser(user.username) : []),
+    enabled: !!user?.username && isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+  })
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }
+
+  if (isLoading) {
+    return <PageLoader />
+  }
+
+  const isAdmin = user?.isAdmin || user?.username === 'admin' || user?.roles?.includes('ADMIN') || user?.roles?.includes('SUPER_ADMIN')
+
+  if (!isAdmin && flatMenus) {
+    const path = location.pathname
+
+    // Always allowed paths
+    const publicProtectedPaths = ['/', '/dashboard', '/profile']
+    if (publicProtectedPaths.includes(path)) {
+      return <>{children}</>
+    }
+
+    // Check if the current path matches any allowed menu's feUrl
+    const hasAccess = flatMenus.some((menu) => {
+      if (!menu.feUrl) return false
+      const cleanFeUrl = menu.feUrl.replace(/\/$/, '')
+      const cleanPath = path.replace(/\/$/, '')
+      return cleanPath === cleanFeUrl || cleanPath.startsWith(cleanFeUrl + '/')
+    })
+
+    if (!hasAccess) {
+      return <Navigate to="/" replace />
+    }
+  }
+
   return <>{children}</>
 }
 
@@ -131,5 +174,5 @@ export const router = createBrowserRouter([
   },
 
   // Catch all
-  { path: '*', element: <Navigate to="/" replace /> },
+  { path: '*', element: <NotFoundPage /> },
 ])

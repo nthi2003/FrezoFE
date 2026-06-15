@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { MultiSelect } from '@/components/ui/MultiSelect'
 
 export function AppForm({ schema, defaultValues, onSubmit, fields, submitText = 'Xác nhận', isLoading, onCancel }: any) {
   const { register, handleSubmit, setValue, control, formState: { errors } } = useForm({
@@ -19,6 +20,8 @@ export function AppForm({ schema, defaultValues, onSubmit, fields, submitText = 
             <Label>{f.label}{f.required ? <span className="text-red-500 ml-1">*</span> : null}</Label>
             {f.type === 'switch' ? (
               <SwitchField name={f.name} control={control} setValue={setValue} />
+            ) : f.type === 'multiselect' ? (
+              <MultiSelectField name={f.name} control={control} setValue={setValue} options={f.options || []} placeholder={f.placeholder} />
             ) : f.type === 'select' ? (
               <select
                 className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -68,3 +71,17 @@ function SwitchField({ name, control, setValue }: any) {
     </div>
   )
 }
+
+function MultiSelectField({ name, control, setValue, options, placeholder }: any) {
+  const value = useWatch({ control, name })
+  const safeValue = (Array.isArray(value) ? value : []) as string[]
+  return (
+    <MultiSelect
+      options={options}
+      value={safeValue}
+      onChange={(v) => setValue(name, v, { shouldValidate: true })}
+      placeholder={placeholder}
+    />
+  )
+}
+

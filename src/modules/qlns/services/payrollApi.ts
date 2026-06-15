@@ -8,11 +8,17 @@ export const payrollApi = {
   calculatePerson: (personId: string, data: any) =>
     axiosClient.post<ApiResponse<any>>(`/qlns/payroll/calculate/${personId}`, data).then(res => res.data),
 
-  calculateAll: (data: any) =>
-    axiosClient.post<ApiResponse<any>>('/qlns/payroll/calculate-all', data).then(res => res.data),
+  calculateAll: (data: { month: number; year: number }) =>
+    axiosClient.post<ApiResponse<any>>('/qlns/payroll/calculate-all', null, { params: data }).then(res => res.data),
 
-  bonus: (id: string, data: any) =>
-    axiosClient.put<ApiResponse<any>>(`/qlns/payroll/${id}/bonus`, data).then(res => res.data),
+  bonus: (id: string, data: { bonusAmount: number; reason: string }) =>
+    axiosClient.put<ApiResponse<any>>(`/qlns/payroll/${id}/bonus`, null, {
+      params: {
+        bonus: data.bonusAmount,
+        deduction: 0,
+        note: data.reason
+      }
+    }).then(res => res.data),
 
   confirm: (id: string) =>
     axiosClient.put<ApiResponse<any>>(`/qlns/payroll/${id}/confirm`).then(res => res.data),

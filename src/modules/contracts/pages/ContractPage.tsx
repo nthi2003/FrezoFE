@@ -58,13 +58,19 @@ export function ContractPage() {
   }
 
   const columns = [
-    { title: 'Mã HĐ', dataIndex: 'code' },
-    { title: 'Nhân sự', dataIndex: 'personName' },
-    { title: 'Loại HĐ', dataIndex: 'type' },
+    { title: 'Mã HĐ', dataIndex: 'code', filterType: 'text' },
+    { title: 'Nhân sự', dataIndex: 'personName', filterType: 'text' },
+    { title: 'Loại HĐ', dataIndex: 'type', filterType: 'text' },
     { title: 'Ngày bắt đầu', dataIndex: 'startDate' },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
+      filterType: 'select',
+      filterOptions: [
+        { value: 'PENDING', label: 'Chờ xử lý' },
+        { value: 'APPROVED', label: 'Đã duyệt' },
+        { value: 'REJECTED', label: 'Từ chối' },
+      ],
       render: (val: any) => {
         const statusMap: Record<string, { label: string, color: string }> = {
           'APPROVED': { label: 'Đã duyệt', color: 'bg-green-100 text-green-700' },
@@ -107,7 +113,13 @@ export function ContractPage() {
         </div>
       </div>
 
-      <AppTable data={contracts} columns={columns} isLoading={isLoading} />
+      <AppTable
+        data={contracts}
+        columns={columns as any}
+        isLoading={isLoading}
+        showSearch={true}
+        searchPlaceholder="Tìm theo mã HĐ, nhân sự..."
+      />
 
       <AppModal isOpen={rejectModalOpen} onClose={() => setRejectModalOpen(false)} title="Từ chối Hợp đồng">
         <AppForm
