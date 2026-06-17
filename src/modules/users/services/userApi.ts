@@ -11,6 +11,7 @@ export interface UserDTO {
   status: number
   personId?: string
   orgId?: string
+  departmentId?: string
   roleIds?: number[]
 }
 
@@ -23,6 +24,7 @@ export interface RegisterRequest {
   personId?: string
   roleIds?: string[]
   orgId?: string
+  departmentId?: string
 }
 
 export const userApi = {

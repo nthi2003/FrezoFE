@@ -22,6 +22,28 @@ export const contractApi = {
     axiosClient.put<ApiResponse<any>>(`/qlns/contract/${id}/update-status`, data).then(res => res.data),
   reject: (id: string, data: any) =>
     axiosClient.put<ApiResponse<any>>(`/qlns/contract/${id}/reject`, data).then(res => res.data),
+  uploadDocument: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return axiosClient.post<ApiResponse<any>>('/qlns/contract/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(res => res.data)
+  },
+  uploadAndExtract: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return axiosClient.post<ApiResponse<any>>('/qlns/contract/upload-and-extract', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(res => res.data)
+  },
+  saveContent: (contractId: string, content: string) =>
+    axiosClient.post<ApiResponse<any>>(`/qlns/contract/${contractId}/save-content`, { content }).then(res => res.data),
+  aiEdit: (contractId: string, text: string, instruction?: string) =>
+    axiosClient.post<ApiResponse<any>>(`/qlns/contract/${contractId}/ai-edit`, { text, instruction: instruction || 'chỉnh sửa văn bản cho chuyên nghiệp, sửa lỗi chính tả và ngữ pháp' }).then(res => res.data),
+  aiEditText: (text: string, instruction?: string) =>
+    axiosClient.post<ApiResponse<any>>('/qlns/contract/ai-edit', { text, instruction: instruction || 'chỉnh sửa văn bản cho chuyên nghiệp, sửa lỗi chính tả và ngữ pháp' }).then(res => res.data),
+  checkAiStatus: (contractId: string) =>
+    axiosClient.get<ApiResponse<any>>(`/qlns/contract/${contractId}/ai-status`).then(res => res.data),
   getVersions: (contractId: string) =>
     axiosClient.get<ApiResponse<any>>(`/qlns/contract/${contractId}/versions`).then(res => res.data),
   getVersionsDiff: (contractId: string) =>

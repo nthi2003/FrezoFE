@@ -32,11 +32,11 @@ export function CustomersPage() {
   }
 
   const columns = [
-    { title: 'Tên khách hàng', dataIndex: 'name' },
-    { title: 'Email', dataIndex: 'email' },
-    { title: 'SĐT', dataIndex: 'phone' },
-    { title: 'Địa chỉ', dataIndex: 'address' },
-    { title: 'Mã số thuế', dataIndex: 'taxCode' },
+    { title: 'Tên khách hàng', dataIndex: 'name', filterType: 'text' },
+    { title: 'Email', dataIndex: 'email', filterType: 'text' },
+    { title: 'SĐT', dataIndex: 'phone', filterType: 'text' },
+    { title: 'Địa chỉ', dataIndex: 'address', filterType: 'text' },
+    { title: 'Mã số thuế', dataIndex: 'taxCode', filterType: 'text' },
     {
       title: 'Thao tác',
       dataIndex: 'id',
@@ -74,7 +74,13 @@ export function CustomersPage() {
         </Button>
       </div>
 
-      <AppTable data={dataList} columns={columns} isLoading={isLoading} />
+      <AppTable
+        data={dataList}
+        columns={columns as any}
+        isLoading={isLoading}
+        showSearch={true}
+        searchPlaceholder="Tìm theo tên, SĐT, email..."
+      />
 
       <AppModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={selectedItem ? 'Cập nhật Khách hàng' : 'Thêm Khách hàng mới'}>
         <AppForm

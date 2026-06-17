@@ -3,7 +3,7 @@
 // ============================================================
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, Edit, Loader2, KeyRound, Lock, Unlock } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { AppModal } from '@/components/ui/AppModal'
@@ -11,6 +11,8 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/Select'
+import { MultiSelect } from '@/components/ui/MultiSelect'
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -23,9 +25,7 @@ import { personApi } from '@/modules/qlns/services/personApi'
 import { useRoles } from '@/modules/roles/hooks/useRoles'
 
 export function UsersPage() {
-  const [page, setPage] = useState(1)
-  const [size, setSize] = useState(10)
-  const [search, setSearch] = useState('')
+  const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserDTO | null>(null)
@@ -34,7 +34,7 @@ export function UsersPage() {
     isOpen: boolean; title: string; message: string; onConfirm: () => void
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
 
-  const { data: usersData, isLoading } = useUsers(page, size, search)
+  const { data: usersData, isLoading } = useUsers(1, 1000, '')
   const { data: personOptions } = useQuery({
     queryKey: ['persons-combobox'],
     queryFn: () => personApi.getCombobox(),
@@ -54,14 +54,7 @@ export function UsersPage() {
   })
   const selectedRoleIds = watch('roleIds') || []
 
-  const handlePageChange = (newPage: number, newSize: number) => {
-    setPage(newPage)
-    setSize(newSize)
-  }
 
-  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') { setPage(1); setSearch(e.currentTarget.value) }
-  }
 
   const handleOpenCreate = () => { setIsEditMode(false); setSelectedUser(null); setDataPersonId(''); reset(); setIsModalOpen(true) }
 
@@ -127,12 +120,18 @@ export function UsersPage() {
   }
 
   const columns: AppTableColumn<UserDTO>[] = [
-    { key: 'username', title: 'Tên đăng nhập', dataIndex: 'username' },
-    { key: 'fullName', title: 'Họ và tên', dataIndex: 'fullName' },
-    { key: 'email', title: 'Email', dataIndex: 'email' },
-    { key: 'phone', title: 'Số điện thoại', dataIndex: 'phone' },
+    { key: 'username', title: 'Tên đăng nhập', dataIndex: 'username', filterType: 'text' },
+    { key: 'fullName', title: 'Họ và tên', dataIndex: 'fullName', filterType: 'text',
+      render: (_, record) => (record as any).name || record.fullName || '', },
+    { key: 'email', title: 'Email', dataIndex: 'email', filterType: 'text' },
+    { key: 'phone', title: 'Số điện thoại', dataIndex: 'phone', filterType: 'text' },
     {
-      key: 'status', title: 'Trạng thái', align: 'center',
+      key: 'status', title: 'Trạng thái', dataIndex: 'status', align: 'center',
+      filterType: 'select',
+      filterOptions: [
+        { value: '1', label: 'Hoạt động' },
+        { value: '0', label: 'Khóa' },
+      ],
       render: (_, record) => (
         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
           record.status === 1 ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
@@ -202,23 +201,16 @@ export function UsersPage() {
         </Button>
       </div>
 
-      {/* Toolbar */}
-      <div className="p-4 rounded-xl border border-border bg-surface shadow-sm">
-        <div className="relative max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <Input placeholder="Nhập tên đăng nhập hoặc email và nhấn Enter..." className="pl-9" onKeyDown={handleSearch} />
-        </div>
-      </div>
-
       {/* Table */}
       <AppTable
         columns={columns}
         data={usersData?.items || []}
         isLoading={isLoading}
-        pageIndex={page}
-        pageSize={size}
-        totalElements={usersData?.total || 0}
-        onPageChange={handlePageChange}
+        showSearch={true}
+        searchPlaceholder="Tìm theo tên đăng nhập, họ tên, email..."
+        onRefresh={() => {
+          queryClient.invalidateQueries({ queryKey: ['users'] })
+        }}
       />
 
       {/* Modal Thêm / Sửa */}
@@ -245,14 +237,11 @@ export function UsersPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="personSelect">Họ và tên <span className="text-danger">*</span></Label>
-              <select
-                id="personSelect"
-                className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                {...register('personId')}
+              <Label htmlFor="personSelect">Nhân sự liên kết <span className="text-danger">*</span></Label>
+              <Select
+                options={personOptions || []}
                 value={dataPersonId}
-                onChange={(e) => {
-                  const id = e.target.value
+                onChange={(id) => {
                   setDataPersonId(id)
                   setValue('personId', id)
                   const selected = (personOptions || []).find((p: any) => p.value === id)
@@ -266,12 +255,8 @@ export function UsersPage() {
                     setValue('email', '')
                   }
                 }}
-              >
-                <option value="">-- Chọn nhân viên --</option>
-                {(personOptions || []).map((p: any) => (
-                  <option key={p.value} value={p.value}>{p.label}</option>
-                ))}
-              </select>
+                placeholder="Chọn nhân sự liên kết..."
+              />
               <input type="hidden" {...register('fullname')} />
               {errors.fullname && <p className="text-xs text-danger">{errors.fullname.message}</p>}
             </div>
@@ -282,34 +267,20 @@ export function UsersPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Vai trò</Label>
-              <div className="flex flex-wrap gap-3 pt-1">
-                {(Array.isArray(rolesData) ? rolesData : []).map((r: any) => (
-                  <label key={r.id || r.code} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                    <input
-                      type="checkbox"
-                      value={r.code}
-                      checked={selectedRoleIds.includes(r.code)}
-                      onChange={(e) => {
-                        const updated = e.target.checked
-                          ? [...selectedRoleIds, r.code]
-                          : selectedRoleIds.filter((c: string) => c !== r.code)
-                        setValue('roleIds', updated, { shouldValidate: true })
-                      }}
-                      className="rounded border-border text-primary focus:ring-primary"
-                    />
-                    {r.name}
-                  </label>
-                ))}
-              </div>
-              {errors.roleIds && <p className="text-xs text-danger">{errors.roleIds.message}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="orgId">Đơn vị</Label>
-              <Input id="orgId" placeholder="Mã đơn vị" {...register('orgId')} />
-            </div>
+          <div className="space-y-1.5">
+            <Label>Vai trò</Label>
+            <MultiSelect
+              options={(Array.isArray(rolesData) ? rolesData : []).map((r: any) => ({
+                value: r.code,
+                label: r.name,
+              }))}
+              value={selectedRoleIds}
+              onChange={(updated) => {
+                setValue('roleIds', updated, { shouldValidate: true })
+              }}
+              placeholder="Chọn vai trò..."
+            />
+            {errors.roleIds && <p className="text-xs text-danger">{errors.roleIds.message}</p>}
           </div>
 
           {/* Hidden */}

@@ -80,10 +80,10 @@ export function OrganizationsPage() {
   }
 
   const columns = [
-    { title: 'Mã', dataIndex: 'code' },
-    { title: 'Tên Tổ chức', dataIndex: 'name' },
-    { title: 'Email', dataIndex: 'email' },
-    { title: 'Loại', dataIndex: 'type' },
+    { title: 'Mã', dataIndex: 'code', filterType: 'text' },
+    { title: 'Tên Tổ chức', dataIndex: 'name', filterType: 'text' },
+    { title: 'Email', dataIndex: 'email', filterType: 'text' },
+    { title: 'Loại', dataIndex: 'type', filterType: 'select', filterOptions: TYPE_OPTIONS },
     {
       title: 'Trạng thái', dataIndex: 'status',
       render: (val: string) => {
@@ -136,7 +136,7 @@ export function OrganizationsPage() {
            <Plus className="w-4 h-4 mr-2" /> Thêm mới
         </Button>
       </div>
-      <AppTable data={dataList} columns={columns} isLoading={isLoading} />
+      <AppTable data={dataList} columns={columns} isLoading={isLoading} showSearch={true} searchPlaceholder="Tìm theo mã, tên, email..." />
       <AppModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={selectedItem ? 'Sửa tổ chức' : 'Thêm tổ chức'} maxWidth="4xl">
         <AppForm
           schema={orgSchema}

@@ -31,13 +31,19 @@ export function LeavesPage() {
   }
 
   const columns = [
-    { title: 'Nhân viên', dataIndex: 'personName' },
-    { title: 'Lý do', dataIndex: 'reason' },
+    { title: 'Nhân viên', dataIndex: 'personName', filterType: 'text' },
+    { title: 'Lý do', dataIndex: 'reason', filterType: 'text' },
     { title: 'Từ ngày', dataIndex: 'startDate' },
     { title: 'Đến ngày', dataIndex: 'endDate' },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
+      filterType: 'select',
+      filterOptions: [
+        { value: 'PENDING', label: 'Chờ duyệt' },
+        { value: 'APPROVED', label: 'Đã duyệt' },
+        { value: 'REJECTED', label: 'Từ chối' },
+      ],
       render: (val: any) => {
         const statusMap: Record<string, { label: string, color: string }> = {
           'APPROVED': { label: 'Đã duyệt', color: 'bg-green-100 text-green-700' },
@@ -86,8 +92,10 @@ export function LeavesPage() {
 
       <AppTable 
         data={dataList} 
-        columns={columns} 
+        columns={columns as any} 
         isLoading={isLoading} 
+        showSearch={true}
+        searchPlaceholder="Tìm theo tên nhân viên..."
       />
 
       <AppModal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title="Tạo đơn xin nghỉ phép">

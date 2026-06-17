@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { FileText, FileX2, History, CheckCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { FileX2, History, CheckCircle, Plus } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import { Button } from '@/components/ui/button'
 import { AppModal } from '@/components/ui/AppModal'
@@ -11,21 +12,17 @@ import { contractRejectSchema } from '@/modules/qlns/constants/schema'
 import { toast } from 'sonner'
 
 export function ContractPage() {
+  const navigate = useNavigate()
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
-  // For this UI we map through Persons to extract contracts if any exist, 
-  // or just use a generic list if the API supports it.
-  // We'll use a mocked query that could be replaced by a real endpoint `/qlns/contract` if it existed.
-  // In Frezo ERP, we fetch from personApi and flatten contracts.
   const { data: personsData, isLoading } = useQuery({
     queryKey: ['persons_for_contracts'],
     queryFn: () => personApi.getAll(),
     select: (res: any) => res?.data ?? [],
   })
 
-  // Extract contracts from persons
   const contracts = Array.isArray(personsData)
     ? personsData.flatMap((p: any) => p.contracts?.map((c: any) => ({ ...c, personName: p.fullName })) || [])
     : []
@@ -39,7 +36,6 @@ export function ContractPage() {
     }
   })
 
-  // Dummy approve since there is no endpoint, just for UX completeness
   const approveContract = useMutation({
     mutationFn: ({ id }: any) => new Promise((resolve) => setTimeout(() => resolve('OK'), 500)),
     onSuccess: () => {
@@ -58,13 +54,19 @@ export function ContractPage() {
   }
 
   const columns = [
-    { title: 'Mã HĐ', dataIndex: 'code' },
-    { title: 'Nhân sự', dataIndex: 'personName' },
-    { title: 'Loại HĐ', dataIndex: 'type' },
+    { title: 'Mã HĐ', dataIndex: 'code', filterType: 'text' },
+    { title: 'Nhân sự', dataIndex: 'personName', filterType: 'text' },
+    { title: 'Loại HĐ', dataIndex: 'type', filterType: 'text' },
     { title: 'Ngày bắt đầu', dataIndex: 'startDate' },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
+      filterType: 'select',
+      filterOptions: [
+        { value: 'PENDING', label: 'Chờ xử lý' },
+        { value: 'APPROVED', label: 'Đã duyệt' },
+        { value: 'REJECTED', label: 'Từ chối' },
+      ],
       render: (val: any) => {
         const statusMap: Record<string, { label: string, color: string }> = {
           'APPROVED': { label: 'Đã duyệt', color: 'bg-green-100 text-green-700' },
@@ -105,9 +107,18 @@ export function ContractPage() {
           <h1 className="text-2xl font-bold text-neutral-900">Quản lý Hợp đồng</h1>
           <p className="text-sm text-neutral-500">Phê duyệt và theo dõi các hợp đồng lao động</p>
         </div>
+        <Button onClick={() => navigate('/qlns/contract/create')} className="gap-2">
+          <Plus size={16} /> Thêm mới
+        </Button>
       </div>
 
-      <AppTable data={contracts} columns={columns} isLoading={isLoading} />
+      <AppTable
+        data={contracts}
+        columns={columns as any}
+        isLoading={isLoading}
+        showSearch={true}
+        searchPlaceholder="Tìm theo mã HĐ, nhân sự..."
+      />
 
       <AppModal isOpen={rejectModalOpen} onClose={() => setRejectModalOpen(false)} title="Từ chối Hợp đồng">
         <AppForm

@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Trash2, Loader2, Search } from 'lucide-react'
-import { AppTable } from '@/components/ui/AppTable'
+import { Plus, Edit, Trash2, Loader2, Search, Filter, RotateCw } from 'lucide-react'
+import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { AppModal } from '@/components/ui/AppModal'
 import { AppForm } from '@/components/shared/AppForm'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { organizationApi } from '@/modules/qtht/services/qthtApi'
+import { Select } from '@/components/ui/Select'
+import { organizationApi, departmentApi } from '@/modules/qtht/services/qthtApi'
 import { categoryApi } from '@/modules/qtht/services/categoryApi'
 import {
   usePersons,
@@ -36,6 +37,7 @@ const defaultFormValues = {
   birthDate: '',
   address: '',
   orgId: '',
+  departmentId: '',
   jobTitle: '',
   activated: true,
 }
@@ -47,11 +49,28 @@ export function PersonsPage() {
     isOpen: boolean; title: string; message: string; onConfirm: () => void; variant?: 'danger' | 'warning'
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
 
+  // Pagination & Filter States
+  const [page, setPage] = useState(1)
+  const [size, setSize] = useState(10)
+  const [filters, setFilters] = useState<Record<string, any>>({})
+
   const queryClient = useQueryClient()
-  const { data: rawData, isLoading } = usePersons()
+
+  // Build filter query params
+  const filterParams = {
+    pageNumber: page,
+    pageSize: size,
+    ...filters
+  }
+
+  const { data: rawData, isLoading } = usePersons(filterParams)
   const { data: orgList } = useQuery({
     queryKey: ['organizations-combobox'],
     queryFn: () => organizationApi.getCombobox(),
+  })
+  const { data: departmentList } = useQuery({
+    queryKey: ['departments-combobox'],
+    queryFn: () => departmentApi.getCombobox(),
   })
   const { data: chucDanhList } = useQuery({
     queryKey: ['categories', 'ChucDanh'],
@@ -65,8 +84,16 @@ export function PersonsPage() {
   const deactivatePerson = useDeactivatePerson()
 
   const orgOptions = Array.isArray(orgList) ? orgList.map((o: any) => ({ value: o.value, label: o.label })) : []
+  const departmentOptions = Array.isArray(departmentList) ? departmentList.map((d: any) => ({ value: d.value, label: d.label })) : []
   const chucDanhOptions = Array.isArray(chucDanhList) ? chucDanhList.map((item: any) => ({ value: item.name, label: item.name })) : []
-  const dataList = rawData || []
+  
+  const dataList = rawData?.items || []
+  const totalElements = rawData?.total || 0
+
+  const handlePageChange = (newPage: number, newSize: number) => {
+    setPage(newPage)
+    setSize(newSize)
+  }
 
   const handleOpenCreate = () => {
     setSelectedPerson(null)
@@ -90,16 +117,14 @@ export function PersonsPage() {
 
   const handleToggleActive = (person: any) => {
     const newActivated = !person.activated
-    queryClient.setQueryData(['persons'], (old: any) => {
-      if (!old?.data?.items) return old
-      return { ...old, data: { ...old.data, items: old.data.items.map((item: any) =>
-        item.id === person.id ? { ...item, activated: newActivated } : item
-      )}}
-    })
     if (newActivated) {
-      activatePerson.mutate(person.id)
+      activatePerson.mutate(person.id, {
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['persons'] })
+      })
     } else {
-      deactivatePerson.mutate(person.id)
+      deactivatePerson.mutate(person.id, {
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['persons'] })
+      })
     }
   }
 
@@ -116,16 +141,46 @@ export function PersonsPage() {
 
   const isPending = createPerson.isPending || updatePerson.isPending
 
-  const columns = [
+  const columns: AppTableColumn<any>[] = [
     { title: 'Mã NV', dataIndex: 'code', key: 'code',
       render: (val: any) => <span className="font-mono text-xs font-semibold text-neutral-600">{val}</span> },
     { title: 'Họ tên', dataIndex: 'name', key: 'name',
       render: (val: any) => <span className="font-medium text-neutral-800">{val}</span> },
     { title: 'Email', dataIndex: 'email', key: 'email' },
-    { title: 'Tổ chức', dataIndex: 'orgName', key: 'orgName' },
-    { title: 'Chức danh', dataIndex: 'jobTitle', key: 'jobTitle' },
+    {
+      title: 'Tổ chức',
+      dataIndex: 'orgName',
+      key: 'orgName',
+      filterType: 'select',
+      filterKey: 'orgId',
+      filterOptions: orgOptions,
+    },
+    {
+      title: 'Phòng ban',
+      dataIndex: 'departmentName',
+      key: 'departmentName',
+      filterType: 'select',
+      filterKey: 'departmentId',
+      filterOptions: departmentOptions,
+    },
+    {
+      title: 'Chức danh',
+      dataIndex: 'jobTitle',
+      key: 'jobTitle',
+      filterType: 'select',
+      filterOptions: chucDanhOptions,
+    },
+    {
+      title: 'Giới tính',
+      dataIndex: 'gender',
+      key: 'gender',
+      filterType: 'select',
+      filterOptions: GENDER_OPTIONS,
+      render: (val: string) => GENDER_OPTIONS.find(opt => opt.value === val)?.label || val
+    },
     {
       title: 'Trạng thái', dataIndex: 'activated', key: 'activated',
+      filterType: 'boolean',
       render: (_: any, row: any) => (
         <div className="flex items-center gap-2">
           <Switch
@@ -175,16 +230,22 @@ export function PersonsPage() {
         </Button>
       </div>
 
-      {/* Toolbar */}
-      <div className="p-4 rounded-xl border border-border bg-surface shadow-sm">
-        <div className="relative max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <Input placeholder="Tìm theo tên, mã nhân viên..." className="pl-9" />
-        </div>
-      </div>
-
       {/* Table */}
-      <AppTable data={dataList} columns={columns} isLoading={isLoading} />
+      <AppTable
+        data={dataList}
+        columns={columns}
+        isLoading={isLoading}
+        pageIndex={page}
+        pageSize={size}
+        totalElements={totalElements}
+        onPageChange={handlePageChange}
+        showSearch={true}
+        searchPlaceholder="Tìm theo tên, mã nhân viên..."
+        onFilterChange={(nextFilters) => {
+          setFilters(nextFilters)
+          setPage(1)
+        }}
+      />
 
       {/* Modal Tạo / Sửa */}
       <AppModal
@@ -210,6 +271,7 @@ export function PersonsPage() {
             { name: 'birthDate', label: 'Ngày sinh', type: 'date' },
             { name: 'jobTitle', label: 'Chức danh', type: 'select', options: chucDanhOptions },
             { name: 'orgId', label: 'Tổ chức', type: 'select', options: orgOptions },
+            { name: 'departmentId', label: 'Phòng ban', type: 'select', options: departmentOptions },
             { name: 'activated', label: 'Trạng thái', type: 'switch' },
             { name: 'address', label: 'Địa chỉ', placeholder: 'Số nhà, đường, quận, thành phố...' },
           ]}

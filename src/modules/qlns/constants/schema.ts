@@ -10,6 +10,7 @@ export const personFormSchema = z.object({
   birthDate: z.string().optional(),
   address: z.string().optional(),
   orgId: z.string().optional(),
+  departmentId: z.string().optional(),
   jobTitle: z.string().optional(),
   activated: z.boolean().default(true),
 })
@@ -41,5 +42,6 @@ export const contractFormSchema = z.object({
   type: z.string().min(1, 'Vui lòng chọn loại hợp đồng'),
   startDate: z.string().min(1, 'Ngày bắt đầu bắt buộc'),
   endDate: z.string().optional(),
+  content: z.string().optional(),
 })
 

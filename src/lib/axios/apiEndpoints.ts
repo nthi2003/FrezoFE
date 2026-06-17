@@ -9,6 +9,7 @@ export const API = {
     FORGOT_PW:     '/auth/forgot-password',
     RESET_PW:      '/auth/reset-password',
     LOGIN_HISTORY: '/auth/login-history',
+    AVATAR_UPLOAD: '/auth/avatar',
   },
 
   // ---- Sessions (/auth/session) ----
@@ -23,6 +24,13 @@ export const API = {
   // ---- Statistics (/auth/statistic) ----
   STATISTICS: {
     LOGIN_BY_DAY: '/auth/statistic/login-by-day',
+  },
+
+  // ---- Person Document ----
+  PERSON_DOCUMENT: {
+    LIST:      (personId: string) => `/qtht/person-document/${personId}`,
+    UPLOAD:    (personId: string) => `/qtht/person-document/${personId}/upload`,
+    DELETE:    (personId: string, docId: string) => `/qtht/person-document/${personId}/${docId}`,
   },
 
   // ---- QTHT — Quản trị hệ thống ----
@@ -55,6 +63,9 @@ export const API = {
     CONTRACT_ASSIGN:  (id: string) => `/qlns/contract/${id}/assign`,
     CONTRACT_STATUS:  (id: string) => `/qlns/contract/${id}/update-status`,
     CONTRACT_REJECT:  (id: string) => `/qlns/contract/${id}/reject`,
+    CONTRACT_UPLOAD:  '/qlns/contract/upload',
+    CONTRACT_UPLOAD_AND_EXTRACT: '/qlns/contract/upload-and-extract',
+    CONTRACT_SAVE_CONTENT: (id: string) => `/qlns/contract/${id}/save-content`,
     CONTRACT_VERSIONS:  (id: string) => `/qlns/contract/${id}/versions`,
     CONTRACT_VERSIONS_DIFF: (id: string) => `/qlns/contract/${id}/versions/diff`,
     ATTENDANCE:     '/qlns/attendance',

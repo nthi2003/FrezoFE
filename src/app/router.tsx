@@ -4,9 +4,11 @@
 // ============================================================
 
 import { lazy, Suspense } from 'react'
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { useAuthStore } from '@/stores/authStore'
+import { menuApi } from '@/modules/menus/services/menuApi'
 
 // ---- Lazy load pages per module ----
 const LoginPage       = lazy(() => import('@/modules/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })))
@@ -26,6 +28,7 @@ const LandingConfigPage = lazy(() => import('@/modules/qtht/pages/LandingConfigP
 
 // Contracts
 const ContractPage    = lazy(() => import('@/modules/contracts/pages/ContractPage').then(m => ({ default: m.ContractPage })))
+const ContractCreatePage = lazy(() => import('@/modules/contracts/pages/ContractCreatePage').then(m => ({ default: m.ContractCreatePage })))
 
 // QLNS
 const PersonsPage     = lazy(() => import('@/modules/qlns/pages/PersonsPage').then(m => ({ default: m.PersonsPage })))
@@ -43,6 +46,15 @@ const TicketsPage     = lazy(() => import('@/modules/tasks/pages/TicketsPage').t
 const TagsPage        = lazy(() => import('@/modules/tasks/pages/TagsPage').then(m => ({ default: m.TagsPage })))
 const LeavesPage      = lazy(() => import('@/modules/qlns/pages/LeavesPage').then(m => ({ default: m.LeavesPage })))
 
+// Articles
+const ArticlesPage    = lazy(() => import('@/modules/articles/pages/ArticlesPage').then(m => ({ default: m.ArticlesPage })))
+
+// Profile
+const ProfilePage     = lazy(() => import('@/modules/profile/pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
+
+// Error / Not Found Page
+import { NotFoundPage } from '@/components/shared/NotFoundPage'
+
 // ---- Page loading fallback ----
 function PageLoader() {
   return (
@@ -57,10 +69,48 @@ function PageLoader() {
 
 // ---- Protected Route Guard ----
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, user } = useAuthStore()
+  const location = useLocation()
+
+  const { data: flatMenus, isLoading } = useQuery({
+    queryKey: ['menus_user', user?.username],
+    queryFn: () => (user?.username ? menuApi.getMenusForUser(user.username) : []),
+    enabled: !!user?.username && isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+  })
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }
+
+  if (isLoading) {
+    return <PageLoader />
+  }
+
+  const isAdmin = user?.isAdmin || user?.username === 'admin' || user?.roles?.includes('ADMIN') || user?.roles?.includes('SUPER_ADMIN')
+
+  if (!isAdmin && flatMenus) {
+    const path = location.pathname
+
+    // Always allowed paths
+    const publicProtectedPaths = ['/', '/dashboard', '/profile']
+    if (publicProtectedPaths.includes(path)) {
+      return <>{children}</>
+    }
+
+    // Check if the current path matches any allowed menu's feUrl
+    const hasAccess = flatMenus.some((menu) => {
+      if (!menu.feUrl) return false
+      const cleanFeUrl = menu.feUrl.replace(/\/$/, '')
+      const cleanPath = path.replace(/\/$/, '')
+      return cleanPath === cleanFeUrl || cleanPath.startsWith(cleanFeUrl + '/')
+    })
+
+    if (!hasAccess) {
+      return <Navigate to="/" replace />
+    }
+  }
+
   return <>{children}</>
 }
 
@@ -113,7 +163,8 @@ export const router = createBrowserRouter([
 
       // QLNS
       { path: 'qlns/persons',     element: <Suspense fallback={<PageLoader />}><PersonsPage /></Suspense> },
-      { path: 'qlns/contract',    element: <Suspense fallback={<PageLoader />}><ContractPage /></Suspense> },
+      { path: 'qlns/contract',        element: <Suspense fallback={<PageLoader />}><ContractPage /></Suspense> },
+      { path: 'qlns/contract/create', element: <Suspense fallback={<PageLoader />}><ContractCreatePage /></Suspense> },
       { path: 'qlns/payrolls',    element: <Suspense fallback={<PageLoader />}><PayrollsPage /></Suspense> },
 
       // Customer
@@ -127,9 +178,15 @@ export const router = createBrowserRouter([
       { path: 'task/tickets',     element: <Suspense fallback={<PageLoader />}><TicketsPage /></Suspense> },
       { path: 'task/tags',        element: <Suspense fallback={<PageLoader />}><TagsPage /></Suspense> },
       { path: 'qlns/leaves',      element: <Suspense fallback={<PageLoader />}><LeavesPage /></Suspense> },
+
+      // Articles
+      { path: 'admin/article-management', element: <Suspense fallback={<PageLoader />}><ArticlesPage /></Suspense> },
+
+      // Profile
+      { path: 'profile',          element: <Suspense fallback={<PageLoader />}><ProfilePage /></Suspense> },
     ],
   },
 
   // Catch all
-  { path: '*', element: <Navigate to="/" replace /> },
+  { path: '*', element: <NotFoundPage /> },
 ])

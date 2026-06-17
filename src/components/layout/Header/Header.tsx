@@ -4,8 +4,8 @@
 // ============================================================
 
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { Search, Bell, ChevronRight, CheckCircle2, AlertCircle, Info } from 'lucide-react'
-import { useLocation } from 'react-router-dom'
+import { Search, Bell, ChevronRight, CheckCircle2, AlertCircle, Info, User, LogOut } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotifications } from '@/modules/common/hooks/useNotification'
 import { useMenus } from '@/modules/menus/hooks/useMenus'
@@ -44,7 +44,8 @@ function buildBreadcrumbs(pathname: string, labelMap: Map<string, string>) {
 
 export function Header() {
   const { pathname } = useLocation()
-  const { user } = useAuthStore()
+  const navigate = useNavigate()
+  const { user, logout } = useAuthStore()
   const { menuTree } = useMenus()
 
   // Build label map từ menuTree (tên tiếng Việt theo feUrl)
@@ -58,10 +59,17 @@ export function Header() {
   const [showNotif, setShowNotif] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
 
+  // User dropdown
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setShowNotif(false)
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -143,22 +151,61 @@ export function Header() {
           )}
         </div>
 
-        {/* User avatar */}
-        <div className="flex items-center gap-2 pl-2 border-l border-border">
-          <div className="w-7 h-7 bg-primary-600 rounded-full flex items-center justify-center cursor-pointer
-            hover:bg-primary-700 transition-colors">
-            <span className="text-white text-xs font-bold uppercase">
-              {user?.fullName?.charAt(0) || user?.username?.charAt(0) || 'U'}
-            </span>
-          </div>
-          <div className="hidden md:block">
-            <div className="text-xs font-semibold text-neutral-700 leading-tight">
-              {user?.fullName || user?.username}
+        {/* User avatar dropdown */}
+        <div className="relative" ref={userMenuRef}>
+          <div
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="flex items-center gap-2 pl-2 border-l border-border cursor-pointer"
+          >
+            {user?.avatar ? (
+              <img src={user.avatar} alt="avatar" className="w-7 h-7 rounded-full object-cover border border-border" />
+            ) : (
+              <div className="w-7 h-7 bg-primary-600 rounded-full flex items-center justify-center
+                hover:bg-primary-700 transition-colors">
+                <span className="text-white text-xs font-bold uppercase">
+                  {user?.fullName?.charAt(0) || user?.username?.charAt(0) || 'U'}
+                </span>
+              </div>
+            )}
+            <div className="hidden md:block">
+              <div className="text-xs font-semibold text-neutral-700 leading-tight">
+                {user?.fullName || user?.username}
+              </div>
+              <div className="text-[10px] text-neutral-400 leading-tight">
+                {user?.isAdmin ? 'Admin' : user?.roles?.[0] || 'User'}
+              </div>
             </div>
-            <div className="text-[10px] text-neutral-400 leading-tight">
-              {user?.isAdmin ? 'Admin' : user?.roles?.[0] || 'User'}
-            </div>
           </div>
+
+          {/* Dropdown menu */}
+          {showUserMenu && (
+            <div className="absolute top-10 right-0 w-48 bg-white rounded-xl shadow-lg border border-border overflow-hidden z-50 animate-fade-in">
+              <div className="px-4 py-3 border-b border-border bg-neutral-50">
+                <div className="text-sm font-semibold text-neutral-800 truncate">
+                  {user?.fullName || user?.username}
+                </div>
+                <div className="text-xs text-neutral-500 truncate mt-0.5">
+                  {user?.email || user?.username}
+                </div>
+              </div>
+              <div className="py-1">
+                <button
+                  onClick={() => { setShowUserMenu(false); navigate('/profile') }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                >
+                  <User size={15} className="text-neutral-400" />
+                  <span>Thông tin cá nhân</span>
+                </button>
+                <button
+                  onClick={() => { setShowUserMenu(false); logout() }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <LogOut size={15} />
+                  <span>Đăng xuất</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

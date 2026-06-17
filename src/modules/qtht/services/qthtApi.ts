@@ -11,6 +11,7 @@ export const departmentApi = {
   delete: (id: string) => axiosClient.delete<ApiResponse<any>>(`/qtht/department/${id}`).then(res => res.data.data ?? res.data),
   activate: (id: string) => axiosClient.put<ApiResponse<any>>(`/qtht/department/${id}/activate`).then(res => res.data.data ?? res.data),
   deactivate: (id: string) => axiosClient.put<ApiResponse<any>>(`/qtht/department/${id}/deactivate`).then(res => res.data.data ?? res.data),
+  getCombobox: () => axiosClient.get<ApiResponse<any>>('/qtht/department/combobox').then(res => res.data.data ?? res.data),
 }
 
 export const organizationApi = {

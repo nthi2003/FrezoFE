@@ -31,6 +31,7 @@ export const depSchema = z.object({
   address: z.string().optional(),
   description: z.string().optional(),
   organizationId: z.string().optional(),
+  parentId: z.string().optional(),
   status: z.boolean().default(true),
 })
 
