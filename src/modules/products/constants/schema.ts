@@ -3,6 +3,7 @@ import * as z from 'zod'
 export const productFormSchema = z.object({
   name: z.string().min(1, 'Tên sản phẩm không được để trống'),
   code: z.string().optional(),
+  imageUrl: z.string().optional(),
   description: z.string().optional(),
   price: z.number().min(0, 'Giá không hợp lệ').optional(),
   categoryId: z.string().optional(),

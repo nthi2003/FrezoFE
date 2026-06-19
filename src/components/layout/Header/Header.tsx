@@ -13,8 +13,33 @@ import type { MenuTreeNode } from '@/modules/menus/types/menu.types'
 
 // Fallback tĩnh cho các route không có trong menu BE
 const FALLBACK_LABELS: Record<string, string> = {
-  '/':          'Dashboard',
-  '/dashboard': 'Dashboard',
+  '/':             'Dashboard',
+  '/dashboard':    'Dashboard',
+  '/qtht':         'Hệ thống',
+  '/qtht/users':   'Người dùng',
+  '/qtht/roles':   'Vai trò',
+  '/qtht/menus':   'Menu',
+  '/qtht/organizations': 'Tổ chức',
+  '/qtht/departments':   'Phòng ban',
+  '/qtht/permissions':   'Quyền hạn',
+  '/qtht/security':      'Bảo mật',
+  '/qtht/settings':      'Cài đặt',
+  '/qtht/apilogs':       'Lịch sử API',
+  '/qtht/landing-config': 'Landing Config',
+  '/admin':        'Quản trị',
+  '/admin/article-management': 'Bài viết',
+
+  '/qlns':         'Nhân sự',
+  '/qlns/persons': 'Nhân viên',
+  '/qlns/contract': 'Hợp đồng',
+  '/qlns/payrolls': 'Bảng lương',
+  '/qlns/leaves':  'Nghỉ phép',
+  '/customer':     'Khách hàng',
+  '/product':      'Sản phẩm',
+  '/task':         'Công việc',
+  '/task/tickets': 'Giao việc',
+  '/task/tags':    'Thẻ',
+  '/profile':      'Hồ sơ',
 }
 
 // Flatten menuTree thành map feUrl → name (tiếng Việt từ BE)

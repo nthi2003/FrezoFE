@@ -3,7 +3,7 @@ import * as z from 'zod'
 export const personFormSchema = z.object({
   code: z.string().min(1, 'Mã nhân viên không được để trống'),
   name: z.string().min(1, 'Tên nhân viên không được để trống'),
-  email: z.string().email('Email không hợp lệ').optional().or(z.literal('')),
+  email: z.string().optional(),
   phone: z.string().optional(),
   identityNumber: z.string().optional(),
   gender: z.string().optional(),

@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Plus, Search, ChevronRight, ChevronDown, Trash2, FolderTree, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/Select'
 
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 
@@ -140,7 +141,16 @@ export function MenusPage() {
   const deleteReq = useDeleteMenu()
 
   const flatMenus = rawData || []
-  
+
+  // Form Setup (MUST be before useWatch)
+  const { register, handleSubmit, reset, formState: { errors }, setValue, control } = useForm<MenuFormValues>({
+    resolver: zodResolver(menuFormSchema),
+    defaultValues: { appCode: 'QTHT', isPublic: false, status: true, orderIndex: 0 }
+  })
+
+  const watchedParentCode = useWatch({ control, name: 'parentCode' })
+  const parentValue = watchedParentCode || ''
+
   // Filter & Build Tree
   const treeData = useMemo(() => {
     let filtered = flatMenus
@@ -150,11 +160,23 @@ export function MenusPage() {
     return buildTree(filtered)
   }, [flatMenus, search])
 
-  // Form Setup
-  const { register, handleSubmit, reset, formState: { errors }, setValue } = useForm<MenuFormValues>({
-    resolver: zodResolver(menuFormSchema),
-    defaultValues: { appCode: 'QTHT', isPublic: false, status: true, orderIndex: 0 }
-  })
+  // Build parent path map for hierarchical labels
+  const getParentPath = useCallback((code: string): string => {
+    const item = flatMenus.find(m => m.code === code)
+    if (!item) return code
+    if (item.parentCode) {
+      const parentPath = getParentPath(item.parentCode)
+      return `${parentPath} / ${item.name}`
+    }
+    return item.name
+  }, [flatMenus])
+
+  const parentOptions = useMemo(() => {
+    return flatMenus.map(m => ({
+      value: m.code,
+      label: getParentPath(m.code),
+    }))
+  }, [flatMenus, getParentPath])
 
   // Handlers
   const handleSelectNode = (node: MenuTreeNode) => {
@@ -213,7 +235,7 @@ export function MenusPage() {
   return (
     <div className="p-6 h-[calc(100vh-4rem)] flex flex-col animate-fade-in">
       <div className="mb-4">
-        <h1 className="text-2xl font-semibold text-neutral-900">Quản lý chức năng</h1>
+        <h1 className="text-2xl font-semibold text-neutral-900">Quản lý Menu</h1>
         <p className="text-sm text-neutral-500">Quản lý cấu trúc Menu hệ thống</p>
       </div>
 
@@ -275,8 +297,15 @@ export function MenusPage() {
                   {errors.appCode && <span className="text-xs text-red-500">{errors.appCode.message}</span>}
                 </div>
                 <div className="space-y-2">
-                  <Label>Chức năng cha (Mã code)</Label>
-                  <Input {...register('parentCode')} placeholder="Để trống nếu là Root" />
+                  <Label>Chức năng cha</Label>
+                  <Select
+                    options={parentOptions}
+                    value={parentValue}
+                    onChange={(v) => setValue('parentCode', v, { shouldValidate: true })}
+                    placeholder="-- Chọn chức năng cha --"
+                    showSearch
+                    showClear
+                  />
                 </div>
                 
                 <div className="space-y-2">

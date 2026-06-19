@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react'
 import { Eye, EyeOff, Loader2, AlertCircle, LogIn, ShieldCheck, BarChart3, Users, Zap, Settings2, X, Globe, Server, Database, Monitor } from 'lucide-react'
 import { useLogin } from '../hooks/useLogin'
+import logoSrc from '@/img/logo.png'
 
 // ---- Animated floating particles ----
 function FloatingParticles() {
@@ -267,10 +268,7 @@ export function LoginPage() {
         {/* Top — Logo + tagline */}
         <div className={`relative z-10 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-11 h-11 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center
-              shadow-[0_0_30px_rgba(34,197,94,0.3)]">
-              <span className="text-white font-extrabold text-xl tracking-tight">F</span>
-            </div>
+            <img src={logoSrc} alt="Frezo" className="w-11 h-11 rounded-xl object-contain" />
             <div>
               <div className="text-white font-bold text-xl tracking-tight">Frezo ERP</div>
               <div className="text-emerald-400/70 text-[11px] font-medium tracking-widest uppercase">Enterprise Platform</div>
@@ -343,10 +341,7 @@ export function LoginPage() {
 
           {/* Mobile branding (hidden on desktop) */}
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center
-              shadow-[0_0_20px_rgba(34,197,94,0.25)]">
-              <span className="text-white font-extrabold text-lg">F</span>
-            </div>
+            <img src={logoSrc} alt="Frezo" className="w-10 h-10 rounded-xl object-contain" />
             <div>
               <div className="text-white font-bold text-lg">Frezo ERP</div>
               <div className="text-emerald-400/60 text-[10px] font-medium tracking-widest uppercase">Enterprise Platform</div>

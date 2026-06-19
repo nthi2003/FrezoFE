@@ -26,6 +26,13 @@ export const productApi = {
     axiosClient.get<ApiResponse<any>>('/product/dashboard/price-fluctuation').then(res => res.data),
   getMarketComparison: () =>
     axiosClient.get<ApiResponse<any>>('/product/dashboard/market-comparison').then(res => res.data),
+  uploadImage: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return axiosClient.post<ApiResponse<any>>('/product/upload-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(res => res.data)
+  },
 }
 
 export const orderApi = {

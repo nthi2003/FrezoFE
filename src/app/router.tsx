@@ -49,6 +49,9 @@ const LeavesPage      = lazy(() => import('@/modules/qlns/pages/LeavesPage').the
 // Articles
 const ArticlesPage    = lazy(() => import('@/modules/articles/pages/ArticlesPage').then(m => ({ default: m.ArticlesPage })))
 
+// Category Management
+const CategoriesPage  = lazy(() => import('@/modules/qtht/pages/CategoriesPage').then(m => ({ default: m.CategoriesPage })))
+
 // Profile
 const ProfilePage     = lazy(() => import('@/modules/profile/pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
 
@@ -181,6 +184,11 @@ export const router = createBrowserRouter([
 
       // Articles
       { path: 'admin/article-management', element: <Suspense fallback={<PageLoader />}><ArticlesPage /></Suspense> },
+
+      // Category Management
+      { path: 'admin/category-management', element: <Suspense fallback={<PageLoader />}><CategoriesPage /></Suspense> },
+      { path: 'admin/category-management/:type', element: <Suspense fallback={<PageLoader />}><CategoriesPage /></Suspense> },
+
 
       // Profile
       { path: 'profile',          element: <Suspense fallback={<PageLoader />}><ProfilePage /></Suspense> },

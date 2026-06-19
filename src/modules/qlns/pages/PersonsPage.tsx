@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Edit, Trash2, Loader2, Search, Filter, RotateCw } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
@@ -74,7 +74,7 @@ export function PersonsPage() {
   })
   const { data: chucDanhList } = useQuery({
     queryKey: ['categories', 'ChucDanh'],
-    queryFn: () => categoryApi.getAll({ groupCode: 'ChucDanh' }),
+    queryFn: () => categoryApi.getAll({ type: 'ChucDanh' }),
     select: (res: any) => res?.data ?? [],
   })
   const createPerson = useCreatePerson()
@@ -83,9 +83,9 @@ export function PersonsPage() {
   const activatePerson = useActivatePerson()
   const deactivatePerson = useDeactivatePerson()
 
-  const orgOptions = Array.isArray(orgList) ? orgList.map((o: any) => ({ value: o.value, label: o.label })) : []
-  const departmentOptions = Array.isArray(departmentList) ? departmentList.map((d: any) => ({ value: d.value, label: d.label })) : []
-  const chucDanhOptions = Array.isArray(chucDanhList) ? chucDanhList.map((item: any) => ({ value: item.name, label: item.name })) : []
+  const orgOptions = useMemo(() => Array.isArray(orgList) ? orgList.map((o: any) => ({ value: o.value, label: o.label })) : [], [orgList])
+  const departmentOptions = useMemo(() => Array.isArray(departmentList) ? departmentList.map((d: any) => ({ value: d.value, label: d.label })) : [], [departmentList])
+  const chucDanhOptions = useMemo(() => Array.isArray(chucDanhList) ? chucDanhList.map((item: any) => ({ value: item.name, label: item.name })) : [], [chucDanhList])
   
   const dataList = rawData?.items || []
   const totalElements = rawData?.total || 0

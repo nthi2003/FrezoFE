@@ -6,6 +6,7 @@
 
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import logoSrc from '@/img/logo.png'
 import {
   ChevronDown,
   ChevronRight,
@@ -200,25 +201,17 @@ export function Sidebar() {
     >
       {/* ---- LOGO / BRAND ---- */}
       <div className={`
-        flex items-center h-[60px] px-4 border-b border-[#1e3a23]
-        ${sidebarCollapsed ? 'justify-center' : 'justify-between'}
+        flex items-center justify-center h-[60px] px-4 border-b border-[#1e3a23] relative
+        ${sidebarCollapsed ? '' : ''}
       `}>
         {!sidebarCollapsed && (
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center shadow-primary shrink-0">
-              <span className="text-white font-bold text-sm">F</span>
-            </div>
-            <div>
-              <div className="text-white font-bold text-sm leading-tight">Frezo</div>
-              <div className="text-[#4ade80] text-[10px] font-medium leading-tight">ERP System</div>
-            </div>
+          <div className="flex items-center justify-center flex-1">
+            <img src={logoSrc} alt="Frezo" className="w-[120px] h-[50px] object-contain shrink-0" />
           </div>
         )}
 
         {sidebarCollapsed && (
-          <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center shadow-primary">
-            <span className="text-white font-bold text-sm">F</span>
-          </div>
+          <img src={logoSrc} alt="Frezo" className="w-[30px] h-[30px] object-contain" />
         )}
 
         {/* Toggle button */}

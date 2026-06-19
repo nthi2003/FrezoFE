@@ -14,7 +14,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ChevronLeft, ChevronRight, Inbox, Search, Filter, RotateCw } from 'lucide-react'
+import notDataImg from '@/img/mas-cost-not-data.png'
+import { ChevronLeft, ChevronRight, Search, Filter, RotateCw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/Select'
@@ -359,10 +360,10 @@ export function AppTable<T>({
             {/* Empty State */}
             {isEmpty && (
               <TableRow>
-                <TableCell key="empty" colSpan={totalCols} className="h-48 text-center">
-                  <div className="flex flex-col items-center justify-center text-neutral-400">
-                    <Inbox size={40} className="mb-2 opacity-20" />
-                    <p>Không có dữ liệu</p>
+                <TableCell key="empty" colSpan={totalCols} className="h-64 text-center">
+                  <div className="flex flex-col items-center justify-center">
+                    <img src={notDataImg} alt="Không có dữ liệu" className="w-48 h-48 object-contain opacity-70" />
+                    <p className="text-sm font-bold text-neutral-400 mt-5">Frezo không tìm thấy dữ liệu</p>
                   </div>
                 </TableCell>
               </TableRow>

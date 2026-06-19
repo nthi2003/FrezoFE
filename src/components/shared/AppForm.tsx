@@ -7,14 +7,14 @@ import { Switch } from '@/components/ui/switch'
 import { MultiSelect } from '@/components/ui/MultiSelect'
 import { Select } from '@/components/ui/Select'
 
-export function AppForm({ schema, defaultValues, onSubmit, fields, submitText = 'Xác nhận', isLoading, onCancel }: any) {
+export function AppForm({ schema, defaultValues, onSubmit, fields, submitText = 'Xác nhận', isLoading, onCancel, hideFooter, formId }: any) {
   const { register, handleSubmit, setValue, control, formState: { errors } } = useForm({
     resolver: schema ? zodResolver(schema) : undefined,
     defaultValues
   })
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form id={formId} onSubmit={handleSubmit(onSubmit)}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {fields.map((f: any) => (
           <div key={f.name} className="space-y-2">
@@ -36,16 +36,18 @@ export function AppForm({ schema, defaultValues, onSubmit, fields, submitText = 
           </div>
         ))}
       </div>
-      <div className="flex justify-end gap-2 pt-6">
-        {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Hủy
+      {!hideFooter && (
+        <div className="flex justify-end gap-2 pt-6">
+          {onCancel && (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Hủy
+            </Button>
+          )}
+          <Button type="submit" disabled={isLoading} className="bg-primary-600 hover:bg-primary-700 text-white">
+            {isLoading ? 'Đang xử lý...' : submitText}
           </Button>
-        )}
-        <Button type="submit" disabled={isLoading} className="bg-primary-600 hover:bg-primary-700 text-white">
-          {isLoading ? 'Đang xử lý...' : submitText}
-        </Button>
-      </div>
+        </div>
+      )}
     </form>
   )
 }

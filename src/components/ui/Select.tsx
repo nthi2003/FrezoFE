@@ -46,6 +46,7 @@ export function Select({
 
   // Close dropdown when clicking outside
   useEffect(() => {
+    if (!isOpen) return
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node
       if (
@@ -55,9 +56,9 @@ export function Select({
         setIsOpen(false)
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [isOpen])
 
   // Recalculate position on scroll/resize
   useEffect(() => {
