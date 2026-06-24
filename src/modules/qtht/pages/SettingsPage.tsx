@@ -6,7 +6,7 @@ import { useSettings, useUpdateSetting, useBackupSystem } from '../hooks/useSett
 import { useState } from 'react'
 
 export function SettingsPage() {
-  const { data, isLoading } = useSettings()
+  const { data, isLoading, refetch } = useSettings()
   const updateReq = useUpdateSetting()
   const backupReq = useBackupSystem()
 
@@ -21,8 +21,8 @@ export function SettingsPage() {
   }
 
   const columns: AppTableColumn<any>[] = [
-    { title: 'Tên cấu hình', dataIndex: 'key', width: 250, render: (val: any) => <span className="font-semibold">{val}</span> },
-    { title: 'Mô tả', dataIndex: 'description' },
+    { title: 'Tên cấu hình', dataIndex: 'key', width: 250, filterType: 'text', render: (val: any) => <span className="font-semibold">{val}</span> },
+    { title: 'Mô tả', dataIndex: 'description', filterType: 'text' },
     { 
       title: 'Giá trị (Value)', 
       dataIndex: 'value',
@@ -81,6 +81,9 @@ export function SettingsPage() {
         columns={columns} 
         data={data} 
         isLoading={isLoading} 
+        showSearch
+        searchPlaceholder="Tìm kiếm cấu hình..."
+        onRefresh={refetch}
         pageIndex={1} 
         pageSize={50} 
         totalElements={data?.length ?? 0} 

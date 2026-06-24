@@ -52,6 +52,13 @@ const ArticlesPage    = lazy(() => import('@/modules/articles/pages/ArticlesPage
 // Category Management
 const CategoriesPage  = lazy(() => import('@/modules/qtht/pages/CategoriesPage').then(m => ({ default: m.CategoriesPage })))
 
+// Email
+const EmailConfigPage   = lazy(() => import('@/modules/email/pages/EmailConfigPage').then(m => ({ default: m.EmailConfigPage })))
+const EmailTemplatePage = lazy(() => import('@/modules/email/pages/EmailTemplatePage').then(m => ({ default: m.EmailTemplatePage })))
+const EmailGroupsPage   = lazy(() => import('@/modules/email/pages/EmailGroupsPage').then(m => ({ default: m.EmailGroupsPage })))
+const EmailComposePage  = lazy(() => import('@/modules/email/pages/EmailComposePage').then(m => ({ default: m.EmailComposePage })))
+const EmailInboxPage    = lazy(() => import('@/modules/email/pages/EmailInboxPage').then(m => ({ default: m.EmailInboxPage })))
+
 // Profile
 const ProfilePage     = lazy(() => import('@/modules/profile/pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
 
@@ -189,6 +196,12 @@ export const router = createBrowserRouter([
       { path: 'admin/category-management', element: <Suspense fallback={<PageLoader />}><CategoriesPage /></Suspense> },
       { path: 'admin/category-management/:type', element: <Suspense fallback={<PageLoader />}><CategoriesPage /></Suspense> },
 
+      // Email
+      { path: 'email/config',   element: <Suspense fallback={<PageLoader />}><EmailConfigPage /></Suspense> },
+      { path: 'email/template', element: <Suspense fallback={<PageLoader />}><EmailTemplatePage /></Suspense> },
+      { path: 'email/group',    element: <Suspense fallback={<PageLoader />}><EmailGroupsPage /></Suspense> },
+      { path: 'email/compose',  element: <Suspense fallback={<PageLoader />}><EmailComposePage /></Suspense> },
+      { path: 'email/inbox',    element: <Suspense fallback={<PageLoader />}><EmailInboxPage /></Suspense> },
 
       // Profile
       { path: 'profile',          element: <Suspense fallback={<PageLoader />}><ProfilePage /></Suspense> },

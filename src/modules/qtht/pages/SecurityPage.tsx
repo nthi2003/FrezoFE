@@ -61,8 +61,8 @@ export function SecurityPage() {
 
   const getColumns = () => {
     const common = [
-      { title: 'Địa chỉ IP', dataIndex: 'ipAddress' },
-      { title: tab === 'trust' ? 'Mô tả' : 'Lý do / Ghi chú', dataIndex: tab === 'trust' ? 'description' : 'reason' },
+      { title: 'Địa chỉ IP', dataIndex: 'ipAddress', filterType: 'text' as const },
+      { title: tab === 'trust' ? 'Mô tả' : 'Lý do / Ghi chú', dataIndex: tab === 'trust' ? 'description' : 'reason', filterType: 'text' as const },
       { title: 'Ngày tạo', dataIndex: 'createdAt' },
     ]
     const action = {
@@ -82,6 +82,12 @@ export function SecurityPage() {
       ),
     }
     return [...common, action]
+  }
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['ip_blacklist'] })
+    queryClient.invalidateQueries({ queryKey: ['ip_whitelist'] })
+    queryClient.invalidateQueries({ queryKey: ['ip_trust'] })
   }
 
   const data = tab === 'blacklist' ? (rawBlacklist?.items || rawBlacklist || []) 
@@ -117,7 +123,7 @@ export function SecurityPage() {
         </button>
       </div>
 
-      <AppTable data={data} columns={getColumns()} isLoading={isLoading} />
+      <AppTable data={data} columns={getColumns()} isLoading={isLoading} showSearch searchPlaceholder="Tìm kiếm IP..." onRefresh={handleRefresh} />
 
       <AppModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={`Thêm IP vào ${tab}`}>
         <AppForm 

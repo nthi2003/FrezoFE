@@ -18,7 +18,7 @@ export function PayrollsPage() {
   const [bonusModalOpen, setBonusModalOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const { data: rawData, isLoading } = usePayrolls()
+  const { data: rawData, isLoading, refetch } = usePayrolls()
   const calculateAll = useCalculateAllPayroll()
   const bonusPayroll = useBonusPayroll()
   const confirmPayroll = useConfirmPayroll()
@@ -44,8 +44,8 @@ export function PayrollsPage() {
   }
 
   const columns = [
-    { title: 'Kỳ lương', dataIndex: 'period' },
-    { title: 'Nhân viên', dataIndex: 'personName' },
+    { title: 'Kỳ lương', dataIndex: 'period', filterType: 'text' as const },
+    { title: 'Nhân viên', dataIndex: 'personName', filterType: 'text' as const },
     { 
       title: 'Lương cơ bản', 
       dataIndex: 'baseSalary',
@@ -64,6 +64,12 @@ export function PayrollsPage() {
     {
       title: 'Trạng thái',
       dataIndex: 'status',
+      filterType: 'select' as const,
+      filterOptions: [
+        { value: 'DRAFT', label: 'Bản nháp' },
+        { value: 'CONFIRMED', label: 'Đã chốt' },
+        { value: 'PAID', label: 'Đã thanh toán' },
+      ],
       render: (val: any) => {
         const statusMap: Record<string, { label: string, color: string }> = {
           'PAID': { label: 'Đã thanh toán', color: 'bg-green-100 text-green-700' },
@@ -119,6 +125,9 @@ export function PayrollsPage() {
         data={dataList} 
         columns={columns} 
         isLoading={isLoading || calculateAll.isPending} 
+        showSearch
+        searchPlaceholder="Tìm kiếm bảng lương..."
+        onRefresh={refetch}
       />
 
       <AppModal

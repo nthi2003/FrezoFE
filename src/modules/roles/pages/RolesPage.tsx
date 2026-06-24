@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Search, Edit, Trash2, Loader2, ShieldCheck, AlertTriangle } from 'lucide-react'
+import { Plus, Edit, Trash2, Loader2, ShieldCheck, AlertTriangle, Search } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { AppModal } from '@/components/ui/AppModal'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,6 @@ import type { RoleDTO, RoleRequest } from '../services/roleApi'
 import { roleFormSchema, type RoleFormValues } from '../constants/schema'
 
 export function RolesPage() {
-  const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
 
@@ -25,7 +24,7 @@ export function RolesPage() {
   const [selectedMenus, setSelectedMenus] = useState<string[]>([])
   const [menuSearch, setMenuSearch] = useState('')
 
-  const { data: rolesData, isLoading } = useRoles()
+  const { data: rolesData, isLoading, refetch } = useRoles()
   const createRole = useCreateRole()
   const updateRole = useUpdateRole()
   const deleteRole = useDeleteRole()
@@ -102,8 +101,6 @@ export function RolesPage() {
     }, { onSuccess: () => setIsMenuModalOpen(false) })
   }
 
-  const filteredData = Array.isArray(rolesData) ? rolesData.filter(r => r.name.toLowerCase().includes(search.toLowerCase()) || r.code.toLowerCase().includes(search.toLowerCase())) : []
-
   const filteredMenus = useMemo(() => {
     if (!allMenus) return []
     const q = menuSearch.toLowerCase().trim()
@@ -144,14 +141,7 @@ export function RolesPage() {
         </Button>
       </div>
 
-      <div className="p-4 rounded-xl border border-neutral-200 bg-white shadow-sm flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <Input placeholder="Tìm kiếm vai trò..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-      </div>
-
-      <AppTable columns={columns} data={filteredData} isLoading={isLoading} pageIndex={1} pageSize={50} totalElements={filteredData.length} />
+      <AppTable columns={columns} data={rolesData} isLoading={isLoading} showSearch searchPlaceholder="Tìm kiếm vai trò..." onRefresh={refetch} pageIndex={1} pageSize={50} totalElements={Array.isArray(rolesData) ? rolesData.length : 0} />
 
       <AppModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={isEditMode ? 'Cập nhật vai trò' : 'Thêm mới vai trò'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">

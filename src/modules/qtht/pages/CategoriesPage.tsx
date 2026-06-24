@@ -92,8 +92,8 @@ export function CategoriesPage() {
   }
 
   const columns = [
-    { title: 'Mã', dataIndex: 'code', filterType: 'text' },
-    { title: 'Tên danh mục', dataIndex: 'name', filterType: 'text' },
+    { title: 'Mã', dataIndex: 'code', filterType: 'text' as const },
+    { title: 'Tên danh mục', dataIndex: 'name', filterType: 'text' as const },
     { title: 'Tên viết tắt', dataIndex: 'shortName' },
     {
       title: 'Trạng thái', dataIndex: 'active',
@@ -155,7 +155,7 @@ export function CategoriesPage() {
           {!isRouteView && (
             <select
               value={groupType}
-              onChange={(e) => setGroupType(e.target.value)}
+              onChange={(e) => setLocalType(e.target.value)}
               className="h-10 px-3 rounded-lg border border-neutral-300 bg-white text-sm text-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary-400"
             >
               {GROUP_CODE_OPTIONS.map((opt) => (

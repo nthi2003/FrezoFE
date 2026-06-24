@@ -34,6 +34,7 @@ import {
   LogOut,
   User,
   Bell,
+  Mail,
 } from 'lucide-react'
 import { useMenus } from '@/modules/menus/hooks/useMenus'
 import { useAppStore } from '@/stores/appStore'
@@ -71,6 +72,9 @@ const ICON_MAP: Record<string, LucideIcon> = {
   DMDC:         Layers,
   CUSTOMER:     UserCheck,
   PRODUCT:      Package,
+  EMAIL:        Mail,
+  QLHT_EMAIL:   Mail,
+  EMAIL_GROUP:  Users,
   TASK:         CheckSquare,
   DEFAULT:      FolderOpen,
 }

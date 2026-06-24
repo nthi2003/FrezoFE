@@ -4,6 +4,7 @@ import { AppTable } from '@/components/ui/AppTable'
 import { AppModal } from '@/components/ui/AppModal'
 import { AppForm } from '@/components/shared/AppForm'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog/ConfirmDialog'
 import * as z from 'zod'
 import { useOrganizations, useCreateOrganization, useUpdateOrganization, useDeleteOrganization } from '../hooks/useQtht'
 import { orgSchema } from '../constants/schema'
@@ -58,6 +59,9 @@ const defaultFormValues = {
 export function OrganizationsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any | null>(null)
+  const [confirm, setConfirm] = useState<{
+    isOpen: boolean; title: string; message: string; onConfirm: () => void; variant?: 'danger' | 'warning'
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
   
   const { data: rawData, isLoading } = useOrganizations()
   const createReq = useCreateOrganization()
@@ -80,10 +84,10 @@ export function OrganizationsPage() {
   }
 
   const columns = [
-    { title: 'Mã', dataIndex: 'code', filterType: 'text' },
-    { title: 'Tên Tổ chức', dataIndex: 'name', filterType: 'text' },
-    { title: 'Email', dataIndex: 'email', filterType: 'text' },
-    { title: 'Loại', dataIndex: 'type', filterType: 'select', filterOptions: TYPE_OPTIONS },
+    { title: 'Mã', dataIndex: 'code', filterType: 'text' as const },
+    { title: 'Tên Tổ chức', dataIndex: 'name', filterType: 'text' as const },
+    { title: 'Email', dataIndex: 'email', filterType: 'text' as const },
+    { title: 'Loại', dataIndex: 'type', filterType: 'select' as const, filterOptions: TYPE_OPTIONS },
     {
       title: 'Trạng thái', dataIndex: 'status',
       render: (val: string) => {
@@ -120,7 +124,7 @@ export function OrganizationsPage() {
           <button title="Sửa" onClick={() => { setSelectedItem(row); setModalOpen(true) }} className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors">
             <Edit size={15} />
           </button>
-          <button title="Xóa" onClick={() => { if(confirm('Xóa?')) deleteReq.mutate(row.id) }} className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">
+          <button title="Xóa" onClick={() => setConfirm({ isOpen: true, title: 'Xóa tổ chức', message: 'Bạn có chắc chắn muốn xóa?', onConfirm: () => deleteReq.mutate(row.id), variant: 'danger' })} className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">
             <Trash2 size={15} />
           </button>
         </div>
@@ -164,6 +168,16 @@ export function OrganizationsPage() {
           onCancel={() => setModalOpen(false)}
         />
       </AppModal>
+      <ConfirmDialog
+        isOpen={confirm.isOpen}
+        onClose={() => setConfirm(c => ({ ...c, isOpen: false }))}
+        onConfirm={confirm.onConfirm}
+        title={confirm.title}
+        message={confirm.message}
+        variant={confirm.variant || 'danger'}
+        confirmText="Xác nhận"
+        cancelText="Hủy"
+      />
     </div>
   )
 }

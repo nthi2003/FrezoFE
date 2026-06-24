@@ -38,7 +38,7 @@ export function ApiLogsPage() {
   const columns: AppTableColumn<any>[] = [
     { title: 'Thời gian bắt đầu', dataIndex: 'effFrom', width: 170, render: (val: any) => formatDateTime(val) },
     { title: 'Thời gian kết thúc', dataIndex: 'effTo', width: 170, render: (val: any) => formatDateTime(val) },
-    { title: 'Method', dataIndex: 'method', width: 80, render: (val: any) => (
+    { title: 'Method', dataIndex: 'method', width: 80, filterType: 'text', render: (val: any) => (
       <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
         val === 'GET' ? 'bg-blue-100 text-blue-700' :
         val === 'POST' ? 'bg-green-100 text-green-700' :
@@ -46,8 +46,8 @@ export function ApiLogsPage() {
         'bg-red-100 text-red-700'
       }`}>{val}</span>
     )},
-    { title: 'Đường dẫn (URI)', dataIndex: 'uri' },
-    { title: 'Status', dataIndex: 'statusCode', width: 80, align: 'center', render: (val: any) => (
+    { title: 'Đường dẫn (URI)', dataIndex: 'uri', filterType: 'text' },
+    { title: 'Status', dataIndex: 'statusCode', width: 80, align: 'center', filterType: 'text', render: (val: any) => (
       <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
         val >= 200 && val < 300 ? 'bg-green-100 text-green-700' :
         val >= 400 ? 'bg-red-100 text-red-700' : 'bg-neutral-100 text-neutral-700'
@@ -114,6 +114,9 @@ export function ApiLogsPage() {
         columns={columns} 
         data={data?.items ?? []} 
         isLoading={isLoading} 
+        showSearch
+        searchPlaceholder="Tìm kiếm log..."
+        onRefresh={() => refetch()}
         pageIndex={page} 
         pageSize={pageSize} 
         totalElements={data?.total ?? 0} 

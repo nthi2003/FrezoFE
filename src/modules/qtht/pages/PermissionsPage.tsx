@@ -9,7 +9,7 @@ import { orgSchema } from '../constants/schema'
 
 export function PermissionsPage() {
   const [modalOpen, setModalOpen] = useState(false)
-  const { data: rawData, isLoading } = usePermissions()
+  const { data: rawData, isLoading, refetch } = usePermissions()
   const createReq = useCreatePermission()
   const deleteReq = useDeletePermission()
 
@@ -20,8 +20,8 @@ export function PermissionsPage() {
   }
 
   const columns = [
-    { title: 'Mã Quyền', dataIndex: 'code' },
-    { title: 'Tên Quyền', dataIndex: 'name' },
+    { title: 'Mã Quyền', dataIndex: 'code', filterType: 'text' as const },
+    { title: 'Tên Quyền', dataIndex: 'name', filterType: 'text' as const },
     {
       title: 'Thao tác',
       dataIndex: 'id',
@@ -43,7 +43,7 @@ export function PermissionsPage() {
            <Plus className="w-4 h-4 mr-2" /> Thêm mới
         </Button>
       </div>
-      <AppTable data={dataList} columns={columns} isLoading={isLoading} />
+      <AppTable data={dataList} columns={columns} isLoading={isLoading} showSearch searchPlaceholder="Tìm kiếm quyền..." onRefresh={refetch} />
       <AppModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Thêm Quyền">
         <AppForm schema={orgSchema} defaultValues={{ code: '', name: '' }} onSubmit={handleSubmit} fields={[{ name: 'code', label: 'Mã Quyền (e.g. CREATE, VIEW)' }, { name: 'name', label: 'Tên Quyền' }]} submitText="Lưu" isLoading={createReq.isPending} />
       </AppModal>

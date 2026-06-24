@@ -28,6 +28,12 @@ const FALLBACK_LABELS: Record<string, string> = {
   '/qtht/landing-config': 'Landing Config',
   '/admin':        'Quản trị',
   '/admin/article-management': 'Bài viết',
+  '/email':        'Email',
+  '/email/config': 'Cấu hình Email',
+  '/email/template': 'Mẫu Email',
+  '/email/group': 'Nhóm Email',
+  '/email/compose': 'Soạn Email',
+  '/email/inbox': 'Hộp thư đến',
 
   '/qlns':         'Nhân sự',
   '/qlns/persons': 'Nhân viên',

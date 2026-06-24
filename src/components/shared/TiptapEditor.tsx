@@ -4,10 +4,11 @@ import Underline from '@tiptap/extension-underline'
 import Placeholder from '@tiptap/extension-placeholder'
 import TextAlign from '@tiptap/extension-text-align'
 import LinkExtension from '@tiptap/extension-link'
+import ImageExtension from '@tiptap/extension-image'
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, List, ListOrdered, Quote,
   Heading1, Heading2, Heading3, Code, Minus, Link, AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  Undo2, Redo2, RemoveFormatting,
+  Undo2, Redo2, RemoveFormatting, ImageIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useEffect, useCallback } from 'react'
@@ -43,6 +44,7 @@ export function TiptapEditor({ value, onChange, placeholder = 'Nhập nội dung
       Underline,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       LinkExtension.configure({ openOnClick: false }),
+      ImageExtension.configure({ inline: true }),
       Placeholder.configure({ placeholder }),
     ],
     content: value,
@@ -67,6 +69,13 @@ export function TiptapEditor({ value, onChange, placeholder = 'Nhập nội dung
       return
     }
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+  }, [editor])
+
+  const addImage = useCallback(() => {
+    if (!editor) return
+    const url = window.prompt('Nhập URL hình ảnh:')
+    if (!url) return
+    editor.chain().focus().setImage({ src: url }).run()
   }, [editor])
 
   if (!editor) return null
@@ -136,6 +145,9 @@ export function TiptapEditor({ value, onChange, placeholder = 'Nhập nội dung
 
         <ToolbarButton onClick={setLink} active={editor.isActive('link')}>
           <Link size={15} />
+        </ToolbarButton>
+        <ToolbarButton onClick={addImage} active={editor.isActive('image')}>
+          <ImageIcon size={15} />
         </ToolbarButton>
         <ToolbarButton onClick={() => editor.chain().focus().setHorizontalRule().run()} active={false}>
           <Minus size={15} />

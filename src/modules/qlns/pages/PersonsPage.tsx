@@ -75,7 +75,7 @@ export function PersonsPage() {
   const { data: chucDanhList } = useQuery({
     queryKey: ['categories', 'ChucDanh'],
     queryFn: () => categoryApi.getAll({ type: 'ChucDanh' }),
-    select: (res: any) => res?.data ?? [],
+    select: (res: any) => res?.data?.items ?? [],
   })
   const createPerson = useCreatePerson()
   const updatePerson = useUpdatePerson()
