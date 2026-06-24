@@ -45,6 +45,8 @@ const TasksPage       = lazy(() => import('@/modules/tasks/pages/TasksPage').the
 const TicketsPage     = lazy(() => import('@/modules/tasks/pages/TicketsPage').then(m => ({ default: m.TicketsPage })))
 const TagsPage        = lazy(() => import('@/modules/tasks/pages/TagsPage').then(m => ({ default: m.TagsPage })))
 const LeavesPage      = lazy(() => import('@/modules/qlns/pages/LeavesPage').then(m => ({ default: m.LeavesPage })))
+const AttendancePage  = lazy(() => import('@/modules/qlns/pages/AttendancePage').then(m => ({ default: m.AttendancePage })))
+const AttendanceSettingsPage = lazy(() => import('@/modules/qlns/pages/AttendanceSettingsPage').then(m => ({ default: m.AttendanceSettingsPage })))
 
 // Articles
 const ArticlesPage    = lazy(() => import('@/modules/articles/pages/ArticlesPage').then(m => ({ default: m.ArticlesPage })))
@@ -178,6 +180,10 @@ export const router = createBrowserRouter([
       { path: 'task/tickets',     element: <Suspense fallback={<PageLoader />}><TicketsPage /></Suspense> },
       { path: 'task/tags',        element: <Suspense fallback={<PageLoader />}><TagsPage /></Suspense> },
       { path: 'qlns/leaves',      element: <Suspense fallback={<PageLoader />}><LeavesPage /></Suspense> },
+
+      // Attendance
+      { path: 'admin/attendance', element: <Suspense fallback={<PageLoader />}><AttendancePage /></Suspense> },
+      { path: 'admin/attendance/settings', element: <Suspense fallback={<PageLoader />}><AttendanceSettingsPage /></Suspense> },
 
       // Articles
       { path: 'admin/article-management', element: <Suspense fallback={<PageLoader />}><ArticlesPage /></Suspense> },
