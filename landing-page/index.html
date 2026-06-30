@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Frezo – Nền tảng quản lý và phân phối rau củ tươi thông minh. Ứng dụng công nghệ automation tiên tiến để đưa rau sạch từ nông trại đến tay người tiêu dùng." />
+  <title>Frezo – Rau Củ Tươi Sạch | Automation Nông Nghiệp</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════ NAVBAR ═══════════════════ -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="#" class="nav-logo">
+        <span class="logo-icon">🌿</span>
+        <span class="logo-text">Frezo</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#about" class="nav-link">Về chúng tôi</a></li>
+        <li><a href="#products" class="nav-link">Sản phẩm</a></li>
+        <li><a href="#automation" class="nav-link">Automation</a></li>
+        <li><a href="#stats" class="nav-link">Con số</a></li>
+        <li><a href="#contact" class="nav-link">Liên hệ</a></li>
+      </ul>
+      <a href="#contact" class="nav-cta" id="nav-cta-btn">
+        Đặt hàng ngay
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════ HERO ═══════════════════ -->
+  <section class="hero" id="hero">
+    <div class="hero-bg">
+      <div class="hero-overlay"></div>
+      <div class="hero-particles" id="hero-particles"></div>
+    </div>
+    <div class="hero-content">
+      <div class="hero-badge reveal-up">
+        <span class="badge-dot"></span>
+        Nền tảng Nông Nghiệp Số #1 Việt Nam
+      </div>
+      <h1 class="hero-title reveal-up">
+        Rau Củ Tươi Sạch<br/>
+        <span class="title-gradient">Trực Tiếp Nông Trại</span>
+      </h1>
+      <p class="hero-desc reveal-up">
+        Frezo ứng dụng công nghệ <strong>Automation & IoT</strong> tiên tiến — giám sát,
+        thu hoạch và phân phối rau củ tươi đến tận tay bạn trong vòng <strong>24 giờ</strong>.
+        Cam kết sạch, an toàn, truy xuất nguồn gốc 100%.
+      </p>
+      <div class="hero-actions reveal-up">
+        <a href="#products" class="btn btn-primary" id="hero-explore-btn">
+          <span>Khám phá sản phẩm</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="#automation" class="btn btn-ghost" id="hero-automation-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16"/></svg>
+          Xem công nghệ
+        </a>
+      </div>
+      <div class="hero-trust reveal-up">
+        <div class="trust-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Chứng nhận VietGAP</span>
+        </div>
+        <div class="trust-divider"></div>
+        <div class="trust-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+          <span>Giao trong 24h</span>
+        </div>
+        <div class="trust-divider"></div>
+        <div class="trust-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>
+          <span>Hoàn tiền 100%</span>
+        </div>
+      </div>
+    </div>
+    <div class="hero-visual reveal-right">
+      <div class="visual-card main-card">
+        <img src="/assets/hero-bg.png" alt="Nông trại Frezo" class="hero-img" id="hero-main-img" />
+        <div class="card-badge live-badge">
+          <span class="pulse-dot"></span>
+          Live Monitoring
+        </div>
+      </div>
+      <div class="floating-card card-temp" id="float-card-1">
+        <span class="fc-icon">🌡️</span>
+        <div>
+          <div class="fc-label">Nhiệt độ</div>
+          <div class="fc-value">24°C</div>
+        </div>
+      </div>
+      <div class="floating-card card-harvest" id="float-card-2">
+        <span class="fc-icon">🌿</span>
+        <div>
+          <div class="fc-label">Thu hoạch hôm nay</div>
+          <div class="fc-value">2.4 tấn</div>
+        </div>
+      </div>
+      <div class="floating-card card-quality" id="float-card-3">
+        <span class="fc-icon">✅</span>
+        <div>
+          <div class="fc-label">Chất lượng</div>
+          <div class="fc-value">98.7%</div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-scroll-hint">
+      <div class="scroll-mouse">
+        <div class="scroll-wheel"></div>
+      </div>
+      <span>Cuộn để khám phá</span>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ STATS TICKER ═══════════════════ -->
+  <div class="stats-ticker">
+    <div class="ticker-track">
+      <div class="ticker-item"><span class="ti-num">500+</span> Nông trại đối tác</div>
+      <div class="ticker-sep">✦</div>
+      <div class="ticker-item"><span class="ti-num">50,000+</span> Khách hàng tin dùng</div>
+      <div class="ticker-sep">✦</div>
+      <div class="ticker-item"><span class="ti-num">120+</span> Loại rau củ</div>
+      <div class="ticker-sep">✦</div>
+      <div class="ticker-item"><span class="ti-num">99.2%</span> Hài lòng</div>
+      <div class="ticker-sep">✦</div>
+      <div class="ticker-item"><span class="ti-num">24h</span> Giao hàng toàn quốc</div>
+      <div class="ticker-sep">✦</div>
+      <div class="ticker-item"><span class="ti-num">500+</span> Nông trại đối tác</div>
+      <div class="ticker-sep">✦</div>
+      <div class="ticker-item"><span class="ti-num">50,000+</span> Khách hàng tin dùng</div>
+      <div class="ticker-sep">✦</div>
+      <div class="ticker-item"><span class="ti-num">120+</span> Loại rau củ</div>
+      <div class="ticker-sep">✦</div>
+      <div class="ticker-item"><span class="ti-num">99.2%</span> Hài lòng</div>
+      <div class="ticker-sep">✦</div>
+      <div class="ticker-item"><span class="ti-num">24h</span> Giao hàng toàn quốc</div>
+      <div class="ticker-sep">✦</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ ABOUT ═══════════════════ -->
+  <section class="about section" id="about">
+    <div class="container">
+      <div class="about-grid">
+        <div class="about-visual">
+          <div class="about-img-wrap reveal-left">
+            <img src="/assets/vegetables.png" alt="Rau củ tươi Frezo" class="about-img" />
+            <div class="about-badge-wrap">
+              <div class="about-badge">
+                <div class="ab-icon">🏆</div>
+                <div>
+                  <div class="ab-num">5 năm</div>
+                  <div class="ab-label">Kinh nghiệm</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="about-content reveal-right">
+          <div class="section-label">Về Frezo</div>
+          <h2 class="section-title">Chúng tôi không chỉ bán<br/><span class="text-green">rau – chúng tôi bán sự an tâm</span></h2>
+          <p class="about-text">
+            Frezo ra đời từ niềm tin rằng mọi gia đình Việt đều xứng đáng được ăn rau củ <strong>thật sự sạch, thật sự tươi</strong>.
+            Với hệ thống automation tích hợp AI, chúng tôi kiểm soát toàn bộ chuỗi cung ứng từ hạt giống đến bàn ăn.
+          </p>
+          <div class="about-features">
+            <div class="af-item">
+              <div class="af-icon-wrap green">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              </div>
+              <div>
+                <div class="af-title">Truy xuất nguồn gốc</div>
+                <div class="af-desc">QR code từng lô hàng, biết rõ nông trại nào, ngày thu hoạch nào</div>
+              </div>
+            </div>
+            <div class="af-item">
+              <div class="af-icon-wrap emerald">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+              </div>
+              <div>
+                <div class="af-title">Kiểm soát vi khí hậu</div>
+                <div class="af-desc">Sensor IoT 24/7 theo dõi nhiệt độ, độ ẩm, ánh sáng tối ưu</div>
+              </div>
+            </div>
+            <div class="af-item">
+              <div class="af-icon-wrap teal">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16,8 20,8 23,11 23,16 16,16 16,8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              </div>
+              <div>
+                <div class="af-title">Vận chuyển lạnh</div>
+                <div class="af-desc">Xe chuyên dụng duy trì nhiệt độ 2-8°C, bảo đảm tươi ngon</div>
+              </div>
+            </div>
+          </div>
+          <a href="#contact" class="btn btn-primary" id="about-cta-btn">Tìm hiểu thêm</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ PRODUCTS ═══════════════════ -->
+  <section class="products section" id="products">
+    <div class="container">
+      <div class="section-header reveal-up">
+        <div class="section-label">Sản phẩm</div>
+        <h2 class="section-title">Rau Củ Tươi <span class="text-green">Mỗi Ngày</span></h2>
+        <p class="section-desc">120+ loại rau củ quả từ các nông trại đối tác được kiểm định nghiêm ngặt theo tiêu chuẩn VietGAP & GlobalGAP</p>
+      </div>
+      <div class="product-filters reveal-up">
+        <button class="filter-btn active" data-filter="all" id="filter-all">Tất cả</button>
+        <button class="filter-btn" data-filter="leafy" id="filter-leafy">Rau lá</button>
+        <button class="filter-btn" data-filter="root" id="filter-root">Củ quả</button>
+        <button class="filter-btn" data-filter="herb" id="filter-herb">Thảo mộc</button>
+        <button class="filter-btn" data-filter="organic" id="filter-organic">Organic</button>
+      </div>
+      <div class="products-grid" id="products-grid">
+        <!-- Cards generated by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ AUTOMATION ═══════════════════ -->
+  <section class="automation section" id="automation">
+    <div class="container">
+      <div class="section-header reveal-up">
+        <div class="section-label">Công nghệ</div>
+        <h2 class="section-title">Automation <span class="text-green">Toàn Diện</span></h2>
+        <p class="section-desc">Hệ thống quản lý nông trại thông minh — từ gieo hạt đến thu hoạch, mọi thứ đều được tự động hóa</p>
+      </div>
+      <div class="automation-pipeline reveal-up">
+        <div class="pipeline-steps">
+          <div class="pipe-step active" data-step="0" id="pipe-step-0">
+            <div class="ps-icon">🌱</div>
+            <div class="ps-label">Gieo trồng</div>
+          </div>
+          <div class="pipe-connector"></div>
+          <div class="pipe-step" data-step="1" id="pipe-step-1">
+            <div class="ps-icon">💧</div>
+            <div class="ps-label">Tưới tiêu</div>
+          </div>
+          <div class="pipe-connector"></div>
+          <div class="pipe-step" data-step="2" id="pipe-step-2">
+            <div class="ps-icon">📡</div>
+            <div class="ps-label">Giám sát</div>
+          </div>
+          <div class="pipe-connector"></div>
+          <div class="pipe-step" data-step="3" id="pipe-step-3">
+            <div class="ps-icon">🤖</div>
+            <div class="ps-label">Thu hoạch</div>
+          </div>
+          <div class="pipe-connector"></div>
+          <div class="pipe-step" data-step="4" id="pipe-step-4">
+            <div class="ps-icon">🚚</div>
+            <div class="ps-label">Vận chuyển</div>
+          </div>
+        </div>
+        <div class="pipeline-display" id="pipeline-display">
+          <!-- Content shown by JS -->
+        </div>
+      </div>
+      <div class="automation-cards">
+        <div class="auto-card reveal-up" id="auto-card-1">
+          <div class="ac-icon-wrap">
+            <span class="ac-emoji">🤖</span>
+          </div>
+          <h3 class="ac-title">AI Phân Tích Cây Trồng</h3>
+          <p class="ac-desc">Camera AI nhận diện sâu bệnh, thiếu dinh dưỡng và cảnh báo tức thì. Độ chính xác 97.3%</p>
+          <div class="ac-metric">
+            <div class="acm-bar"><div class="acm-fill" style="--pct:97%"></div></div>
+            <span>97.3% chính xác</span>
+          </div>
+        </div>
+        <div class="auto-card reveal-up" id="auto-card-2" style="animation-delay:.1s">
+          <div class="ac-icon-wrap">
+            <span class="ac-emoji">💧</span>
+          </div>
+          <h3 class="ac-title">Tưới Tiêu Thông Minh</h3>
+          <p class="ac-desc">Hệ thống drip irrigation điều khiển tự động theo cảm biến độ ẩm đất, tiết kiệm 60% nước</p>
+          <div class="ac-metric">
+            <div class="acm-bar"><div class="acm-fill" style="--pct:60%"></div></div>
+            <span>Tiết kiệm 60% nước</span>
+          </div>
+        </div>
+        <div class="auto-card reveal-up" id="auto-card-3" style="animation-delay:.2s">
+          <div class="ac-icon-wrap">
+            <span class="ac-emoji">📊</span>
+          </div>
+          <h3 class="ac-title">Dashboard Realtime</h3>
+          <p class="ac-desc">Quản lý toàn bộ nông trại qua app mobile và web — mọi lúc, mọi nơi, mọi thiết bị</p>
+          <div class="ac-metric">
+            <div class="acm-bar"><div class="acm-fill" style="--pct:100%"></div></div>
+            <span>100% real-time data</span>
+          </div>
+        </div>
+        <div class="auto-card reveal-up" id="auto-card-4" style="animation-delay:.3s">
+          <div class="ac-icon-wrap">
+            <span class="ac-emoji">🌡️</span>
+          </div>
+          <h3 class="ac-title">Kiểm Soát Môi Trường</h3>
+          <p class="ac-desc">1,000+ cảm biến IoT theo dõi nhiệt độ, CO₂, ánh sáng và điều chỉnh tự động 24/7</p>
+          <div class="ac-metric">
+            <div class="acm-bar"><div class="acm-fill" style="--pct:100%"></div></div>
+            <span>24/7 tự động điều chỉnh</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ STATS ═══════════════════ -->
+  <section class="stats-section section" id="stats">
+    <div class="stats-bg-glow"></div>
+    <div class="container">
+      <div class="section-header reveal-up">
+        <div class="section-label light">Con số nói lên tất cả</div>
+        <h2 class="section-title light">Frezo bằng <span class="text-green-light">những con số</span></h2>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card reveal-up" id="stat-1">
+          <div class="stat-icon">🌿</div>
+          <div class="stat-num" data-target="500">0</div>
+          <div class="stat-unit">+</div>
+          <div class="stat-label">Nông trại đối tác</div>
+        </div>
+        <div class="stat-card reveal-up" id="stat-2" style="animation-delay:.1s">
+          <div class="stat-icon">👥</div>
+          <div class="stat-num" data-target="50000">0</div>
+          <div class="stat-unit">+</div>
+          <div class="stat-label">Khách hàng tin dùng</div>
+        </div>
+        <div class="stat-card reveal-up" id="stat-3" style="animation-delay:.2s">
+          <div class="stat-icon">🥬</div>
+          <div class="stat-num" data-target="120">0</div>
+          <div class="stat-unit">+</div>
+          <div class="stat-label">Loại rau củ</div>
+        </div>
+        <div class="stat-card reveal-up" id="stat-4" style="animation-delay:.3s">
+          <div class="stat-icon">⭐</div>
+          <div class="stat-num" data-target="99">0</div>
+          <div class="stat-unit">%</div>
+          <div class="stat-label">Khách hàng hài lòng</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ TESTIMONIALS ═══════════════════ -->
+  <section class="testimonials section" id="testimonials">
+    <div class="container">
+      <div class="section-header reveal-up">
+        <div class="section-label">Khách hàng nói gì</div>
+        <h2 class="section-title">Hàng nghìn gia đình<br/><span class="text-green">đã tin tưởng Frezo</span></h2>
+      </div>
+      <div class="testi-slider" id="testi-slider">
+        <div class="testi-track" id="testi-track">
+          <div class="testi-card">
+            <div class="testi-stars">★★★★★</div>
+            <p class="testi-text">"Từ khi dùng Frezo, tôi không còn lo lắng về rau bẩn nữa. Mỗi bó rau đều có QR truy xuất, tươi roi rói, giao đúng giờ. Gia đình tôi rất hài lòng!"</p>
+            <div class="testi-author">
+              <div class="testi-avatar" style="background: linear-gradient(135deg, #22c55e, #16a34a)">NT</div>
+              <div>
+                <div class="ta-name">Nguyễn Thị Thu</div>
+                <div class="ta-role">Nội trợ, Hà Nội</div>
+              </div>
+            </div>
+          </div>
+          <div class="testi-card">
+            <div class="testi-stars">★★★★★</div>
+            <p class="testi-text">"Nhà hàng chúng tôi đặt rau từ Frezo mỗi ngày. Chất lượng ổn định, giá cạnh tranh, và đặc biệt là luôn đúng hẹn. Đối tác tuyệt vời!"</p>
+            <div class="testi-author">
+              <div class="testi-avatar" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8)">TM</div>
+              <div>
+                <div class="ta-name">Trần Minh Khoa</div>
+                <div class="ta-role">Chủ nhà hàng, TP.HCM</div>
+              </div>
+            </div>
+          </div>
+          <div class="testi-card">
+            <div class="testi-stars">★★★★★</div>
+            <p class="testi-text">"Công nghệ automation của Frezo thật sự ấn tượng. Tôi có thể xem trực tiếp nông trại qua app, biết rau được trồng như thế nào. Rất minh bạch!"</p>
+            <div class="testi-author">
+              <div class="testi-avatar" style="background: linear-gradient(135deg, #f59e0b, #b45309)">LH</div>
+              <div>
+                <div class="ta-name">Lê Hoàng Nam</div>
+                <div class="ta-role">Kỹ sư công nghệ, Đà Nẵng</div>
+              </div>
+            </div>
+          </div>
+          <div class="testi-card">
+            <div class="testi-stars">★★★★★</div>
+            <p class="testi-text">"Siêu thị của chúng tôi đã tăng doanh thu 35% sau khi chuyển sang nguồn cung từ Frezo. Khách hàng rất ưa chuộng rau sạch có truy xuất."</p>
+            <div class="testi-author">
+              <div class="testi-avatar" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9)">PL</div>
+              <div>
+                <div class="ta-name">Phạm Lan Anh</div>
+                <div class="ta-role">Quản lý siêu thị, Hải Phòng</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-controls">
+        <button class="testi-btn" id="testi-prev" aria-label="Previous">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
+        <div class="testi-dots" id="testi-dots"></div>
+        <button class="testi-btn" id="testi-next" aria-label="Next">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ CONTACT / CTA ═══════════════════ -->
+  <section class="contact section" id="contact">
+    <div class="container">
+      <div class="contact-grid">
+        <div class="contact-info reveal-left">
+          <div class="section-label">Liên hệ</div>
+          <h2 class="section-title">Bắt đầu hành trình<br/><span class="text-green">ăn sạch cùng Frezo</span></h2>
+          <p class="contact-desc">Đăng ký ngay để nhận ưu đãi <strong>20% đơn đầu tiên</strong> và trải nghiệm rau sạch tươi ngon từ nông trại công nghệ cao.</p>
+          <div class="contact-channels">
+            <div class="cc-item">
+              <div class="cc-icon">📞</div>
+              <div>
+                <div class="cc-label">Hotline</div>
+                <div class="cc-value">1800 - FREZO</div>
+              </div>
+            </div>
+            <div class="cc-item">
+              <div class="cc-icon">📧</div>
+              <div>
+                <div class="cc-label">Email</div>
+                <div class="cc-value">hello@frezo.vn</div>
+              </div>
+            </div>
+            <div class="cc-item">
+              <div class="cc-icon">📍</div>
+              <div>
+                <div class="cc-label">Văn phòng</div>
+                <div class="cc-value">123 Nguyễn Huệ, Q.1, TP.HCM</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="contact-form-wrap reveal-right">
+          <form class="contact-form" id="contact-form">
+            <h3 class="form-title">Đăng ký tư vấn miễn phí</h3>
+            <div class="form-group">
+              <label for="name-input">Họ và tên</label>
+              <input type="text" id="name-input" name="name" placeholder="Nguyễn Văn A" required />
+            </div>
+            <div class="form-group">
+              <label for="phone-input">Số điện thoại</label>
+              <input type="tel" id="phone-input" name="phone" placeholder="0901 234 567" required />
+            </div>
+            <div class="form-group">
+              <label for="type-input">Nhu cầu</label>
+              <select id="type-input" name="type">
+                <option value="">-- Chọn nhu cầu --</option>
+                <option value="personal">Cá nhân / Gia đình</option>
+                <option value="restaurant">Nhà hàng / Quán ăn</option>
+                <option value="supermarket">Siêu thị / Cửa hàng</option>
+                <option value="enterprise">Doanh nghiệp lớn</option>
+                <option value="farm">Hợp tác nông trại</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="message-input">Tin nhắn (tuỳ chọn)</label>
+              <textarea id="message-input" name="message" placeholder="Cho chúng tôi biết bạn cần gì..." rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full" id="submit-contact-btn">
+              <span id="submit-text">Gửi đăng ký ngay</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+            <p class="form-note">🔒 Thông tin của bạn được bảo mật tuyệt đối</p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════ FOOTER ═══════════════════ -->
+  <footer class="footer" id="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="#" class="nav-logo footer-logo">
+            <span class="logo-icon">🌿</span>
+            <span class="logo-text">Frezo</span>
+          </a>
+          <p class="footer-tagline">Rau củ tươi sạch – Automation nông nghiệp – Đến tận tay bạn trong 24h</p>
+          <div class="footer-social">
+            <a href="#" class="social-link" id="social-fb" aria-label="Facebook">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+            </a>
+            <a href="#" class="social-link" id="social-ig" aria-label="Instagram">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+            </a>
+            <a href="#" class="social-link" id="social-yt" aria-label="YouTube">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"/></svg>
+            </a>
+          </div>
+        </div>
+        <div class="footer-col">
+          <h4 class="footer-col-title">Sản phẩm</h4>
+          <ul class="footer-links">
+            <li><a href="#">Rau lá xanh</a></li>
+            <li><a href="#">Củ quả tươi</a></li>
+            <li><a href="#">Thảo mộc & Gia vị</a></li>
+            <li><a href="#">Combo gia đình</a></li>
+            <li><a href="#">Rau hữu cơ</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4 class="footer-col-title">Công ty</h4>
+          <ul class="footer-links">
+            <li><a href="#about">Về chúng tôi</a></li>
+            <li><a href="#automation">Công nghệ</a></li>
+            <li><a href="#">Nông trại đối tác</a></li>
+            <li><a href="#">Tuyển dụng</a></li>
+            <li><a href="#">Tin tức</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4 class="footer-col-title">Hỗ trợ</h4>
+          <ul class="footer-links">
+            <li><a href="#">Hướng dẫn đặt hàng</a></li>
+            <li><a href="#">Chính sách đổi trả</a></li>
+            <li><a href="#">Chính sách bảo mật</a></li>
+            <li><a href="#">FAQ</a></li>
+            <li><a href="#contact">Liên hệ</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2024 Frezo. Bảo lưu mọi quyền.</p>
+        <p>Được xây dựng với ❤️ vì một Việt Nam ăn sạch hơn</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast notification -->
+  <div class="toast" id="toast">
+    <span class="toast-icon">✅</span>
+    <span id="toast-msg">Đăng ký thành công!</span>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -62,7 +62,7 @@ export function ProductsPage() {
   const dataList = rawData || []
 
   const totalProducts = Array.isArray(dataList) ? dataList.length : 0
-  const activeProducts = Array.isArray(dataList) ? dataList.filter((p: any) => p.status === 'ACTIVE' || !p.status).length : 0
+  const activeProducts = Array.isArray(dataList) ? dataList.filter((p: any) => p.isActive !== false).length : 0
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -97,10 +97,6 @@ export function ProductsPage() {
 
   const columns = [
     {
-      title: 'Mã SP', dataIndex: 'code', filterType: 'text',
-      render: (val: string) => <span className="font-mono text-xs font-semibold text-neutral-600">{val || '---'}</span>,
-    },
-    {
       title: 'Tên sản phẩm', dataIndex: 'name', filterType: 'text',
       render: (val: string) => <span className="font-medium text-neutral-800">{val}</span>,
     },
@@ -110,15 +106,28 @@ export function ProductsPage() {
         <span className="font-mono text-sm font-semibold text-neutral-800">{formatCurrency(val ?? 0)}</span>
       ),
     },
-    { title: 'Đơn vị', dataIndex: 'unit', filterType: 'text' },
-    { title: 'Danh mục', dataIndex: 'categoryName', filterType: 'text' },
     {
-      title: 'Trạng thái', dataIndex: 'status',
-      render: (val: string) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[val] || STATUS_BADGE['ACTIVE']}`}>
-          {STATUS_LABEL[val] || 'Đang KD'}
+      title: 'Danh mục', dataIndex: 'category', filterType: 'text',
+      render: (val: string) => {
+        const option = categoryOptions.find((opt) => opt.value === val)
+        return <span>{option ? option.label : val || '---'}</span>
+      }
+    },
+    {
+      title: 'Trạng thái', dataIndex: 'isActive',
+      render: (val: boolean) => (
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${val !== false ? 'bg-green-50 text-green-700' : 'bg-neutral-100 text-neutral-600'}`}>
+          {val !== false ? 'Đang KD' : 'Ngừng KD'}
         </span>
       ),
+    },
+    {
+      title: 'Đánh giá', dataIndex: 'rating',
+      render: (val: number) => <span className="text-xs text-neutral-600">{val ? `${val} ⭐` : '---'}</span>
+    },
+    {
+      title: 'Mới', dataIndex: 'isNew',
+      render: (val: boolean) => val && <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded">NEW</span>
     },
     {
       title: 'Thao tác',
@@ -146,18 +155,17 @@ export function ProductsPage() {
   ]
 
   const formFields = [
-    { name: 'code', label: 'Mã sản phẩm', placeholder: 'SP001' },
     { name: 'name', label: 'Tên sản phẩm', required: true, placeholder: 'Nhập tên sản phẩm' },
-    { name: 'categoryId', label: 'Danh mục', type: 'select', options: categoryOptions },
-    { name: 'price', label: 'Giá', type: 'number', placeholder: '0' },
-    { name: 'unit', label: 'Đơn vị', placeholder: 'Cái, hộp, kg...' },
-    { name: 'status', label: 'Trạng thái', type: 'select', options: STATUS_OPTIONS },
+    { name: 'category', label: 'Danh mục', type: 'select', options: categoryOptions, required: true },
+    { name: 'price', label: 'Giá', type: 'number', placeholder: '0', required: true },
+    { name: 'isNew', label: 'Sản phẩm mới', type: 'switch' },
+    { name: 'isActive', label: 'Hoạt động', type: 'switch' },
     { name: 'description', label: 'Mô tả', placeholder: 'Mô tả sản phẩm...' },
   ]
 
   const defaultFormValues = {
-    name: '', code: '', price: 0, unit: '', description: '',
-    categoryId: '', status: 'ACTIVE', imageUrl: '',
+    name: '', price: 0, description: '',
+    category: '', isActive: true, imageUrl: '', isNew: false
   }
 
   const openModal = (item: any | null) => {

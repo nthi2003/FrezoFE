@@ -5,13 +5,14 @@ import Placeholder from '@tiptap/extension-placeholder'
 import TextAlign from '@tiptap/extension-text-align'
 import LinkExtension from '@tiptap/extension-link'
 import ImageExtension from '@tiptap/extension-image'
+import { Node, mergeAttributes } from '@tiptap/core'
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, List, ListOrdered, Quote,
   Heading1, Heading2, Heading3, Code, Minus, Link, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Undo2, Redo2, RemoveFormatting, ImageIcon,
 } from 'lucide-react'
 import { cn } from '@frezo/utils'
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useImperativeHandle, forwardRef } from 'react'
 
 interface TiptapEditorProps {
   value: string
@@ -19,6 +20,53 @@ interface TiptapEditorProps {
   placeholder?: string
   className?: string
 }
+
+export interface TiptapEditorRef {
+  insertHtml: (html: string) => void
+}
+
+const PlaceholderNode = Node.create({
+  name: 'placeholder',
+  group: 'inline',
+  inline: true,
+  selectable: true,
+  atom: true,
+
+  addAttributes() {
+    return {
+      placeholder: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-placeholder'),
+        renderHTML: attributes => ({
+          'data-placeholder': attributes.placeholder,
+        }),
+      },
+      label: {
+        default: '',
+        parseHTML: element => element.textContent || '',
+        renderHTML: attributes => ({}),
+      },
+    }
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: 'span[data-placeholder]',
+      },
+    ]
+  },
+
+  renderHTML({ node, HTMLAttributes }) {
+    return [
+      'span',
+      mergeAttributes(HTMLAttributes, {
+        class: 'contract-placeholder bg-primary-50 text-primary-700 px-1.5 py-0.5 rounded border border-primary-200 font-semibold select-all mx-0.5 inline-block',
+      }),
+      node.attrs.label || '',
+    ]
+  },
+})
 
 const ToolbarButton = ({ onClick, active, children }: { onClick: () => void; active: boolean; children: React.ReactNode }) => (
   <button
@@ -35,29 +83,39 @@ const ToolbarButton = ({ onClick, active, children }: { onClick: () => void; act
 
 const Divider = () => <div className="w-px h-5 bg-neutral-200 mx-0.5" />
 
-export function TiptapEditor({ value, onChange, placeholder = 'Nhập nội dung...', className }: TiptapEditorProps) {
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-      }),
-      Underline,
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      LinkExtension.configure({ openOnClick: false }),
-      ImageExtension.configure({ inline: true }),
-      Placeholder.configure({ placeholder }),
-    ],
-    content: value,
-    onUpdate: ({ editor }) => {
-      onChange(editor.getHTML())
-    },
-  })
+export const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
+  ({ value, onChange, placeholder = 'Nhập nội dung...', className }, ref) => {
+    const editor = useEditor({
+      extensions: [
+        StarterKit.configure({
+          heading: { levels: [1, 2, 3] },
+        }),
+        Underline,
+        TextAlign.configure({ types: ['heading', 'paragraph'] }),
+        LinkExtension.configure({ openOnClick: false }),
+        ImageExtension.configure({ inline: true }),
+        Placeholder.configure({ placeholder }),
+        PlaceholderNode,
+      ],
+      content: value,
+      onUpdate: ({ editor }) => {
+        onChange(editor.getHTML())
+      },
+    })
 
-  useEffect(() => {
-    if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value, { emitUpdate: false })
-    }
-  }, [editor, value])
+    useImperativeHandle(ref, () => ({
+      insertHtml: (html: string) => {
+        if (editor) {
+          editor.chain().focus().insertContent(html).run()
+        }
+      }
+    }), [editor])
+
+    useEffect(() => {
+      if (editor && value !== editor.getHTML()) {
+        editor.commands.setContent(value, { emitUpdate: false })
+      }
+    }, [editor, value])
 
   const setLink = useCallback(() => {
     if (!editor) return
@@ -171,4 +229,5 @@ export function TiptapEditor({ value, onChange, placeholder = 'Nhập nội dung
       <EditorContent editor={editor} className="prose prose-sm max-w-none p-4 min-h-[400px] focus:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[380px]" />
     </div>
   )
-}
+})
+

@@ -15,7 +15,7 @@ import {
 } from '@frezo/ui'
 import { Skeleton } from '@frezo/ui'
 import notDataImg from '@/img/mas-cost-not-data.png'
-import { ChevronLeft, ChevronRight, Search, Filter, RotateCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, Filter, RotateCw, X } from 'lucide-react'
 import { Input } from '@frezo/ui'
 import { Button } from '@frezo/ui'
 import { Select } from '@frezo/ui'
@@ -214,119 +214,231 @@ export function AppTable<T>({
     (k) => filterValues[k] !== 'ALL' && filterValues[k] !== '' && filterValues[k] !== undefined && filterValues[k] !== null
   ).length
 
+  interface FilterItem {
+    type: 'search' | 'column'
+    key: string
+    title: string
+    column?: AppTableColumn<T>
+  }
+
+  const filterItems: FilterItem[] = []
+  if (showSearch) {
+    filterItems.push({
+      type: 'search',
+      key: searchKey,
+      title: 'Tìm kiếm'
+    })
+  }
+
+  filterableCols.forEach((col) => {
+    const key = col.filterKey || (col.dataIndex as string) || col.key || ''
+    if (key) {
+      filterItems.push({
+        type: 'column',
+        key,
+        title: col.title,
+        column: col
+      })
+    }
+  })
+
+  const inlineItems = filterItems.slice(0, 4)
+  const sidebarItems = filterItems.slice(4)
+
+  // Lock body scroll when sidebar filter is open
+  useEffect(() => {
+    if (showFiltersPanel && sidebarItems.length > 0) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [showFiltersPanel, sidebarItems.length])
+
+  const renderFilterItem = (item: FilterItem, isSidebar = false) => {
+    if (item.type === 'search') {
+      return (
+        <div key={item.key} className={isSidebar ? 'space-y-1.5' : 'flex-1 min-w-[200px] w-full space-y-1.5'}>
+          <label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider block">
+            {isSidebar ? 'Tìm kiếm từ khóa' : 'Từ khóa'}
+          </label>
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Input
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={searchPlaceholder}
+              className="pl-9 pr-4 w-full h-9"
+            />
+          </div>
+        </div>
+      )
+    }
+
+    const col = item.column
+    if (!col) return null
+    const key = item.key
+
+    return (
+      <div key={key} className={isSidebar ? 'space-y-1.5' : 'flex-1 min-w-[200px] w-full space-y-1.5'}>
+        <label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider block">
+          {col.title}
+        </label>
+
+        {col.filterType === 'select' && (
+          <Select
+            options={[{ value: 'ALL', label: `-- Tất cả ${col.title.toLowerCase()} --` }, ...(col.filterOptions || [])]}
+            value={filterValues[key] || 'ALL'}
+            onChange={(val) => handleFilterSelect(key, val)}
+            placeholder={`Tất cả ${col.title.toLowerCase()}`}
+          />
+        )}
+
+        {col.filterType === 'boolean' && (
+          <Select
+            options={[
+              { value: 'ALL', label: `-- Tất cả ${col.title.toLowerCase()} --` },
+              { value: 'true', label: 'Hoạt động / Bật' },
+              { value: 'false', label: 'Không hoạt động / Tắt' },
+            ]}
+            value={
+              filterValues[key] === true
+                ? 'true'
+                : filterValues[key] === false
+                ? 'false'
+                : 'ALL'
+            }
+            onChange={(val) => handleFilterSelect(key, val === 'true' ? true : val === 'false' ? false : 'ALL')}
+            placeholder={`Tất cả ${col.title.toLowerCase()}`}
+          />
+        )}
+
+        {col.filterType === 'text' && (
+          <Input
+            value={filterValues[key] || ''}
+            onChange={(e) => handleFilterSelect(key, e.target.value)}
+            placeholder={`Nhập ${col.title.toLowerCase()}...`}
+            className="h-9 w-full"
+          />
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       {/* Dynamic Filter Toolbar */}
-      {(showSearch || hasFilterOptions) && (
-        <div className="p-4 rounded-xl border border-border bg-surface shadow-sm space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Search Input */}
-            {showSearch && (
-              <div className="relative flex-1 min-w-[260px] max-w-md">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-                <Input
-                  value={searchKeyword}
-                  onChange={(e) => setSearchKeyword(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={searchPlaceholder}
-                  className="pl-9 pr-4"
-                />
-              </div>
-            )}
+      {filterItems.length > 0 && (
+        <div className="p-4 rounded-xl border border-border bg-surface shadow-sm">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            {/* Inline filters */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 flex-1">
+              {inlineItems.map((item) => renderFilterItem(item, false))}
+            </div>
 
-            {/* Actions */}
-            {showSearch && (
-              <Button onClick={handleSearchClick} className="gap-1.5 bg-primary-600 hover:bg-primary-700 text-white">
-                <Search size={15} /> Tìm kiếm
+            {/* Actions group */}
+            <div className="flex items-center gap-2 self-end h-9">
+              {showSearch && (
+                <Button onClick={handleSearchClick} className="gap-1.5 bg-primary-600 hover:bg-primary-700 text-white h-9 px-4">
+                  <Search size={15} /> Tìm kiếm
+                </Button>
+              )}
+
+              {sidebarItems.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowFiltersPanel(true)}
+                  className="gap-1.5 transition-all relative h-9 px-4"
+                >
+                  <Filter size={15} />
+                  Bộ lọc
+                  {activeFiltersCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-primary-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                      {activeFiltersCount}
+                    </span>
+                  )}
+                </Button>
+              )}
+
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleReset}
+                className="gap-1.5 text-neutral-500 hover:text-neutral-900 h-9 px-3"
+              >
+                <RotateCw size={15} />
+                Làm mới
               </Button>
-            )}
+            </div>
+          </div>
+        </div>
+      )}
 
-            {hasFilterOptions && (
+      {/* Sidebar Drawer */}
+      {sidebarItems.length > 0 && (
+        <>
+          {/* Backdrop Overlay */}
+          <div
+            className={`fixed inset-0 bg-black/40 backdrop-blur-xs z-[9999] transition-opacity duration-300 ${
+              showFiltersPanel ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+            onClick={() => setShowFiltersPanel(false)}
+          />
+
+          {/* Drawer Panel */}
+          <div
+            className={`fixed right-0 top-0 bottom-0 w-80 sm:w-96 bg-white shadow-2xl z-[10000] flex flex-col transition-transform duration-300 ease-in-out ${
+              showFiltersPanel ? 'translate-x-0' : 'translate-x-full'
+            }`}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Filter size={18} className="text-primary-600" />
+                <h3 className="font-bold text-neutral-900 text-lg">Bộ lọc nâng cao</h3>
+              </div>
+              <button
+                onClick={() => setShowFiltersPanel(false)}
+                className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-400 hover:text-neutral-600 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+              {filterItems.map((item) => renderFilterItem(item, true))}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-border px-6 py-4 bg-neutral-50/50 flex gap-3">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setShowFiltersPanel(!showFiltersPanel)}
-                className={`gap-1.5 transition-all relative ${
-                  showFiltersPanel ? 'bg-neutral-100 border-neutral-400' : ''
-                }`}
+                onClick={handleReset}
+                className="flex-1 gap-1.5 h-10"
               >
-                <Filter size={15} />
-                Bộ lọc
-                {activeFiltersCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-primary-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                    {activeFiltersCount}
-                  </span>
-                )}
+                <RotateCw size={15} /> Thiết lập lại
               </Button>
-            )}
-
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleReset}
-              className="gap-1.5 text-neutral-500 hover:text-neutral-900"
-            >
-              <RotateCw size={15} />
-              Làm mới
-            </Button>
-          </div>
-
-          {/* Expandable Advanced Filters Grid */}
-          {hasFilterOptions && showFiltersPanel && (
-            <div className="pt-4 border-t border-border grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
-              {filterableCols.map((col) => {
-                const key = col.filterKey || (col.dataIndex as string) || col.key || ''
-                if (!key) return null
-
-                return (
-                  <div key={key} className="space-y-1.5">
-                    <label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                      {col.title}
-                    </label>
-
-                    {col.filterType === 'select' && (
-                      <Select
-                        options={[{ value: 'ALL', label: `-- Tất cả ${col.title.toLowerCase()} --` }, ...(col.filterOptions || [])]}
-                        value={filterValues[key] || 'ALL'}
-                        onChange={(val) => handleFilterSelect(key, val)}
-                        placeholder={`Tất cả ${col.title.toLowerCase()}`}
-                      />
-                    )}
-
-                    {col.filterType === 'boolean' && (
-                      <Select
-                        options={[
-                          { value: 'ALL', label: `-- Tất cả ${col.title.toLowerCase()} --` },
-                          { value: 'true', label: 'Hoạt động / Bật' },
-                          { value: 'false', label: 'Không hoạt động / Tắt' },
-                        ]}
-                        value={
-                          filterValues[key] === true
-                            ? 'true'
-                            : filterValues[key] === false
-                            ? 'false'
-                            : 'ALL'
-                        }
-                        onChange={(val) => handleFilterSelect(key, val === 'true' ? true : val === 'false' ? false : 'ALL')}
-                        placeholder={`Tất cả ${col.title.toLowerCase()}`}
-                      />
-                    )}
-
-                    {col.filterType === 'text' && (
-                      <Input
-                        value={filterValues[key] || ''}
-                        onChange={(e) => handleFilterSelect(key, e.target.value)}
-                        placeholder={`Nhập ${col.title.toLowerCase()}...`}
-                        className="h-9"
-                      />
-                    )}
-                  </div>
-                )
-              })}
+              <Button
+                type="button"
+                onClick={() => {
+                  notifyFilterChange(searchKeyword, filterValues)
+                  setShowFiltersPanel(false)
+                }}
+                className="flex-1 bg-primary-600 hover:bg-primary-700 text-white h-10"
+              >
+                Áp dụng
+              </Button>
             </div>
-          )}
-        </div>
+          </div>
+        </>
       )}
+
 
       {/* Table Container */}
       <div className="rounded-xl border border-border bg-surface shadow-sm overflow-hidden">
@@ -363,7 +475,7 @@ export function AppTable<T>({
                 <TableCell key="empty" colSpan={totalCols} className="h-64 text-center">
                   <div className="flex flex-col items-center justify-center">
                     <img src={notDataImg} alt="Không có dữ liệu" className="w-48 h-48 object-contain opacity-70" />
-                    <p className="text-sm font-bold text-neutral-400 mt-5">Frezo không tìm thấy dữ liệu</p>
+                    <p className="text-sm font-bold text-neutral-400 -mt-8">Frezo không tìm thấy dữ liệu</p>
                   </div>
                 </TableCell>
               </TableRow>

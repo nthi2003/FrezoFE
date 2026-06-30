@@ -17,14 +17,15 @@ import { CONTRACT_TEMPLATES, CONTRACT_TYPES, PLACEHOLDER_PATTERNS } from '../con
 import { useContractTemplates, fetchTemplateContent } from '@/lib/hooks/useContractTemplates'
 import { convertDocxToHtml } from '@/lib/utils/convertDocx'
 
-function fillContent(content: string, data: Record<string, string>) {
-  let result = content
-  for (const [key, value] of Object.entries(data)) {
-    if (value) {
-      const regex = new RegExp(`\\{\\{${key}\\}\\}|${'[.]{32,40}'}`, 'g')
-      result = result.replace(regex, value)
-    }
-  }
+function wrapPlaceholders(html: string) {
+  let result = html
+  PLACEHOLDER_PATTERNS.forEach(({ key, label }) => {
+    const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g')
+    result = result.replace(
+      regex,
+      `<span class="contract-placeholder bg-primary-50 text-primary-700 px-1.5 py-0.5 rounded border border-primary-200 font-semibold" data-placeholder="${key}">${label}</span>`
+    )
+  })
   return result
 }
 
@@ -37,6 +38,8 @@ export function ContractCreatePage() {
   const [activeTab, setActiveTab] = useState<'template' | 'upload' | 'manual'>('template')
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const [personDetails, setPersonDetails] = useState<any>(null)
+  const [formTab, setFormTab] = useState<'employee' | 'employer' | 'salary'>('employee')
+  const editorRef = useRef<any>(null)
 
   const [formData, setFormData] = useState({
     code: '',
@@ -198,8 +201,9 @@ export function ContractCreatePage() {
     const builtin = CONTRACT_TEMPLATES.find(t => t.id === tplId)
     if (builtin) {
       setSelectedTemplate(tplId)
-      setBaseContent(builtin.content)
-      setFormData(prev => ({ ...prev, type: builtin.type, content: builtin.content }))
+      const wrapped = wrapPlaceholders(builtin.content)
+      setBaseContent(wrapped)
+      setFormData(prev => ({ ...prev, type: builtin.type, content: wrapped }))
       setActiveTab('template')
       return
     }
@@ -212,8 +216,9 @@ export function ContractCreatePage() {
       setLoadingTemplate(true)
       try {
         const content = await fetchTemplateContent(saved.fileUrl)
-        setBaseContent(content)
-        setFormData(prev => ({ ...prev, content }))
+        const wrapped = wrapPlaceholders(content)
+        setBaseContent(wrapped)
+        setFormData(prev => ({ ...prev, content: wrapped }))
       } catch {
         toast.error('Không thể tải nội dung mẫu')
       } finally {
@@ -258,9 +263,17 @@ export function ContractCreatePage() {
     setFormErrors(prev => ({ ...prev, [field]: '' }))
   }
 
-  const filledContent = useMemo(() => {
-    if (!baseContent) return null
-    let filled = baseContent
+  const insertPlaceholder = (key: string, label: string) => {
+    editorRef.current?.insertHtml(
+      `<span class="contract-placeholder bg-primary-50 text-primary-700 px-1.5 py-0.5 rounded border border-primary-200 font-semibold" data-placeholder="${key}">${label}</span>`
+    )
+  }
+
+  useEffect(() => {
+    let content = formData.content
+    if (!content) return
+
+    let updated = false
     const textFields: Record<string, string> = {
       personName: formData.personName,
       code: formData.code,
@@ -275,42 +288,46 @@ export function ContractCreatePage() {
       startDate: formData.startDate,
       endDate: formData.endDate,
     }
-    for (const [key, val] of Object.entries(textFields)) {
-      if (val) {
-        filled = filled.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), val)
-      }
-    }
+
     const base = Number(formData.basicSalary) || 0
     const kpiAmt = Number(formData.kpiAmount) || 0
     const net = base + kpiAmt
-    filled = filled
-      .replace(/\{\{basicSalary\}\}/g, base ? base.toLocaleString('vi-VN') : '...')
-      .replace(/\{\{kpiAmount\}\}/g, kpiAmt ? kpiAmt.toLocaleString('vi-VN') : '...')
-      .replace(/\{\{netSalary\}\}/g, net ? net.toLocaleString('vi-VN') : '...')
-    filled = filled
-      .replace(/\{\{bhxh\}\}/g, insurance.bhxh ? Math.round(insurance.bhxh).toLocaleString('vi-VN') : '...')
-      .replace(/\{\{bhyt\}\}/g, insurance.bhyt ? Math.round(insurance.bhyt).toLocaleString('vi-VN') : '...')
-      .replace(/\{\{bhtn\}\}/g, insurance.bhtn ? Math.round(insurance.bhtn).toLocaleString('vi-VN') : '...')
-      .replace(/\{\{totalInsurance\}\}/g, insurance.total ? Math.round(insurance.total).toLocaleString('vi-VN') : '...')
-    return filled
-  }, [baseContent, formData.personName, formData.code, formData.employerName, formData.employerAddress, formData.employeeIdNumber, formData.employeeDob, formData.jobPosition, formData.workLocation, formData.probationDays, formData.allowance, formData.basicSalary, formData.kpiAmount, insurance])
 
-  useEffect(() => {
-    if (!filledContent) return
-    if (isSyncingToEditor.current) return
-    const hasAnyPlaceholder = /\{\{\w+\}\}/.test(formData.content)
-    if (!hasAnyPlaceholder) return
-    if (filledContent !== formData.content) {
-      isSyncingToEditor.current = true
-      setFormData(prev => ({ ...prev, content: filledContent }))
+    const valuesMap: Record<string, string> = {}
+    for (const [key, val] of Object.entries(textFields)) {
+      valuesMap[key] = val || PLACEHOLDER_PATTERNS.find(p => p.key === key)?.label || ''
     }
-  }, [filledContent])
+    valuesMap['basicSalary'] = base ? base.toLocaleString('vi-VN') + ' VNĐ' : 'Lương cơ bản'
+    valuesMap['kpiAmount'] = kpiAmt ? kpiAmt.toLocaleString('vi-VN') + ' VNĐ' : 'Thưởng KPI'
+    valuesMap['netSalary'] = net ? net.toLocaleString('vi-VN') + ' VNĐ' : 'Tổng lương net'
+    valuesMap['bhxh'] = insurance.bhxh ? Math.round(insurance.bhxh).toLocaleString('vi-VN') + ' VNĐ' : 'BHXH'
+    valuesMap['bhyt'] = insurance.bhyt ? Math.round(insurance.bhyt).toLocaleString('vi-VN') + ' VNĐ' : 'BHYT'
+    valuesMap['bhtn'] = insurance.bhtn ? Math.round(insurance.bhtn).toLocaleString('vi-VN') + ' VNĐ' : 'BHTN'
+    valuesMap['totalInsurance'] = insurance.total ? Math.round(insurance.total).toLocaleString('vi-VN') + ' VNĐ' : 'Tổng khấu trừ BH'
 
-  useEffect(() => {
-    if (isSyncingToEditor.current) {
-      isSyncingToEditor.current = false
+    for (const [key, val] of Object.entries(valuesMap)) {
+      const regex = new RegExp(`(<span[^>]*data-placeholder="${key}"[^>]*>)(.*?)(</span>)`, 'gi')
+      if (regex.test(content)) {
+        const matches = content.match(regex)
+        if (matches) {
+          const testMatch = new RegExp(`(<span[^>]*data-placeholder="${key}"[^>]*>)(.*?)(</span>)`, 'gi').exec(content)
+          if (testMatch && testMatch[2] !== val) {
+            content = content.replace(regex, `$1${val}$3`)
+            updated = true
+          }
+        }
+      }
     }
-  }, [formData.content])
+
+    if (updated && content !== formData.content) {
+      setFormData(prev => ({ ...prev, content }))
+    }
+  }, [
+    formData.personName, formData.code, formData.employerName, formData.employerAddress,
+    formData.employeeIdNumber, formData.employeeDob, formData.jobPosition, formData.workLocation,
+    formData.probationDays, formData.allowance, formData.basicSalary, formData.kpiAmount,
+    formData.startDate, formData.endDate, formData.content, insurance
+  ])
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
@@ -508,251 +525,260 @@ export function ContractCreatePage() {
 
           {/* Form + Editor */}
           <div className="flex gap-6 items-start">
-            {/* Left: Form fields */}
-            <div className="w-[420px] shrink-0 space-y-4">
-              <div className="bg-white rounded-xl border border-border p-5 shadow-sm space-y-4">
-                <h3 className="text-sm font-semibold text-neutral-700 pb-2 border-b border-border flex items-center gap-2">
-                  <BookOpen size={15} className="text-primary-500" />
-                  Thông tin hợp đồng
-                </h3>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                  <div className="space-y-1.5">
-                    <Label>Mã hợp đồng <span className="text-red-500">*</span></Label>
-                    <Input
-                      placeholder="VD: HĐ-001"
-                      value={formData.code}
-                      onChange={(e) => updateField('code', e.target.value)}
-                    />
-                    {formErrors.code && <p className="text-xs text-red-500">{formErrors.code}</p>}
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Loại hợp đồng <span className="text-red-500">*</span></Label>
-                    <Select
-                      options={CONTRACT_TYPES}
-                      value={formData.type}
-                      onChange={(v) => updateField('type', v)}
-                      placeholder="Chọn loại..."
-                    />
-                    {formErrors.type && <p className="text-xs text-red-500">{formErrors.type}</p>}
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Nhân sự <span className="text-red-500">*</span></Label>
-                    <Select
-                      options={personOptions || []}
-                      value={formData.personId}
-                      onChange={(v) => updateField('personId', v)}
-                      placeholder="Chọn nhân sự..."
-                    />
-                    {formErrors.personId && <p className="text-xs text-red-500">{formErrors.personId}</p>}
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Ngày bắt đầu <span className="text-red-500">*</span></Label>
-                    <Input
-                      type="date"
-                      value={formData.startDate}
-                      onChange={(e) => updateField('startDate', e.target.value)}
-                    />
-                    {formErrors.startDate && <p className="text-xs text-red-500">{formErrors.startDate}</p>}
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Ngày kết thúc</Label>
-                    <Input
-                      type="date"
-                      value={formData.endDate}
-                      onChange={(e) => updateField('endDate', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-border p-5 shadow-sm space-y-4">
-                <h3 className="text-sm font-semibold text-neutral-700 pb-2 border-b border-border flex items-center gap-2">
-                  <Building2 size={15} className="text-primary-500" />
-                  Thông tin doanh nghiệp
-                </h3>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                  <div className="space-y-1.5">
-                    <Label>Tên công ty</Label>
-                    <Input
-                      placeholder="Công ty TNHH ..."
-                      value={formData.employerName}
-                      onChange={(e) => updateField('employerName', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Địa chỉ công ty</Label>
-                    <Input
-                      placeholder="Địa chỉ..."
-                      value={formData.employerAddress}
-                      onChange={(e) => updateField('employerAddress', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-border p-5 shadow-sm space-y-4">
-                <h3 className="text-sm font-semibold text-neutral-700 pb-2 border-b border-border flex items-center gap-2">
-                  <Briefcase size={15} className="text-primary-500" />
-                  Thông tin lương
-                </h3>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                  <div className="space-y-1.5">
-                    <Label>Lương cơ bản (VNĐ)</Label>
-                    <Input
-                      type="number"
-                      placeholder="10,000,000"
-                      value={formData.basicSalary}
-                      onChange={(e) => updateField('basicSalary', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Thưởng KPI (VNĐ)</Label>
-                    <Input
-                      type="number"
-                      placeholder="2,000,000"
-                      value={formData.kpiAmount}
-                      onChange={(e) => updateField('kpiAmount', e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between px-4 py-3 bg-primary-50 border border-primary-200 rounded-xl">
-                  <span className="text-sm font-medium text-primary-800">Tổng lương net</span>
-                  <span className="text-lg font-bold text-primary-700">
-                    {netSalary > 0 ? netSalary.toLocaleString('vi-VN') + ' VNĐ' : '---'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-border p-5 shadow-sm space-y-4">
-                <h3 className="text-sm font-semibold text-neutral-700 pb-2 border-b border-border flex items-center gap-2">
-                  <ShieldCheck size={15} className="text-primary-500" />
-                  Bảo hiểm (BHXH)
-                </h3>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                  <div className="space-y-1.5">
-                    <Label>Mức lương đóng BH (VNĐ)</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="number"
-                        placeholder={MIN_SI_BASE.toLocaleString('vi-VN')}
-                        value={formData.bhxhBase}
-                        onChange={(e) => updateField('bhxhBase', e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0 text-xs gap-1"
-                        onClick={() => updateField('bhxhBase', String(netSalary))}
-                        disabled={netSalary <= 0}
-                      >
-                        Đóng full lương
-                      </Button>
-                    </div>
-                    <p className="text-[10px] text-neutral-400">Mức tối thiểu: {MIN_SI_BASE.toLocaleString('vi-VN')} VNĐ</p>
-                  </div>
-                </div>
-                {Number(formData.basicSalary) > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between px-3 py-2 bg-neutral-50 rounded-lg text-sm">
-                      <span className="text-neutral-600">BHXH (8%)</span>
-                      <span className="font-semibold text-neutral-800">{Math.round(insurance.bhxh).toLocaleString('vi-VN')} VNĐ</span>
-                    </div>
-                    <div className="flex items-center justify-between px-3 py-2 bg-neutral-50 rounded-lg text-sm">
-                      <span className="text-neutral-600">BHYT (1.5%)</span>
-                      <span className="font-semibold text-neutral-800">{Math.round(insurance.bhyt).toLocaleString('vi-VN')} VNĐ</span>
-                    </div>
-                    <div className="flex items-center justify-between px-3 py-2 bg-neutral-50 rounded-lg text-sm">
-                      <span className="text-neutral-600">BHTN (1%)</span>
-                      <span className="font-semibold text-neutral-800">{Math.round(insurance.bhtn).toLocaleString('vi-VN')} VNĐ</span>
-                    </div>
-                    <div className="flex items-center justify-between px-3 py-2.5 bg-primary-50 border border-primary-200 rounded-lg text-sm font-medium">
-                      <span className="text-primary-800">Tổng khấu trừ BH</span>
-                      <span className="font-bold text-primary-700">{Math.round(insurance.total).toLocaleString('vi-VN')} VNĐ</span>
-                    </div>
-                    <div className="flex items-center justify-between px-3 py-2.5 bg-green-50 border border-green-200 rounded-lg text-sm font-medium">
-                      <span className="text-green-800">Lương thực nhận</span>
-                      <span className="font-bold text-green-700">{Math.round(salaryAfterInsurance).toLocaleString('vi-VN')} VNĐ</span>
-                    </div>
-                    {Number(formData.basicSalary) < MIN_SI_BASE && (
-                      <p className="text-xs text-amber-600 flex items-center gap-1">
-                        <AlertTriangle size={12} />
-                        Lương cơ bản thấp hơn mức tối thiểu đóng BHXH ({MIN_SI_BASE.toLocaleString('vi-VN')} VNĐ)
-                      </p>
+            {/* Left: Form fields with Tabs */}
+            <div className="w-[420px] shrink-0 flex flex-col gap-4">
+              {/* Tab navigation */}
+              <div className="bg-neutral-100 p-1 rounded-xl flex gap-1 border border-border">
+                {[
+                  { id: 'employee' as const, label: 'Nhân sự & HĐ' },
+                  { id: 'employer' as const, label: 'Doanh nghiệp' },
+                  { id: 'salary' as const, label: 'Lương & BH' },
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setFormTab(t.id)}
+                    className={cn(
+                      'flex-1 text-center py-2 rounded-lg text-xs font-semibold transition-all',
+                      formTab === t.id
+                        ? 'bg-white text-primary-700 shadow-sm border border-neutral-200'
+                        : 'text-neutral-500 hover:text-neutral-700'
                     )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab Content */}
+              <div className="bg-white rounded-xl border border-border p-5 shadow-sm min-h-[460px]">
+                {formTab === 'employee' && (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-neutral-700 pb-2 border-b border-border flex items-center gap-2">
+                      <User size={15} className="text-primary-500" />
+                      Thông tin hợp đồng & Nhân sự
+                    </h3>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                      <div className="space-y-1.5 col-span-2">
+                        <Label>Nhân sự <span className="text-red-500">*</span></Label>
+                        <Select
+                          options={personOptions || []}
+                          value={formData.personId}
+                          onChange={(v) => updateField('personId', v)}
+                          placeholder="Chọn nhân sự..."
+                        />
+                        {formErrors.personId && <p className="text-xs text-red-500">{formErrors.personId}</p>}
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Mã hợp đồng <span className="text-red-500">*</span></Label>
+                        <Input
+                          placeholder="VD: HĐ-001"
+                          value={formData.code}
+                          onChange={(e) => updateField('code', e.target.value)}
+                        />
+                        {formErrors.code && <p className="text-xs text-red-500">{formErrors.code}</p>}
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Loại hợp đồng <span className="text-red-500">*</span></Label>
+                        <Select
+                          options={CONTRACT_TYPES}
+                          value={formData.type}
+                          onChange={(v) => updateField('type', v)}
+                          placeholder="Chọn loại..."
+                        />
+                        {formErrors.type && <p className="text-xs text-red-500">{formErrors.type}</p>}
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Ngày bắt đầu <span className="text-red-500">*</span></Label>
+                        <Input
+                          type="date"
+                          value={formData.startDate}
+                          onChange={(e) => updateField('startDate', e.target.value)}
+                        />
+                        {formErrors.startDate && <p className="text-xs text-red-500">{formErrors.startDate}</p>}
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Ngày kết thúc</Label>
+                        <Input
+                          type="date"
+                          value={formData.endDate}
+                          onChange={(e) => updateField('endDate', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5 col-span-2">
+                        <Label>Họ tên người lao động</Label>
+                        <Input
+                          placeholder="Tự động điền khi chọn nhân sự..."
+                          value={formData.personName}
+                          onChange={(e) => updateField('personName', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>CCCD / Hộ chiếu</Label>
+                        <Input
+                          placeholder="Số CCCD..."
+                          value={formData.employeeIdNumber}
+                          onChange={(e) => updateField('employeeIdNumber', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Ngày sinh</Label>
+                        <Input
+                          type="date"
+                          value={formData.employeeDob}
+                          onChange={(e) => updateField('employeeDob', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {formTab === 'employer' && (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-neutral-700 pb-2 border-b border-border flex items-center gap-2">
+                      <Building2 size={15} className="text-primary-500" />
+                      Thông tin doanh nghiệp & Công việc
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label>Tên công ty</Label>
+                        <Input
+                          placeholder="Công ty TNHH ..."
+                          value={formData.employerName}
+                          onChange={(e) => updateField('employerName', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Địa chỉ công ty</Label>
+                        <Input
+                          placeholder="Địa chỉ..."
+                          value={formData.employerAddress}
+                          onChange={(e) => updateField('employerAddress', e.target.value)}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label>Vị trí / Chức danh</Label>
+                          <Input
+                            placeholder="Nhân viên kinh doanh..."
+                            value={formData.jobPosition}
+                            onChange={(e) => updateField('jobPosition', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Địa điểm làm việc</Label>
+                          <Input
+                            placeholder="Văn phòng..."
+                            value={formData.workLocation}
+                            onChange={(e) => updateField('workLocation', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label>Thời hạn thử việc (ngày)</Label>
+                          <Input
+                            type="number"
+                            placeholder="60"
+                            value={formData.probationDays}
+                            onChange={(e) => updateField('probationDays', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Phụ cấp</Label>
+                          <Input
+                            placeholder="Mô tả phụ cấp..."
+                            value={formData.allowance}
+                            onChange={(e) => updateField('allowance', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {formTab === 'salary' && (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-neutral-700 pb-2 border-b border-border flex items-center gap-2">
+                      <Briefcase size={15} className="text-primary-500" />
+                      Thông tin lương & Bảo hiểm
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label>Lương cơ bản (VNĐ)</Label>
+                          <Input
+                            type="number"
+                            placeholder="10,000,000"
+                            value={formData.basicSalary}
+                            onChange={(e) => updateField('basicSalary', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Thưởng KPI (VNĐ)</Label>
+                          <Input
+                            type="number"
+                            placeholder="2,000,000"
+                            value={formData.kpiAmount}
+                            onChange={(e) => updateField('kpiAmount', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between px-4 py-2 bg-primary-50 border border-primary-200 rounded-xl">
+                        <span className="text-xs font-semibold text-primary-800">Tổng lương net</span>
+                        <span className="text-sm font-bold text-primary-700">
+                          {netSalary > 0 ? netSalary.toLocaleString('vi-VN') + ' VNĐ' : '---'}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 pt-2 border-t border-neutral-100">
+                        <Label>Mức lương đóng BH (VNĐ)</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            placeholder={MIN_SI_BASE.toLocaleString('vi-VN')}
+                            value={formData.bhxhBase}
+                            onChange={(e) => updateField('bhxhBase', e.target.value)}
+                            className="flex-1 text-xs"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0 text-[10px] h-8 px-2"
+                            onClick={() => updateField('bhxhBase', String(netSalary))}
+                            disabled={netSalary <= 0}
+                          >
+                            Đóng full
+                          </Button>
+                        </div>
+                      </div>
+                      {Number(formData.basicSalary) > 0 && (
+                        <div className="space-y-1.5 text-xs">
+                          <div className="flex items-center justify-between px-2.5 py-1 bg-neutral-50 rounded-lg">
+                            <span className="text-neutral-500">BHXH (8%)</span>
+                            <span className="font-semibold text-neutral-800">{Math.round(insurance.bhxh).toLocaleString('vi-VN')} VNĐ</span>
+                          </div>
+                          <div className="flex items-center justify-between px-2.5 py-1 bg-neutral-50 rounded-lg">
+                            <span className="text-neutral-500">BHYT (1.5%)</span>
+                            <span className="font-semibold text-neutral-800">{Math.round(insurance.bhyt).toLocaleString('vi-VN')} VNĐ</span>
+                          </div>
+                          <div className="flex items-center justify-between px-2.5 py-1 bg-neutral-50 rounded-lg">
+                            <span className="text-neutral-500">BHTN (1%)</span>
+                            <span className="font-semibold text-neutral-800">{Math.round(insurance.bhtn).toLocaleString('vi-VN')} VNĐ</span>
+                          </div>
+                          <div className="flex items-center justify-between px-2.5 py-1.5 bg-green-50 border border-green-200 rounded-lg font-semibold text-green-800">
+                            <span>Thực nhận (Net - BH)</span>
+                            <span>{Math.round(salaryAfterInsurance).toLocaleString('vi-VN')} VNĐ</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
-
-              <div className="bg-white rounded-xl border border-border p-5 shadow-sm space-y-4">
-                <h3 className="text-sm font-semibold text-neutral-700 pb-2 border-b border-border flex items-center gap-2">
-                  <BadgeCheck size={15} className="text-primary-500" />
-                  Thông tin nhân viên
-                </h3>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                  <div className="space-y-1.5">
-                    <Label>Họ tên người lao động</Label>
-                    <Input
-                      placeholder="Tự động điền khi chọn nhân sự..."
-                      value={formData.personName}
-                      onChange={(e) => updateField('personName', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>CCCD / Hộ chiếu</Label>
-                    <Input
-                      placeholder="Số CCCD/Hộ chiếu..."
-                      value={formData.employeeIdNumber}
-                      onChange={(e) => updateField('employeeIdNumber', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Ngày sinh</Label>
-                    <Input
-                      type="date"
-                      value={formData.employeeDob}
-                      onChange={(e) => updateField('employeeDob', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Vị trí / Chức danh</Label>
-                    <Input
-                      placeholder="Nhân viên kinh doanh..."
-                      value={formData.jobPosition}
-                      onChange={(e) => updateField('jobPosition', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Địa điểm làm việc</Label>
-                    <Input
-                      placeholder="Văn phòng..."
-                      value={formData.workLocation}
-                      onChange={(e) => updateField('workLocation', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Thời hạn thử việc (ngày)</Label>
-                    <Input
-                      type="number"
-                      placeholder="60"
-                      value={formData.probationDays}
-                      onChange={(e) => updateField('probationDays', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Phụ cấp</Label>
-                    <Input
-                      placeholder="Mô tả phụ cấp..."
-                      value={formData.allowance}
-                      onChange={(e) => updateField('allowance', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
             </div>
 
-            {/* Right: AI button + Editor */}
-            <div className="flex-1 min-w-0 space-y-3">
+            {/* Right: AI button + Placeholders + Editor */}
+            <div className="flex-1 min-w-0 space-y-4">
               <div className="flex items-center justify-between">
                 <Label className="font-medium flex items-center gap-2">
                   <FileText size={15} className="text-primary-500" />
@@ -791,7 +817,26 @@ export function ContractCreatePage() {
                   </Button>
                 </div>
               </div>
+
+              {/* Placeholders Quick Insert Panel */}
+              <div className="space-y-2 bg-neutral-50/50 p-4 rounded-xl border border-border">
+                <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Chèn nhanh mẫu liên kết (Click để đưa vào hợp đồng):</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {PLACEHOLDER_PATTERNS.map((p) => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => insertPlaceholder(p.key, p.label)}
+                      className="px-2.5 py-1 text-xs bg-white border border-border rounded-lg text-neutral-600 hover:text-primary-700 hover:border-primary-300 hover:bg-primary-50 transition-all font-medium shadow-sm"
+                    >
+                      {`{${p.label}}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <TiptapEditor
+                ref={editorRef}
                 value={formData.content}
                 onChange={(html) => updateField('content', html)}
                 placeholder="Nhập nội dung hợp đồng..."

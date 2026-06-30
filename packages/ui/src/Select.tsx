@@ -44,6 +44,12 @@ export function Select({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery('')
+    }
+  }, [isOpen])
+
   const handleSelectOption = (optionValue: string) => {
     onChange(optionValue)
     setIsOpen(false)
@@ -69,9 +75,21 @@ export function Select({
           isOpen ? 'ring-2 ring-primary-500 border-primary-500' : 'hover:border-neutral-400'
         )}
       >
-        <span className={cn('truncate select-none', !selectedOption && 'text-neutral-400')}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </span>
+        {isOpen && showSearch ? (
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={selectedOption ? selectedOption.label : placeholder}
+            className="w-full bg-transparent border-0 p-0 text-sm focus:outline-none focus:ring-0 placeholder:text-neutral-400"
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className={cn('truncate select-none', !selectedOption && 'text-neutral-400')}>
+            {selectedOption ? selectedOption.label : placeholder}
+          </span>
+        )}
         <div className="flex items-center gap-1 shrink-0">
           {showClear && value && (
             <button
@@ -91,22 +109,6 @@ export function Select({
 
       {isOpen && (
         <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-surface shadow-lg animate-in fade-in slide-in-from-top-1 duration-150">
-          {showSearch && (
-            <div className="p-2 border-b border-border">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" size={12} />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm kiếm..."
-                  className="w-full bg-neutral-50 pl-7 pr-3 py-1 text-xs rounded border border-border focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
-            </div>
-          )}
-
           <div className="max-h-60 overflow-y-auto p-1 space-y-0.5">
             {filteredOptions.length === 0 ? (
               <div className="text-center py-6 text-xs text-neutral-400 select-none">
