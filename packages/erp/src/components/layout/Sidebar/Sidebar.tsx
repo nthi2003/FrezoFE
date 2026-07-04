@@ -35,7 +35,9 @@ import {
   User,
   Bell,
   Mail,
+  Bot,
 } from 'lucide-react'
+import { FacebookIcon } from '@/components/shared/FacebookIcon'
 import { useMenus } from '@/modules/menus/hooks/useMenus'
 import { useAppStore } from '@/stores/appStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -76,6 +78,11 @@ const ICON_MAP: Record<string, LucideIcon> = {
   QLHT_EMAIL:   Mail,
   EMAIL_GROUP:  Users,
   TASK:         CheckSquare,
+  // FB Automation
+  FB:           FacebookIcon,
+  FACEBOOK:     FacebookIcon,
+  fb:           FacebookIcon,
+  automation:   Bot,
   DEFAULT:      FolderOpen,
 }
 

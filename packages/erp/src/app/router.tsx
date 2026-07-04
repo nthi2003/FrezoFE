@@ -66,6 +66,13 @@ const EmailInboxPage    = lazy(() => import('@/modules/email/pages/EmailInboxPag
 // Profile
 const ProfilePage     = lazy(() => import('@/modules/profile/pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
 
+// FB Automation
+const FbDashboardPage     = lazy(() => import('@/modules/fbautomation/pages/FbDashboardPage').then(m => ({ default: m.FbDashboardPage })))
+const FbAccountsPage      = lazy(() => import('@/modules/fbautomation/pages/FbAccountsPage').then(m => ({ default: m.FbAccountsPage })))
+const FbGroupScannerPage  = lazy(() => import('@/modules/fbautomation/pages/FbGroupScannerPage').then(m => ({ default: m.FbGroupScannerPage })))
+const FbGroupsPage        = lazy(() => import('@/modules/fbautomation/pages/FbGroupsPage').then(m => ({ default: m.FbGroupsPage })))
+const FbLeadsPage         = lazy(() => import('@/modules/fbautomation/pages/FbLeadsPage').then(m => ({ default: m.FbLeadsPage })))
+
 // Error / Not Found Page
 import { NotFoundPage } from '@/components/shared/NotFoundPage'
 
@@ -215,6 +222,13 @@ export const router = createBrowserRouter([
 
       // Profile
       { path: 'profile',          element: <Suspense fallback={<PageLoader />}><ProfilePage /></Suspense> },
+
+      // FB Automation
+      { path: 'fb',                element: <Suspense fallback={<PageLoader />}><FbDashboardPage /></Suspense> },
+      { path: 'fb/accounts',       element: <Suspense fallback={<PageLoader />}><FbAccountsPage /></Suspense> },
+      { path: 'fb/scan-groups',    element: <Suspense fallback={<PageLoader />}><FbGroupScannerPage /></Suspense> },
+      { path: 'fb/groups',         element: <Suspense fallback={<PageLoader />}><FbGroupsPage /></Suspense> },
+      { path: 'fb/leads',          element: <Suspense fallback={<PageLoader />}><FbLeadsPage /></Suspense> },
     ],
   },
 
