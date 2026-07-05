@@ -11,6 +11,56 @@ import {
   useCreateOrgSetting,
 } from '@/modules/qtht/hooks/useAttendanceSettings'
 
+interface SettingsForm {
+  orgId: string
+  isAttendance: boolean
+  isEmail: boolean
+  isSwap: boolean
+  isColor: boolean
+  allowLate: boolean
+  requireAvatar: boolean
+  requireCV: boolean
+  requireHealthCert: boolean
+  autoApproveArticle: boolean
+  requireManager: boolean
+  articleApprover: string
+  morningStart: string
+  morningEnd: string
+  afternoonStart: string
+  afternoonEnd: string
+  maxMembers: number
+  maxPosts: number
+  details: {
+    attendance: {
+      standardHours: number
+      halfDayThreshold: number
+      lateThreshold: number
+      earlyThreshold: number
+      overtimeBeforeThreshold: number
+      overtimeAfterThreshold: number
+      isAutoAttendance: boolean
+      maxShiftsPerDay: number
+      minGapBetweenShifts: number
+    }
+    payroll: {
+      calculationStartDay: number
+      standardWorkingDays: number
+      latePenaltyPerMinute: number
+      overtimePayPerMinute: number
+      isAutoGeneratePayroll: boolean
+      isAutoUpdatePayroll: boolean
+      revenueType: string
+    }
+    geo: {
+      officeLatitude: number
+      officeLongitude: number
+      allowedRadiusMeters: number
+      allowedWifiSsids: string
+      allowedWifiBssids: string
+    }
+  }
+}
+
 const defaultForm: SettingsForm = {
   orgId: '',
   isAttendance: true,
@@ -113,8 +163,8 @@ function SectionHeader({ icon: Icon, title, description }: { icon: any; title: s
 function FormRow({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={`flex items-center gap-4 ${className || ''}`}>
-      <label className="text-sm text-neutral-700 min-w-[180px] shrink-0">{label}</label>
-      <div className="flex-1 max-w-xs">{children}</div>
+      <label className="text-sm text-neutral-700 min-w-[160px] shrink-0">{label}</label>
+      <div className="flex-1 max-w-sm">{children}</div>
     </div>
   )
 }
@@ -207,10 +257,10 @@ export function SettingsPage() {
     }
   }
 
-  const inputClass = 'h-9 text-sm'
+  const inputClass = 'h-10 text-sm'
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in max-w-4xl">
+    <div className="p-6 space-y-6 animate-fade-in max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -227,11 +277,11 @@ export function SettingsPage() {
       </div>
 
       {/* Org Selector */}
-      <div className="bg-white rounded-xl border border-neutral-200 p-4">
+      <div className="bg-white rounded-xl border border-neutral-200 p-5">
         <div className="flex items-center gap-4">
-          <Building2 size={18} className="text-neutral-400" />
-          <label className="text-sm font-medium text-neutral-700 min-w-[100px]">Tổ chức</label>
-          <div className="w-72">
+          <Building2 size={20} className="text-neutral-400" />
+          <label className="text-sm font-medium text-neutral-700 shrink-0">Tổ chức</label>
+          <div className="w-80">
             <Select
               options={orgOptions}
               value={selectedOrgId}
@@ -253,7 +303,7 @@ export function SettingsPage() {
       {!loadingSetting && selectedOrgId && (
         <div className="space-y-6">
           {/* 1. General Features */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-6 space-y-1">
+          <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-1">
             <SectionHeader icon={Settings} title="Tính năng chung" description="Bật/tắt các tính năng chính của hệ thống" />
             <div className="divide-y divide-neutral-100">
               <ToggleRow label="Chấm công" description="Cho phép nhân viên check-in/check-out" checked={form.isAttendance} onChange={(v) => updateField('isAttendance', v)} />
@@ -265,7 +315,7 @@ export function SettingsPage() {
           </div>
 
           {/* 2. Work Schedule */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-6 space-y-4">
+          <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4">
             <SectionHeader icon={Clock} title="Lịch làm việc" description="Khung giờ chấm công cho toàn hệ thống" />
             <div className="grid grid-cols-2 gap-4 pt-4">
               <FormRow label="Giờ bắt đầu sáng">
@@ -284,7 +334,7 @@ export function SettingsPage() {
           </div>
 
           {/* 3. Geo Attendance */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-6 space-y-4">
+          <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4">
             <SectionHeader icon={MapPin} title="Định vị chấm công" description="Cấu hình vị trí văn phòng để check-in qua GPS & WiFi" />
             <div className="grid grid-cols-2 gap-4 pt-4">
               <FormRow label="Vĩ độ (Latitude)">
@@ -306,7 +356,7 @@ export function SettingsPage() {
           </div>
 
           {/* 4. Attendance Rules */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-6 space-y-4">
+          <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4">
             <SectionHeader icon={RefreshCw} title="Quy tắc chấm công" description="Ngưỡng xác định đi muộn, nửa ngày, tăng ca" />
             <div className="grid grid-cols-2 gap-4 pt-4">
               <FormRow label="Số giờ tiêu chuẩn/ngày">
@@ -334,7 +384,7 @@ export function SettingsPage() {
           </div>
 
           {/* 5. Payroll Connection */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-6 space-y-4">
+          <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4">
             <SectionHeader icon={DollarSign} title="Liên kết bảng lương" description="Cấu hình cách dữ liệu chấm công ảnh hưởng đến tính lương" />
             <div className="grid grid-cols-2 gap-4 pt-4">
               <FormRow label="Ngày công chuẩn/tháng">
@@ -357,7 +407,7 @@ export function SettingsPage() {
           </div>
 
           {/* 6. HR Settings */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-6 space-y-1">
+          <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-1">
             <SectionHeader icon={Users} title="Nhân sự" description="Cấu hình yêu cầu hồ sơ nhân viên" />
             <div className="divide-y divide-neutral-100">
               <ToggleRow label="Yêu cầu ảnh đại diện" description="Bắt buộc nhân viên có ảnh đại diện" checked={form.requireAvatar} onChange={(v) => updateField('requireAvatar', v)} />
@@ -374,7 +424,7 @@ export function SettingsPage() {
           </div>
 
           {/* 7. Article Settings */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-6 space-y-1">
+          <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-1">
             <SectionHeader icon={FileText} title="Bài viết & CMS" description="Cấu hình duyệt bài viết" />
             <div className="divide-y divide-neutral-100">
               <ToggleRow label="Tự động duyệt bài viết" description="Bài viết được đăng ngay không cần duyệt" checked={form.autoApproveArticle} onChange={(v) => updateField('autoApproveArticle', v)} />

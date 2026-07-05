@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Star, Leaf, Shield, Truck, Heart, ShoppingCart } from 'lucide-react';
+import { Star, Leaf, Shield, Truck, Heart, ShoppingCart, Loader2 } from 'lucide-react';
 import Breadcrumb from '../../../shared/components/Breadcrumb';
+import { ProductApi } from '../../../api';
 
 interface Product {
   id: string;
@@ -18,25 +19,49 @@ const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [product, setProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(false);
 
   useEffect(() => {
-    // Dummy fetch - replace with real API
-    const allProducts: Product[] = [
-      { id: '1', name: 'Bó Rau Cải Thìa Hữu Cơ', price: 25000, image: 'https://images.unsplash.com/photo-1601493700685-3037eb94cfb1?auto=format&fit=crop&q=80&w=600', category: 'Rau Ăn Lá', rating: 4.8, isNew: true },
-      { id: '2', name: 'Cà Chua Cherry Đà Lạt', price: 45000, image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&q=80&w=600', category: 'Quả', rating: 5.0 },
-      { id: '3', name: 'Khoai Tây Vàng Sạch', price: 30000, image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&q=80&w=600', category: 'Củ', rating: 4.5 },
-      { id: '4', name: 'Bắp Cải Sú Trái Tim', price: 35000, image: 'https://images.unsplash.com/photo-1557844352-761f2565b576?auto=format&fit=crop&q=80&w=600', category: 'Organic', rating: 4.9, isNew: true },
-      { id: '5', name: 'Hành Tây Đà Lạt', price: 28000, image: 'https://images.unsplash.com/photo-1550828520-4cb496926fc9?auto=format&fit=crop&q=80&w=600', category: 'Củ', rating: 4.2 },
-      { id: '6', name: 'Dưa Leo Nhật Bản', price: 32000, image: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&q=80&w=600', category: 'Quả', rating: 4.6 },
-      { id: '7', name: 'Xà Lách Thuỷ Canh', price: 40000, image: 'https://images.unsplash.com/photo-1622312683995-103f6952865d?auto=format&fit=crop&q=80&w=600', category: 'Organic', rating: 4.7 },
-      { id: '8', name: 'Bí Ngòi Xanh', price: 38000, image: 'https://images.unsplash.com/photo-1592683792019-354a3e215f7d?auto=format&fit=crop&q=80&w=600', category: 'Quả', rating: 4.5 }
-    ];
-    
-    const found = allProducts.find(p => p.id === id);
-    setProduct(found || null);
+    const fetchProduct = async () => {
+      if (!id) return;
+      setLoading(true);
+      setError(false);
+      try {
+        const item = await ProductApi.getById(id);
+        if (item) {
+          setProduct({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            image: item.imageUrl || 'https://images.unsplash.com/photo-1615485290382-441e4d0c9cb5?auto=format&fit=crop&q=80&w=600',
+            category: item.category || '',
+            rating: item.rating || 0,
+            isNew: item.isNew
+          });
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải sản phẩm:', err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProduct();
   }, [id]);
 
-  if (!product) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 size={40} className="animate-spin text-farm-primary" />
+          <span className="text-gray-500 font-medium">Đang tải sản phẩm...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product || error) {
     return <div className="container mx-auto px-4 py-20 text-center text-gray-500">Sản phẩm không tìm thấy</div>;
   }
 
@@ -48,7 +73,7 @@ const ProductDetail = () => {
       </Helmet>
 
       <Breadcrumb items={[
-        { label: 'Trong chủ', path: '/' },
+        { label: 'Trang chủ', path: '/' },
         { label: 'Khám Phá', path: '/products' },
         { label: product.name }
       ]} />

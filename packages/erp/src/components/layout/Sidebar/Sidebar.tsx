@@ -36,6 +36,7 @@ import {
   Bell,
   Mail,
   Bot,
+  Newspaper,
 } from 'lucide-react'
 import { FacebookIcon } from '@/components/shared/FacebookIcon'
 import { useMenus } from '@/modules/menus/hooks/useMenus'
@@ -83,6 +84,10 @@ const ICON_MAP: Record<string, LucideIcon> = {
   FACEBOOK:     FacebookIcon,
   fb:           FacebookIcon,
   automation:   Bot,
+  // Website
+  layouttemplate: LayoutDashboard,
+  newspaper:    Newspaper,
+  globe:        LayoutDashboard,
   DEFAULT:      FolderOpen,
 }
 

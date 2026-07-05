@@ -1,13 +1,12 @@
 import { useState, useMemo, useRef } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, Package, Layers, Upload, X, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { AppTable } from '@/components/ui/AppTable'
 import { AppModal } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
-import { Button } from '@frezo/ui'
-import { ConfirmDialog } from '@frezo/ui'
+import { Button, ConfirmDialog } from '@frezo/ui'
 import { categoryApi } from '@/modules/qtht/services/categoryApi'
-import { formatCurrency } from '@frezo/utils'
 import { productApi } from '../services/productApi'
 import {
   useProducts,
@@ -50,8 +49,8 @@ export function ProductsPage() {
 
   const { data: categoryList } = useQuery({
     queryKey: ['categories-combobox'],
-    queryFn: () => categoryApi.getAll({ groupCode: 'DanhMucSP' }),
-    select: (res: any) => res?.data ?? [],
+    queryFn: () => categoryApi.getAll({ groupCode: 'LoaiSanPham' }),
+    select: (res: any) => res?.data?.items ?? [],
   })
 
   const categoryOptions = useMemo(
@@ -70,11 +69,18 @@ export function ProductsPage() {
     setImageUploading(true)
     try {
       const res = await productApi.uploadImage(file)
-      setImageUrl(res?.data?.url || '')
+      const url = res?.data?.url ?? ''
+      if (url) {
+        setImageUrl(url)
+        toast.success('Upload ảnh thành công')
+      } else {
+        toast.error('Không lấy được URL ảnh')
+      }
     } catch {
-      // silent
+      toast.error('Upload ảnh thất bại')
     } finally {
       setImageUploading(false)
+      e.target.value = ''
     }
   }
 
@@ -103,7 +109,7 @@ export function ProductsPage() {
     {
       title: 'Giá', dataIndex: 'price',
       render: (val: number) => (
-        <span className="font-mono text-sm font-semibold text-neutral-800">{formatCurrency(val ?? 0)}</span>
+        <span className="font-mono text-sm font-semibold text-neutral-800">{Number(val ?? 0).toLocaleString('vi-VN')}</span>
       ),
     },
     {

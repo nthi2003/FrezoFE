@@ -41,6 +41,7 @@ const CustomersPage   = lazy(() => import('@/modules/customers/pages/CustomersPa
 
 // Products
 const ProductsPage    = lazy(() => import('@/modules/products/pages/ProductsPage').then(m => ({ default: m.ProductsPage })))
+const ProductCategoriesPage = lazy(() => import('@/modules/products/pages/ProductCategoriesPage').then(m => ({ default: m.ProductCategoriesPage })))
 
 // Tasks
 const TasksPage       = lazy(() => import('@/modules/tasks/pages/TasksPage').then(m => ({ default: m.TasksPage })))
@@ -195,6 +196,7 @@ export const router = createBrowserRouter([
 
       // Product
       { path: 'product',          element: <Suspense fallback={<PageLoader />}><ProductsPage /></Suspense> },
+      { path: 'loai-san-pham',    element: <Suspense fallback={<PageLoader />}><ProductCategoriesPage /></Suspense> },
 
       // Task
       { path: 'task',             element: <Suspense fallback={<PageLoader />}><TasksPage /></Suspense> },

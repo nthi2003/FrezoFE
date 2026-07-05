@@ -57,7 +57,7 @@ const BlogList = () => {
       </Helmet>
       
       <Breadcrumb items={[
-        { label: 'Trong chủ', path: '/' },
+        { label: 'Trang chủ', path: '/' },
         { label: 'Tin Tức' }
       ]} />
       

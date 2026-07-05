@@ -41,8 +41,8 @@ const GlobalLoading = ({ onFinished }: { onFinished: () => void }) => {
   }, { scope: containerRef });
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-[9999]" style={{ backgroundColor: '#2b5c3f' }}>
-      <div className="relative flex flex-col items-center">
+    <div ref={containerRef} className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ backgroundColor: '#2b5c3f' }}>
+      <div className="flex flex-col items-center">
         <img src="/logo.png" alt="Frezo" className="frezo-logo-loading h-20 w-auto" />
         <p className="mt-4 text-sm text-gray-500 font-medium">Cung ứng thực phẩm toàn quốc</p>
       </div>

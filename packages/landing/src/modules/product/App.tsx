@@ -46,7 +46,7 @@ const ProductListingPage = () => {
       </Helmet>
       
       <Breadcrumb items={[
-        { label: 'Trong chủ', path: '/' },
+        { label: 'Trang chủ', path: '/' },
         { label: 'Khám Phá' }
       ]} />
       

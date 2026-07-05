@@ -1,5 +1,8 @@
-import { useState, useEffect } from 'react'
-import { LayoutTemplate, FileText, Image, Plus, Pencil, Trash2, Loader2 } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { LayoutTemplate, FileText, Image, Newspaper, Plus, Pencil, Trash2, Loader2, Eye, Database } from 'lucide-react'
+import { toast } from 'sonner'
+import axiosClient from '@/lib/axios/axiosClient'
 import { Button, Input, Label, AppModal } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
 import { AppForm } from '@/components/shared/AppForm'
@@ -24,6 +27,7 @@ const TABS = [
   { key: 'config', label: 'Cấu hình trang', icon: LayoutTemplate },
   { key: 'articles', label: 'Quản lý bài viết', icon: FileText },
   { key: 'banners', label: 'Quản lý Banner', icon: Image },
+  { key: 'news', label: 'Tin tức & Sự kiện', icon: Newspaper },
 ]
 
 const STATUS_OPTIONS = [
@@ -373,17 +377,154 @@ function BannersTab() {
   )
 }
 
+function NewsTab() {
+  const navigate = useNavigate()
+  const { data: rawData, isLoading } = useArticles()
+  const deleteReq = useDeleteArticle()
+  const dataList = rawData || []
+
+  const columns = [
+    { title: 'Tiêu đề', dataIndex: 'title', filterType: 'text' as const },
+    { title: 'Loại', dataIndex: 'type', filterType: 'select' as const, filterOptions: NEWS_TYPE_OPTIONS },
+    {
+      title: 'Trạng thái', dataIndex: 'status',
+      filterType: 'select' as const, filterOptions: STATUS_OPTIONS,
+      render: (val: string) => {
+        const colorMap: Record<string, string> = {
+          DRAFT: 'bg-neutral-100 text-neutral-600',
+          PUBLISHED: 'bg-green-50 text-green-700',
+          ARCHIVED: 'bg-yellow-50 text-yellow-700',
+        }
+        const labelMap: Record<string, string> = {
+          DRAFT: 'Bản nháp',
+          PUBLISHED: 'Đã xuất bản',
+          ARCHIVED: 'Lưu trữ',
+        }
+        return (
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colorMap[val] || 'bg-neutral-100 text-neutral-500'}`}>
+            {labelMap[val] || val}
+          </span>
+        )
+      },
+    },
+    {
+      title: 'Ngày tạo', dataIndex: 'createdDate',
+      render: (val: string) => val ? new Date(val).toLocaleDateString('vi-VN') : '---',
+    },
+    {
+      title: 'Ngày xuất bản', dataIndex: 'publishedDate',
+      render: (val: string) => val ? new Date(val).toLocaleDateString('vi-VN') : '---',
+    },
+    {
+      title: 'Thao tác', dataIndex: 'id',
+      render: (_: any, row: any) => (
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => window.open(`/bai-viet/${row.id}`, '_blank')}>
+            <Eye className="w-4 h-4 text-blue-600" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Xóa bài viết này?')) deleteReq.mutate(row.id) }}>
+            <Trash2 className="w-4 h-4 text-red-600" />
+          </Button>
+        </div>
+      ),
+    },
+  ]
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-semibold text-neutral-900">Tin tức & Sự kiện</h2>
+          <p className="text-sm text-neutral-500">Danh sách tin tức, bài viết trên hệ thống</p>
+        </div>
+        <Button onClick={() => navigate('/qtht/tin-tuc/tao-moi')} className="bg-primary-600 hover:bg-primary-700 text-white">
+          <Plus className="w-4 h-4 mr-2" /> Thêm mới
+        </Button>
+      </div>
+
+      <AppTable
+        data={dataList}
+        columns={columns as any}
+        isLoading={isLoading}
+        showSearch={true}
+        searchPlaceholder="Tìm theo tiêu đề, nội dung..."
+      />
+    </>
+  )
+}
+
+const MENU_SEED_ITEMS = [
+  {
+    code: 'QLHT_WEBSITE', parentCode: null,
+    name: 'Quản lý Website', nameEn: 'Website Management',
+    appCode: 'QTHT', orderIndex: 4, menuType: 1, isPublic: true, status: true,
+    icon: '', feUrl: null,
+  },
+  {
+    code: 'WEBSITE_CONFIG', parentCode: 'QLHT_WEBSITE',
+    name: 'Cấu hình trang', nameEn: 'Site Config',
+    appCode: 'QTHT', orderIndex: 1, menuType: 1, isPublic: true, status: true,
+    icon: '', feUrl: '/qtht/website',
+  },
+  {
+    code: 'WEBSITE_BANNERS', parentCode: 'QLHT_WEBSITE',
+    name: 'Quản lý Banner', nameEn: 'Banners',
+    appCode: 'QTHT', orderIndex: 2, menuType: 1, isPublic: true, status: true,
+    icon: '', feUrl: '/qtht/website',
+  },
+  {
+    code: 'WEBSITE_ARTICLES', parentCode: 'QLHT_WEBSITE',
+    name: 'Quản lý bài viết', nameEn: 'Articles',
+    appCode: 'QTHT', orderIndex: 3, menuType: 1, isPublic: true, status: true,
+    icon: '', feUrl: '/qtht/website',
+  },
+  {
+    code: 'WEBSITE_NEWS', parentCode: 'QLHT_WEBSITE',
+    name: 'Tin tức & Sự kiện', nameEn: 'News & Events',
+    appCode: 'QTHT', orderIndex: 4, menuType: 1, isPublic: true, status: true,
+    icon: '', feUrl: '/qtht/tin-tuc',
+  },
+]
+
 export function WebsiteManagementPage() {
   const [activeTab, setActiveTab] = useState('config')
+  const [seeding, setSeeding] = useState(false)
+
+  const handleSeedMenu = useCallback(async () => {
+    if (seeding) return
+    setSeeding(true)
+    for (const item of MENU_SEED_ITEMS) {
+      try {
+        await axiosClient.post('/qtht/menu', item)
+        toast.success(`Đã tạo: ${item.name}`)
+      } catch (err: any) {
+        const msg = err?.response?.data?.message || err.message
+        toast.error(`${item.name}: ${msg}`)
+      }
+      await new Promise(r => setTimeout(r, 300))
+    }
+    setSeeding(false)
+    toast.success('Hoàn tất seed menu website!')
+  }, [seeding])
 
   return (
     <div className="space-y-6 animate-fade-in p-6">
-      <div className="mb-2">
-        <h2 className="text-2xl font-bold text-neutral-900 flex items-center gap-2">
-          <LayoutTemplate className="text-primary-600" />
-          Quản lý Trang Web
-        </h2>
-        <p className="text-sm text-neutral-500 mt-1">Quản lý nội dung hiển thị trên landing page</p>
+      <div className="mb-2 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-neutral-900 flex items-center gap-2">
+            <LayoutTemplate className="text-primary-600" />
+            Quản lý Trang Web
+          </h2>
+          <p className="text-sm text-neutral-500 mt-1">Quản lý nội dung hiển thị trên landing page</p>
+        </div>
+        <button
+          onClick={handleSeedMenu}
+          disabled={seeding}
+          className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 disabled:opacity-50 transition-colors"
+        >
+          <Database size={14} />
+          {seeding ? 'Đang seed...' : 'Seed Menu Website'}
+        </button>
       </div>
 
       <div className="flex gap-1 border-b border-neutral-200">
@@ -409,6 +550,7 @@ export function WebsiteManagementPage() {
         {activeTab === 'config' && <ConfigTab />}
         {activeTab === 'articles' && <ArticlesTab />}
         {activeTab === 'banners' && <BannersTab />}
+        {activeTab === 'news' && <NewsTab />}
       </div>
     </div>
   )

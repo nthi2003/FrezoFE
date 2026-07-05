@@ -58,7 +58,7 @@ const Checkout = () => {
       </Helmet>
       
       <Breadcrumb items={[
-        { label: 'Trong chủ', path: '/' },
+        { label: 'Trang chủ', path: '/' },
         { label: 'Giỏ Hàng', path: '/cart' },
         { label: 'Thanh Toán' }
       ]} />

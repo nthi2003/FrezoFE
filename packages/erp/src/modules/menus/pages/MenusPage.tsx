@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
-import { Plus, Search, ChevronRight, ChevronDown, Trash2, FolderTree, FileText } from 'lucide-react'
-import { Button } from '@frezo/ui'
+import { Plus, Search, ChevronRight, ChevronDown, Trash2, FolderTree, FileText, AlertTriangle } from 'lucide-react'
+import { Button, ConfirmDialog } from '@frezo/ui'
 import { Input } from '@frezo/ui'
 import { Label } from '@frezo/ui'
 import { Select } from '@frezo/ui'
@@ -154,6 +154,7 @@ export function MenusPage() {
   const [search, setSearch] = useState('')
   const [selectedNode, setSelectedNode] = useState<MenuTreeNode | null>(null)
   const [isCreating, setIsCreating] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
 
   const { data: rawData, isLoading } = useAllMenus()
   const createReq = useCreateMenu()
@@ -234,14 +235,18 @@ export function MenusPage() {
   }
 
   const handleDelete = (id: string, name: string) => {
-    if (confirm(`Xóa menu [${name}]?`)) {
-      deleteReq.mutate(id)
-      if (selectedNode?.id === id) {
-        setSelectedNode(null)
-        setIsCreating(false)
-        reset()
-      }
+    setConfirmDelete({ id, name })
+  }
+
+  const handleConfirmDelete = () => {
+    if (!confirmDelete) return
+    deleteReq.mutate(confirmDelete.id)
+    if (selectedNode?.id === confirmDelete.id) {
+      setSelectedNode(null)
+      setIsCreating(false)
+      reset()
     }
+    setConfirmDelete(null)
   }
 
   const onSubmit = (data: MenuFormValues) => {
@@ -279,7 +284,7 @@ export function MenusPage() {
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {isLoading ? (
-              <div className="text-center p-4 text-sm text-neutral-500">Đang tải...</div>
+              <div className="flex items-center justify-center p-8"><div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" /></div>
             ) : treeData.length === 0 ? (
               <div className="text-center p-4 text-sm text-neutral-500">Không tìm thấy menu</div>
             ) : (
@@ -396,6 +401,18 @@ export function MenusPage() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Xóa menu"
+        message={confirmDelete ? `Bạn có chắc chắn muốn xóa [${confirmDelete.name}]?` : ''}
+        variant="warning"
+        confirmText="Xác nhận"
+        cancelText="Hủy"
+        isLoading={deleteReq.isPending}
+      />
     </div>
   )
 }

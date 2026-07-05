@@ -62,7 +62,7 @@ const About = () => {
       </Helmet>
 
       <Breadcrumb items={[
-        { label: 'Trong chủ', path: '/' },
+        { label: 'Trang chủ', path: '/' },
         { label: 'Về Chúng Tôi' }
       ]} />
 
