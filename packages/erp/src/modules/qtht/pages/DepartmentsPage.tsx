@@ -258,6 +258,14 @@ export function DepartmentsPage() {
     else activateReq.mutate(row.id)
   }
 
+  // Helper to get initials
+  const getInitials = (name: string) => {
+    if (!name) return '?'
+    const parts = name.trim().split(' ')
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase()
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }
+
   // Recursive Org Chart Node Component
   const OrgChartNode = ({ node, onEdit, onDelete }: { node: any, onEdit: (node: any) => void, onDelete: (node: any) => void }) => {
     const hasChildren = node.children && node.children.length > 0
@@ -269,8 +277,11 @@ export function DepartmentsPage() {
     return (
       <div className="flex flex-col items-center">
         {/* Node Card */}
-        <div className="relative p-4 rounded-xl border border-emerald-500/20 bg-white shadow-sm hover:shadow-md transition-all duration-200 w-64 text-center group border-t-4 border-t-emerald-600">
-          <div className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full inline-block mb-1.5">
+        <div className="relative p-4 rounded-2xl bg-white shadow-sm hover:shadow-xl transition-all duration-300 w-64 text-center group overflow-hidden">
+          {/* Gradient Top Border */}
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
+          
+          <div className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full inline-block mb-2 mt-1">
             {node.code}
           </div>
           <h4 className="text-sm font-bold text-neutral-800 line-clamp-2 min-h-[36px] flex items-center justify-center">
@@ -284,33 +295,41 @@ export function DepartmentsPage() {
 
           {/* Employees Section */}
           {deptEmployees.length > 0 && (
-            <div className="mt-3 pt-2.5 border-t border-neutral-100 text-left">
+            <div className="mt-4 pt-3 border-t border-neutral-100/80 text-left">
               {/* Manager */}
               {manager && (
-                <div className="flex items-center gap-2 px-2 py-1.5 rounded bg-amber-50 border border-amber-200 mb-1">
+                <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100/50 mb-2 shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center text-xs font-bold shadow-sm shadow-amber-200">
+                    {getInitials(manager.name)}
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-amber-800 truncate">{manager.name}</p>
-                    <p className="text-[10px] text-amber-600">Trưởng phòng</p>
+                    <p className="text-xs font-semibold text-amber-900 truncate">{manager.name}</p>
+                    <p className="text-[10px] text-amber-700 font-medium">Trưởng phòng</p>
                   </div>
                 </div>
               )}
               {/* Deputy */}
               {deputy && (
-                <div className="flex items-center gap-2 px-2 py-1.5 rounded bg-blue-50 border border-blue-200 mb-1">
+                <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100/50 mb-2 shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center text-xs font-bold shadow-sm shadow-blue-200">
+                    {getInitials(deputy.name)}
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-blue-800 truncate">{deputy.name}</p>
-                    <p className="text-[10px] text-blue-600">Phó phòng</p>
+                    <p className="text-xs font-semibold text-blue-900 truncate">{deputy.name}</p>
+                    <p className="text-[10px] text-blue-700 font-medium">Phó phòng</p>
                   </div>
                 </div>
               )}
               {/* Staff */}
               {staffList.length > 0 && (
-                <div className="max-h-[120px] overflow-y-auto space-y-0.5 scrollbar-thin">
+                <div className="max-h-[120px] overflow-y-auto space-y-1 pr-1 custom-scrollbar">
                   {staffList.map((p: any) => (
-                    <div key={p.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-neutral-50">
-                      <span className="text-[10px] text-neutral-400">•</span>
-                      <p className="text-xs text-neutral-700 truncate flex-1">{p.name}</p>
-                      {p.jobTitle && <span className="text-[9px] text-neutral-400 truncate max-w-[60px]">{p.jobTitle}</span>}
+                    <div key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-neutral-50 transition-colors">
+                      <div className="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[8px] font-bold">
+                        {getInitials(p.name)}
+                      </div>
+                      <p className="text-xs text-neutral-700 font-medium truncate flex-1">{p.name}</p>
+                      {p.jobTitle && <span className="text-[9px] text-neutral-400 truncate max-w-[60px] bg-neutral-100 px-1.5 py-0.5 rounded">{p.jobTitle}</span>}
                     </div>
                   ))}
                 </div>
@@ -431,50 +450,66 @@ export function DepartmentsPage() {
   }
 
   return (
-    <div className="space-y-4 animate-fade-in p-6">
+    <div className="space-y-6 animate-fade-in p-6 bg-neutral-50/50 min-h-[calc(100vh-64px)]">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-neutral-900">Sơ đồ phòng ban</h2>
-          <p className="text-sm text-neutral-500 mt-1">Quản lý cơ cấu và danh sách phòng ban của doanh nghiệp</p>
+          <h2 className="text-2xl font-bold text-neutral-900 tracking-tight">Sơ đồ Tổ chức</h2>
+          <p className="text-sm text-neutral-500 mt-1">Quản lý cơ cấu phòng ban và phân bổ nhân sự</p>
         </div>
-        <Button onClick={() => { setSelectedItem(null); setModalOpen(true) }} className="gap-2 bg-primary-700 hover:bg-primary-800 text-white shadow-sm">
-           <Plus size={16} /> Thêm mới
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex gap-4 mr-4 text-sm">
+            <div className="flex flex-col">
+              <span className="text-neutral-500 font-medium">Tổng phòng ban</span>
+              <span className="text-lg font-bold text-neutral-900">{dataList.length}</span>
+            </div>
+            <div className="w-px h-10 bg-neutral-200"></div>
+            <div className="flex flex-col">
+              <span className="text-neutral-500 font-medium">Đang hoạt động</span>
+              <span className="text-lg font-bold text-green-600">{dataList.filter((d: any) => d.status === 'ACTIVE').length}</span>
+            </div>
+            <div className="w-px h-10 bg-neutral-200"></div>
+            <div className="flex flex-col">
+              <span className="text-neutral-500 font-medium">Tổng nhân sự</span>
+              <span className="text-lg font-bold text-blue-600">{personsData?.length || 0}</span>
+            </div>
+          </div>
+          <Button onClick={() => { setSelectedItem(null); setModalOpen(true) }} className="gap-2 bg-primary-600 hover:bg-primary-700 text-white shadow-sm rounded-xl">
+             <Plus size={16} /> Thêm phòng ban
+          </Button>
+        </div>
       </div>
 
       {/* Toolbar View Mode selector */}
-      <div className="p-4 rounded-xl border border-border bg-surface shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-sm">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <Input
-              placeholder="Tìm theo tên, mã phòng ban..."
-              className="pl-9"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center gap-1 bg-neutral-100 rounded-lg p-0.5">
-            <button
-              onClick={() => setViewMode('tree')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${viewMode === 'tree' ? 'bg-white shadow-sm text-primary-600 font-medium' : 'text-neutral-500 hover:text-neutral-700'}`}
-            >
-              <GitFork size={15} className="inline mr-1" />Gia phả (Cây)
-            </button>
-            <button
-              onClick={() => setViewMode('personnel')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${viewMode === 'personnel' ? 'bg-white shadow-sm text-primary-600 font-medium' : 'text-neutral-500 hover:text-neutral-700'}`}
-            >
-              <Users size={15} className="inline mr-1" />Nhân sự
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${viewMode === 'table' ? 'bg-white shadow-sm text-primary-600 font-medium' : 'text-neutral-500 hover:text-neutral-700'}`}
-            >
-              <List size={15} className="inline mr-1" />Bảng chi tiết
-            </button>
-          </div>
+      <div className="p-3 rounded-2xl border border-neutral-100 bg-white shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <Input
+            placeholder="Tìm theo tên, mã phòng ban..."
+            className="pl-9 border-neutral-200 bg-neutral-50/50 focus:bg-white rounded-xl"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-1 bg-neutral-100/80 rounded-xl p-1 border border-neutral-200/50">
+          <button
+            onClick={() => setViewMode('tree')}
+            className={`px-4 py-2 text-sm rounded-lg transition-all duration-200 ${viewMode === 'tree' ? 'bg-white shadow-sm text-primary-600 font-semibold' : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/50'}`}
+          >
+            <GitFork size={15} className="inline mr-2" />Sơ đồ cơ cấu
+          </button>
+          <button
+            onClick={() => setViewMode('personnel')}
+            className={`px-4 py-2 text-sm rounded-lg transition-all duration-200 ${viewMode === 'personnel' ? 'bg-white shadow-sm text-primary-600 font-semibold' : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/50'}`}
+          >
+            <Users size={15} className="inline mr-2" />Sơ đồ nhân sự
+          </button>
+          <button
+            onClick={() => setViewMode('table')}
+            className={`px-4 py-2 text-sm rounded-lg transition-all duration-200 ${viewMode === 'table' ? 'bg-white shadow-sm text-primary-600 font-semibold' : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/50'}`}
+          >
+            <List size={15} className="inline mr-2" />Danh sách
+          </button>
         </div>
       </div>
 

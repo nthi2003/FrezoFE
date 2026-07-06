@@ -258,6 +258,15 @@ export function SettingsPage() {
   }
 
   const inputClass = 'h-10 text-sm'
+  const [activeTab, setActiveTab] = useState('general')
+
+  const TABS = [
+    { id: 'general', label: 'Chung', icon: Settings },
+    { id: 'schedule', label: 'Thời gian & Vị trí', icon: Clock },
+    { id: 'attendance', label: 'Chấm công', icon: RefreshCw },
+    { id: 'payroll', label: 'Tiền lương', icon: DollarSign },
+    { id: 'hr', label: 'Nhân sự & Khác', icon: Users },
+  ]
 
   return (
     <div className="p-6 space-y-6 animate-fade-in max-w-6xl mx-auto">
@@ -301,145 +310,177 @@ export function SettingsPage() {
       )}
 
       {!loadingSetting && selectedOrgId && (
-        <div className="space-y-6">
-          {/* 1. General Features */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-1">
-            <SectionHeader icon={Settings} title="Tính năng chung" description="Bật/tắt các tính năng chính của hệ thống" />
-            <div className="divide-y divide-neutral-100">
-              <ToggleRow label="Chấm công" description="Cho phép nhân viên check-in/check-out" checked={form.isAttendance} onChange={(v) => updateField('isAttendance', v)} />
-              <ToggleRow label="Email" description="Bật tính năng gửi email từ hệ thống" checked={form.isEmail} onChange={(v) => updateField('isEmail', v)} />
-              <ToggleRow label="Đổi ca" description="Cho phép nhân viên đổi ca làm việc" checked={form.isSwap} onChange={(v) => updateField('isSwap', v)} />
-              <ToggleRow label="Tùy chỉnh màu sắc" description="Cho phép tùy chỉnh giao diện màu sắc" checked={form.isColor} onChange={(v) => updateField('isColor', v)} />
-              <ToggleRow label="Cho phép đi muộn" description="Không tính là vi phạm nếu check-in sau giờ bắt đầu" checked={form.allowLate} onChange={(v) => updateField('allowLate', v)} />
-            </div>
+        <div className="flex flex-col md:flex-row gap-6 items-start">
+          {/* Sidebar Tabs */}
+          <div className="w-full md:w-64 shrink-0 space-y-1.5 sticky top-6">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-primary-50 text-primary-700 shadow-sm border border-primary-100'
+                    : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 border border-transparent'
+                }`}
+              >
+                <tab.icon size={18} className={activeTab === tab.id ? 'text-primary-600' : 'text-neutral-400'} />
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          {/* 2. Work Schedule */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4">
-            <SectionHeader icon={Clock} title="Lịch làm việc" description="Khung giờ chấm công cho toàn hệ thống" />
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              <FormRow label="Giờ bắt đầu sáng">
-                <Input type="time" value={form.morningStart} onChange={(e) => updateField('morningStart', e.target.value)} className={inputClass} />
-              </FormRow>
-              <FormRow label="Giờ kết thúc sáng">
-                <Input type="time" value={form.morningEnd} onChange={(e) => updateField('morningEnd', e.target.value)} className={inputClass} />
-              </FormRow>
-              <FormRow label="Giờ bắt đầu chiều">
-                <Input type="time" value={form.afternoonStart} onChange={(e) => updateField('afternoonStart', e.target.value)} className={inputClass} />
-              </FormRow>
-              <FormRow label="Giờ kết thúc chiều">
-                <Input type="time" value={form.afternoonEnd} onChange={(e) => updateField('afternoonEnd', e.target.value)} className={inputClass} />
-              </FormRow>
-            </div>
-          </div>
-
-          {/* 3. Geo Attendance */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4">
-            <SectionHeader icon={MapPin} title="Định vị chấm công" description="Cấu hình vị trí văn phòng để check-in qua GPS & WiFi" />
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              <FormRow label="Vĩ độ (Latitude)">
-                <Input type="number" step="any" value={form.details.geo.officeLatitude} onChange={(e) => updateDetailsField('geo', 'officeLatitude', parseFloat(e.target.value) || 0)} className={inputClass} />
-              </FormRow>
-              <FormRow label="Kinh độ (Longitude)">
-                <Input type="number" step="any" value={form.details.geo.officeLongitude} onChange={(e) => updateDetailsField('geo', 'officeLongitude', parseFloat(e.target.value) || 0)} className={inputClass} />
-              </FormRow>
-              <FormRow label="Bán kính cho phép (m)">
-                <Input type="number" value={form.details.geo.allowedRadiusMeters} onChange={(e) => updateDetailsField('geo', 'allowedRadiusMeters', parseInt(e.target.value) || 0)} className={inputClass} />
-              </FormRow>
-              <FormRow label="WiFi SSID">
-                <Input value={form.details.geo.allowedWifiSsids} onChange={(e) => updateDetailsField('geo', 'allowedWifiSsids', e.target.value)} className={inputClass} placeholder="SSID1, SSID2" />
-              </FormRow>
-              <FormRow label="WiFi BSSID" className="col-span-2">
-                <Input value={form.details.geo.allowedWifiBssids} onChange={(e) => updateDetailsField('geo', 'allowedWifiBssids', e.target.value)} className={`${inputClass} max-w-md`} placeholder="AA:BB:CC:DD:EE:FF" />
-              </FormRow>
-            </div>
-          </div>
-
-          {/* 4. Attendance Rules */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4">
-            <SectionHeader icon={RefreshCw} title="Quy tắc chấm công" description="Ngưỡng xác định đi muộn, nửa ngày, tăng ca" />
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              <FormRow label="Số giờ tiêu chuẩn/ngày">
-                <Input type="number" value={form.details.attendance.standardHours} onChange={(e) => updateDetailsField('attendance', 'standardHours', parseInt(e.target.value) || 8)} className={inputClass} />
-              </FormRow>
-              <FormRow label="Ngưỡng nửa ngày (giờ)">
-                <Input type="number" step="0.5" value={form.details.attendance.halfDayThreshold} onChange={(e) => updateDetailsField('attendance', 'halfDayThreshold', parseFloat(e.target.value) || 4.5)} className={inputClass} />
-              </FormRow>
-              <FormRow label="Delay đi muộn (phút)">
-                <Input type="number" value={form.details.attendance.lateThreshold} onChange={(e) => updateDetailsField('attendance', 'lateThreshold', parseInt(e.target.value) || 0)} className={inputClass} />
-              </FormRow>
-              <FormRow label="Delay về sớm (phút)">
-                <Input type="number" value={form.details.attendance.earlyThreshold} onChange={(e) => updateDetailsField('attendance', 'earlyThreshold', parseInt(e.target.value) || 0)} className={inputClass} />
-              </FormRow>
-              <FormRow label="OT trước giờ (phút)">
-                <Input type="number" value={form.details.attendance.overtimeBeforeThreshold} onChange={(e) => updateDetailsField('attendance', 'overtimeBeforeThreshold', parseInt(e.target.value) || 0)} className={inputClass} />
-              </FormRow>
-              <FormRow label="OT sau giờ (phút)">
-                <Input type="number" value={form.details.attendance.overtimeAfterThreshold} onChange={(e) => updateDetailsField('attendance', 'overtimeAfterThreshold', parseInt(e.target.value) || 0)} className={inputClass} />
-              </FormRow>
-              <FormRow label="Số ca tối đa/ngày">
-                <Input type="number" value={form.details.attendance.maxShiftsPerDay} onChange={(e) => updateDetailsField('attendance', 'maxShiftsPerDay', parseInt(e.target.value) || 2)} className={inputClass} />
-              </FormRow>
-            </div>
-          </div>
-
-          {/* 5. Payroll Connection */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4">
-            <SectionHeader icon={DollarSign} title="Liên kết bảng lương" description="Cấu hình cách dữ liệu chấm công ảnh hưởng đến tính lương" />
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              <FormRow label="Ngày công chuẩn/tháng">
-                <Input type="number" value={form.details.payroll.standardWorkingDays} onChange={(e) => updateDetailsField('payroll', 'standardWorkingDays', parseInt(e.target.value) || 22)} className={inputClass} />
-              </FormRow>
-              <FormRow label="Ngày bắt đầu tính lương">
-                <Input type="number" value={form.details.payroll.calculationStartDay} onChange={(e) => updateDetailsField('payroll', 'calculationStartDay', parseInt(e.target.value) || 1)} className={inputClass} />
-              </FormRow>
-              <FormRow label="Phạt đi muộn (VNĐ/phút)">
-                <Input type="number" value={form.details.payroll.latePenaltyPerMinute} onChange={(e) => updateDetailsField('payroll', 'latePenaltyPerMinute', parseInt(e.target.value) || 0)} className={inputClass} />
-              </FormRow>
-              <FormRow label="Lương OT (VNĐ/phút)">
-                <Input type="number" value={form.details.payroll.overtimePayPerMinute} onChange={(e) => updateDetailsField('payroll', 'overtimePayPerMinute', parseInt(e.target.value) || 0)} className={inputClass} />
-              </FormRow>
-              <div className="col-span-2 space-y-2">
-                <ToggleRow label="Tự động tạo bảng lương" description="Tự động tính lương cuối kỳ" checked={form.details.payroll.isAutoGeneratePayroll} onChange={(v) => updateDetailsField('payroll', 'isAutoGeneratePayroll', v)} />
-                <ToggleRow label="Tự động cập nhật lương" description="Cập nhật lương khi có thay đổi chấm công" checked={form.details.payroll.isAutoUpdatePayroll} onChange={(v) => updateDetailsField('payroll', 'isAutoUpdatePayroll', v)} />
+          {/* Main Content Area */}
+          <div className="flex-1 space-y-6 w-full min-w-0">
+            {activeTab === 'general' && (
+              <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-1 animate-fade-in shadow-sm">
+                <SectionHeader icon={Settings} title="Tính năng chung" description="Bật/tắt các tính năng chính của hệ thống" />
+                <div className="divide-y divide-neutral-100">
+                  <ToggleRow label="Chấm công" description="Cho phép nhân viên check-in/check-out" checked={form.isAttendance} onChange={(v) => updateField('isAttendance', v)} />
+                  <ToggleRow label="Email" description="Bật tính năng gửi email từ hệ thống" checked={form.isEmail} onChange={(v) => updateField('isEmail', v)} />
+                  <ToggleRow label="Đổi ca" description="Cho phép nhân viên đổi ca làm việc" checked={form.isSwap} onChange={(v) => updateField('isSwap', v)} />
+                  <ToggleRow label="Tùy chỉnh màu sắc" description="Cho phép tùy chỉnh giao diện màu sắc" checked={form.isColor} onChange={(v) => updateField('isColor', v)} />
+                  <ToggleRow label="Cho phép đi muộn" description="Không tính là vi phạm nếu check-in sau giờ bắt đầu" checked={form.allowLate} onChange={(v) => updateField('allowLate', v)} />
+                </div>
               </div>
-            </div>
-          </div>
+            )}
 
-          {/* 6. HR Settings */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-1">
-            <SectionHeader icon={Users} title="Nhân sự" description="Cấu hình yêu cầu hồ sơ nhân viên" />
-            <div className="divide-y divide-neutral-100">
-              <ToggleRow label="Yêu cầu ảnh đại diện" description="Bắt buộc nhân viên có ảnh đại diện" checked={form.requireAvatar} onChange={(v) => updateField('requireAvatar', v)} />
-              <ToggleRow label="Yêu cầu CV" description="Bắt buộc tải lên CV" checked={form.requireCV} onChange={(v) => updateField('requireCV', v)} />
-              <ToggleRow label="Yêu cầu giấy khám sức khỏe" description="Bắt buộc tải lên giấy khám sức khỏe" checked={form.requireHealthCert} onChange={(v) => updateField('requireHealthCert', v)} />
-              <ToggleRow label="Yêu cầu quản lý duyệt" description="Cần quản lý phê duyệt một số thao tác" checked={form.requireManager} onChange={(v) => updateField('requireManager', v)} />
-              <FormRow label="Số thành viên tối đa" className="py-3">
-                <Input type="number" value={form.maxMembers} onChange={(e) => updateField('maxMembers', parseInt(e.target.value) || 0)} className={inputClass} />
-              </FormRow>
-              <FormRow label="Số bài viết tối đa" className="py-3">
-                <Input type="number" value={form.maxPosts} onChange={(e) => updateField('maxPosts', parseInt(e.target.value) || 0)} className={inputClass} />
-              </FormRow>
-            </div>
-          </div>
+            {activeTab === 'schedule' && (
+              <div className="space-y-6 animate-fade-in">
+                {/* 2. Work Schedule */}
+                <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4 shadow-sm">
+                  <SectionHeader icon={Clock} title="Lịch làm việc" description="Khung giờ chấm công cho toàn hệ thống" />
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-4">
+                    <FormRow label="Giờ bắt đầu sáng">
+                      <Input type="time" value={form.morningStart} onChange={(e) => updateField('morningStart', e.target.value)} className={inputClass} />
+                    </FormRow>
+                    <FormRow label="Giờ kết thúc sáng">
+                      <Input type="time" value={form.morningEnd} onChange={(e) => updateField('morningEnd', e.target.value)} className={inputClass} />
+                    </FormRow>
+                    <FormRow label="Giờ bắt đầu chiều">
+                      <Input type="time" value={form.afternoonStart} onChange={(e) => updateField('afternoonStart', e.target.value)} className={inputClass} />
+                    </FormRow>
+                    <FormRow label="Giờ kết thúc chiều">
+                      <Input type="time" value={form.afternoonEnd} onChange={(e) => updateField('afternoonEnd', e.target.value)} className={inputClass} />
+                    </FormRow>
+                  </div>
+                </div>
 
-          {/* 7. Article Settings */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-1">
-            <SectionHeader icon={FileText} title="Bài viết & CMS" description="Cấu hình duyệt bài viết" />
-            <div className="divide-y divide-neutral-100">
-              <ToggleRow label="Tự động duyệt bài viết" description="Bài viết được đăng ngay không cần duyệt" checked={form.autoApproveArticle} onChange={(v) => updateField('autoApproveArticle', v)} />
-              <FormRow label="Người duyệt bài viết" className="py-3">
-                <Input value={form.articleApprover} onChange={(e) => updateField('articleApprover', e.target.value)} className={inputClass} placeholder="ID người duyệt" />
-              </FormRow>
-            </div>
-          </div>
+                {/* 3. Geo Attendance */}
+                <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4 shadow-sm">
+                  <SectionHeader icon={MapPin} title="Định vị chấm công" description="Cấu hình vị trí văn phòng để check-in qua GPS & WiFi" />
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-4">
+                    <FormRow label="Vĩ độ (Latitude)">
+                      <Input type="number" step="any" value={form.details.geo.officeLatitude} onChange={(e) => updateDetailsField('geo', 'officeLatitude', parseFloat(e.target.value) || 0)} className={inputClass} />
+                    </FormRow>
+                    <FormRow label="Kinh độ (Longitude)">
+                      <Input type="number" step="any" value={form.details.geo.officeLongitude} onChange={(e) => updateDetailsField('geo', 'officeLongitude', parseFloat(e.target.value) || 0)} className={inputClass} />
+                    </FormRow>
+                    <FormRow label="Bán kính cho phép (m)">
+                      <Input type="number" value={form.details.geo.allowedRadiusMeters} onChange={(e) => updateDetailsField('geo', 'allowedRadiusMeters', parseInt(e.target.value) || 0)} className={inputClass} />
+                    </FormRow>
+                    <FormRow label="WiFi SSID">
+                      <Input value={form.details.geo.allowedWifiSsids} onChange={(e) => updateDetailsField('geo', 'allowedWifiSsids', e.target.value)} className={inputClass} placeholder="SSID1, SSID2" />
+                    </FormRow>
+                    <FormRow label="WiFi BSSID" className="col-span-2">
+                      <Input value={form.details.geo.allowedWifiBssids} onChange={(e) => updateDetailsField('geo', 'allowedWifiBssids', e.target.value)} className={`${inputClass} max-w-md`} placeholder="AA:BB:CC:DD:EE:FF" />
+                    </FormRow>
+                  </div>
+                </div>
+              </div>
+            )}
 
-          {/* Save Button Bottom */}
-          <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={!selectedOrgId || isSaving} className="gap-2 px-8">
-              <Save size={16} />
-              {isSaving ? 'Đang lưu...' : 'Lưu cài đặt'}
-            </Button>
+            {activeTab === 'attendance' && (
+              <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4 shadow-sm animate-fade-in">
+                <SectionHeader icon={RefreshCw} title="Quy tắc chấm công" description="Ngưỡng xác định đi muộn, nửa ngày, tăng ca" />
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-4">
+                  <FormRow label="Số giờ tiêu chuẩn/ngày">
+                    <Input type="number" value={form.details.attendance.standardHours} onChange={(e) => updateDetailsField('attendance', 'standardHours', parseInt(e.target.value) || 8)} className={inputClass} />
+                  </FormRow>
+                  <FormRow label="Ngưỡng nửa ngày (giờ)">
+                    <Input type="number" step="0.5" value={form.details.attendance.halfDayThreshold} onChange={(e) => updateDetailsField('attendance', 'halfDayThreshold', parseFloat(e.target.value) || 4.5)} className={inputClass} />
+                  </FormRow>
+                  <FormRow label="Delay đi muộn (phút)">
+                    <Input type="number" value={form.details.attendance.lateThreshold} onChange={(e) => updateDetailsField('attendance', 'lateThreshold', parseInt(e.target.value) || 0)} className={inputClass} />
+                  </FormRow>
+                  <FormRow label="Delay về sớm (phút)">
+                    <Input type="number" value={form.details.attendance.earlyThreshold} onChange={(e) => updateDetailsField('attendance', 'earlyThreshold', parseInt(e.target.value) || 0)} className={inputClass} />
+                  </FormRow>
+                  <FormRow label="OT trước giờ (phút)">
+                    <Input type="number" value={form.details.attendance.overtimeBeforeThreshold} onChange={(e) => updateDetailsField('attendance', 'overtimeBeforeThreshold', parseInt(e.target.value) || 0)} className={inputClass} />
+                  </FormRow>
+                  <FormRow label="OT sau giờ (phút)">
+                    <Input type="number" value={form.details.attendance.overtimeAfterThreshold} onChange={(e) => updateDetailsField('attendance', 'overtimeAfterThreshold', parseInt(e.target.value) || 0)} className={inputClass} />
+                  </FormRow>
+                  <FormRow label="Số ca tối đa/ngày">
+                    <Input type="number" value={form.details.attendance.maxShiftsPerDay} onChange={(e) => updateDetailsField('attendance', 'maxShiftsPerDay', parseInt(e.target.value) || 2)} className={inputClass} />
+                  </FormRow>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'payroll' && (
+              <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4 shadow-sm animate-fade-in">
+                <SectionHeader icon={DollarSign} title="Liên kết bảng lương" description="Cấu hình cách dữ liệu chấm công ảnh hưởng đến tính lương" />
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-4">
+                  <FormRow label="Ngày công chuẩn/tháng">
+                    <Input type="number" value={form.details.payroll.standardWorkingDays} onChange={(e) => updateDetailsField('payroll', 'standardWorkingDays', parseInt(e.target.value) || 22)} className={inputClass} />
+                  </FormRow>
+                  <FormRow label="Ngày bắt đầu tính lương">
+                    <Input type="number" value={form.details.payroll.calculationStartDay} onChange={(e) => updateDetailsField('payroll', 'calculationStartDay', parseInt(e.target.value) || 1)} className={inputClass} />
+                  </FormRow>
+                  <FormRow label="Phạt đi muộn (VNĐ/phút)">
+                    <Input type="number" value={form.details.payroll.latePenaltyPerMinute} onChange={(e) => updateDetailsField('payroll', 'latePenaltyPerMinute', parseInt(e.target.value) || 0)} className={inputClass} />
+                  </FormRow>
+                  <FormRow label="Lương OT (VNĐ/phút)">
+                    <Input type="number" value={form.details.payroll.overtimePayPerMinute} onChange={(e) => updateDetailsField('payroll', 'overtimePayPerMinute', parseInt(e.target.value) || 0)} className={inputClass} />
+                  </FormRow>
+                  <div className="col-span-2 space-y-2 mt-4 bg-neutral-50 p-4 rounded-xl border border-neutral-100">
+                    <ToggleRow label="Tự động tạo bảng lương" description="Tự động tính lương cuối kỳ" checked={form.details.payroll.isAutoGeneratePayroll} onChange={(v) => updateDetailsField('payroll', 'isAutoGeneratePayroll', v)} />
+                    <ToggleRow label="Tự động cập nhật lương" description="Cập nhật lương khi có thay đổi chấm công" checked={form.details.payroll.isAutoUpdatePayroll} onChange={(v) => updateDetailsField('payroll', 'isAutoUpdatePayroll', v)} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'hr' && (
+              <div className="space-y-6 animate-fade-in">
+                {/* 6. HR Settings */}
+                <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-1 shadow-sm">
+                  <SectionHeader icon={Users} title="Nhân sự" description="Cấu hình yêu cầu hồ sơ nhân viên" />
+                  <div className="divide-y divide-neutral-100">
+                    <ToggleRow label="Yêu cầu ảnh đại diện" description="Bắt buộc nhân viên có ảnh đại diện" checked={form.requireAvatar} onChange={(v) => updateField('requireAvatar', v)} />
+                    <ToggleRow label="Yêu cầu CV" description="Bắt buộc tải lên CV" checked={form.requireCV} onChange={(v) => updateField('requireCV', v)} />
+                    <ToggleRow label="Yêu cầu giấy khám sức khỏe" description="Bắt buộc tải lên giấy khám sức khỏe" checked={form.requireHealthCert} onChange={(v) => updateField('requireHealthCert', v)} />
+                    <ToggleRow label="Yêu cầu quản lý duyệt" description="Cần quản lý phê duyệt một số thao tác" checked={form.requireManager} onChange={(v) => updateField('requireManager', v)} />
+                    <FormRow label="Số thành viên tối đa" className="py-3">
+                      <Input type="number" value={form.maxMembers} onChange={(e) => updateField('maxMembers', parseInt(e.target.value) || 0)} className={inputClass} />
+                    </FormRow>
+                    <FormRow label="Số bài viết tối đa" className="py-3">
+                      <Input type="number" value={form.maxPosts} onChange={(e) => updateField('maxPosts', parseInt(e.target.value) || 0)} className={inputClass} />
+                    </FormRow>
+                  </div>
+                </div>
+
+                {/* 7. Article Settings */}
+                <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-1 shadow-sm">
+                  <SectionHeader icon={FileText} title="Bài viết & CMS" description="Cấu hình duyệt bài viết" />
+                  <div className="divide-y divide-neutral-100">
+                    <ToggleRow label="Tự động duyệt bài viết" description="Bài viết được đăng ngay không cần duyệt" checked={form.autoApproveArticle} onChange={(v) => updateField('autoApproveArticle', v)} />
+                    <FormRow label="Người duyệt bài viết" className="py-3">
+                      <Input value={form.articleApprover} onChange={(e) => updateField('articleApprover', e.target.value)} className={inputClass} placeholder="ID người duyệt" />
+                    </FormRow>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Save Button Bottom */}
+            <div className="flex justify-end pt-4">
+              <Button onClick={handleSave} disabled={!selectedOrgId || isSaving} className="gap-2 px-8 h-11 text-base shadow-sm">
+                <Save size={18} />
+                {isSaving ? 'Đang lưu...' : 'Lưu cài đặt thay đổi'}
+              </Button>
+            </div>
           </div>
         </div>
       )}

@@ -246,65 +246,82 @@ export function ProductsPage() {
         description={selectedItem ? 'Chỉnh sửa thông tin sản phẩm.' : 'Điền thông tin để thêm sản phẩm mới vào hệ thống.'}
         maxWidth="3xl"
       >
-        <div className="space-y-6">
-          <AppForm
-            formId="product-form"
-            schema={productFormSchema}
-            defaultValues={selectedItem || defaultFormValues}
-            onSubmit={handleSubmit}
-            onCancel={() => setModalOpen(false)}
-            fields={formFields}
-            isLoading={createReq.isPending || updateReq.isPending}
-            submitText={selectedItem ? 'Cập nhật' : 'Thêm mới'}
-            hideFooter
-          />
-
-          {/* Image Upload */}
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className={`relative w-full h-36 rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden
-              ${imageUrl
-                ? 'border-primary-300 bg-primary-50/30'
-                : 'border-neutral-300 hover:border-primary-400 bg-neutral-50 hover:bg-primary-50/30'
-              }`}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            {imageUploading ? (
-              <Loader2 size={28} className="animate-spin text-primary-500" />
-            ) : imageUrl ? (
-              <>
-                <img src={imageUrl} alt="preview" className="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setImageUrl('') }}
-                  className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center shadow hover:bg-red-600 transition-colors z-10"
-                >
-                  <X size={14} />
-                </button>
-              </>
-            ) : (
-              <div className="flex flex-col items-center gap-1">
-                <Upload size={24} className="text-neutral-400" />
-                <span className="text-sm text-neutral-500">Click để tải ảnh lên</span>
-                <span className="text-xs text-neutral-400">Hỗ trợ: PNG, JPG, WEBP, GIF</span>
-              </div>
-            )}
+        <div className="flex flex-col md:flex-row gap-6">
+          {/* Image Upload (Left Side) */}
+          <div className="w-full md:w-[220px] shrink-0 flex flex-col gap-2">
+            <span className="text-sm font-semibold text-neutral-700">Ảnh đại diện</span>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className={`relative w-full aspect-square rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden group
+                ${imageUrl
+                  ? 'border-transparent bg-neutral-100 shadow-sm'
+                  : 'border-neutral-200 hover:border-primary-400 bg-neutral-50 hover:bg-primary-50/30'
+                }`}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              {imageUploading ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 size={24} className="animate-spin text-primary-500" />
+                  <span className="text-xs text-primary-600 font-medium animate-pulse">Đang tải...</span>
+                </div>
+              ) : imageUrl ? (
+                <>
+                  <img src={imageUrl} alt="preview" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                    <span className="text-white text-xs font-medium flex items-center gap-1.5 bg-black/40 px-3 py-1.5 rounded-full"><Upload size={14}/> Đổi ảnh</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setImageUrl('') }}
+                    className="absolute top-2 right-2 w-7 h-7 bg-white/90 text-red-500 rounded-full flex items-center justify-center shadow-sm hover:bg-red-50 transition-colors z-10 opacity-0 group-hover:opacity-100"
+                    title="Xóa ảnh"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-center p-4">
+                  <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-1 group-hover:scale-110 transition-transform duration-300">
+                    <Upload size={20} className="text-primary-500" />
+                  </div>
+                  <span className="text-sm font-semibold text-neutral-700">Tải ảnh lên</span>
+                  <span className="text-[11px] text-neutral-400 leading-tight">PNG, JPG, WEBP tối đa 5MB</span>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Footer Buttons */}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
-              Hủy
-            </Button>
-            <Button type="submit" form="product-form" disabled={createReq.isPending || updateReq.isPending} className="bg-primary-600 hover:bg-primary-700 text-white">
-              {(createReq.isPending || updateReq.isPending) ? 'Đang xử lý...' : (selectedItem ? 'Cập nhật' : 'Thêm mới')}
-            </Button>
+          {/* Form Fields (Right Side) */}
+          <div className="flex-1 flex flex-col">
+            <div className="flex-1">
+              <AppForm
+                formId="product-form"
+                schema={productFormSchema}
+                defaultValues={selectedItem || defaultFormValues}
+                onSubmit={handleSubmit}
+                onCancel={() => setModalOpen(false)}
+                fields={formFields}
+                isLoading={createReq.isPending || updateReq.isPending}
+                submitText={selectedItem ? 'Cập nhật' : 'Thêm mới'}
+                hideFooter
+              />
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex justify-end gap-3 pt-6 mt-2 border-t border-neutral-100">
+              <Button type="button" variant="outline" onClick={() => setModalOpen(false)} className="rounded-xl min-w-[100px]">
+                Hủy
+              </Button>
+              <Button type="submit" form="product-form" disabled={createReq.isPending || updateReq.isPending} className="bg-primary-600 hover:bg-primary-700 text-white rounded-xl min-w-[120px] shadow-sm">
+                {(createReq.isPending || updateReq.isPending) ? <Loader2 size={16} className="animate-spin" /> : (selectedItem ? 'Cập nhật' : 'Thêm sản phẩm')}
+              </Button>
+            </div>
           </div>
         </div>
       </AppModal>

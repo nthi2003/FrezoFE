@@ -22,3 +22,31 @@ export function useExportAttendance() {
     }
   })
 }
+
+export function useProfitChart(days = 7) {
+  return useQuery({
+    queryKey: ['dashboard_profit_chart', days],
+    queryFn: () => dashboardApi.getProfitChart(days),
+  })
+}
+
+export function usePriceFluctuation() {
+  return useQuery({
+    queryKey: ['dashboard_price_fluctuation'],
+    queryFn: dashboardApi.getPriceFluctuation,
+  })
+}
+
+export function useMarketComparison() {
+  return useQuery({
+    queryKey: ['dashboard_market_comparison'],
+    queryFn: dashboardApi.getMarketComparison,
+  })
+}
+
+export function useLoginByDay() {
+  return useQuery({
+    queryKey: ['dashboard_login_by_day'],
+    queryFn: dashboardApi.getLoginByDay,
+  })
+}

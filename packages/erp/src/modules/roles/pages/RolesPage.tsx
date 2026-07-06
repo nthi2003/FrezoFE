@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Edit, Trash2, Loader2, ShieldCheck, AlertTriangle, Search } from 'lucide-react'
+import { Plus, Edit, Trash2, Loader2, ShieldCheck, AlertTriangle, Search, CheckCircle2, Shield, LayoutGrid } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { AppModal } from '@frezo/ui'
 import { Button } from '@frezo/ui'
@@ -111,37 +111,53 @@ export function RolesPage() {
   }, [allMenus, menuSearch])
 
   const columns: AppTableColumn<RoleDTO>[] = [
-    { key: 'code', title: 'Mã vai trò', dataIndex: 'code', width: 150 },
-    { key: 'appCode', title: 'Mã ứng dụng', dataIndex: 'appCode', width: 150 },
-    { key: 'name', title: 'Tên vai trò', dataIndex: 'name' },
-    { key: 'description', title: 'Mô tả', dataIndex: 'description' },
+    { 
+      key: 'code', title: 'Mã vai trò', dataIndex: 'code', width: 180,
+      render: (val) => <span className="font-mono text-xs font-bold text-primary-700 bg-primary-50 px-2 py-1 rounded-md border border-primary-100">{val}</span>
+    },
+    { 
+      key: 'appCode', title: 'Mã ứng dụng', dataIndex: 'appCode', width: 140,
+      render: (val) => <span className="text-xs font-bold text-neutral-500 bg-neutral-100 px-2 py-1 rounded-md border border-neutral-200">{val}</span>
+    },
+    { 
+      key: 'name', title: 'Tên vai trò', dataIndex: 'name',
+      render: (val) => <span className="font-semibold text-neutral-800">{val}</span>
+    },
+    { 
+      key: 'description', title: 'Mô tả', dataIndex: 'description',
+      render: (val) => <span className="text-sm text-neutral-500">{val || '—'}</span>
+    },
     {
       key: 'actions', title: 'Thao tác', align: 'center', width: 160,
       render: (_, record) => (
         <div className="flex items-center justify-center gap-2">
-          <Button variant="ghost" size="sm" className="text-primary-600 px-2" onClick={() => handleOpenMenuModal(record)}>
-            <ShieldCheck size={16} className="mr-1" /> Menu
+          <Button variant="ghost" size="sm" className="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-3 rounded-lg font-medium shadow-sm transition-colors" onClick={() => handleOpenMenuModal(record)}>
+            <ShieldCheck size={16} className="mr-1.5" /> Phân quyền
           </Button>
-          <button title="Sửa" onClick={() => handleOpenModal(record)} className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"><Edit size={15} /></button>
-          <button title="Xóa" onClick={() => handleDelete(record)} className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={15} /></button>
+          <button title="Sửa" onClick={() => handleOpenModal(record)} className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><Edit size={16} /></button>
+          <button title="Xóa" onClick={() => handleDelete(record)} className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
         </div>
       ),
     },
   ]
 
   return (
-    <div className="space-y-4 animate-fade-in p-6">
+    <div className="space-y-6 animate-fade-in p-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-neutral-900">Quản lý Vai trò & Phân quyền</h2>
+          <h2 className="text-2xl font-bold text-neutral-900 tracking-tight">Quản lý Vai trò</h2>
           <p className="text-sm text-neutral-500 mt-1">Cấu hình các nhóm quyền hạn truy cập chức năng</p>
         </div>
-        <Button onClick={() => handleOpenModal()} className="bg-primary-600 hover:bg-primary-700 text-white">
-           <Plus size={16} className="mr-2" /> Thêm mới
+        <Button onClick={() => handleOpenModal()} className="bg-primary-600 hover:bg-primary-700 text-white rounded-xl shadow-sm">
+           <Plus size={16} className="mr-2" /> Thêm vai trò mới
         </Button>
       </div>
 
-      <AppTable columns={columns} data={rolesData} isLoading={isLoading} showSearch searchPlaceholder="Tìm kiếm vai trò..." onRefresh={refetch} pageIndex={1} pageSize={50} totalElements={Array.isArray(rolesData) ? rolesData.length : 0} />
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm overflow-hidden p-1">
+        <AppTable columns={columns} data={rolesData} isLoading={isLoading} showSearch searchPlaceholder="Tìm kiếm theo mã, tên vai trò..." onRefresh={refetch} pageIndex={1} pageSize={50} totalElements={Array.isArray(rolesData) ? rolesData.length : 0} />
+      </div>
 
       <AppModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={isEditMode ? 'Cập nhật vai trò' : 'Thêm mới vai trò'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
@@ -179,31 +195,52 @@ export function RolesPage() {
           ) : (
             <>
               <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
                 <input
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary-600"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm border border-neutral-200 rounded-xl bg-neutral-50/50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white transition-all"
                   placeholder="Tìm menu theo tên hoặc mã..."
                   value={menuSearch}
                   onChange={e => setMenuSearch(e.target.value)}
                 />
               </div>
-              <div className="max-h-[55vh] overflow-y-auto border rounded-md p-4 space-y-2">
+              <div className="max-h-[55vh] overflow-y-auto bg-neutral-50/30 border border-neutral-100 rounded-xl p-3">
                 {filteredMenus.length === 0 ? (
-                  <p className="text-center text-sm text-neutral-400 py-8">Không tìm thấy menu</p>
+                  <div className="flex flex-col items-center justify-center py-12 opacity-60">
+                    <Search size={32} className="text-neutral-300 mb-3" />
+                    <p className="text-sm text-neutral-500 font-medium">Không tìm thấy menu nào</p>
+                  </div>
                 ) : (
-                  filteredMenus.map((menu: any) => (
-                    <label key={menu.code} className="flex items-center gap-3 p-2 hover:bg-neutral-50 rounded cursor-pointer border-b last:border-0">
-                      <input type="checkbox" className="w-4 h-4 accent-primary-600" checked={selectedMenus.includes(menu.code)} onChange={() => toggleMenu(menu.code)} />
-                      <span className="text-sm font-medium">{menu.name} <span className="text-neutral-400 text-xs ml-1">({menu.code})</span></span>
-                    </label>
-                  ))
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {filteredMenus.map((menu: any) => {
+                      const isSelected = selectedMenus.includes(menu.code)
+                      return (
+                        <label 
+                          key={menu.code} 
+                          className={`relative flex items-center gap-3 p-3 rounded-xl cursor-pointer border transition-all duration-200
+                            ${isSelected 
+                              ? 'border-primary-500 bg-primary-50/50 shadow-sm' 
+                              : 'border-neutral-200 hover:border-primary-300 hover:bg-white bg-white shadow-sm hover:shadow'}`}
+                        >
+                          <div className={`shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors
+                            ${isSelected ? 'bg-primary-600 border-primary-600' : 'bg-white border-neutral-300'}`}>
+                            {isSelected && <CheckCircle2 size={14} className="text-white" />}
+                          </div>
+                          <input type="checkbox" className="hidden" checked={isSelected} onChange={() => toggleMenu(menu.code)} />
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-sm font-semibold truncate ${isSelected ? 'text-primary-800' : 'text-neutral-700'}`}>{menu.name}</div>
+                            <div className="text-[11px] text-neutral-500 font-mono mt-0.5 truncate">{menu.code}</div>
+                          </div>
+                        </label>
+                      )
+                    })}
+                  </div>
                 )}
               </div>
             </>
           )}
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => setIsMenuModalOpen(false)}>Đóng</Button>
-            <Button onClick={handleSaveMenus} disabled={saveMenusReq.isPending} className="bg-primary-600 hover:bg-primary-700 text-white">
+          <div className="flex justify-end gap-2 pt-4 border-t border-neutral-100">
+            <Button variant="outline" onClick={() => setIsMenuModalOpen(false)} className="rounded-xl">Đóng</Button>
+            <Button onClick={handleSaveMenus} disabled={saveMenusReq.isPending} className="bg-primary-600 hover:bg-primary-700 text-white rounded-xl shadow-sm">
               Lưu Phân Quyền
             </Button>
           </div>

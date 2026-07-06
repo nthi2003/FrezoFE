@@ -76,14 +76,25 @@ const FbLeadsPage         = lazy(() => import('@/modules/fbautomation/pages/FbLe
 
 // Error / Not Found Page
 import { NotFoundPage } from '@/components/shared/NotFoundPage'
+import logoImg from '@/img/logo.png'
 
 // ---- Page loading fallback ----
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center h-64">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm text-neutral-500">Đang tải...</span>
+    <div className="w-full min-h-[60vh] flex items-center justify-center">
+      <div className="relative flex flex-col items-center gap-5">
+        <div className="relative flex items-center justify-center w-20 h-20">
+          {/* Vòng nền */}
+          <div className="absolute inset-0 border-[3px] border-primary-100 rounded-full" />
+          {/* Vòng quay */}
+          <div className="absolute inset-0 border-[3px] border-primary-500 rounded-full border-t-transparent animate-spin" />
+          {/* Logo ở giữa */}
+          <img src={logoImg} alt="Frezo" className="w-10 h-10 object-contain animate-pulse" />
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-sm font-bold text-primary-700 tracking-widest uppercase">Frezo</span>
+          <span className="text-xs font-medium text-neutral-400">Đang tải dữ liệu...</span>
+        </div>
       </div>
     </div>
   )

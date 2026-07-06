@@ -113,8 +113,9 @@ const FORM_SECTIONS = [
 function ConfigTab() {
   const { data, isLoading } = useLandingConfig()
   const updateReq = useUpdateLandingConfig()
+  const [activeSection, setActiveSection] = useState(FORM_SECTIONS[0].title)
 
-  const { register, handleSubmit, reset } = useForm({
+  const { register, handleSubmit, reset, watch, setValue } = useForm({
     defaultValues: Object.fromEntries(
       FORM_SECTIONS.flatMap(s => s.fields).map(f => [f.name, ''])
     )
@@ -128,32 +129,88 @@ function ConfigTab() {
     updateReq.mutate(formData)
   }
 
+  const logoUrlValue = watch('logoUrl')
+
   return (
-    <div className="bg-white rounded-xl border border-neutral-200 p-6 max-w-4xl shadow-sm">
-      {isLoading ? (
-        <div className="flex justify-center p-10"><Loader2 className="animate-spin text-primary-600" /></div>
-      ) : (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-          {FORM_SECTIONS.map(section => (
-            <div key={section.title}>
-              <h3 className="text-sm font-semibold text-neutral-700 mb-3 pb-2 border-b border-neutral-100">{section.title}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {section.fields.map(field => (
-                  <div key={field.name} className="space-y-1.5">
-                    <Label>{field.label}</Label>
-                    <Input {...register(field.name)} placeholder={field.placeholder} />
-                  </div>
-                ))}
+    <div className="flex flex-col lg:flex-row gap-6">
+      {/* Left side: Navigation / Sections Menu */}
+      <div className="w-full lg:w-64 shrink-0">
+        <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm p-3 sticky top-6">
+          <h3 className="text-sm font-bold text-neutral-800 mb-3 px-3">Danh mục cấu hình</h3>
+          <nav className="space-y-1">
+            {FORM_SECTIONS.map(section => (
+              <button
+                key={section.title}
+                type="button"
+                onClick={() => setActiveSection(section.title)}
+                className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${activeSection === section.title ? 'bg-primary-50 text-primary-700' : 'text-neutral-600 hover:bg-neutral-50'}`}
+              >
+                {section.title}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      {/* Right side: Form Content */}
+      <div className="flex-1 bg-white rounded-2xl border border-neutral-100 p-6 shadow-sm min-h-[500px]">
+        {isLoading ? (
+          <div className="flex justify-center p-10"><Loader2 className="animate-spin text-primary-600 w-8 h-8" /></div>
+        ) : (
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {FORM_SECTIONS.filter(s => s.title === activeSection).map(section => (
+              <div key={section.title} className="animate-fade-in">
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-neutral-100">
+                  <h3 className="text-lg font-bold text-neutral-900">{section.title}</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {section.fields.map(field => (
+                    <div key={field.name} className={`space-y-2 ${field.name === 'aboutUs' || field.name === 'footerText' || field.name === 'shippingPolicy' ? 'md:col-span-2' : ''}`}>
+                      <Label className="text-neutral-700">{field.label}</Label>
+                      
+                      {field.name === 'primaryColor' ? (
+                        <div className="flex items-center gap-3">
+                          <input 
+                            type="color" 
+                            {...register(field.name)} 
+                            className="w-10 h-10 rounded border-0 cursor-pointer p-0"
+                          />
+                          <Input {...register(field.name)} placeholder={field.placeholder} className="flex-1" />
+                        </div>
+                      ) : field.name === 'logoUrl' ? (
+                        <div className="space-y-3">
+                          <Input {...register(field.name)} placeholder={field.placeholder} />
+                          {logoUrlValue && (
+                            <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200 inline-block">
+                              <img src={logoUrlValue as string} alt="Logo preview" className="h-10 object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                            </div>
+                          )}
+                        </div>
+                      ) : field.name === 'aboutUs' || field.name === 'footerText' || field.name === 'shippingPolicy' ? (
+                        <textarea
+                          {...register(field.name)}
+                          placeholder={field.placeholder}
+                          rows={3}
+                          className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-primary-400 focus:border-transparent placeholder:text-neutral-400 resize-none"
+                        />
+                      ) : (
+                        <Input {...register(field.name)} placeholder={field.placeholder} className="bg-neutral-50/50 focus:bg-white rounded-xl" />
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
+            ))}
+            
+            <div className="pt-8 mt-8 border-t border-neutral-100 flex justify-end">
+              <Button type="submit" disabled={updateReq.isPending} className="bg-primary-600 hover:bg-primary-700 text-white min-w-[140px] h-11 rounded-xl shadow-sm">
+                {updateReq.isPending ? <Loader2 size={16} className="mr-2 animate-spin" /> : 'Lưu cấu hình'}
+              </Button>
             </div>
-          ))}
-          <div className="pt-4 border-t border-neutral-200">
-            <Button type="submit" disabled={updateReq.isPending} className="bg-primary-600 hover:bg-primary-700 text-white min-w-[120px]">
-              {updateReq.isPending ? <Loader2 size={16} className="mr-2 animate-spin" /> : 'Lưu cấu hình'}
-            </Button>
-          </div>
-        </form>
-      )}
+          </form>
+        )}
+      </div>
     </div>
   )
 }
@@ -288,51 +345,6 @@ function BannersTab() {
     }
   }
 
-  const columns = [
-    {
-      title: 'Hình ảnh', dataIndex: 'imageUrl',
-      render: (val: string) => val ? (
-        <img src={val} alt="banner" className="w-20 h-12 object-cover rounded border border-neutral-200" />
-      ) : (
-        <div className="w-20 h-12 bg-neutral-100 rounded flex items-center justify-center text-neutral-400 text-xs">No img</div>
-      ),
-    },
-    { title: 'Tiêu đề', dataIndex: 'title', filterType: 'text' },
-    { title: 'Phụ đề', dataIndex: 'subtitle', filterType: 'text' },
-    {
-      title: 'Vị trí', dataIndex: 'position',
-      filterType: 'select', filterOptions: BANNER_POSITION_OPTIONS,
-      render: (val: string) => {
-        const map: Record<string, string> = { hero: 'Hero Slider', promo: 'Khuyến mãi', banner: 'Banner phụ' }
-        return map[val] || val
-      },
-    },
-    {
-      title: 'Trạng thái', dataIndex: 'status',
-      filterType: 'select', filterOptions: BANNER_STATUS_OPTIONS,
-      render: (val: string) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${val === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-neutral-100 text-neutral-500'}`}>
-          {val === 'ACTIVE' ? 'Hoạt động' : 'Ẩn'}
-        </span>
-      ),
-    },
-    { title: 'Thứ tự', dataIndex: 'orderIndex' },
-    {
-      title: 'Thao tác',
-      dataIndex: 'id',
-      render: (_: any, row: any) => (
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => { setSelectedItem(row); setModalOpen(true) }}>
-            <Pencil className="w-4 h-4 text-blue-600" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Xóa banner này?')) deleteReq.mutate(row.id) }}>
-            <Trash2 className="w-4 h-4 text-red-600" />
-          </Button>
-        </div>
-      ),
-    },
-  ]
-
   const formFields = [
     { name: 'title', label: 'Tiêu đề', required: true },
     { name: 'subtitle', label: 'Phụ đề' },
@@ -343,25 +355,70 @@ function BannersTab() {
     { name: 'orderIndex', label: 'Thứ tự hiển thị', type: 'number' },
   ]
 
+  const getPositionLabel = (val: string) => {
+    const map: Record<string, string> = { hero: 'Hero Slider', promo: 'Khuyến mãi', banner: 'Banner phụ' }
+    return map[val] || val
+  }
+
   return (
-    <>
+    <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-semibold text-neutral-900">Quản lý Banner</h2>
-          <p className="text-sm text-neutral-500">Quản lý banner quảng cáo, slider trên trang chủ</p>
+          <h2 className="text-xl font-bold text-neutral-900">Quản lý Banner</h2>
+          <p className="text-sm text-neutral-500 mt-1">Quản lý banner quảng cáo, slider trên trang chủ</p>
         </div>
-        <Button onClick={() => { setSelectedItem(null); setModalOpen(true) }} className="bg-primary-600 hover:bg-primary-700 text-white">
+        <Button onClick={() => { setSelectedItem(null); setModalOpen(true) }} className="bg-primary-600 hover:bg-primary-700 text-white rounded-xl">
           <Plus className="w-4 h-4 mr-2" /> Thêm mới
         </Button>
       </div>
 
-      <AppTable
-        data={dataList}
-        columns={columns as any}
-        isLoading={isLoading}
-        showSearch={true}
-        searchPlaceholder="Tìm theo tiêu đề..."
-      />
+      {isLoading ? (
+        <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary-500 w-8 h-8" /></div>
+      ) : dataList.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-neutral-400">
+          <Image className="w-16 h-16 text-neutral-200 mb-4" />
+          <p className="text-base font-medium">Chưa có banner nào</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {dataList.map((banner: any) => (
+            <div key={banner.id} className="group relative bg-white rounded-2xl border border-neutral-100 overflow-hidden shadow-sm hover:shadow-md transition-all duration-200">
+              <div className="aspect-[21/9] w-full bg-neutral-100 relative">
+                {banner.imageUrl ? (
+                  <img src={banner.imageUrl} alt={banner.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-neutral-300">
+                    <Image size={32} />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <button onClick={() => { setSelectedItem(banner); setModalOpen(true) }} className="w-8 h-8 rounded-full bg-white/90 backdrop-blur text-blue-600 flex items-center justify-center hover:bg-white transition-colors shadow-sm">
+                    <Pencil size={14} />
+                  </button>
+                  <button onClick={() => { if (confirm('Xóa banner này?')) deleteReq.mutate(banner.id) }} className="w-8 h-8 rounded-full bg-white/90 backdrop-blur text-red-600 flex items-center justify-center hover:bg-white transition-colors shadow-sm">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <h3 className="font-semibold text-neutral-800 line-clamp-1 flex-1" title={banner.title}>{banner.title}</h3>
+                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${banner.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'}`}>
+                    {banner.status === 'ACTIVE' ? 'Hoạt động' : 'Ẩn'}
+                  </span>
+                </div>
+                {banner.subtitle && <p className="text-xs text-neutral-500 line-clamp-1 mb-3">{banner.subtitle}</p>}
+                
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-neutral-50">
+                  <span className="text-xs text-neutral-400 bg-neutral-50 px-2 py-1 rounded">Vị trí: <strong>{getPositionLabel(banner.position)}</strong></span>
+                  <span className="text-xs text-neutral-400">Thứ tự: <strong>{banner.orderIndex || 0}</strong></span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <AppModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={selectedItem ? 'Cập nhật Banner' : 'Thêm Banner mới'} maxWidth="2xl">
         <AppForm
@@ -373,9 +430,15 @@ function BannersTab() {
           submitText={selectedItem ? 'Cập nhật' : 'Thêm mới'}
         />
       </AppModal>
-    </>
+    </div>
   )
 }
+
+const NEWS_TYPE_OPTIONS = [
+  { value: 'NEWS', label: 'Tin tức' },
+  { value: 'PROMO', label: 'Khuyến mãi' },
+  { value: 'EVENT', label: 'Sự kiện' }
+]
 
 function NewsTab() {
   const navigate = useNavigate()
@@ -384,6 +447,16 @@ function NewsTab() {
   const dataList = rawData || []
 
   const columns = [
+    { 
+      title: 'Hình ảnh', dataIndex: 'thumbnailUrl',
+      render: (val: string) => val ? (
+        <img src={val} alt="thumb" className="w-16 h-12 object-cover rounded-md border border-neutral-100" />
+      ) : (
+        <div className="w-16 h-12 bg-neutral-50 rounded-md border border-neutral-100 flex items-center justify-center text-neutral-300">
+          <Image size={16} />
+        </div>
+      )
+    },
     { title: 'Tiêu đề', dataIndex: 'title', filterType: 'text' as const },
     { title: 'Loại', dataIndex: 'type', filterType: 'select' as const, filterOptions: NEWS_TYPE_OPTIONS },
     {
@@ -412,10 +485,6 @@ function NewsTab() {
       render: (val: string) => val ? new Date(val).toLocaleDateString('vi-VN') : '---',
     },
     {
-      title: 'Ngày xuất bản', dataIndex: 'publishedDate',
-      render: (val: string) => val ? new Date(val).toLocaleDateString('vi-VN') : '---',
-    },
-    {
       title: 'Thao tác', dataIndex: 'id',
       render: (_: any, row: any) => (
         <div className="flex items-center gap-2">
@@ -431,13 +500,13 @@ function NewsTab() {
   ]
 
   return (
-    <>
+    <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm p-4">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-semibold text-neutral-900">Tin tức & Sự kiện</h2>
+          <h2 className="text-lg font-bold text-neutral-900">Tin tức & Sự kiện</h2>
           <p className="text-sm text-neutral-500">Danh sách tin tức, bài viết trên hệ thống</p>
         </div>
-        <Button onClick={() => navigate('/qtht/tin-tuc/tao-moi')} className="bg-primary-600 hover:bg-primary-700 text-white">
+        <Button onClick={() => navigate('/qtht/tin-tuc/tao-moi')} className="bg-primary-600 hover:bg-primary-700 text-white rounded-xl">
           <Plus className="w-4 h-4 mr-2" /> Thêm mới
         </Button>
       </div>
@@ -449,7 +518,7 @@ function NewsTab() {
         showSearch={true}
         searchPlaceholder="Tìm theo tiêu đề, nội dung..."
       />
-    </>
+    </div>
   )
 }
 

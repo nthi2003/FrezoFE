@@ -233,28 +233,12 @@ export function AttendancePage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">Quản lý Chấm công</h1>
-          <p className="text-sm text-neutral-500 mt-1">Theo dõi chấm công, đi muộn và nghỉ phép của nhân viên</p>
         </div>
         {activeTab === 'leaves' && (
           <Button onClick={() => setCreateModalOpen(true)} className="gap-2">
             <CalendarDays className="w-4 h-4" /> Tạo đơn nghỉ phép
           </Button>
         )}
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        {summaryCards.map((card) => (
-          <div key={card.label} className="bg-white rounded-xl border border-neutral-200 p-4 flex items-center gap-3">
-            <div className={`p-2.5 rounded-lg ${card.color}`}>
-              <card.icon size={18} />
-            </div>
-            <div>
-              <p className="text-xs text-neutral-500">{card.label}</p>
-              <p className="text-xl font-bold text-neutral-900">{card.value}</p>
-            </div>
-          </div>
-        ))}
       </div>
 
       {/* Filters */}

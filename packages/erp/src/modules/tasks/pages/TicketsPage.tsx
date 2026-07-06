@@ -167,10 +167,21 @@ export function TicketsPage() {
     }
   }, [dataList, updateReq])
 
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null)
+
   const onDragStart = (id: string) => { setDraggedId(id) }
-  const onDragOver = (e: React.DragEvent) => { e.preventDefault() }
+  const onDragOver = (e: React.DragEvent, colKey: string) => { 
+    e.preventDefault() 
+    if (dragOverCol !== colKey) setDragOverCol(colKey)
+  }
+  const onDragLeave = () => { setDragOverCol(null) }
   const onDrop = (statusKey: string) => {
     if (draggedId) { handleDrop(draggedId, statusKey); setDraggedId(null) }
+    setDragOverCol(null)
+  }
+  const onDragEnd = () => {
+    setDraggedId(null)
+    setDragOverCol(null)
   }
 
   const handleDropOnCalendar = useCallback((ticketId: string, dateStr: string) => {
@@ -183,26 +194,42 @@ export function TicketsPage() {
   }, [dataList, updateReq])
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-semibold">Giao việc</h1></div>
-        <Button onClick={handleOpenCreate} className="gap-2">
-          <Plus className="w-4 h-4" /> Thêm mới
-        </Button>
+    <div className="p-6 space-y-6 bg-neutral-50/50 min-h-[calc(100vh-64px)] animate-fade-in">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">Giao việc (Kanban)</h1>
+          <p className="text-sm text-neutral-500 mt-1">Quản lý và theo dõi tiến độ công việc</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex items-center gap-4 mr-4">
+            <div className="flex flex-col text-center">
+              <span className="text-[11px] font-medium text-neutral-500 uppercase tracking-wider">Tổng</span>
+              <span className="text-lg font-bold text-neutral-800">{dataList.length}</span>
+            </div>
+            <div className="w-px h-8 bg-neutral-200"></div>
+            <div className="flex flex-col text-center">
+              <span className="text-[11px] font-medium text-neutral-500 uppercase tracking-wider">Đang xử lý</span>
+              <span className="text-lg font-bold text-blue-600">{dataList.filter((t: any) => t.status === 'IN_PROGRESS').length}</span>
+            </div>
+          </div>
+          <Button onClick={handleOpenCreate} className="gap-2 bg-primary-600 hover:bg-primary-700 shadow-sm rounded-xl">
+            <Plus className="w-4 h-4" /> Thêm giao việc
+          </Button>
+        </div>
       </div>
 
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-sm">
+      <div className="p-3 bg-white border border-neutral-100 shadow-sm rounded-2xl flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px]">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
           <input
             type="text"
-            placeholder="Tìm kiếm tiêu đề..."
+            placeholder="Tìm kiếm tiêu đề, mã..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            className="h-10 w-full pl-9 pr-3 text-sm border border-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent placeholder:text-neutral-400"
+            className="h-10 w-full pl-9 pr-3 text-sm border-none bg-neutral-50/50 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary-400 transition-shadow placeholder:text-neutral-400"
           />
         </div>
-        <div className="w-44">
+        <div className="w-44 border border-neutral-200 rounded-xl overflow-hidden">
           <Select
             options={STATUS_OPTIONS}
             value={statusFilter}
@@ -210,26 +237,29 @@ export function TicketsPage() {
             placeholder="Tất cả trạng thái"
           />
         </div>
-        <input
-          type="date"
-          value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
-          className="h-10 px-3 text-sm border border-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
-          title="Từ ngày"
-        />
-        <input
-          type="date"
-          value={toDate}
-          onChange={(e) => setToDate(e.target.value)}
-          className="h-10 px-3 text-sm border border-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
-          title="Đến ngày"
-        />
-        <div className="flex items-center border border-border rounded-lg overflow-hidden">
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="h-10 px-3 text-sm border border-neutral-200 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-primary-400 text-neutral-600"
+            title="Từ ngày"
+          />
+          <span className="text-neutral-400">-</span>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="h-10 px-3 text-sm border border-neutral-200 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-primary-400 text-neutral-600"
+            title="Đến ngày"
+          />
+        </div>
+        <div className="flex items-center bg-neutral-100/80 rounded-xl p-1 border border-neutral-200/50 ml-auto">
           <button
             type="button"
             onClick={() => setViewMode('kanban')}
-            className={`px-3 py-2 text-sm flex items-center gap-1.5 transition-colors ${
-              viewMode === 'kanban' ? 'bg-primary-500 text-white' : 'bg-white text-neutral-500 hover:bg-neutral-50'
+            className={`px-3 py-1.5 text-sm rounded-lg flex items-center gap-1.5 transition-all duration-200 ${
+              viewMode === 'kanban' ? 'bg-white shadow-sm text-primary-600 font-semibold' : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/50'
             }`}
           >
             <LayoutGrid className="w-4 h-4" /> Kanban
@@ -237,8 +267,8 @@ export function TicketsPage() {
           <button
             type="button"
             onClick={() => setViewMode('calendar')}
-            className={`px-3 py-2 text-sm flex items-center gap-1.5 transition-colors ${
-              viewMode === 'calendar' ? 'bg-primary-500 text-white' : 'bg-white text-neutral-500 hover:bg-neutral-50'
+            className={`px-3 py-1.5 text-sm rounded-lg flex items-center gap-1.5 transition-all duration-200 ${
+              viewMode === 'calendar' ? 'bg-white shadow-sm text-primary-600 font-semibold' : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/50'
             }`}
           >
             <CalendarDays className="w-4 h-4" /> Lịch
@@ -265,61 +295,89 @@ export function TicketsPage() {
           <p className="text-base font-medium">Frezo chưa giao việc</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {columns.map((col) => (
             <div
               key={col.key}
-              onDragOver={onDragOver}
+              onDragOver={(e) => onDragOver(e, col.key)}
+              onDragLeave={onDragLeave}
               onDrop={() => onDrop(col.key)}
-              className={`rounded-xl border border-border bg-neutral-50 min-h-[300px] flex flex-col ${draggedId ? 'bg-neutral-100' : ''}`}
+              className={`rounded-2xl border transition-all duration-200 min-h-[400px] flex flex-col 
+                ${dragOverCol === col.key 
+                  ? 'bg-primary-50/50 border-primary-400 border-dashed scale-[1.01] shadow-sm' 
+                  : draggedId 
+                    ? 'bg-neutral-50/80 border-neutral-200 border-dashed opacity-60' 
+                    : 'bg-neutral-50/80 border-neutral-100'}`}
             >
-              <div className={`px-4 py-3 border-b border-border font-semibold text-sm flex items-center gap-2 rounded-t-xl`}>
-                <span>{col.label}</span>
-                <span className="text-xs text-neutral-500 font-normal">({col.items.length})</span>
+              <div className={`px-4 py-3 border-b font-bold text-sm flex items-center justify-between rounded-t-2xl bg-white/50 backdrop-blur ${dragOverCol === col.key ? 'border-primary-200' : 'border-neutral-100'}`}>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${col.key === 'OPEN' ? 'bg-neutral-400' : col.key === 'IN_PROGRESS' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
+                  <span className={dragOverCol === col.key ? 'text-primary-700' : 'text-neutral-700'}>{col.label}</span>
+                </div>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${dragOverCol === col.key ? 'bg-primary-100 text-primary-700' : 'text-neutral-500 bg-neutral-200/50'}`}>{col.items.length}</span>
               </div>
-              <div className="flex-1 p-3 space-y-3 overflow-y-auto max-h-[600px]">
+              <div className="flex-1 p-3 space-y-3 overflow-y-auto max-h-[700px] custom-scrollbar">
                 {col.items.length === 0 ? (
-                  <p className="text-xs text-neutral-400 text-center py-8">Không có việc</p>
+                  <div className="flex flex-col items-center justify-center h-32 opacity-50">
+                    <LayoutGrid className="w-8 h-8 text-neutral-300 mb-2" />
+                    <p className="text-xs text-neutral-400 text-center font-medium">Không có công việc</p>
+                  </div>
                 ) : (
                   col.items.map((ticket: any) => (
                     <div
                       key={ticket.id}
                       draggable
                       onDragStart={() => onDragStart(ticket.id)}
+                      onDragEnd={onDragEnd}
                       onClick={() => handleOpenEdit(ticket)}
-                      className="bg-white rounded-lg border border-border p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow space-y-2"
+                      className={`relative bg-white rounded-xl border p-3 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 group overflow-hidden 
+                        ${draggedId === ticket.id 
+                          ? 'opacity-30 border-primary-400 border-dashed scale-95' 
+                          : 'border-neutral-100'}`}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        {ticket.code && (
-                          <span className="text-[10px] font-mono text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded">{ticket.code}</span>
-                        )}
-                        {ticket.priority && (
+                      {/* Priority left border indicator */}
+                      <div className="absolute left-0 top-0 bottom-0 w-1 opacity-80" style={{ backgroundColor: priorityColorMap[ticket.priority] || '#d1d5db' }}></div>
+                      
+                      <div className="pl-1">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-[10px] font-bold tracking-wider text-neutral-400 uppercase bg-neutral-50 px-1.5 py-0.5 rounded-md border border-neutral-100">
+                            {ticket.code || 'NO-ID'}
+                          </span>
                           <span
-                            className="shrink-0 text-[10px] px-1.5 py-0.5 rounded font-medium text-white"
-                            style={{ backgroundColor: priorityColorMap[ticket.priority] || '#6b7280' }}
+                            className="shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm"
+                            style={{ 
+                              color: priorityColorMap[ticket.priority] || '#6b7280',
+                              backgroundColor: `${priorityColorMap[ticket.priority]}20` || '#f3f4f6'
+                            }}
                           >
-                            {priorityOptionsData?.find((p: any) => p.code === ticket.priority)?.name || ticket.priority}
+                            {priorityOptionsData?.find((p: any) => p.code === ticket.priority)?.name || ticket.priority || 'Bình thường'}
                           </span>
+                        </div>
+                        <h4 className="text-sm font-semibold text-neutral-800 leading-tight mb-1.5 group-hover:text-primary-700 transition-colors">{ticket.title}</h4>
+                        {ticket.description && (
+                          <p className="text-[11px] text-neutral-500 line-clamp-2 leading-relaxed mb-3">{ticket.description}</p>
                         )}
-                      </div>
-                      <p className="text-sm font-medium text-neutral-800 leading-tight line-clamp-2">{ticket.title}</p>
-                      {ticket.description && (
-                        <p className="text-xs text-neutral-500 line-clamp-2">{ticket.description}</p>
-                      )}
-                      <div className="flex items-center gap-3 pt-1 text-[10px] text-neutral-400">
-                        {ticket.assigneeId && (
-                          <span className="flex items-center gap-1">
-                            <User size={11} /> {personOptions?.find((p: any) => p.value === ticket.assigneeId)?.label || ticket.assigneeId}
-                          </span>
-                        )}
-                        {ticket.dueDate && (
-                          <span className="flex items-center gap-1">
-                            <Calendar size={11} /> {new Date(ticket.dueDate).toLocaleDateString('vi-VN')}
-                          </span>
-                        )}
-                        {ticket.category && (
-                          <span className="text-neutral-300">• {ticket.category}</span>
-                        )}
+                        
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-neutral-50">
+                          <div className="flex flex-col gap-1.5 text-[10px] text-neutral-400 font-medium">
+                            {ticket.dueDate && (
+                              <span className="flex items-center gap-1.5 text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded w-fit">
+                                <Calendar size={12} /> {new Date(ticket.dueDate).toLocaleDateString('vi-VN')}
+                              </span>
+                            )}
+                            {ticket.category && (
+                              <span className="flex items-center gap-1.5 text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded w-fit">
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span> {ticket.category}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {ticket.assigneeId && (
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center text-[10px] font-bold shadow-sm ring-2 ring-white" title={personOptions?.find((p: any) => p.value === ticket.assigneeId)?.label || ticket.assigneeId}>
+                              {ticket.assigneeId.substring(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))

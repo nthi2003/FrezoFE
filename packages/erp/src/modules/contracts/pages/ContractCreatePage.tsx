@@ -708,19 +708,19 @@ export function ContractCreatePage() {
                         <div className="space-y-1.5">
                           <Label>Lương cơ bản (VNĐ)</Label>
                           <Input
-                            type="number"
-                            placeholder="10,000,000"
-                            value={formData.basicSalary}
-                            onChange={(e) => updateField('basicSalary', e.target.value)}
+                            type="text"
+                            placeholder="10.000.000"
+                            value={formData.basicSalary ? Number(formData.basicSalary).toLocaleString('vi-VN') : ''}
+                            onChange={(e) => updateField('basicSalary', e.target.value.replace(/\D/g, ''))}
                           />
                         </div>
                         <div className="space-y-1.5">
                           <Label>Thưởng KPI (VNĐ)</Label>
                           <Input
-                            type="number"
-                            placeholder="2,000,000"
-                            value={formData.kpiAmount}
-                            onChange={(e) => updateField('kpiAmount', e.target.value)}
+                            type="text"
+                            placeholder="2.000.000"
+                            value={formData.kpiAmount ? Number(formData.kpiAmount).toLocaleString('vi-VN') : ''}
+                            onChange={(e) => updateField('kpiAmount', e.target.value.replace(/\D/g, ''))}
                           />
                         </div>
                       </div>
@@ -734,10 +734,10 @@ export function ContractCreatePage() {
                         <Label>Mức lương đóng BH (VNĐ)</Label>
                         <div className="flex gap-2">
                           <Input
-                            type="number"
+                            type="text"
                             placeholder={MIN_SI_BASE.toLocaleString('vi-VN')}
-                            value={formData.bhxhBase}
-                            onChange={(e) => updateField('bhxhBase', e.target.value)}
+                            value={formData.bhxhBase ? Number(formData.bhxhBase).toLocaleString('vi-VN') : ''}
+                            onChange={(e) => updateField('bhxhBase', e.target.value.replace(/\D/g, ''))}
                             className="flex-1 text-xs"
                           />
                           <Button
@@ -778,17 +778,17 @@ export function ContractCreatePage() {
             </div>
 
             {/* Right: AI button + Placeholders + Editor */}
-            <div className="flex-1 min-w-0 space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="font-medium flex items-center gap-2">
-                  <FileText size={15} className="text-primary-500" />
+            <div className="flex-1 min-w-0 flex flex-col bg-white rounded-xl border border-border shadow-sm overflow-hidden min-h-[600px]">
+              <div className="flex items-center justify-between p-4 border-b border-border bg-neutral-50/80">
+                <div className="font-semibold text-neutral-800 flex items-center gap-2">
+                  <FileText size={18} className="text-primary-600" />
                   Nội dung hợp đồng
-                </Label>
+                </div>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-2 text-xs"
+                    className="gap-2 text-xs bg-white shadow-sm hover:border-primary-300 hover:text-primary-700 transition-colors"
                     onClick={() => {
                       if (!formData.content) {
                         toast.error('Vui lòng nhập nội dung trước khi lưu')
@@ -805,7 +805,7 @@ export function ContractCreatePage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-2 text-xs"
+                    className="gap-2 text-xs bg-white shadow-sm hover:border-primary-300 hover:text-primary-700 transition-colors"
                     onClick={() => {
                       if (formData.content) aiEditMutation.mutate(formData.content)
                       else toast.error('Vui lòng nhập nội dung trước khi chỉnh sửa')
@@ -813,34 +813,37 @@ export function ContractCreatePage() {
                     disabled={aiEditMutation.isPending}
                   >
                     {aiEditMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <Bot size={15} />}
-                    {aiEditMutation.isPending ? 'Đang xử lý...' : 'Biên tập bằng AI'}
+                    {aiEditMutation.isPending ? 'Đang xử lý...' : 'Biên tập AI'}
                   </Button>
                 </div>
               </div>
 
               {/* Placeholders Quick Insert Panel */}
-              <div className="space-y-2 bg-neutral-50/50 p-4 rounded-xl border border-border">
-                <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Chèn nhanh mẫu liên kết (Click để đưa vào hợp đồng):</p>
-                <div className="flex flex-wrap gap-1.5">
+              <div className="px-4 py-3 bg-neutral-50/50 border-b border-border">
+                <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">Trường động (Click để chèn vào văn bản):</p>
+                <div className="flex flex-wrap gap-2">
                   {PLACEHOLDER_PATTERNS.map((p) => (
                     <button
                       key={p.key}
                       type="button"
                       onClick={() => insertPlaceholder(p.key, p.label)}
-                      className="px-2.5 py-1 text-xs bg-white border border-border rounded-lg text-neutral-600 hover:text-primary-700 hover:border-primary-300 hover:bg-primary-50 transition-all font-medium shadow-sm"
+                      className="px-2.5 py-1 text-xs bg-white border border-neutral-200 rounded-md text-neutral-600 hover:text-primary-700 hover:border-primary-300 hover:bg-primary-50 transition-all font-medium shadow-sm flex items-center gap-1.5"
                     >
-                      {`{${p.label}}`}
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary-400"></span>
+                      {p.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <TiptapEditor
-                ref={editorRef}
-                value={formData.content}
-                onChange={(html) => updateField('content', html)}
-                placeholder="Nhập nội dung hợp đồng..."
-              />
+              <div className="p-4 flex-1 flex flex-col [&_.ProseMirror]:min-h-[400px]">
+                <TiptapEditor
+                  ref={editorRef}
+                  value={formData.content}
+                  onChange={(html) => updateField('content', html)}
+                  placeholder="Soạn thảo nội dung hợp đồng tại đây..."
+                />
+              </div>
             </div>
           </div>
         </div>
