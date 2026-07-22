@@ -3,9 +3,14 @@
 // Premium split-layout with animated background & glassmorphism
 // ============================================================
 
-import { useState, useEffect } from 'react'
-import { Eye, EyeOff, Loader2, AlertCircle, LogIn, ShieldCheck, BarChart3, Users, Zap, Settings2, X, Globe, Server, Database, Monitor } from 'lucide-react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import {
+  Eye, EyeOff, Loader2, AlertCircle, LogIn, ShieldCheck, Settings2, X,
+  Globe, Server, Database, Monitor, Lock, WifiOff, ShieldAlert, ServerCrash,
+  KeyRound, ArrowRight,
+} from 'lucide-react'
 import { useLogin } from '../hooks/useLogin'
+import { parseAuthError, type AuthError } from '../utils/parseAuthError'
 import logoSrc from '@/img/logo.png'
 
 // ---- Animated floating particles ----
@@ -30,23 +35,6 @@ function FloatingParticles() {
   )
 }
 
-// ---- Feature card for branding panel ----
-function FeatureCard({ icon: Icon, title, desc }: { icon: any; title: string; desc: string }) {
-  return (
-    <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.06] border border-white/[0.08]
-      backdrop-blur-sm hover:bg-white/[0.1] transition-all duration-300 group">
-      <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-400/20 to-emerald-600/20
-        flex items-center justify-center shrink-0 group-hover:from-emerald-400/30 group-hover:to-emerald-600/30 transition-all">
-        <Icon size={16} className="text-emerald-400" />
-      </div>
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-white/90">{title}</div>
-        <div className="text-xs text-white/50 mt-0.5 leading-relaxed">{desc}</div>
-      </div>
-    </div>
-  )
-}
-
 export function LoginPage() {
   const { login, isLoading, isError, error } = useLogin()
   const [showPassword, setShowPassword] = useState(false)
@@ -56,31 +44,104 @@ export function LoginPage() {
   const [shake, setShake] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
 
+  // ---- Client-side validation ----
+  // Chỉ show validation lỗi SAU KHI user chạm vào field (touched) → tránh hiển thị đỏ ngay lúc load page.
+  const [touched, setTouched] = useState<{ username?: boolean; password?: boolean }>({})
+
+  // ---- Failed attempts counter (client-side) ----
+  // Dùng để gợi ý "Quên mật khẩu?" sau 3 lần sai + kích shake tăng dần intensity.
+  const [failedAttempts, setFailedAttempts] = useState(0)
+
+  // ---- Caps Lock detection cho password field ----
+  const [capsLockOn, setCapsLockOn] = useState(false)
+
+  // ---- Retry countdown (khi BE trả 429 hoặc IP blocked) ----
+  const [retryCountdown, setRetryCountdown] = useState(0)
+
+  const usernameRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+
+  // Auto-focus username khi mount
   useEffect(() => {
-    const t = setTimeout(() => setMounted(true), 50)
+    const t = setTimeout(() => {
+      setMounted(true)
+      usernameRef.current?.focus()
+    }, 50)
     return () => clearTimeout(t)
   }, [])
 
-  // Shake animation on error
+  // ---- Parse error thành typed object (memo tránh re-parse mỗi render) ----
+  const authError = useMemo<AuthError | null>(() => {
+    if (!isError || !error) return null
+    return parseAuthError(error, { failedAttempts })
+  }, [isError, error, failedAttempts])
+
+  // Khi có lỗi mới → shake + focus lại field cần thiết + clear password nếu cần
   useEffect(() => {
-    if (isError) {
-      setShake(true)
-      const t = setTimeout(() => setShake(false), 600)
-      return () => clearTimeout(t)
+    if (!authError) return
+    setShake(true)
+    const shakeT = setTimeout(() => setShake(false), 600)
+
+    // Clear password (không clear username — user không cần gõ lại)
+    if (authError.clearField === 'password' || authError.clearField === 'both') {
+      setForm((f) => ({ ...f, password: '' }))
     }
-  }, [isError])
+    if (authError.clearField === 'both') {
+      setForm({ username: '', password: '' })
+    }
+
+    // Focus lại field cần retry, delay nhỏ để shake xong
+    const focusT = setTimeout(() => {
+      if (authError.focusField === 'username') usernameRef.current?.focus()
+      else passwordRef.current?.focus()
+    }, 100)
+
+    // Kích countdown nếu BE bảo phải chờ
+    if (authError.retryAfterSeconds) {
+      setRetryCountdown(authError.retryAfterSeconds)
+    }
+
+    return () => {
+      clearTimeout(shakeT)
+      clearTimeout(focusT)
+    }
+  }, [authError])
+
+  // Countdown timer
+  useEffect(() => {
+    if (retryCountdown <= 0) return
+    const iv = setInterval(() => setRetryCountdown((s) => Math.max(0, s - 1)), 1000)
+    return () => clearInterval(iv)
+  }, [retryCountdown])
+
+  // Detect Caps Lock — chỉ báo khi user đang focus password field
+  const handlePasswordKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (typeof e.getModifierState === 'function') {
+      setCapsLockOn(e.getModifierState('CapsLock'))
+    }
+  }
+
+  // Validation errors — chỉ hiển thị khi field đã touched
+  const usernameError =
+    touched.username && !form.username.trim() ? 'Vui lòng nhập tên đăng nhập' : null
+  const passwordError =
+    touched.password && !form.password ? 'Vui lòng nhập mật khẩu' : null
+
+  const canSubmit =
+    !isLoading &&
+    retryCountdown === 0 &&
+    form.username.trim().length > 0 &&
+    form.password.length > 0
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.username || !form.password) return
-    login(form)
+    setTouched({ username: true, password: true })
+    if (!canSubmit) return
+    login(form, {
+      onError: () => setFailedAttempts((n) => n + 1),
+      onSuccess: () => setFailedAttempts(0),
+    })
   }
-
-  const errorMsg = (() => {
-    if (!isError || !error) return null
-    const axiosErr = error as { response?: { data?: { message?: string } }; message?: string }
-    return axiosErr?.response?.data?.message || axiosErr?.message || 'Đăng nhập thất bại'
-  })()
 
   return (
     <div className="min-h-screen flex bg-white overflow-hidden relative">
@@ -295,16 +356,10 @@ export function LoginPage() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-5">
+            <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-5" noValidate>
 
-              {/* Error message */}
-              {errorMsg && (
-                <div className="flex items-center gap-2.5 px-4 py-3 bg-red-50 border border-red-100
-                  rounded-xl text-sm text-red-600 animate-fade-in">
-                  <AlertCircle size={16} className="shrink-0" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
+              {/* Rich error card — icon + title + hint + optional forgot-password action */}
+              {authError && <AuthErrorCard error={authError} countdown={retryCountdown} />}
 
               {/* Username */}
               <div className="space-y-1.5">
@@ -313,31 +368,46 @@ export function LoginPage() {
                 </label>
                 <div className={`relative rounded-xl transition-all duration-300
                   ${focusedField === 'username' ? 'ring-2 ring-emerald-500/20' : ''}
+                  ${usernameError ? 'ring-2 ring-red-500/20' : ''}
                 `}>
                   <div className="absolute left-3.5 top-1/2 -translate-y-1/2">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                      className={`transition-colors duration-200 ${focusedField === 'username' ? 'text-emerald-500' : 'text-neutral-400'}`}>
+                      className={`transition-colors duration-200
+                        ${usernameError ? 'text-red-500' : focusedField === 'username' ? 'text-emerald-500' : 'text-neutral-400'}
+                      `}>
                       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
                       <circle cx="12" cy="7" r="4" />
                     </svg>
                   </div>
                   <input
                     id="login-username"
+                    ref={usernameRef}
                     type="text"
                     autoComplete="username"
                     placeholder="Nhập tên đăng nhập"
                     value={form.username}
                     onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
                     onFocus={() => setFocusedField('username')}
-                    onBlur={() => setFocusedField(null)}
+                    onBlur={() => {
+                      setFocusedField(null)
+                      setTouched((t) => ({ ...t, username: true }))
+                    }}
                     disabled={isLoading}
-                    className="w-full h-12 pl-10 pr-4 bg-neutral-50 border border-neutral-200 rounded-xl
-                      text-sm text-neutral-800 placeholder:text-neutral-400/80
-                      focus:outline-none focus:border-emerald-500 focus:bg-white
-                      disabled:opacity-40 transition-all duration-200
-                      hover:bg-neutral-100/70 hover:border-neutral-300"
+                    aria-invalid={!!usernameError}
+                    aria-describedby={usernameError ? 'login-username-error' : undefined}
+                    className={`w-full h-12 pl-10 pr-4 rounded-xl text-sm text-neutral-800 placeholder:text-neutral-400/80
+                      focus:outline-none focus:bg-white disabled:opacity-40 transition-all duration-200
+                      ${usernameError
+                        ? 'bg-red-50/50 border border-red-200 focus:border-red-400 hover:border-red-300'
+                        : 'bg-neutral-50 border border-neutral-200 focus:border-emerald-500 hover:bg-neutral-100/70 hover:border-neutral-300'
+                      }`}
                   />
                 </div>
+                {usernameError && (
+                  <p id="login-username-error" className="text-xs text-red-600 flex items-center gap-1 mt-1">
+                    <AlertCircle size={14} /> {usernameError}
+                  </p>
+                )}
               </div>
 
               {/* Password */}
@@ -347,40 +417,65 @@ export function LoginPage() {
                 </label>
                 <div className={`relative rounded-xl transition-all duration-300
                   ${focusedField === 'password' ? 'ring-2 ring-emerald-500/20' : ''}
+                  ${passwordError ? 'ring-2 ring-red-500/20' : ''}
                 `}>
                   <div className="absolute left-3.5 top-1/2 -translate-y-1/2">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                      className={`transition-colors duration-200 ${focusedField === 'password' ? 'text-emerald-500' : 'text-neutral-400'}`}>
+                      className={`transition-colors duration-200
+                        ${passwordError ? 'text-red-500' : focusedField === 'password' ? 'text-emerald-500' : 'text-neutral-400'}
+                      `}>
                       <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
                   </div>
                   <input
                     id="login-password"
+                    ref={passwordRef}
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     placeholder="Nhập mật khẩu"
                     value={form.password}
                     onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                    onKeyDown={handlePasswordKey}
+                    onKeyUp={handlePasswordKey}
                     onFocus={() => setFocusedField('password')}
-                    onBlur={() => setFocusedField(null)}
+                    onBlur={() => {
+                      setFocusedField(null)
+                      setTouched((t) => ({ ...t, password: true }))
+                      setCapsLockOn(false)
+                    }}
                     disabled={isLoading}
-                    className="w-full h-12 pl-10 pr-11 bg-neutral-50 border border-neutral-200 rounded-xl
-                      text-sm text-neutral-800 placeholder:text-neutral-400/80
-                      focus:outline-none focus:border-emerald-500 focus:bg-white
-                      disabled:opacity-40 transition-all duration-200
-                      hover:bg-neutral-100/70 hover:border-neutral-300"
+                    aria-invalid={!!passwordError}
+                    aria-describedby={passwordError ? 'login-password-error' : undefined}
+                    className={`w-full h-12 pl-10 pr-11 rounded-xl text-sm text-neutral-800 placeholder:text-neutral-400/80
+                      focus:outline-none focus:bg-white disabled:opacity-40 transition-all duration-200
+                      ${passwordError
+                        ? 'bg-red-50/50 border border-red-200 focus:border-red-400 hover:border-red-300'
+                        : 'bg-neutral-50 border border-neutral-200 focus:border-emerald-500 hover:bg-neutral-100/70 hover:border-neutral-300'
+                      }`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((p) => !p)}
                     tabIndex={-1}
+                    aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md text-neutral-400
                       hover:text-neutral-600 hover:bg-neutral-100 transition-all duration-155"
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+
+                {/* Inline hints — priority: validation error > Caps Lock warning */}
+                {passwordError ? (
+                  <p id="login-password-error" className="text-xs text-red-600 flex items-center gap-1 mt-1">
+                    <AlertCircle size={14} /> {passwordError}
+                  </p>
+                ) : capsLockOn && focusedField === 'password' ? (
+                  <p className="text-xs text-amber-700 flex items-center gap-1.5 mt-1 bg-amber-50 border border-amber-100 rounded-md px-2 py-1">
+                    <ShieldAlert size={14} /> Caps Lock đang bật — có thể ảnh hưởng mật khẩu.
+                  </p>
+                ) : null}
               </div>
 
               {/* Remember + Forgot */}
@@ -406,7 +501,7 @@ export function LoginPage() {
               <button
                 id="btn-login"
                 type="submit"
-                disabled={isLoading || !form.username || !form.password}
+                disabled={!canSubmit}
                 className="w-full h-12 bg-gradient-to-r from-emerald-500 to-emerald-600
                   hover:from-emerald-400 hover:to-emerald-500
                   active:from-emerald-600 active:to-emerald-700
@@ -422,12 +517,17 @@ export function LoginPage() {
               >
                 {isLoading ? (
                   <>
-                    <Loader2 size={17} className="animate-spin" />
+                    <Loader2 size={18} className="animate-spin" />
                     <span>Đang xác thực...</span>
+                  </>
+                ) : retryCountdown > 0 ? (
+                  <>
+                    <Lock size={16} />
+                    <span>Thử lại sau {formatCountdown(retryCountdown)}</span>
                   </>
                 ) : (
                   <>
-                    <LogIn size={17} />
+                    <LogIn size={18} />
                     <span>Đăng nhập</span>
                   </>
                 )}
@@ -501,3 +601,102 @@ export function LoginPage() {
     </div>
   )
 }
+
+// ============================================================
+// AuthErrorCard — rich error display với icon/màu/CTA theo severity
+// ============================================================
+
+const SEVERITY_STYLES: Record<AuthError['severity'], {
+  wrap: string
+  icon: string
+  iconBg: string
+  title: string
+  hint: string
+}> = {
+  error: {
+    wrap:   'bg-red-50 border-red-100',
+    icon:   'text-red-600',
+    iconBg: 'bg-red-100',
+    title:  'text-red-700',
+    hint:   'text-red-600/85',
+  },
+  warning: {
+    wrap:   'bg-amber-50 border-amber-100',
+    icon:   'text-amber-700',
+    iconBg: 'bg-amber-100',
+    title:  'text-amber-800',
+    hint:   'text-amber-700/85',
+  },
+  blocked: {
+    wrap:   'bg-rose-50 border-rose-200',
+    icon:   'text-rose-700',
+    iconBg: 'bg-rose-100',
+    title:  'text-rose-800',
+    hint:   'text-rose-700/85',
+  },
+  network: {
+    wrap:   'bg-indigo-50 border-indigo-100',
+    icon:   'text-indigo-600',
+    iconBg: 'bg-indigo-100',
+    title:  'text-indigo-800',
+    hint:   'text-indigo-700/85',
+  },
+  server: {
+    wrap:   'bg-yellow-50 border-yellow-100',
+    icon:   'text-yellow-700',
+    iconBg: 'bg-yellow-100',
+    title:  'text-yellow-800',
+    hint:   'text-yellow-700/85',
+  },
+}
+
+const SEVERITY_ICON: Record<AuthError['severity'], typeof AlertCircle> = {
+  error:   Lock,
+  warning: AlertCircle,
+  blocked: ShieldAlert,
+  network: WifiOff,
+  server:  ServerCrash,
+}
+
+function AuthErrorCard({ error, countdown }: { error: AuthError; countdown: number }) {
+  const styles = SEVERITY_STYLES[error.severity]
+  const Icon = SEVERITY_ICON[error.severity]
+
+  return (
+    <div
+      role="alert"
+      aria-live="assertive"
+      className={`flex items-start gap-3 px-4 py-3 border rounded-xl animate-fade-in ${styles.wrap}`}
+    >
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${styles.iconBg}`}>
+        <Icon size={16} className={styles.icon} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className={`text-sm font-semibold ${styles.title}`}>{error.title}</div>
+        {error.hint && (
+          <div className={`text-xs mt-0.5 leading-relaxed ${styles.hint}`}>
+            {error.hint}
+            {countdown > 0 && ` (${formatCountdown(countdown)})`}
+          </div>
+        )}
+        {error.showForgotPassword && (
+          <button
+            type="button"
+            className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 transition-colors"
+          >
+            <KeyRound size={14} /> Đặt lại mật khẩu <ArrowRight size={14} />
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Format số giây → chuỗi "MM:SS" hoặc "Xs" cho ngắn. */
+function formatCountdown(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+

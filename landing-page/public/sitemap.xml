@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================
+  sitemap.xml — Frezo landing page
+  Chuẩn https://www.sitemaps.org/protocol.html
+  ------------------------------------------------------------
+  Update <lastmod> mỗi khi có thay đổi lớn. Đối với single-page landing,
+  đủ 1 entry cho `/`. Khi có blog/product pages riêng, thêm entries.
+  ============================================================
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://frezo.vn/</loc>
+    <lastmod>2026-07-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://frezo.vn/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://frezo.vn/"/>
+  </url>
+  <url>
+    <loc>https://frezo.vn/#products</loc>
+    <lastmod>2026-07-16</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://frezo.vn/#automation</loc>
+    <lastmod>2026-07-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://frezo.vn/#about</loc>
+    <lastmod>2026-07-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://frezo.vn/#contact</loc>
+    <lastmod>2026-07-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+</urlset>

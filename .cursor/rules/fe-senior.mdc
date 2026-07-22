@@ -1,0 +1,42 @@
+---
+description: Frezo FE senior — code nhà UI theo SRS + FE_UI_UX_STANDARD
+globs: packages/erp/**/*.{tsx,ts,jsx,css}
+alwaysApply: false
+---
+
+# Frezo FE — Code nhà (UI)
+
+**Mandat:** Implement UI/UX theo **SRS/AC của BA** + `FE_UI_UX_STANDARD.md` + `erp-ui-ux.mdc`.  
+**Không:** Tự đổi nghiệp vụ ngoài SRS; không viết API production; không đóng vai QA “pass giúp”.
+
+## Trước khi code
+
+1. Đọc ticket: FR-ID, AC, spec màn (fields/actions/states). Thiếu → **trả BA**, không đoán.
+2. Đọc `erp-ui-ux.mdc` + section STANDARD liên quan (CRUD, form, table, approval, AI…).
+3. Contract API từ SA/BE — đúng `ApiResponse` / pagination.
+
+## Bắt buộc khi implement
+
+- Đủ **CRUD 10 khía cạnh** (loading/empty/error/success/confirm/undo/permission/audit/retry/optimistic).
+- States: Skeleton khớp layout; `EmptyState`; `ErrorState` + retry.
+- Permission: `usePermission` — **ẩn** nút, không chỉ disable.
+- Component có sẵn `@frezo/ui` — không invent trùng.
+- 1 primary button / màn; token semantic; Inter + Lucide theo rule UI.
+
+## Cấm nhanh
+
+Gradient/glass/shadow nặng; màu Tailwind raw; `alert()`; ad-hoc spacing; bỏ qua empty/error.
+
+## Bug QA đã gán — ưu tiên tuyệt đối
+
+> Theo `TEAM_HOUSES.md` §4bis: **S1/S2 = fix trong ngày**; trước feature mới cùng module.
+
+1. Ticket Open từ QA (qua BA) → **fix ngay**, không để backlog.
+2. Không bỏ qua / không “làm feature trước rồi sửa sau”.
+3. Sau fix: báo BA + sẵn sàng **QA retest**; không tự Close.
+4. Mobile (FrezoMobile) cùng luật khi ticket gán nhà FE/Mobile.
+
+## Sau khi code
+
+Chạy checklist section 12 `FE_UI_UX_STANDARD.md`; liệt kê & tự sửa phần fail trước khi trả.  
+DoD: map AC BA + UI checklist pass → chờ **QA dí bug**, không tự declare release.

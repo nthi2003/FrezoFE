@@ -4,17 +4,20 @@
 // ============================================================
 
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { Search, Bell, ChevronRight, CheckCircle2, AlertCircle, Info, User, LogOut } from 'lucide-react'
+import { Search, ChevronRight, User, LogOut, Command } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
-import { useNotifications } from '@/modules/common/hooks/useNotification'
 import { useMenus } from '@/modules/menus/hooks/useMenus'
 import type { MenuTreeNode } from '@/modules/menus/types/menu.types'
+import { useCommandPaletteContext } from '@/components/shared/CommandPalette/context'
+import { NotificationBell } from '@/components/shared/NotificationBell'
+import { DOCS, getDocBySlug } from '@/docs'
 
 // Fallback tĩnh cho các route không có trong menu BE
 const FALLBACK_LABELS: Record<string, string> = {
   '/':             'Dashboard',
   '/dashboard':    'Dashboard',
+  '/docs':         'Tài liệu',
   '/qtht':         'Hệ thống',
   '/qtht/users':   'Người dùng',
   '/qtht/roles':   'Vai trò',
@@ -28,6 +31,7 @@ const FALLBACK_LABELS: Record<string, string> = {
   '/qtht/landing-config': 'Landing Config',
   '/admin':        'Quản trị',
   '/admin/article-management': 'Bài viết',
+  '/admin/attendance': 'Chấm công',
   '/email':        'Email',
   '/email/config': 'Cấu hình Email',
   '/email/template': 'Mẫu Email',
@@ -38,6 +42,7 @@ const FALLBACK_LABELS: Record<string, string> = {
   '/qlns':         'Nhân sự',
   '/qlns/persons': 'Nhân viên',
   '/qlns/contract': 'Hợp đồng',
+  '/qlns/contract/create': 'Tạo hợp đồng',
   '/qlns/payrolls': 'Bảng lương',
   '/qlns/leaves':  'Nghỉ phép',
   '/customer':     'Khách hàng',
@@ -46,6 +51,12 @@ const FALLBACK_LABELS: Record<string, string> = {
   '/task/tickets': 'Giao việc',
   '/task/tags':    'Thẻ',
   '/profile':      'Hồ sơ',
+  '/notifications': 'Thông báo',
+}
+
+// Preload slug titles from docs registry (DOC-04)
+for (const d of DOCS) {
+  FALLBACK_LABELS[`/docs/${d.slug}`] = d.title
 }
 
 // Flatten menuTree thành map feUrl → name (tiếng Việt từ BE)
@@ -66,8 +77,12 @@ function buildBreadcrumbs(pathname: string, labelMap: Map<string, string>) {
   let cumPath = ''
   parts.forEach((part) => {
     cumPath += '/' + part
-    const label = labelMap.get(cumPath) || FALLBACK_LABELS[cumPath] || part
-    crumbs.push({ label, path: cumPath })
+    let label = labelMap.get(cumPath) || FALLBACK_LABELS[cumPath]
+    if (!label && cumPath.startsWith('/docs/')) {
+      const doc = getDocBySlug(cumPath.slice('/docs/'.length))
+      label = doc?.title
+    }
+    crumbs.push({ label: label || part, path: cumPath })
   })
 
   return crumbs
@@ -78,6 +93,9 @@ export function Header() {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
   const { menuTree } = useMenus()
+  const commandPalette = useCommandPaletteContext()
+
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform)
 
   // Build label map từ menuTree (tên tiếng Việt theo feUrl)
   const labelMap = useMemo(() => flattenMenuTree(menuTree), [menuTree])
@@ -85,20 +103,12 @@ export function Header() {
   const breadcrumbs = buildBreadcrumbs(pathname, labelMap)
   const pageTitle = labelMap.get(pathname) || FALLBACK_LABELS[pathname] || breadcrumbs[breadcrumbs.length - 1]?.label || 'Frezo ERP'
 
-  // Notifications
-  const { data: notifications } = useNotifications()
-  const [showNotif, setShowNotif] = useState(false)
-  const notifRef = useRef<HTMLDivElement>(null)
-
   // User dropdown
   const [showUserMenu, setShowUserMenu] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
-        setShowNotif(false)
-      }
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setShowUserMenu(false)
       }
@@ -128,59 +138,22 @@ export function Header() {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2 shrink-0">
-        {/* Search */}
-        <div className="relative hidden sm:block">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm..."
-            className="h-8 pl-8 pr-3 text-xs border border-border rounded-lg bg-neutral-50
-              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
-              placeholder:text-neutral-400 w-48 transition-all"
-          />
-        </div>
+        {/* Command palette trigger — Ctrl+K */}
+        <button
+          type="button"
+          onClick={commandPalette.open}
+          className="hidden sm:flex items-center gap-2 h-8 pl-2.5 pr-2 text-xs bg-neutral-50 border border-border rounded-lg text-neutral-500 hover:bg-white hover:border-primary-300 hover:text-neutral-700 transition-colors group"
+          title="Mở thanh lệnh (Ctrl+K)"
+        >
+          <Search size={13} className="text-neutral-400 group-hover:text-primary-500" />
+          <span className="w-32 text-left">Tìm kiếm nhanh...</span>
+          <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white border border-neutral-200 text-[10px] font-mono font-semibold text-neutral-500 shadow-sm">
+            {isMac ? <Command size={9} /> : 'Ctrl'} K
+          </kbd>
+        </button>
 
         {/* Notification Bell */}
-        <div className="relative" ref={notifRef}>
-          <button 
-            onClick={() => setShowNotif(!showNotif)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-500 hover:text-primary-600 hover:bg-primary-50 transition-colors relative"
-          >
-            <Bell size={16} />
-            {notifications && notifications.length > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
-            )}
-          </button>
-          
-          {/* Dropdown */}
-          {showNotif && (
-            <div className="absolute top-10 right-0 w-80 bg-white rounded-xl shadow-lg border border-border overflow-hidden z-50">
-              <div className="px-4 py-3 border-b border-border flex justify-between items-center bg-neutral-50">
-                <span className="font-semibold text-neutral-800">Thông báo</span>
-                <span className="text-xs text-primary-600 font-medium cursor-pointer">Đánh dấu đã đọc</span>
-              </div>
-              <div className="max-h-80 overflow-y-auto">
-                {!notifications || notifications.length === 0 ? (
-                  <div className="p-6 text-center text-neutral-500 text-sm">Không có thông báo mới</div>
-                ) : (
-                  notifications.map((n: any, idx: number) => (
-                    <div key={idx} className="px-4 py-3 border-b border-border hover:bg-neutral-50 cursor-pointer flex gap-3">
-                      <div className="mt-0.5">
-                        {n.type === 'SUCCESS' ? <CheckCircle2 size={16} className="text-green-500" /> :
-                         n.type === 'ERROR' ? <AlertCircle size={16} className="text-red-500" /> :
-                         <Info size={16} className="text-blue-500" />}
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-neutral-800 leading-tight mb-1">{n.title}</div>
-                        <div className="text-xs text-neutral-500 leading-tight">{n.content}</div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <NotificationBell />
 
         {/* User avatar dropdown */}
         <div className="relative" ref={userMenuRef}>

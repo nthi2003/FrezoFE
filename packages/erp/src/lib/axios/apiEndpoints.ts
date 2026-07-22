@@ -72,14 +72,16 @@ export const API = {
     ATTENDANCE_BY_ID: (id: string) => `/qlns/attendance/${id}`,
     ATTENDANCE_CHECKIN:  '/qlns/attendance/check-in',
     ATTENDANCE_CHECKOUT: '/qlns/attendance/check-out',
+    /** Roster theo ngày (HR admin) — ATT-FE-01 */
+    ATTENDANCE_DAILY: '/qlns/attendance/daily',
+    ATTENDANCE_DAILY_EXPORT: '/qlns/attendance/daily/export',
     LEAVE:          '/qlns/leave',
     LEAVE_APPROVE:  (id: string) => `/qlns/leave/${id}/approve`,
     LEAVE_BY_PERSON: (personId: string) => `/qlns/leave/person/${personId}`,
     LEAVE_REQUEST:  '/qlns/leave-request',
     LEAVE_REQUEST_MY: (contractId: string) => `/qlns/leave-request/my/${contractId}`,
     LEAVE_REQUEST_PENDING: '/qlns/leave-request/pending',
-    LEAVE_REQUEST_APPROVE: (id: string) => `/qlns/leave-request/${id}/approve`,
-    LEAVE_REQUEST_REJECT: (id: string) => `/qlns/leave-request/${id}/reject`,
+    /** Duyệt leave: /approvals/{id}/approve|reject — không dùng leave-request approve/reject (410) */
     PAYROLL:        '/qlns/payroll',
     PAYROLL_BY_ID:  (id: string) => `/qlns/payroll/${id}`,
     PAYROLL_CALCULATE: (personId: string) => `/qlns/payroll/calculate/${personId}`,

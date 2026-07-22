@@ -258,28 +258,92 @@ const statIO = new IntersectionObserver((entries) => {
 statCards.forEach(c => statIO.observe(c))
 
 // ── CONTACT FORM ──
+// POST lên BE public endpoint (không cần login).
+// - Base URL config qua Vite env: VITE_API_BASE (fallback = same-origin).
+//   Dev: VITE_API_BASE=http://localhost:7410 → full URL http://localhost:7410/api/public/inbox/leads
+//   Prod (landing + BE cùng host): để trống → same-origin /api/public/inbox/leads
+// - Anti-spam: honeypot `_hp` + timestamp `_ts` (form mount time) → BE reject nếu bot submit quá nhanh.
+const API_BASE = import.meta.env?.VITE_API_BASE || ''
+const CONTACT_ENDPOINT = `${API_BASE.replace(/\/$/, '')}/api/public/inbox/leads`
 const form = document.getElementById('contact-form')
-form?.addEventListener('submit', (e) => {
+
+// Track thời điểm mount form — dùng cho anti-spam timestamp check ở BE.
+const FORM_MOUNT_TS = Date.now()
+
+form?.addEventListener('submit', async (e) => {
   e.preventDefault()
   const btn = document.getElementById('submit-contact-btn')
   const txt = document.getElementById('submit-text')
+
+  const fd = new FormData(form)
+  const nameVal = String(fd.get('name') || '').trim()
+  const phoneVal = String(fd.get('phone') || '').trim()
+  const emailVal = String(fd.get('email') || '').trim()
+
+  // ---- Client-side validate cơ bản (tránh gọi BE nếu rõ ràng thiếu) ----
+  if (!nameVal) return showToast('❗ Vui lòng nhập họ và tên', 'error')
+  if (!phoneVal && !emailVal) return showToast('❗ Cần SĐT hoặc email để chúng tôi liên hệ', 'error')
+
+  const subjectMap = {
+    personal: 'Cá nhân / Gia đình',
+    restaurant: 'Nhà hàng / Quán ăn',
+    supermarket: 'Siêu thị / Cửa hàng',
+    enterprise: 'Doanh nghiệp lớn',
+    farm: 'Hợp tác nông trại',
+  }
+  const typeRaw = String(fd.get('type') || '')
+  const payload = {
+    name: nameVal,
+    phone: phoneVal || null,
+    email: emailVal || null,
+    subject: subjectMap[typeRaw] || 'Đăng ký tư vấn qua landing page',
+    message: String(fd.get('message') || '').trim() || null,
+    _hp: String(fd.get('_hp') || ''),
+    _ts: FORM_MOUNT_TS,
+  }
+
   btn.disabled = true
   txt.textContent = 'Đang gửi...'
-  setTimeout(() => {
+  try {
+    const res = await fetch(CONTACT_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload),
+      // Landing page có thể serve khác origin → dùng credentials 'omit' để không leak cookie ERP.
+      credentials: 'omit',
+    })
+    if (res.ok) {
+      form.reset()
+      showToast('🎉 Đăng ký thành công! Chúng tôi sẽ liên hệ trong 24h.')
+    } else if (res.status === 429) {
+      showToast('⚠️ Bạn gửi quá nhanh, vui lòng thử lại sau vài phút.', 'error')
+    } else {
+      let msg = 'Không gửi được, vui lòng thử lại.'
+      try {
+        const body = await res.json()
+        if (body?.message) msg = body.message
+      } catch { /* ignore parse fail */ }
+      showToast('❌ ' + msg, 'error')
+    }
+  } catch (err) {
+    console.error('[contact] Fetch failed:', err)
+    showToast('❌ Không kết nối được máy chủ. Vui lòng gọi hotline hoặc thử lại.', 'error')
+  } finally {
     btn.disabled = false
     txt.textContent = 'Gửi đăng ký ngay'
-    form.reset()
-    showToast('🎉 Đăng ký thành công! Chúng tôi sẽ liên hệ sớm.')
-  }, 1500)
+  }
 })
 
 // ── TOAST ──
+// `type` = 'success' (default) | 'error' — chỉ thêm class helper, không phá backward compat.
 let toastTimer
-function showToast(msg) {
+function showToast(msg, type = 'success') {
   const toast = document.getElementById('toast')
   const toastMsg = document.getElementById('toast-msg')
   if (!toast || !toastMsg) return
   toastMsg.textContent = msg
+  toast.classList.remove('toast-error', 'toast-success')
+  toast.classList.add(type === 'error' ? 'toast-error' : 'toast-success')
   toast.classList.add('show')
   clearTimeout(toastTimer)
   toastTimer = setTimeout(() => toast.classList.remove('show'), 3500)

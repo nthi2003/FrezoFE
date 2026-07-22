@@ -114,6 +114,7 @@ export function EmailConfigPage() {
             <li><strong>API Key:</strong> mật khẩu ứng dụng do nhà cung cấp email cấp (vd: Gmail App Password 16 ký tự)</li>
             <li>Sau khi tạo, bấm <strong>Kích hoạt</strong> để sử dụng</li>
             <li>Bấm <Zap size={12} className="inline text-blue-500" /> để <strong>kiểm tra kết nối</strong> trước khi dùng</li>
+            <li><strong>MailHog (dev):</strong> SMTP <code className="bg-blue-100 px-1.5 py-0.5 rounded text-xs font-mono">localhost:1025</code> · UI <code className="bg-blue-100 px-1.5 py-0.5 rounded text-xs font-mono">http://localhost:8025</code> — Activate rồi bulk send</li>
           </ul>
         </div>
       )}
@@ -202,6 +203,12 @@ export function EmailConfigPage() {
                       <div className="flex items-center gap-2 text-neutral-400">
                         <XCircle size={14} className="flex-shrink-0" />
                         <span>Chưa kích hoạt</span>
+                      </div>
+                    )}
+                    {isMailhogConfig(item) && (
+                      <div className="rounded-md bg-amber-50 border border-amber-200 px-2 py-1.5 text-xs text-amber-900">
+                        MailHog / local SMTP — kiểm tra UI{' '}
+                        <span className="font-mono">http://localhost:8025</span> (SMTP :{item.port || 1025})
                       </div>
                     )}
                   </div>
@@ -339,5 +346,25 @@ export function EmailConfigPage() {
         </div>
       </AppModal>
     </div>
+  )
+}
+
+/** LNK09-06: nhận diện SMTP local / MailHog để gợi ý UI :8025 */
+function isMailhogConfig(item: {
+  smtp?: string
+  host?: string
+  port?: number | string
+  code?: string
+  name?: string
+}): boolean {
+  const host = String(item.smtp || item.host || '').toLowerCase()
+  const code = String(item.code || item.name || '').toLowerCase()
+  const port = Number(item.port)
+  return (
+    port === 1025 ||
+    host.includes('mailhog') ||
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    code.includes('mailhog')
   )
 }

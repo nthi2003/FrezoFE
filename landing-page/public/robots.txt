@@ -1,0 +1,23 @@
+# ============================================================
+# robots.txt — Frezo landing page
+# https://www.robotstxt.org/
+# ============================================================
+
+User-agent: *
+Allow: /
+# Chặn crawler đi vào các endpoint API/webhook, tránh lãng phí crawl budget
+Disallow: /api/
+Disallow: /admin/
+Disallow: /*.json$
+
+# Slurp/Baidu/Yandex chậm hơn — throttle để không ảnh hưởng traffic thật
+User-agent: Baiduspider
+Crawl-delay: 5
+
+User-agent: Yandex
+Crawl-delay: 5
+
+# ============================================================
+# Sitemap — Google/Bing sẽ auto-discover
+# ============================================================
+Sitemap: https://frezo.vn/sitemap.xml

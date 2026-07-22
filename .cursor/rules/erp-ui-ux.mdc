@@ -1,0 +1,102 @@
+---
+description: Chuẩn UI/UX Frezo ERP — Linear/Vercel/Stripe style, Design Philosophy nghiêm ngặt
+globs: packages/erp/**/*.{tsx,jsx,css,scss}
+alwaysApply: false
+---
+
+# Frezo ERP — UI/UX Rule
+
+**Trước khi code/sửa bất kỳ file nào trong `packages/erp`**, đọc [FE_UI_UX_STANDARD.md](mdc:FE_UI_UX_STANDARD.md) — đặc biệt các section liên quan tới task hiện tại.
+
+Frezo ERP theo triết lý **Linear + Vercel Dashboard + Stripe + MS365**: professional, minimal, fast scanning, low cognitive load, consistency > creativity, information first, white space is a feature.
+
+## Nghiêm cấm — vi phạm là SAI, dù có "đẹp"
+
+1. **Không gradient**, không glass, không neumorphism, không shadow >`shadow-card-md`.
+2. **Không animation dư thừa** (parallax, auto-carousel, bounce, glow pulse, cursor trail, floating icon).
+3. **Không màu Tailwind raw** — chỉ semantic token (`bg-primary-*`, `bg-danger`, `text-neutral-*`). Cấm `bg-red-500`, `bg-blue-600`, `style={{color:'#abc'}}`, `text-[#abc]`.
+4. **Không font khác Inter**. Không emoji trong UI (title, label, button, tooltip).
+5. **Không border >1px** (trừ focus ring 2px). Không radius >12px.
+6. **Không alert()/confirm()/prompt()** native — dùng `ConfirmDialog` + `@/lib/toast`.
+7. **Không viết mới component** đã có trong `@frezo/ui` (Button/Input/Table/Modal/EmptyState/ErrorState/FormField/PageHeader/Skeleton…).
+8. **Không nhiều nút Primary** trên 1 màn hình. Chỉ 1 `variant="default"`.
+9. **Không ad-hoc spacing**: `p-[13px]`, `mt-[22px]` — chỉ theo thang 4px (`p-1/2/3/4/6/8/12`).
+10. **Không icon lib khác Lucide**. Size ∈ {14,16,18,20,24}, strokeWidth 1.5.
+
+## Bắt buộc — Enterprise CRUD 10 khía cạnh
+
+Mọi CRUD phải lo đủ:
+1. **Loading** (Skeleton/SkeletonTable match layout thật, không hình chữ nhật to)
+2. **Empty** (`<EmptyState title description action />`)
+3. **Error** (`<ErrorState message onRetry />`, message map từ AppException i18n)
+4. **Success** (`toast.success('Đã ...')`)
+5. **Confirm** destructive (`<ConfirmDialog variant="danger" />`; require typed confirmation nếu không hoàn tác)
+6. **Undo** non-destructive (toast với `action: { label:'Hoàn tác', onClick }`, 5s)
+7. **Permission** — ẩn nút nếu không có quyền: `usePermission('DOMAIN.ACTION')` từ `@/lib/hooks/usePermission`, KHÔNG disable
+8. **Audit** — BE tự log qua `qtht/audit-logs`, FE KHÔNG cần code
+9. **Retry** — read fail có nút "Thử lại"; mutation fail giữ input
+10. **Optimistic UI** cho action nhanh (toggle switch, mark done)
+
+**403 handled auto** ở `axiosClient` (show toast "Không có quyền"). Muốn opt-out cho request cụ thể: `axiosClient.get(url, { skipForbiddenToast: true })`.
+
+## Form UX cố định
+
+```
+Label (text-sm font-medium text-neutral-700)
+   ↓ 6px (space-y-1.5)
+Input (h-10, border-neutral-200, focus-visible:ring-2 focus-visible:ring-primary-500)
+   ↓ 4px (space-y-1)
+Error (text-xs text-danger) hoặc Helper (text-xs text-neutral-500)
+```
+
+Dùng `FormField` primitive. Required marker `*` sau label, màu `text-danger`. Validate on `blur` (không on change). Nút submit `variant="default"` bên phải, "Hủy" `variant="outline"` bên trái. Disable submit khi `isSubmitting || !isDirty || !isValid`.
+
+## Table cố định
+
+Dùng `AppTable` (đã có pagination + filter + search + sticky header). Column specs:
+- Số: `align: 'right'` + `tabular-nums`
+- Action: cột **cuối cùng**, `<Button variant="ghost" size="icon" title="..." />` + Lucide icon
+- Sort icon: `ChevronsUpDown / ChevronUp / ChevronDown`
+- Density: comfortable (h-12) mặc định, compact (h-9) cho module dense
+- List quan trọng: có nút "Xuất" dropdown (CSV, Excel)
+- Mobile: `hidden md:table-cell` cho cột phụ, hoặc chuyển card list
+
+## Dashboard Layout cố định (section 7 của STANDARD)
+
+```
+1. PageHeader (title + description + 1 Primary Action)
+2. Quick Actions (3-5 shortcut cards, grid 3/5 cols)
+3. Statistics (KPI cards, grid 2/4 cols, có delta %)
+4. Charts (grid 1/2 cols, Recharts với color primary/neutral)
+5. Recent Activity (feed dạng dòng, icon + text + timestamp)
+6. Table (AppTable)
+```
+
+Section gap: `space-y-6 md:space-y-8`.
+
+## Enterprise Patterns (Phần D — section 14-20)
+
+Với các nghiệp vụ ERP đặc thù, đọc section tương ứng trước khi code:
+
+- **Master-Detail, Object Page, Kanban, Timeline, Multi-tab** — section 14
+- **Approval workflow (Contract OP/RV 2-tier, Article, LeaveRequest, GIN batch confirm)** — section 15 (Status Badge system, Approval Stepper, Rejection modal với reason bắt buộc, Bulk approve)
+- **AI action button + aiStatus badge + diff preview** (Contract AI extract/edit, Customer AI sync) — section 16
+- **Bulk selection bar, Import wizard 4 bước, Export dropdown, Print preview A4, Attachment list** — section 17
+- **Command Palette Cmd+K (`cmdk`), Notification Center, Encrypted Phone Reveal (masked → unmask với audit + auto-hide 30s), Keyboard Shortcuts** — section 18
+- **Vietnamese formatters** (`formatCurrency/formatDate/formatPhoneVN/maskPhone/formatCCCD/formatMST` từ `@frezo/utils`), **address 3-level cascade** (Tỉnh→Huyện→Xã), **i18n key convention** — section 19
+- **Domain default per module** (HR / Task / CMS / Warehouse / Customer / Product / QTHT / FB / Email) — section 20
+
+## Tham chiếu chuẩn cao nhất
+
+- **SAP Fiori Design System** — chuẩn vàng ERP (Flexible Column Layout, Object Page floorplan, Filter Bar)
+- **Ant Design Pro v6 + ProComponents** — Á Đông enterprise (ProTable, ProForm, StepForm, blocks)
+- **Linear / Vercel / Stripe / cmdk** — interaction & style layer
+- **Base.vn / Misa AMIS / 1Office** — nghiệp vụ VN
+
+Xem section 2 của STANDARD để biết học điều gì từ mỗi ref.
+
+## Sau khi code xong
+
+**BẮT BUỘC** tự chạy Checklist section 12 của [FE_UI_UX_STANDARD.md](mdc:FE_UI_UX_STANDARD.md) (5 nhóm: Design & Visual, Component, Enterprise CRUD, Coding, Responsive & A11y). **LIỆT KÊ** phần nào chưa đạt và tự sửa trước khi trả.
+
+Nếu module cần pattern chuyên sâu (Kanban, Approval Stepper, Import Wizard...) → **đối chiếu section 14-20** trước khi tự nghĩ ra. **Không có SAP Fiori / Ant Pro / Linear làm kiểu đó → Frezo không làm.**

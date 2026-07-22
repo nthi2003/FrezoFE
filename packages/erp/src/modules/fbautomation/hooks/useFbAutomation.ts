@@ -52,8 +52,23 @@ export function useDeleteFbGroup() {
   })
 }
 
-export function useFbLeads(status?: string) {
-  return useQuery({ queryKey: [...FB_KEYS.leads, status], queryFn: () => fbApi.leads.getAll(status) })
+export function useFbLeads(status?: string, source?: string) {
+  return useQuery({
+    queryKey: [...FB_KEYS.leads, status, source],
+    queryFn: () => fbApi.leads.getAll(status, source),
+    // Inbox nên auto-refresh — 30s để bắt lead mới từ landing / Zalo
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  })
+}
+
+export function useAssignFbLead() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (params: { id: string; username: string }) => fbApi.leads.assign(params.id, params.username),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: FB_KEYS.leads }); toast.success('Đã gán nhân viên xử lý') },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Lỗi assign'),
+  })
 }
 
 export function useDeleteFbLead() {

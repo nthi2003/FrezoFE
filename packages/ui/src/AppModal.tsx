@@ -13,7 +13,7 @@ export interface AppModalProps {
   title: string
   description?: string
   children: React.ReactNode
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl'
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl'
 }
 
 export function AppModal({
@@ -32,6 +32,8 @@ export function AppModal({
     '2xl': 'max-w-2xl',
     '3xl': 'max-w-3xl',
     '4xl': 'max-w-4xl',
+    '5xl': 'max-w-5xl',
+    '6xl': 'max-w-6xl',
   }[maxWidth]
 
   return (

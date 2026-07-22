@@ -1,12 +1,47 @@
 // ============================================================
 // FREZO ERP — Axios Client
-// Auto attach JWT, handle 401, refresh token
+// Auto attach JWT, handle 401 (refresh token), handle 403 (toast)
 // ============================================================
 
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
+import { toast as sonnerToast } from 'sonner'
 import { storage, STORAGE_KEYS } from '@frezo/utils'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+
+/**
+ * Extend Axios request config để cho phép opt-out các default behaviors.
+ * Dùng: `axiosClient.get('/x', { skipForbiddenToast: true })`
+ */
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    /** Không show toast khi response 403. Dùng cho request "probe" quyền. */
+    skipForbiddenToast?: boolean
+    /**
+     * Không chạy flow refresh-token / redirect-to-login khi response 401.
+     * Bắt buộc dùng cho các endpoint public/auth (login, register, forgot-password)
+     * — nếu không, 401 từ chính /auth/login sẽ trigger redirect vô hạn.
+     */
+    skipAuthRefresh?: boolean
+  }
+}
+
+/**
+ * Các endpoint AUTH không cần refresh-token flow.
+ * Match bằng `endsWith` để không phụ thuộc baseURL (/api prefix, absolute URL v.v.).
+ */
+const AUTH_PUBLIC_ENDPOINTS = [
+  '/auth/login',
+  '/auth/refresh-token',
+  '/auth/verify-otp',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+] as const
+
+function isAuthPublicEndpoint(url?: string): boolean {
+  if (!url) return false
+  return AUTH_PUBLIC_ENDPOINTS.some((ep) => url.endsWith(ep))
+}
 
 // Create main axios instance
 const axiosClient: AxiosInstance = axios.create({
@@ -52,9 +87,23 @@ axiosClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+    const status = error.response?.status
+
+    // ---- 403 Forbidden: user thiếu quyền — show toast (trừ khi opt-out) ----
+    if (status === 403 && !originalRequest?.skipForbiddenToast) {
+      const message =
+        error.response?.data?.message ||
+        'Bạn không có quyền thực hiện thao tác này.'
+      sonnerToast.error(message)
+    }
 
     // If 401 and not already retrying
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Skip cho các endpoint public/auth — nếu không, 401 từ /auth/login (sai mật khẩu)
+    // sẽ trigger clear storage + reload page thay vì để useMutation.onError chạy.
+    const shouldSkipAuthRefresh =
+      originalRequest?.skipAuthRefresh || isAuthPublicEndpoint(originalRequest?.url)
+
+    if (status === 401 && !originalRequest._retry && !shouldSkipAuthRefresh) {
       const refreshToken = storage.get<string>(STORAGE_KEYS.REFRESH_TOKEN)
 
       if (!refreshToken) {

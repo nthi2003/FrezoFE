@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { unwrapList } from '@frezo/utils'
 import { personApi } from '../services/personApi'
 import { toast } from 'sonner'
 
@@ -10,11 +11,33 @@ export function usePersons(params?: any) {
   })
 }
 
+/**
+ * Combobox nhân viên — trả về mảng `{ value, label, ... }` đã unwrap.
+ * BE trả `ApiResponse<[...]>`; hook này chuẩn hoá cả 3 shape (array trần / Page / items).
+ */
 export function usePersonCombobox(params?: any) {
   return useQuery({
     queryKey: ['persons_combobox', params],
     queryFn: () => personApi.getCombobox(params),
+    select: unwrapList,
   })
+}
+
+/**
+ * Alias tiếng Anh + mapping sẵn ra `{ value, label }` — dùng cho các form/modal
+ * cần dropdown chuẩn Select. Giá trị fallback cho cả `id` và `code` để tương thích với
+ * mọi endpoint combobox (một số BE trả `{value, label}`, số khác trả `{id, name}`).
+ */
+export function usePersonsCombobox(params?: any) {
+  const q = usePersonCombobox(params)
+  return {
+    ...q,
+    options: (q.data ?? []).map((p: any) => ({
+      value: p.value ?? p.id ?? p.code ?? '',
+      label: p.label ?? p.name ?? p.fullName ?? p.value ?? '',
+      raw: p,
+    })),
+  }
 }
 
 export function useCreatePerson() {

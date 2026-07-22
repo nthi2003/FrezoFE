@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { unwrapList } from '@frezo/utils'
 import { productApi } from '../services/productApi'
 import { toast } from 'sonner'
 
@@ -6,7 +7,7 @@ export function useProducts() {
   return useQuery({
     queryKey: ['products'],
     queryFn: () => productApi.getAll(),
-    select: (res: any) => res?.data ?? [],
+    select: unwrapList,
   })
 }
 

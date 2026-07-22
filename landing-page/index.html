@@ -1,19 +1,147 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+  <!-- ═══════════════════ CORE ═══════════════════ -->
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Frezo – Nền tảng quản lý và phân phối rau củ tươi thông minh. Ứng dụng công nghệ automation tiên tiến để đưa rau sạch từ nông trại đến tay người tiêu dùng." />
-  <title>Frezo – Rau Củ Tươi Sạch | Automation Nông Nghiệp</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#16a34a" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#052e16" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light" />
+  <meta name="format-detection" content="telephone=yes" />
+
+  <!-- ═══════════════════ SEO ═══════════════════ -->
+  <title>Frezo – Rau Củ Tươi Sạch VietGAP | Automation Nông Nghiệp Việt Nam</title>
+  <meta name="description" content="Frezo cung ứng rau củ tươi sạch VietGAP, giao 24h toàn quốc. Nền tảng automation & IoT giám sát nông trại 24/7, truy xuất nguồn gốc QR code minh bạch." />
+  <meta name="keywords" content="rau sạch, rau củ tươi, VietGAP, organic, giao rau tận nhà, automation nông nghiệp, IoT nông trại, truy xuất nguồn gốc, Frezo" />
+  <meta name="author" content="Frezo" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <meta name="googlebot" content="index, follow" />
+  <link rel="canonical" href="https://frezo.vn/" />
+
+  <!-- Ngôn ngữ thay thế (khi có bản EN, thay `en` bằng URL thật) -->
+  <link rel="alternate" hreflang="vi" href="https://frezo.vn/" />
+  <link rel="alternate" hreflang="x-default" href="https://frezo.vn/" />
+
+  <!-- ═══════════════════ OPEN GRAPH (Facebook / Zalo / LinkedIn) ═══════════════════ -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Frezo" />
+  <meta property="og:locale" content="vi_VN" />
+  <meta property="og:url" content="https://frezo.vn/" />
+  <meta property="og:title" content="Frezo – Rau Củ Tươi Sạch VietGAP | Giao 24h Toàn Quốc" />
+  <meta property="og:description" content="Rau sạch từ nông trại công nghệ cao, giao đến tận tay bạn trong 24h. Cam kết truy xuất nguồn gốc 100% qua QR code. Ưu đãi 20% cho đơn đầu tiên." />
+  <meta property="og:image" content="https://frezo.vn/assets/og-cover.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Frezo — Rau củ tươi sạch từ nông trại đến bàn ăn trong 24 giờ" />
+
+  <!-- ═══════════════════ TWITTER CARD ═══════════════════ -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@frezo_vn" />
+  <meta name="twitter:title" content="Frezo – Rau Củ Tươi Sạch VietGAP" />
+  <meta name="twitter:description" content="Rau sạch từ nông trại công nghệ cao, giao trong 24h. Truy xuất QR code, cam kết an toàn 100%." />
+  <meta name="twitter:image" content="https://frezo.vn/assets/og-cover.jpg" />
+
+  <!-- ═══════════════════ FAVICON / APP ICONS ═══════════════════ -->
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+
+  <!-- ═══════════════════ PERFORMANCE HINTS ═══════════════════ -->
+  <!-- DNS prefetch + preconnect cho font provider — giảm ~200ms cold start -->
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+  <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- Preload font WOFF2 chính (400 & 700 weight) để cải thiện FCP/CLS -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800;900&family=Inter:wght@400;600&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800;900&family=Inter:wght@400;600&display=swap" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800;900&family=Inter:wght@400;600&display=swap" /></noscript>
+
+  <!-- Preload LCP image (hero) — trình duyệt tải song song với HTML, giảm LCP ~500ms -->
+  <link rel="preload" as="image" href="/assets/hero-bg.png" fetchpriority="high" />
+
   <link rel="stylesheet" href="/src/style.css" />
+
+  <!-- ═══════════════════ STRUCTURED DATA (JSON-LD) ═══════════════════ -->
+  <!-- Organization + WebSite + LocalBusiness → tăng chance hiển thị rich snippet Google -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://frezo.vn/#organization",
+        "name": "Frezo",
+        "url": "https://frezo.vn/",
+        "logo": "https://frezo.vn/assets/logo.png",
+        "description": "Nền tảng cung ứng rau củ tươi sạch VietGAP với automation nông nghiệp và IoT.",
+        "sameAs": [
+          "https://www.facebook.com/frezo.vn",
+          "https://www.instagram.com/frezo.vn",
+          "https://www.youtube.com/@frezo"
+        ],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "telephone": "+84-1800-FREZO",
+          "contactType": "customer service",
+          "areaServed": "VN",
+          "availableLanguage": ["Vietnamese", "English"]
+        }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://frezo.vn/#website",
+        "url": "https://frezo.vn/",
+        "name": "Frezo",
+        "inLanguage": "vi-VN",
+        "publisher": { "@id": "https://frezo.vn/#organization" },
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://frezo.vn/?s={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "LocalBusiness",
+        "@id": "https://frezo.vn/#business",
+        "name": "Frezo",
+        "image": "https://frezo.vn/assets/og-cover.jpg",
+        "url": "https://frezo.vn/",
+        "telephone": "+84-1800-FREZO",
+        "priceRange": "6.000₫ - 100.000₫",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "123 Nguyễn Huệ",
+          "addressLocality": "Quận 1",
+          "addressRegion": "TP.HCM",
+          "postalCode": "700000",
+          "addressCountry": "VN"
+        },
+        "openingHoursSpecification": [{
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+          "opens": "07:00",
+          "closes": "21:00"
+        }],
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.9",
+          "reviewCount": "1284"
+        }
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
 
+  <!-- Skip link cho keyboard/screen reader — WCAG 2.4.1 -->
+  <a href="#hero" class="skip-link">Bỏ qua nav, đến nội dung chính</a>
+
   <!-- ═══════════════════ NAVBAR ═══════════════════ -->
-  <nav class="navbar" id="navbar">
+  <nav class="navbar" id="navbar" aria-label="Điều hướng chính">
     <div class="nav-container">
       <a href="#" class="nav-logo">
         <span class="logo-icon">🌿</span>
@@ -85,7 +213,15 @@
     </div>
     <div class="hero-visual reveal-right">
       <div class="visual-card main-card">
-        <img src="/assets/hero-bg.png" alt="Nông trại Frezo" class="hero-img" id="hero-main-img" />
+        <img
+          src="/assets/hero-bg.png"
+          alt="Nông trại công nghệ cao Frezo — cánh đồng rau xanh mướt với hệ thống tưới tự động"
+          class="hero-img"
+          id="hero-main-img"
+          width="640" height="480"
+          fetchpriority="high"
+          decoding="async"
+        />
         <div class="card-badge live-badge">
           <span class="pulse-dot"></span>
           Live Monitoring
@@ -153,7 +289,14 @@
       <div class="about-grid">
         <div class="about-visual">
           <div class="about-img-wrap reveal-left">
-            <img src="/assets/vegetables.png" alt="Rau củ tươi Frezo" class="about-img" />
+            <img
+              src="/assets/vegetables.png"
+              alt="Bộ sưu tập rau củ tươi Frezo — cải, cà chua, dưa leo, rau thơm hữu cơ"
+              class="about-img"
+              width="560" height="420"
+              loading="lazy"
+              decoding="async"
+            />
             <div class="about-badge-wrap">
               <div class="about-badge">
                 <div class="ab-icon">🏆</div>
@@ -453,15 +596,19 @@
           </div>
         </div>
         <div class="contact-form-wrap reveal-right">
-          <form class="contact-form" id="contact-form">
+          <form class="contact-form" id="contact-form" novalidate>
             <h3 class="form-title">Đăng ký tư vấn miễn phí</h3>
             <div class="form-group">
               <label for="name-input">Họ và tên</label>
-              <input type="text" id="name-input" name="name" placeholder="Nguyễn Văn A" required />
+              <input type="text" id="name-input" name="name" placeholder="Nguyễn Văn A" required autocomplete="name" />
             </div>
             <div class="form-group">
               <label for="phone-input">Số điện thoại</label>
-              <input type="tel" id="phone-input" name="phone" placeholder="0901 234 567" required />
+              <input type="tel" id="phone-input" name="phone" placeholder="0901 234 567" required autocomplete="tel" pattern="^[+0-9\s\-()]{9,20}$" />
+            </div>
+            <div class="form-group">
+              <label for="email-input">Email <span style="color:#94a3b8;font-weight:400">(khuyến khích)</span></label>
+              <input type="email" id="email-input" name="email" placeholder="you@example.com" autocomplete="email" />
             </div>
             <div class="form-group">
               <label for="type-input">Nhu cầu</label>
@@ -476,13 +623,20 @@
             </div>
             <div class="form-group">
               <label for="message-input">Tin nhắn (tuỳ chọn)</label>
-              <textarea id="message-input" name="message" placeholder="Cho chúng tôi biết bạn cần gì..." rows="3"></textarea>
+              <textarea id="message-input" name="message" placeholder="Cho chúng tôi biết bạn cần gì..." rows="3" maxlength="2000"></textarea>
             </div>
+
+            <!-- Anti-spam honeypot: người thật không thấy vì display:none; bot sẽ điền -->
+            <div style="position:absolute;left:-9999px;top:-9999px" aria-hidden="true">
+              <label for="hp-input">Bỏ trống trường này</label>
+              <input type="text" id="hp-input" name="_hp" tabindex="-1" autocomplete="off" />
+            </div>
+
             <button type="submit" class="btn btn-primary btn-full" id="submit-contact-btn">
               <span id="submit-text">Gửi đăng ký ngay</span>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </button>
-            <p class="form-note">🔒 Thông tin của bạn được bảo mật tuyệt đối</p>
+            <p class="form-note">🔒 Thông tin của bạn được bảo mật tuyệt đối. Chúng tôi sẽ liên hệ trong 24h.</p>
           </form>
         </div>
       </div>

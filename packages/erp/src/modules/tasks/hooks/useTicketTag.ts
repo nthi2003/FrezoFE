@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { unwrapList } from '@frezo/utils'
 import { ticketApi, tagApi } from '../services/taskApi'
 import { toast } from 'sonner'
 
@@ -6,7 +7,7 @@ export function useTickets(params?: any) {
   return useQuery({
     queryKey: ['tickets', params],
     queryFn: () => ticketApi.getAll(params),
-    select: (res: any) => res?.data ?? [],
+    select: unwrapList,
   })
 }
 
@@ -47,7 +48,7 @@ export function useTags(params?: any) {
   return useQuery({
     queryKey: ['tags', params],
     queryFn: () => tagApi.getAll(params),
-    select: (res: any) => res?.data ?? [],
+    select: unwrapList,
   })
 }
 

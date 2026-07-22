@@ -2,10 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { categoryApi } from '../services/categoryApi'
 import { toast } from 'sonner'
 
-export function useCategories(type?: string) {
+export function useCategories(groupCode?: string) {
   return useQuery({
-    queryKey: ['categories', type],
-    queryFn: () => categoryApi.getAll(type ? { type } : {}),
+    queryKey: ['categories', groupCode],
+    queryFn: () =>
+      categoryApi.getAll(
+        groupCode ? { groupCode, pageNumber: 1, pageSize: 200 } : { pageNumber: 1, pageSize: 200 },
+      ),
     select: (res: any) => res?.data?.items ?? [],
   })
 }

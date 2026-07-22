@@ -1,163 +1,1174 @@
-import { useState } from 'react'
-import { Activity, Trash2, Loader2, RefreshCw, Search } from 'lucide-react'
+// ============================================================
+// FREZO ERP — ApiLogsPage
+// Trang giám sát API request theo chuẩn enterprise / observability:
+//   - KPI strip (BE stats) — total, success, failed + trend, avg duration
+//   - Toolbar: search + method chips + status preset + date range + auto-refresh
+//   - Table: URI truncate + tooltip, method chip, status chip, duration heatmap, relative time
+//   - Detail drawer: timeline, meta, tabs Request/Response với copy + format
+//   - Delete cleanup: modal chọn preset ngày (thay <input> ad-hoc + confirm() xấu)
+// ============================================================
+
+import { useState, useMemo, useCallback, useEffect } from 'react'
+import {
+  Activity, Trash2, RefreshCw, Search, X, Eye, Copy,
+  Radio, ChevronDown, Clock, Zap, CheckCircle2, XCircle, TrendingUp,
+  TrendingDown, User, Globe, Calendar, Info, AlertTriangle,
+} from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
-import { Button } from '@frezo/ui'
-import { Input } from '@frezo/ui'
-import { AppModal } from '@frezo/ui'
-import { useApiLogs, useDeleteApiLogs } from '../hooks/useApiLog'
+import {
+  Button, AppModal, PageHeader, ConfirmDialog, EmptyState,
+} from '@frezo/ui'
+import { toast } from 'sonner'
+import {
+  useApiLogs, useApiLogStats, useDeleteApiLogs,
+} from '../hooks/useApiLog'
+import { apilogApi, type ApiLogItem, type ApiLogFilter } from '../services/apilogApi'
+
+// ============================================================
+// Constants
+// ============================================================
+
+const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const
+type Method = typeof METHODS[number]
+
+const METHOD_COLORS: Record<string, { chip: string; dot: string }> = {
+  GET:    { chip: 'bg-blue-50 text-blue-700 border-blue-200',       dot: 'bg-blue-500' },
+  POST:   { chip: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+  PUT:    { chip: 'bg-amber-50 text-amber-700 border-amber-200',    dot: 'bg-amber-500' },
+  PATCH:  { chip: 'bg-violet-50 text-violet-700 border-violet-200', dot: 'bg-violet-500' },
+  DELETE: { chip: 'bg-rose-50 text-rose-700 border-rose-200',       dot: 'bg-rose-500' },
+}
+
+const STATUS_PRESETS = [
+  { key: 'all',    label: 'Tất cả', match: () => true, tone: 'bg-neutral-900 text-white border-neutral-900' },
+  { key: '2xx',    label: '2xx OK',       match: (s: number) => s >= 200 && s < 300, tone: 'bg-emerald-600 text-white border-emerald-600' },
+  { key: '3xx',    label: '3xx Redirect', match: (s: number) => s >= 300 && s < 400, tone: 'bg-blue-600 text-white border-blue-600' },
+  { key: '4xx',    label: '4xx Client',   match: (s: number) => s >= 400 && s < 500, tone: 'bg-amber-500 text-white border-amber-500' },
+  { key: '5xx',    label: '5xx Server',   match: (s: number) => s >= 500,             tone: 'bg-rose-600 text-white border-rose-600' },
+] as const
+type StatusKey = typeof STATUS_PRESETS[number]['key']
+
+const AUTO_REFRESH_OPTIONS = [
+  { value: 0,      label: 'Tắt' },
+  { value: 5000,   label: '5s' },
+  { value: 10000,  label: '10s' },
+  { value: 30000,  label: '30s' },
+  { value: 60000,  label: '1 phút' },
+] as const
+
+const DELETE_PRESETS = [
+  { days: 7,   label: '7 ngày',   hint: '(tuần này)' },
+  { days: 30,  label: '30 ngày',  hint: '(mặc định)' },
+  { days: 90,  label: '90 ngày',  hint: '(quý)' },
+  { days: 180, label: '180 ngày', hint: '(nửa năm)' },
+  { days: 365, label: '365 ngày', hint: '(1 năm)' },
+] as const
+
+// ============================================================
+// Utilities
+// ============================================================
 
 function formatDateTime(dateStr?: string) {
-  if (!dateStr) return '-'
+  if (!dateStr) return '—'
   try {
     const d = new Date(dateStr)
     return d.toLocaleString('vi-VN', {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit',
     })
-  } catch { return dateStr }
+  } catch {
+    return dateStr
+  }
+}
+
+function formatRelative(dateStr?: string): string {
+  if (!dateStr) return '—'
+  const d = new Date(dateStr)
+  const diff = Date.now() - d.getTime()
+  const s = Math.floor(diff / 1000)
+  if (s < 60) return `${s}s trước`
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m} phút trước`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h} giờ trước`
+  const day = Math.floor(h / 24)
+  if (day < 7) return `${day} ngày trước`
+  return d.toLocaleDateString('vi-VN')
 }
 
 function formatJson(str?: string) {
-  if (!str) return 'N/A'
-  try { return JSON.stringify(JSON.parse(str), null, 2) } catch { return str }
+  if (!str) return ''
+  try {
+    return JSON.stringify(JSON.parse(str), null, 2)
+  } catch {
+    return str
+  }
 }
 
-export function ApiLogsPage() {
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const { data, isLoading, refetch, isFetching } = useApiLogs(page, pageSize)
-  const deleteReq = useDeleteApiLogs()
-  const [days, setDays] = useState('30')
-  const [selectedLog, setSelectedLog] = useState<any | null>(null)
+/** Tone màu cho duration — < 100ms xanh, > 2s đỏ. */
+function durationTone(ms?: number) {
+  const v = Number(ms) || 0
+  if (v < 100)  return { text: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100', label: 'Nhanh' }
+  if (v < 500)  return { text: 'text-neutral-700', bg: 'bg-neutral-50 border-neutral-200', label: 'OK' }
+  if (v < 2000) return { text: 'text-amber-700',   bg: 'bg-amber-50 border-amber-100',     label: 'Chậm' }
+  return         { text: 'text-rose-700',    bg: 'bg-rose-50 border-rose-100',       label: 'Rất chậm' }
+}
 
-  const handlePageChange = (newPage: number, newSize: number) => {
-    setPage(newPage)
-    setPageSize(newSize)
+function statusTone(status?: number) {
+  const s = Number(status) || 0
+  if (s >= 500) return { chip: 'bg-rose-50 text-rose-700 border-rose-200',       dot: 'bg-rose-500' }
+  if (s >= 400) return { chip: 'bg-amber-50 text-amber-700 border-amber-200',    dot: 'bg-amber-500' }
+  if (s >= 300) return { chip: 'bg-blue-50 text-blue-700 border-blue-200',       dot: 'bg-blue-500' }
+  if (s >= 200) return { chip: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' }
+  return         { chip: 'bg-neutral-50 text-neutral-600 border-neutral-200',    dot: 'bg-neutral-400' }
+}
+
+function copyToClipboard(text: string, label = 'Đã copy') {
+  navigator.clipboard.writeText(text).then(
+    () => toast.success(label),
+    () => toast.error('Không copy được'),
+  )
+}
+
+// ============================================================
+// Main Page
+// ============================================================
+
+export function ApiLogsPage() {
+  // ---- Pagination ----
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+
+  // ---- Filters ----
+  const [searchText, setSearchText] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [methodFilter, setMethodFilter] = useState<Method | 'all'>('all')
+  const [statusKey, setStatusKey] = useState<StatusKey>('all')
+
+  // ---- Auto-refresh ----
+  const [refreshInterval, setRefreshInterval] = useState<number>(0)
+  const [autoRefreshOpen, setAutoRefreshOpen] = useState(false)
+
+  // ---- Modals ----
+  const [detailLog, setDetailLog] = useState<ApiLogItem | null>(null)
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; days: number }>({ open: false, days: 30 })
+
+  // Debounce search — chỉ gọi BE sau khi user ngừng gõ 400ms
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchText.trim()), 400)
+    return () => clearTimeout(t)
+  }, [searchText])
+
+  // Reset về page 1 khi đổi filter (tránh empty page)
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, methodFilter, statusKey])
+
+  // Build filter object cho BE. Status preset chỉ có "exact code" support ở BE hiện tại,
+  // nên với preset xxx/xxx ta filter client-side (BE hiện tại chưa có statusRange).
+  const filter: ApiLogFilter = useMemo(() => ({
+    pageNumber: page - 1,
+    pageSize,
+    search: debouncedSearch || undefined,
+    method: methodFilter === 'all' ? undefined : methodFilter,
+  }), [page, pageSize, debouncedSearch, methodFilter])
+
+  const { data, isLoading, isFetching, refetch } = useApiLogs({
+    ...filter,
+    refetchIntervalMs: refreshInterval || false,
+  })
+
+  // Stats dùng chung filter (không paginate) — bỏ page/size để BE tính đúng
+  const { data: stats } = useApiLogStats({
+    search: filter.search,
+    method: filter.method,
+  })
+
+  const deleteReq = useDeleteApiLogs()
+
+  // Client-side filter theo status preset (nếu BE chưa hỗ trợ range)
+  const filteredItems = useMemo(() => {
+    const items = data?.items ?? []
+    if (statusKey === 'all') return items
+    const preset = STATUS_PRESETS.find((p) => p.key === statusKey)
+    if (!preset) return items
+    return items.filter((it) => preset.match(Number(it.statusCode) || 0))
+  }, [data?.items, statusKey])
+
+  const hasActiveFilter = debouncedSearch || methodFilter !== 'all' || statusKey !== 'all'
+
+  const clearFilters = () => {
+    setSearchText('')
+    setMethodFilter('all')
+    setStatusKey('all')
   }
 
-  const columns: AppTableColumn<any>[] = [
-    { title: 'Thời gian bắt đầu', dataIndex: 'effFrom', width: 170, render: (val: any) => formatDateTime(val) },
-    { title: 'Thời gian kết thúc', dataIndex: 'effTo', width: 170, render: (val: any) => formatDateTime(val) },
-    { title: 'Method', dataIndex: 'method', width: 80, filterType: 'text', render: (val: any) => (
-      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-        val === 'GET' ? 'bg-blue-100 text-blue-700' :
-        val === 'POST' ? 'bg-green-100 text-green-700' :
-        val === 'PUT' ? 'bg-orange-100 text-orange-700' :
-        'bg-red-100 text-red-700'
-      }`}>{val}</span>
-    )},
-    { title: 'Đường dẫn (URI)', dataIndex: 'uri', filterType: 'text' },
-    { title: 'Status', dataIndex: 'statusCode', width: 80, align: 'center', filterType: 'text', render: (val: any) => (
-      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-        val >= 200 && val < 300 ? 'bg-green-100 text-green-700' :
-        val >= 400 ? 'bg-red-100 text-red-700' : 'bg-neutral-100 text-neutral-700'
-      }`}>{val}</span>
-    )},
-    { title: 'IP Address', dataIndex: 'ipAddress', width: 140 },
-    { title: 'User', dataIndex: 'username', width: 120 },
-    { title: 'Thời gian phản hồi', dataIndex: 'duration', width: 150, render: (val: any) => val != null ? `${val} ms` : '-' },
+  // Đóng dropdown auto-refresh khi click ngoài
+  useEffect(() => {
+    if (!autoRefreshOpen) return
+    const handler = () => setAutoRefreshOpen(false)
+    window.addEventListener('click', handler)
+    return () => window.removeEventListener('click', handler)
+  }, [autoRefreshOpen])
+
+  // ---- Columns ----
+  const columns = useMemo<AppTableColumn<ApiLogItem>[]>(() => [
+    {
+      title: 'Thời gian',
+      dataIndex: 'effFrom',
+      width: 150,
+      render: (val: string) => (
+        <div className="space-y-0.5" title={formatDateTime(val)}>
+          <div className="text-xs font-medium text-neutral-900">{formatRelative(val)}</div>
+          <div className="text-[10px] text-neutral-400 font-mono">
+            {val ? new Date(val).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Method',
+      dataIndex: 'method',
+      width: 80,
+      render: (val: string) => {
+        const cfg = METHOD_COLORS[val] || METHOD_COLORS.GET
+        return (
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-bold border ${cfg.chip}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+            {val || '—'}
+          </span>
+        )
+      },
+    },
+    {
+      title: 'Đường dẫn (URI)',
+      dataIndex: 'uri',
+      render: (val: string) => (
+        <code
+          className="text-xs font-mono text-neutral-800 truncate block max-w-md"
+          title={val}
+        >
+          {val || '—'}
+        </code>
+      ),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'statusCode',
+      width: 90,
+      align: 'center' as const,
+      render: (val: number) => {
+        const cfg = statusTone(val)
+        return (
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-bold border ${cfg.chip}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+            {val || '—'}
+          </span>
+        )
+      },
+    },
+    {
+      title: 'Thời gian phản hồi',
+      dataIndex: 'duration',
+      width: 130,
+      align: 'right' as const,
+      render: (val: number) => {
+        const tone = durationTone(val)
+        return (
+          <div className="flex items-center justify-end gap-1.5">
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono border ${tone.bg} ${tone.text}`}>
+              <Clock size={11} />
+              {val != null ? `${val} ms` : '—'}
+            </span>
+          </div>
+        )
+      },
+    },
+    {
+      title: 'User',
+      dataIndex: 'username',
+      width: 130,
+      render: (val: string) => (
+        val ? (
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="w-5 h-5 rounded-full bg-neutral-100 text-neutral-600 flex items-center justify-center flex-shrink-0 text-[10px] font-bold uppercase">
+              {val.slice(0, 2)}
+            </div>
+            <span className="text-xs text-neutral-700 truncate">{val}</span>
+          </div>
+        ) : (
+          <span className="text-xs text-neutral-400 italic">anonymous</span>
+        )
+      ),
+    },
+    {
+      title: 'IP',
+      dataIndex: 'ipAddress',
+      width: 130,
+      render: (val: string) => (
+        <code className="text-[11px] font-mono text-neutral-500" title={val}>{val || '—'}</code>
+      ),
+    },
     {
       title: '',
       dataIndex: 'id',
       width: 50,
-      align: 'center',
-      render: (_: any, row: any) => (
+      align: 'center' as const,
+      render: (_: unknown, row: ApiLogItem) => (
         <button
-          className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
-          onClick={() => setSelectedLog(row)}
-          title="Xem chi tiết Request / Response"
+          className="w-7 h-7 rounded-md text-neutral-500 hover:text-primary-700 hover:bg-primary-50 flex items-center justify-center transition-colors"
+          onClick={() => setDetailLog(row)}
+          title="Xem chi tiết"
         >
-          <Search size={15} />
+          <Eye size={14} />
         </button>
       ),
     },
-  ]
+  ], [])
+
+  // ---- Render ----
+  return (
+    <div className="p-6 space-y-4 animate-fade-in">
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2">
+            <Activity size={20} className="text-primary-600" />
+            Nhật ký hệ thống (API Logs)
+          </span>
+        }
+        description={`Giám sát mọi request đi vào hệ thống · ${stats?.total ?? '—'} log${refreshInterval > 0 ? ' · đang live' : ''}`}
+        actions={
+          <>
+            {/* Auto-refresh dropdown */}
+            <div className="relative">
+              <Button
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setAutoRefreshOpen((v) => !v)
+                }}
+                className="gap-1.5"
+              >
+                {refreshInterval > 0 ? (
+                  <span className="relative inline-flex items-center justify-center w-3 h-3">
+                    <span className="absolute inset-0 rounded-full bg-emerald-400 opacity-75 animate-ping" />
+                    <span className="relative w-2 h-2 rounded-full bg-emerald-500" />
+                  </span>
+                ) : (
+                  <Radio size={14} className="text-neutral-400" />
+                )}
+                Auto {refreshInterval > 0 ? AUTO_REFRESH_OPTIONS.find((o) => o.value === refreshInterval)?.label : 'Tắt'}
+                <ChevronDown size={14} className="text-neutral-400" />
+              </Button>
+              {autoRefreshOpen && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute right-0 top-full mt-1 w-40 rounded-lg border border-neutral-200 bg-white shadow-lg overflow-hidden z-10 animate-fade-in"
+                >
+                  {AUTO_REFRESH_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setRefreshInterval(opt.value)
+                        setAutoRefreshOpen(false)
+                      }}
+                      className={`w-full text-left px-3 py-2 text-xs hover:bg-neutral-50 flex items-center justify-between ${
+                        refreshInterval === opt.value ? 'bg-primary-50 text-primary-700 font-semibold' : 'text-neutral-700'
+                      }`}
+                    >
+                      {opt.label}
+                      {refreshInterval === opt.value && <CheckCircle2 size={12} />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Button variant="outline" onClick={() => refetch()} disabled={isFetching} className="gap-1.5">
+              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+              Làm mới
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => setDeleteModal({ open: true, days: 30 })}
+              className="gap-1.5 text-rose-700 border-rose-200 hover:bg-rose-50"
+            >
+              <Trash2 size={14} />
+              Dọn log cũ
+            </Button>
+          </>
+        }
+      />
+
+      {/* ── KPI strip ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatTile
+          icon={Activity}
+          label="Tổng request"
+          value={stats?.total ?? 0}
+          trend={stats?.totalTrend}
+          tone="neutral"
+        />
+        <StatTile
+          icon={CheckCircle2}
+          label="Thành công (2xx-3xx)"
+          value={stats?.success ?? 0}
+          subValue={stats?.total ? `${((stats.success / stats.total) * 100).toFixed(1)}%` : undefined}
+          tone="emerald"
+        />
+        <StatTile
+          icon={XCircle}
+          label="Thất bại (4xx-5xx)"
+          value={stats?.failed ?? 0}
+          trend={stats?.failedTrend}
+          trendInverse
+          tone={stats?.failed && stats.failed > 0 ? 'rose' : 'neutral'}
+        />
+        <StatTile
+          icon={Zap}
+          label="Phản hồi TB"
+          value={`${stats?.avgDuration ?? 0} ms`}
+          subValue={stats?.avgDuration
+            ? stats.avgDuration < 200 ? 'Nhanh' : stats.avgDuration < 800 ? 'OK' : 'Chậm'
+            : undefined}
+          tone={
+            !stats?.avgDuration ? 'neutral'
+            : stats.avgDuration < 200 ? 'emerald'
+            : stats.avgDuration < 800 ? 'blue' : 'amber'
+          }
+        />
+      </div>
+
+      {/* ── Toolbar ── */}
+      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-neutral-100 bg-gradient-to-r from-neutral-50 to-white">
+          <div className="relative flex-1 min-w-[240px] md:max-w-[380px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              type="text"
+              placeholder="Tìm URI, username hoặc IP..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="h-8 w-full pl-8 pr-8 text-sm bg-neutral-50 border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300 focus:bg-white transition-all placeholder:text-neutral-400"
+            />
+            {searchText && (
+              <button
+                type="button"
+                onClick={() => setSearchText('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-700"
+                title="Xoá tìm kiếm"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div className="h-6 w-px bg-neutral-200 hidden md:block" />
+
+          {/* Method chips */}
+          <div className="flex flex-wrap items-center gap-1">
+            <FilterChip
+              active={methodFilter === 'all'}
+              onClick={() => setMethodFilter('all')}
+              label="All"
+              activeClass="bg-neutral-900 text-white border-neutral-900"
+            />
+            {METHODS.map((m) => {
+              const cfg = METHOD_COLORS[m]
+              const activeCls =
+                m === 'GET'    ? 'bg-blue-600 text-white border-blue-600' :
+                m === 'POST'   ? 'bg-emerald-600 text-white border-emerald-600' :
+                m === 'PUT'    ? 'bg-amber-500 text-white border-amber-500' :
+                m === 'PATCH'  ? 'bg-violet-600 text-white border-violet-600' :
+                                 'bg-rose-600 text-white border-rose-600'
+              return (
+                <FilterChip
+                  key={m}
+                  active={methodFilter === m}
+                  onClick={() => setMethodFilter(m)}
+                  label={m}
+                  icon={<span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />}
+                  activeClass={activeCls}
+                />
+              )
+            })}
+          </div>
+
+          {hasActiveFilter && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="ml-auto inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition"
+            >
+              <X size={12} /> Xoá lọc
+            </button>
+          )}
+        </div>
+
+        {/* Status preset row */}
+        <div className="flex flex-wrap items-center gap-1.5 px-4 py-2.5 bg-white border-b border-neutral-100">
+          <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mr-1">Status:</span>
+          {STATUS_PRESETS.map((p) => (
+            <FilterChip
+              key={p.key}
+              active={statusKey === p.key}
+              onClick={() => setStatusKey(p.key)}
+              label={p.label}
+              activeClass={p.tone}
+            />
+          ))}
+        </div>
+
+        {/* Table hoặc empty */}
+        {!isLoading && filteredItems.length === 0 ? (
+          <div className="py-12">
+            <EmptyState
+              icon={Search}
+              title={hasActiveFilter ? 'Không có log khớp bộ lọc' : 'Chưa có log nào được ghi'}
+              description={hasActiveFilter
+                ? 'Thử bỏ bớt điều kiện tìm kiếm hoặc chọn status preset khác.'
+                : 'Log sẽ tự động xuất hiện khi có request đến hệ thống.'}
+              action={hasActiveFilter ? (
+                <Button variant="outline" onClick={clearFilters}>Xoá bộ lọc</Button>
+              ) : undefined}
+            />
+          </div>
+        ) : (
+          <AppTable
+            columns={columns}
+            data={filteredItems}
+            isLoading={isLoading}
+            showSearch={false}
+            pageIndex={page}
+            pageSize={pageSize}
+            totalElements={data?.total ?? 0}
+            onPageChange={(newPage, newSize) => {
+              setPage(newPage)
+              setPageSize(newSize)
+            }}
+          />
+        )}
+      </div>
+
+      {/* ── Detail modal ── */}
+      <ApiLogDetailModal log={detailLog} onClose={() => setDetailLog(null)} />
+
+      {/* ── Delete cleanup modal ── */}
+      <DeleteLogsModal
+        isOpen={deleteModal.open}
+        defaultDays={deleteModal.days}
+        isLoading={deleteReq.isPending}
+        onClose={() => setDeleteModal({ open: false, days: 30 })}
+        onConfirm={(days) =>
+          deleteReq.mutate(days, {
+            onSuccess: () => setDeleteModal({ open: false, days: 30 }),
+          })
+        }
+      />
+    </div>
+  )
+}
+
+// ============================================================
+// FilterChip — chip button dùng cho method/status filter
+// ============================================================
+
+function FilterChip({
+  active, onClick, label, icon, activeClass,
+}: {
+  active: boolean
+  onClick: () => void
+  label: string
+  icon?: React.ReactNode
+  activeClass: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-mono font-semibold border transition ${
+        active ? activeClass : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  )
+}
+
+// ============================================================
+// StatTile — KPI card với optional trend
+// ============================================================
+
+function StatTile({
+  icon: Icon, label, value, subValue, trend, trendInverse, tone,
+}: {
+  icon: typeof Activity
+  label: string
+  value: string | number
+  subValue?: string
+  /** % thay đổi so với kỳ trước — dương = tăng, âm = giảm */
+  trend?: number
+  /** Với "Thất bại" thì tăng là XẤU → set true để đảo màu tone */
+  trendInverse?: boolean
+  tone: 'neutral' | 'emerald' | 'rose' | 'blue' | 'amber'
+}) {
+  const toneMap = {
+    neutral: { bg: 'bg-neutral-50/60', bar: 'bg-neutral-400', text: 'text-neutral-700' },
+    emerald: { bg: 'bg-emerald-50/60', bar: 'bg-emerald-500', text: 'text-emerald-700' },
+    rose:    { bg: 'bg-rose-50/60',    bar: 'bg-rose-500',    text: 'text-rose-700' },
+    blue:    { bg: 'bg-blue-50/60',    bar: 'bg-blue-500',    text: 'text-blue-700' },
+    amber:   { bg: 'bg-amber-50/60',   bar: 'bg-amber-500',   text: 'text-amber-700' },
+  }[tone]
+
+  const trendPositive = (trend ?? 0) > 0
+  const trendGood = trendInverse ? !trendPositive : trendPositive
 
   return (
-    <div className="space-y-4 animate-fade-in p-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-neutral-900 flex items-center gap-2">
-            <Activity className="text-primary-600" />
-            Nhật ký Hệ thống (API Logs)
-          </h2>
-          <p className="text-sm text-neutral-500 mt-1">Giám sát toàn bộ request vào hệ thống</p>
+    <div className={`relative rounded-xl border border-neutral-200 bg-white overflow-hidden ${toneMap.bg}`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${toneMap.bar}`} />
+      <div className="p-4 pl-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className={`w-9 h-9 rounded-lg bg-white border border-neutral-100 flex items-center justify-center flex-shrink-0 ${toneMap.text}`}>
+            <Icon size={16} />
+          </div>
+          {trend !== undefined && trend !== 0 && (
+            <span className={`inline-flex items-center gap-0.5 text-[11px] font-semibold ${
+              trendGood ? 'text-emerald-600' : 'text-rose-600'
+            }`}>
+              {trendPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+              {Math.abs(trend).toFixed(1)}%
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
-            <RefreshCw size={16} className={`mr-2 ${isFetching ? 'animate-spin' : ''}`} /> Làm mới
-          </Button>
-          <div className="flex items-center gap-2 bg-red-50 px-3 py-1.5 rounded-md border border-red-100">
-            <span className="text-sm text-red-700 font-medium">Xóa log cũ hơn</span>
-            <Input 
-              type="number" 
-              className="w-16 h-8 text-center" 
-              value={days} 
-              onChange={e => setDays(e.target.value)} 
+        <div className="mt-2">
+          <div className={`text-[11px] font-bold uppercase tracking-wider ${toneMap.text}`}>{label}</div>
+          <div className="text-2xl font-bold text-neutral-900 tabular-nums leading-none mt-1 truncate">
+            {value}
+          </div>
+          {subValue && (
+            <div className="text-[11px] text-neutral-500 mt-1 truncate">{subValue}</div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// ApiLogDetailModal — meta grid + timeline + tabs Request/Response
+// ============================================================
+
+/**
+ * Tách URI thành `path` + `queryParams` object. VD:
+ *   "/qlns/payroll?month=7&year=2026" →
+ *   { path: "/qlns/payroll", queryParams: {month: "7", year: "2026"} }
+ */
+function splitUri(uri?: string): { path: string; queryParams: Array<[string, string]> } {
+  if (!uri) return { path: '', queryParams: [] }
+  const qIdx = uri.indexOf('?')
+  if (qIdx < 0) return { path: uri, queryParams: [] }
+  const path = uri.slice(0, qIdx)
+  const queryStr = uri.slice(qIdx + 1)
+  const params: Array<[string, string]> = []
+  queryStr.split('&').forEach((pair) => {
+    if (!pair) return
+    const eqIdx = pair.indexOf('=')
+    if (eqIdx < 0) {
+      params.push([decodeURIComponent(pair), ''])
+    } else {
+      try {
+        params.push([
+          decodeURIComponent(pair.slice(0, eqIdx)),
+          decodeURIComponent(pair.slice(eqIdx + 1)),
+        ])
+      } catch {
+        params.push([pair.slice(0, eqIdx), pair.slice(eqIdx + 1)])
+      }
+    }
+  })
+  return { path, queryParams: params }
+}
+
+/**
+ * Kiểm tra body có phải "empty marker" từ BE không (VD: "[empty body]", "[multipart...]").
+ * Nếu có → chưa phải nội dung thật.
+ */
+function isEmptyBodyMarker(body?: string): { isMarker: boolean; reason?: string } {
+  if (!body) return { isMarker: true, reason: 'null' }
+  const trimmed = body.trim()
+  if (!trimmed) return { isMarker: true, reason: 'blank' }
+  const m = trimmed.match(/^\[(.+?)\]$/)
+  if (m) return { isMarker: true, reason: m[1] }
+  return { isMarker: false }
+}
+
+/** Kiểm tra body có bị BE truncate không (kết thúc bằng "[truncated...]"). */
+function isTruncated(body?: string): boolean {
+  return !!body && /\[truncated[^\]]*\]$/.test(body.trim())
+}
+
+function ApiLogDetailModal({ log, onClose }: { log: ApiLogItem | null; onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<'request' | 'response' | 'params'>('request')
+  const [fresh, setFresh] = useState<ApiLogItem | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  useEffect(() => {
+    setFresh(null)
+    if (log) {
+      // Mặc định mở tab hợp lý theo method
+      const bodyless = log.method && ['GET', 'HEAD', 'DELETE'].includes(log.method.toUpperCase())
+      setActiveTab(bodyless ? 'response' : 'request')
+    }
+  }, [log])
+
+  if (!log) return null
+
+  // Nếu đã fetch lại từ getById → dùng data mới hơn
+  const current = fresh ?? log
+
+  const method = current.method || 'GET'
+  const methodCfg = METHOD_COLORS[method] || METHOD_COLORS.GET
+  const statusCfg = statusTone(current.statusCode)
+  const durTone = durationTone(current.duration)
+
+  const { path, queryParams } = splitUri(current.uri)
+  const requestJson = formatJson(current.requestBody)
+  const responseJson = formatJson(current.responseBody)
+  const reqEmptyInfo = isEmptyBodyMarker(current.requestBody)
+  const resEmptyInfo = isEmptyBodyMarker(current.responseBody)
+
+  const handleRefresh = async () => {
+    if (!current.id) return
+    setRefreshing(true)
+    try {
+      const latest = await apilogApi.getById(current.id)
+      setFresh(latest)
+      toast.success('Đã tải lại chi tiết log')
+    } catch {
+      toast.error('Không tải lại được log')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  return (
+    <AppModal isOpen={!!log} onClose={onClose} title="Chi tiết request" maxWidth="4xl">
+      <div className="space-y-4">
+        {/* Header — method + URI + status + refresh */}
+        <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-3 flex items-center gap-2">
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-mono font-bold border ${methodCfg.chip} flex-shrink-0`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${methodCfg.dot}`} />
+            {method}
+          </span>
+          <code
+            className="flex-1 min-w-0 text-sm font-mono text-neutral-900 truncate"
+            title={current.uri}
+          >
+            {current.uri}
+          </code>
+          <button
+            type="button"
+            onClick={() => copyToClipboard(current.uri || '', 'Đã copy URI')}
+            className="w-8 h-8 rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 flex items-center justify-center flex-shrink-0"
+            title="Copy URI"
+          >
+            <Copy size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="w-8 h-8 rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 flex items-center justify-center flex-shrink-0 disabled:opacity-50"
+            title="Tải lại từ máy chủ"
+          >
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-mono font-bold border ${statusCfg.chip} flex-shrink-0`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+            {current.statusCode ?? '—'}
+          </span>
+        </div>
+
+        {/* Path only (nếu URI có query, tách path riêng cho dễ đọc) */}
+        {queryParams.length > 0 && (
+          <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-3 py-2 text-xs">
+            <span className="text-blue-700 font-semibold">Path:</span>{' '}
+            <code className="font-mono text-neutral-900">{path}</code>
+            <span className="ml-3 text-blue-700 font-semibold">Query:</span>{' '}
+            <code className="font-mono text-neutral-600">{queryParams.length} tham số</code>
+          </div>
+        )}
+
+        {/* Meta grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <MetaCell icon={Clock} label="Thời gian phản hồi" value={
+            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-mono border ${durTone.bg} ${durTone.text}`}>
+              {current.duration != null ? `${current.duration} ms` : '—'} <span className="opacity-75">· {durTone.label}</span>
+            </span>
+          } />
+          <MetaCell icon={User} label="User" value={current.username || <span className="italic text-neutral-400">anonymous</span>} />
+          <MetaCell icon={Globe} label="IP address" value={<code className="font-mono text-xs">{current.ipAddress || '—'}</code>} />
+          <MetaCell icon={Calendar} label="Bắt đầu" value={<span className="font-mono text-xs">{formatDateTime(current.effFrom)}</span>} />
+          <MetaCell icon={Calendar} label="Kết thúc" value={<span className="font-mono text-xs">{formatDateTime(current.effTo)}</span>} />
+          <MetaCell icon={Clock} label="Cách đây" value={formatRelative(current.effFrom)} />
+        </div>
+
+        {/* Tabs: Params / Request / Response */}
+        <div>
+          <div className="flex items-center gap-1 border-b border-neutral-200">
+            {queryParams.length > 0 && (
+              <TabButton
+                active={activeTab === 'params'}
+                onClick={() => setActiveTab('params')}
+                label={`Query Params (${queryParams.length})`}
+                dotColor="bg-indigo-500"
+                hasContent={true}
+              />
+            )}
+            <TabButton
+              active={activeTab === 'request'}
+              onClick={() => setActiveTab('request')}
+              label="Request Body"
+              dotColor="bg-blue-500"
+              hasContent={!reqEmptyInfo.isMarker}
             />
-            <span className="text-sm text-red-700 font-medium">ngày</span>
-            <Button 
-              size="sm" 
-              variant="destructive" 
-              onClick={() => {
-                if(confirm(`Xóa toàn bộ log cũ hơn ${days} ngày?`)) deleteReq.mutate(Number(days))
-              }}
-              disabled={deleteReq.isPending}
+            <TabButton
+              active={activeTab === 'response'}
+              onClick={() => setActiveTab('response')}
+              label="Response Body"
+              dotColor="bg-emerald-500"
+              hasContent={!resEmptyInfo.isMarker}
+            />
+            <div className="ml-auto flex items-center gap-1 pb-1">
+              {activeTab !== 'params' && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    copyToClipboard(
+                      activeTab === 'request' ? requestJson : responseJson,
+                      'Đã copy JSON',
+                    )
+                  }
+                  disabled={
+                    activeTab === 'request' ? reqEmptyInfo.isMarker : resEmptyInfo.isMarker
+                  }
+                  className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  <Copy size={12} /> Copy
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="pt-3 space-y-2">
+            {activeTab === 'params' && (
+              <QueryParamsView params={queryParams} />
+            )}
+
+            {activeTab === 'request' && (
+              <BodyView
+                content={requestJson}
+                emptyInfo={reqEmptyInfo}
+                truncated={isTruncated(current.requestBody)}
+                kind="request"
+                method={method}
+              />
+            )}
+
+            {activeTab === 'response' && (
+              <BodyView
+                content={responseJson}
+                emptyInfo={resEmptyInfo}
+                truncated={isTruncated(current.responseBody)}
+                kind="response"
+                method={method}
+                statusCode={current.statusCode}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-2 border-t border-neutral-100">
+          <Button variant="outline" onClick={onClose}>Đóng</Button>
+        </div>
+      </div>
+    </AppModal>
+  )
+}
+
+// ─── Query params table ───
+function QueryParamsView({ params }: { params: Array<[string, string]> }) {
+  return (
+    <div className="rounded-lg border border-neutral-200 overflow-hidden">
+      <table className="w-full text-xs">
+        <thead className="bg-neutral-50 text-neutral-500 text-[10px] uppercase tracking-wider">
+          <tr>
+            <th className="px-3 py-2 text-left font-semibold w-1/3">Tham số</th>
+            <th className="px-3 py-2 text-left font-semibold">Giá trị</th>
+            <th className="px-3 py-2 w-10" />
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-neutral-100">
+          {params.map(([k, v], i) => (
+            <tr key={i} className="hover:bg-neutral-50/50">
+              <td className="px-3 py-2 font-mono text-neutral-700">{k}</td>
+              <td className="px-3 py-2 font-mono text-neutral-900 break-all">
+                {v || <span className="text-neutral-400 italic">(trống)</span>}
+              </td>
+              <td className="px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(v, `Đã copy ${k}`)}
+                  className="w-6 h-6 rounded text-neutral-400 hover:text-neutral-800 hover:bg-neutral-100 flex items-center justify-center"
+                  title="Copy giá trị"
+                >
+                  <Copy size={12} />
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ─── Body view với empty state + truncation notice ───
+function BodyView({
+  content, emptyInfo, truncated, kind, method, statusCode,
+}: {
+  content: string
+  emptyInfo: { isMarker: boolean; reason?: string }
+  truncated: boolean
+  kind: 'request' | 'response'
+  method?: string
+  statusCode?: number
+}) {
+  if (!emptyInfo.isMarker) {
+    return (
+      <>
+        {truncated && (
+          <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 flex items-start gap-2">
+            <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+            <span>
+              Body này đã bị <strong>cắt ngắn</strong> khi ghi log (giới hạn để tránh DB phình).
+              Xem đầy đủ trong log file hoặc APM tool.
+            </span>
+          </div>
+        )}
+        <pre className="text-xs font-mono bg-neutral-900 text-neutral-100 rounded-lg p-4 overflow-auto max-h-[420px] leading-relaxed">
+          {content}
+        </pre>
+      </>
+    )
+  }
+
+  // Xác định empty reason để hiển thị hint phù hợp
+  const upperMethod = (method || '').toUpperCase()
+  const bodylessMethod = ['GET', 'HEAD', 'DELETE', 'OPTIONS'].includes(upperMethod)
+
+  let title = 'Không có nội dung'
+  let hint: React.ReactNode = 'Log này không ghi lại body.'
+  let tone: 'info' | 'warning' = 'info'
+
+  if (kind === 'request') {
+    if (bodylessMethod) {
+      title = `${upperMethod} request không có body`
+      hint = 'Tham số được truyền qua URL / query string (xem tab "Query Params" nếu có).'
+    } else if (emptyInfo.reason === 'empty body') {
+      title = 'Body rỗng'
+      hint = 'Client gửi request KHÔNG kèm body (Content-Length: 0).'
+    } else if (emptyInfo.reason?.startsWith('multipart')) {
+      title = 'Upload multipart'
+      hint = 'File upload đã được bỏ qua khi log để không tốn RAM. Kiểm tra qua storage / audit riêng.'
+      tone = 'warning'
+    } else {
+      title = 'Không log được request body'
+      hint = 'Có thể do request bị chặn ở tầng filter/security trước khi tới controller. Đã fix ở phiên bản mới — restart BE nếu log cũ.'
+      tone = 'warning'
+    }
+  } else {
+    // response
+    if (statusCode && [204, 205, 304].includes(statusCode)) {
+      title = `${statusCode} No Content`
+      hint = 'Endpoint trả về status không có body theo chuẩn HTTP.'
+    } else if (bodylessMethod && !statusCode) {
+      title = 'Response body rỗng'
+      hint = `${upperMethod} thường trả body rỗng hoặc chỉ status.`
+    } else {
+      title = 'Response body rỗng'
+      hint = 'Server không trả body (có thể do redirect, file download, hoặc streaming).'
+    }
+  }
+
+  const toneClass = tone === 'warning'
+    ? 'bg-amber-50 border-amber-200 text-amber-800'
+    : 'bg-neutral-50 border-neutral-200 text-neutral-600'
+  const iconClass = tone === 'warning' ? 'text-amber-600' : 'text-neutral-400'
+
+  return (
+    <div className={`rounded-lg border-2 border-dashed py-8 px-6 text-center ${toneClass}`}>
+      <div className={`inline-flex items-center justify-center w-10 h-10 rounded-full bg-white ${iconClass} mb-2`}>
+        {tone === 'warning' ? <AlertTriangle size={18} /> : <Info size={18} />}
+      </div>
+      <div className="text-sm font-semibold">{title}</div>
+      <div className="text-xs mt-1 opacity-80 max-w-md mx-auto">{hint}</div>
+    </div>
+  )
+}
+
+function MetaCell({ icon: Icon, label, value }: {
+  icon: typeof Clock
+  label: string
+  value: React.ReactNode
+}) {
+  return (
+    <div className="rounded-lg border border-neutral-200 bg-white p-3">
+      <div className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 flex items-center gap-1">
+        <Icon size={14} /> {label}
+      </div>
+      <div className="text-sm text-neutral-900 mt-1 min-h-[20px]">{value}</div>
+    </div>
+  )
+}
+
+function TabButton({ active, onClick, label, dotColor, hasContent }: {
+  active: boolean
+  onClick: () => void
+  label: string
+  dotColor: string
+  hasContent: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative inline-flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${
+        active ? 'text-primary-700' : 'text-neutral-500 hover:text-neutral-800'
+      }`}
+    >
+      <span className={`w-2 h-2 rounded-full ${dotColor} ${hasContent ? '' : 'opacity-30'}`} />
+      {label}
+      {!hasContent && <span className="text-[10px] text-neutral-400 font-normal">(trống)</span>}
+      {active && <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-primary-600" />}
+    </button>
+  )
+}
+
+// ============================================================
+// DeleteLogsModal — chọn preset ngày, thay <input> + confirm() ad-hoc
+// ============================================================
+
+function DeleteLogsModal({
+  isOpen, defaultDays, isLoading, onClose, onConfirm,
+}: {
+  isOpen: boolean
+  defaultDays: number
+  isLoading: boolean
+  onClose: () => void
+  onConfirm: (days: number) => void
+}) {
+  const [days, setDays] = useState(defaultDays)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) setDays(defaultDays)
+  }, [isOpen, defaultDays])
+
+  return (
+    <>
+      <AppModal
+        isOpen={isOpen && !confirmOpen}
+        onClose={onClose}
+        title="Dọn dẹp log cũ"
+        description="Xoá tất cả API log tạo trước khoảng thời gian bạn chọn."
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          {/* Preset chips */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+              Chọn khoảng thời gian
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {DELETE_PRESETS.map((p) => (
+                <button
+                  key={p.days}
+                  type="button"
+                  onClick={() => setDays(p.days)}
+                  className={`flex flex-col items-start p-3 rounded-lg border-2 transition-all text-left ${
+                    days === p.days
+                      ? 'border-primary-500 bg-primary-50'
+                      : 'border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50'
+                  }`}
+                >
+                  <span className={`text-sm font-semibold ${days === p.days ? 'text-primary-700' : 'text-neutral-900'}`}>
+                    {p.label}
+                  </span>
+                  <span className="text-[11px] text-neutral-500 mt-0.5">{p.hint}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom input */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+              Hoặc nhập số ngày cụ thể
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                value={days}
+                onChange={(e) => setDays(Math.max(1, Number(e.target.value) || 1))}
+                className="h-10 w-full px-3 text-sm border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300"
+              />
+              <span className="text-sm text-neutral-500 whitespace-nowrap">ngày trở lên</span>
+            </div>
+          </div>
+
+          {/* Warning */}
+          <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 flex items-start gap-2">
+            <Trash2 size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="text-xs text-amber-900 leading-relaxed">
+              Hành động này <strong>không thể hoàn tác</strong>. Toàn bộ log cũ hơn <strong>{days} ngày</strong> sẽ bị xoá vĩnh viễn khỏi database.
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+            <Button variant="outline" onClick={onClose}>Hủy</Button>
+            <Button
+              onClick={() => setConfirmOpen(true)}
+              className="bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
             >
-              {deleteReq.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              <Trash2 size={14} /> Tiếp tục xoá
             </Button>
           </div>
         </div>
-      </div>
-
-      <AppTable 
-        columns={columns} 
-        data={data?.items ?? []} 
-        isLoading={isLoading} 
-        showSearch
-        searchPlaceholder="Tìm kiếm log..."
-        onRefresh={() => refetch()}
-        pageIndex={page} 
-        pageSize={pageSize} 
-        totalElements={data?.total ?? 0} 
-        onPageChange={handlePageChange} 
-      />
-      <AppModal isOpen={!!selectedLog} onClose={() => setSelectedLog(null)} title="Chi tiết Request / Response" maxWidth="4xl">
-        {selectedLog && (
-          <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="font-medium text-neutral-500">Method:</span> <span className="text-neutral-900">{selectedLog.method}</span></div>
-              <div><span className="font-medium text-neutral-500">URI:</span> <span className="text-neutral-900 font-mono">{selectedLog.uri}</span></div>
-              <div><span className="font-medium text-neutral-500">Status:</span> <span className="text-neutral-900">{selectedLog.statusCode}</span></div>
-              <div><span className="font-medium text-neutral-500">IP:</span> <span className="text-neutral-900">{selectedLog.ipAddress}</span></div>
-              <div><span className="font-medium text-neutral-500">User:</span> <span className="text-neutral-900">{selectedLog.username}</span></div>
-              <div><span className="font-medium text-neutral-500">Thời gian phản hồi:</span> <span className="text-neutral-900">{selectedLog.duration != null ? `${selectedLog.duration} ms` : '-'}</span></div>
-              <div><span className="font-medium text-neutral-500">Bắt đầu:</span> <span className="text-neutral-900">{formatDateTime(selectedLog.effFrom)}</span></div>
-              <div><span className="font-medium text-neutral-500">Kết thúc:</span> <span className="text-neutral-900">{formatDateTime(selectedLog.effTo)}</span></div>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <h4 className="text-sm font-semibold text-neutral-700 mb-1 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-500" />
-                  Request Body
-                </h4>
-                <pre className="text-xs bg-neutral-50 border border-neutral-200 rounded-lg p-3 overflow-x-auto max-h-48 whitespace-pre-wrap break-all">
-                  {formatJson(selectedLog.requestBody)}
-                </pre>
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-neutral-700 mb-1 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500" />
-                  Response Body
-                </h4>
-                <pre className="text-xs bg-neutral-50 border border-neutral-200 rounded-lg p-3 overflow-x-auto max-h-48 whitespace-pre-wrap break-all">
-                  {formatJson(selectedLog.responseBody)}
-                </pre>
-              </div>
-            </div>
-          </div>
-        )}
       </AppModal>
-    </div>
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={() => {
+          setConfirmOpen(false)
+          onConfirm(days)
+        }}
+        title={`Xoá tất cả log cũ hơn ${days} ngày?`}
+        message={
+          <span>
+            Xác nhận lần cuối: <strong>không thể hoàn tác</strong>. Nếu cần audit trail dài hạn, hãy backup DB trước khi tiếp tục.
+          </span>
+        }
+        confirmText="Xoá vĩnh viễn"
+        variant="danger"
+        isLoading={isLoading}
+      />
+    </>
   )
 }

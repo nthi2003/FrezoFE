@@ -5,9 +5,10 @@
 import React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { menuApi } from '../services/menuApi'
-import type { MenuResponseItem } from '../types/menu.types'
+import type { MenuResponseItem, MenuTreeNode } from '../types/menu.types'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/authStore'
+import { applyMenuGroupingFallback } from '../utils/groupMenuTree'
 
 export function useMenusForUser(username?: string) {
   return useQuery({
@@ -35,31 +36,35 @@ export function useMenus() {
     enabled: !!user?.username,
   })
 
-  // Build tree
+  // Build tree từ parentCode BE; fallback group theo path nếu vẫn flat
   const menuTree = React.useMemo(() => {
-    const nodeMap = new Map<string, any>()
-    const roots: any[] = []
+    const nodeMap = new Map<string, MenuTreeNode>()
+    const roots: MenuTreeNode[] = []
 
-    ;(flatMenus ?? []).forEach((item: any) => {
-      nodeMap.set(item.code, { ...item, children: [] })
+    ;(flatMenus ?? []).forEach((item: MenuResponseItem) => {
+      nodeMap.set(item.code, {
+        ...item,
+        children: [],
+        isGroup: !item.feUrl || item.menuType === 1,
+      })
     })
 
-    ;(flatMenus ?? []).forEach((item: any) => {
-      const node = nodeMap.get(item.code)
+    ;(flatMenus ?? []).forEach((item: MenuResponseItem) => {
+      const node = nodeMap.get(item.code)!
       if (item.parentCode && nodeMap.has(item.parentCode)) {
-        nodeMap.get(item.parentCode).children.push(node)
+        nodeMap.get(item.parentCode)!.children.push(node)
       } else {
         roots.push(node)
       }
     })
 
-    const sortNodes = (nodes: any[]) => {
+    const sortNodes = (nodes: MenuTreeNode[]) => {
       nodes.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
-      nodes.forEach(n => sortNodes(n.children))
+      nodes.forEach((n) => sortNodes(n.children))
     }
     sortNodes(roots)
 
-    return roots
+    return applyMenuGroupingFallback(roots)
   }, [flatMenus])
 
   return { menuTree, isLoading }

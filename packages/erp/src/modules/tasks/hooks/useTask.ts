@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { unwrapList } from '@frezo/utils'
 import { taskApi, ticketApi, tagApi } from '../services/taskApi'
 import { toast } from 'sonner'
 
@@ -6,7 +7,7 @@ export function useTasks(params?: any) {
   return useQuery({
     queryKey: ['tasks', params],
     queryFn: () => taskApi.getAll(params),
-    select: (res: any) => res?.data ?? [],
+    select: unwrapList,
   })
 }
 

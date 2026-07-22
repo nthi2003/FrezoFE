@@ -6,13 +6,62 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, Edit, Loader2, KeyRound, Lock, Unlock } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
-import { AppModal } from '@frezo/ui'
-import { ConfirmDialog } from '@frezo/ui'
-import { Button } from '@frezo/ui'
-import { Input } from '@frezo/ui'
-import { Label } from '@frezo/ui'
-import { Select } from '@frezo/ui'
-import { MultiSelect } from '@frezo/ui'
+import {
+  AppModal,
+  ConfirmDialog,
+  Button,
+  Input,
+  Label,
+  Select,
+  MultiSelect,
+  PageHeader,
+  PageGuideButton,
+  type PageGuideConfig,
+} from '@frezo/ui'
+import { unwrapList } from '@frezo/utils'
+
+const USERS_GUIDE: PageGuideConfig = {
+  title: 'Quản lý Người dùng',
+  subtitle: 'Cấp / thu hồi tài khoản truy cập hệ thống, gán vai trò và liên kết với nhân sự HR.',
+  sections: [
+    {
+      heading: 'Cách thêm người dùng mới',
+      type: 'steps',
+      steps: [
+        {
+          title: 'Nhấn "Thêm mới"',
+          description: 'Điền tên đăng nhập (không dấu, không trùng), mật khẩu tạm (user sẽ đổi lần đầu), email.',
+        },
+        {
+          title: 'Liên kết với nhân sự',
+          description: 'Chọn record trong "Nhân sự" (person) đã tồn tại — dùng chung dữ liệu HR (họ tên, phòng ban, chức danh). Nếu chưa có, HR phải tạo person trước.',
+        },
+        {
+          title: 'Gán Vai trò',
+          description: 'Chọn 1 hoặc nhiều role (ADMIN / MANAGER / STAFF) — quyết định menu và API user được truy cập. Có thể chỉnh sau ở tab "Vai trò".',
+        },
+      ],
+    },
+    {
+      heading: 'Vòng đời tài khoản',
+      type: 'tips',
+      tips: [
+        'Tạm khóa tài khoản (Lock) thay vì xóa khi nhân viên nghỉ tạm hoặc nghi ngờ bảo mật — vẫn giữ lịch sử audit.',
+        'Reset mật khẩu qua nút "Reset password" — hệ thống sinh mã mới, gửi qua email đăng ký.',
+        'Không xóa cứng tài khoản đang có audit log / hợp đồng ký — hệ thống sẽ chặn.',
+      ],
+    },
+    {
+      heading: 'Lưu ý bảo mật',
+      type: 'notes',
+      notes: (
+        <>
+          Tài khoản gán role <strong>ADMIN</strong> / <strong>SUPER_ADMIN</strong> có quyền truy cập toàn bộ menu, kể cả module Bảo mật và Nhật ký API. Chỉ cấp cho người vận hành hệ thống.
+        </>
+      ),
+    },
+  ],
+}
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -38,7 +87,7 @@ export function UsersPage() {
   const { data: personOptions } = useQuery({
     queryKey: ['persons-combobox'],
     queryFn: () => personApi.getCombobox(),
-    select: (res: any) => res?.data ?? [],
+    select: unwrapList,
   })
   const { data: rolesData } = useRoles()
   const createUser = useCreateUser()
@@ -190,16 +239,21 @@ export function UsersPage() {
 
   return (
     <div className="space-y-4 animate-fade-in p-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-neutral-900">Quản lý người dùng</h2>
-          <p className="text-sm text-neutral-500 mt-1">Danh sách tài khoản truy cập hệ thống</p>
-        </div>
-        <Button onClick={handleOpenCreate} className="gap-2">
-          <Plus size={16} /> Thêm mới
-        </Button>
-      </div>
+      <PageHeader
+        title="Quản lý Người dùng"
+        description="Danh sách tài khoản truy cập hệ thống — cấp, khóa, phân quyền, reset mật khẩu."
+        actions={
+          <>
+            <PageGuideButton guide={USERS_GUIDE} />
+            <Button
+              onClick={handleOpenCreate}
+              className="gap-2 bg-primary-600 hover:bg-primary-700 text-white h-9"
+            >
+              <Plus size={16} /> Thêm mới
+            </Button>
+          </>
+        }
+      />
 
       {/* Table */}
       <AppTable

@@ -11,11 +11,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { contractApi } from '@/modules/qlns/services/contractApi'
 import { personApi } from '@/modules/qlns/services/personApi'
 import { toast } from 'sonner'
-import { cn } from '@frezo/utils'
+import { cn, unwrapList } from '@frezo/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { CONTRACT_TEMPLATES, CONTRACT_TYPES, PLACEHOLDER_PATTERNS } from '../constants/templates'
 import { useContractTemplates, fetchTemplateContent } from '@/lib/hooks/useContractTemplates'
 import { convertDocxToHtml } from '@/lib/utils/convertDocx'
+import { ExportMenu } from '@/lib/export'
 
 function wrapPlaceholders(html: string) {
   let result = html
@@ -27,6 +28,95 @@ function wrapPlaceholders(html: string) {
     )
   })
   return result
+}
+
+// ============================================================
+// Export helpers — build print-ready HTML từ form data
+// ============================================================
+
+function contractExportName(fd: any): string {
+  const person = sanitizeFileSegment(fd.personName || 'nhan-vien')
+  const code = sanitizeFileSegment(fd.code || 'moi')
+  return `hop-dong-${person}-${code}`
+}
+
+function contractExportTitle(fd: any): string {
+  const parts: string[] = ['Hợp đồng']
+  const typeLabel = CONTRACT_TYPES.find((t) => t.value === fd.type)?.label
+  if (typeLabel) parts.push(typeLabel)
+  if (fd.personName) parts.push('-', fd.personName)
+  if (fd.code) parts.push(`(${fd.code})`)
+  return parts.join(' ')
+}
+
+/**
+ * Build print-quality HTML cho DOCX/PDF export.
+ * Bao gồm: header thông tin công ty, tiêu đề HĐ, body content, chữ ký cuối.
+ */
+function buildContractPrintHtml(fd: any): string {
+  const typeLabel = CONTRACT_TYPES.find((t) => t.value === fd.type)?.label || 'HỢP ĐỒNG'
+  const today = new Date().toLocaleDateString('vi-VN')
+  return `
+    <div style="font-family: 'Times New Roman', serif; font-size: 13pt; line-height: 1.5; color: #111;">
+      <div style="text-align: center; margin-bottom: 18pt;">
+        <div style="font-weight: bold; font-size: 12pt; text-transform: uppercase;">
+          CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM
+        </div>
+        <div style="font-weight: bold; font-size: 11pt;">Độc lập - Tự do - Hạnh phúc</div>
+        <div style="font-size: 10pt; margin-top: 4pt;">-----------------</div>
+      </div>
+
+      <div style="text-align: center; margin-bottom: 12pt;">
+        <div style="font-weight: bold; font-size: 16pt; text-transform: uppercase;">
+          ${escapeContractText(typeLabel)}
+        </div>
+        ${fd.code ? `<div style="font-size: 11pt; margin-top: 4pt;">Số: <strong>${escapeContractText(fd.code)}</strong></div>` : ''}
+      </div>
+
+      <div style="margin-bottom: 12pt;">
+        ${fd.content || '<p><em>Chưa có nội dung</em></p>'}
+      </div>
+
+      <div style="margin-top: 24pt; text-align: right; font-style: italic;">
+        ${escapeContractText(fd.workLocation || '')}${fd.workLocation ? ', ' : ''}ngày ${today}
+      </div>
+
+      <table style="width: 100%; margin-top: 24pt; border: none;">
+        <tr>
+          <td style="width: 50%; text-align: center; vertical-align: top; border: none;">
+            <div style="font-weight: bold; text-transform: uppercase;">Người lao động</div>
+            <div style="font-size: 10pt; font-style: italic; color: #666;">(Ký, ghi rõ họ tên)</div>
+            <div style="height: 60pt;"></div>
+            <div style="font-weight: bold;">${escapeContractText(fd.personName || '')}</div>
+          </td>
+          <td style="width: 50%; text-align: center; vertical-align: top; border: none;">
+            <div style="font-weight: bold; text-transform: uppercase;">Người sử dụng lao động</div>
+            <div style="font-size: 10pt; font-style: italic; color: #666;">(Ký, ghi rõ họ tên, đóng dấu)</div>
+            <div style="height: 60pt;"></div>
+            <div style="font-weight: bold;">${escapeContractText(fd.employerName || '')}</div>
+          </td>
+        </tr>
+      </table>
+    </div>
+  `
+}
+
+function sanitizeFileSegment(s: string): string {
+  return String(s)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .replace(/[^a-zA-Z0-9-_]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase() || 'file'
+}
+
+function escapeContractText(s: string): string {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 }
 
 export function ContractCreatePage() {
@@ -155,7 +245,7 @@ export function ContractCreatePage() {
   const { data: personOptions } = useQuery({
     queryKey: ['persons-combobox'],
     queryFn: () => personApi.getCombobox(),
-    select: (res: any) => res?.data ?? [],
+    select: unwrapList,
   })
 
   const { data: personDetail } = useQuery({
@@ -815,6 +905,16 @@ export function ContractCreatePage() {
                     {aiEditMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <Bot size={15} />}
                     {aiEditMutation.isPending ? 'Đang xử lý...' : 'Biên tập AI'}
                   </Button>
+                  <ExportMenu
+                    targetId="contract-content-print"
+                    html={buildContractPrintHtml(formData)}
+                    filename={contractExportName(formData)}
+                    title={contractExportTitle(formData)}
+                    size="sm"
+                    variant="outline"
+                    buttonLabel="Xuất / In"
+                    disabled={!formData.content}
+                  />
                 </div>
               </div>
 
@@ -836,7 +936,7 @@ export function ContractCreatePage() {
                 </div>
               </div>
 
-              <div className="p-4 flex-1 flex flex-col [&_.ProseMirror]:min-h-[400px]">
+              <div id="contract-content-print" className="p-4 flex-1 flex flex-col [&_.ProseMirror]:min-h-[400px]">
                 <TiptapEditor
                   ref={editorRef}
                   value={formData.content}

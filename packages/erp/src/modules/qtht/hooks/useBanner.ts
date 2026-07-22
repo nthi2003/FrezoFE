@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { unwrapList } from '@frezo/utils'
 import { bannerApi } from '../services/bannerApi'
 import { toast } from 'sonner'
 
@@ -6,7 +7,7 @@ export function useBanners() {
   return useQuery({
     queryKey: ['banners'],
     queryFn: () => bannerApi.getAll(),
-    select: (res: any) => res?.data ?? [],
+    select: unwrapList,
   })
 }
 

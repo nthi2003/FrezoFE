@@ -12,13 +12,20 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  BulkSelectionBar,
 } from '@frezo/ui'
 import { Skeleton } from '@frezo/ui'
 import notDataImg from '@/img/mas-cost-not-data.png'
-import { ChevronLeft, ChevronRight, Search, Filter, RotateCw, X } from 'lucide-react'
+import {
+  ChevronLeft, ChevronRight, Search, Filter, RotateCw, X,
+  type LucideIcon,
+} from 'lucide-react'
 import { Input } from '@frezo/ui'
 import { Button } from '@frezo/ui'
 import { Select } from '@frezo/ui'
+import {
+  useTableSelection, useCheckboxIndeterminate,
+} from '@/lib/table/useTableSelection'
 
 // ---- Types ----
 export interface AppTableColumn<T> {
@@ -35,6 +42,23 @@ export interface AppTableColumn<T> {
   filterOptions?: { value: string; label: string }[]
 }
 
+export interface BulkAction<T> {
+  /** Key duy nhất trong list actions. */
+  key: string
+  /** Nhãn hiển thị trên nút. */
+  label: string
+  /** Icon Lucide (tuỳ chọn). */
+  icon?: LucideIcon
+  /** Variant nút — mặc định 'outline'. Xoá dùng 'destructive'. */
+  variant?: 'default' | 'outline' | 'destructive' | 'ghost'
+  /** Handler nhận danh sách row đã chọn. Trả Promise → tự disable trong lúc chạy. */
+  onClick: (rows: T[]) => void | Promise<void>
+  /** Ẩn action tuỳ trạng thái selection (VD chỉ hiện khi chọn >= 2). */
+  hidden?: (rows: T[]) => boolean
+  /** Disable action mà không ẩn (VD selection có row locked). */
+  disabled?: (rows: T[]) => boolean
+}
+
 export interface AppTableProps<T> {
   columns: AppTableColumn<T>[]
   data: T[]
@@ -46,6 +70,16 @@ export interface AppTableProps<T> {
   pageSize?: number
   totalElements?: number
   onPageChange?: (page: number, size: number) => void
+  /**
+   * Danh sách page-size cho user chọn — mặc định [10, 20, 50, 100].
+   * Truyền `[]` để ẩn selector hoàn toàn.
+   */
+  pageSizeOptions?: number[]
+  /**
+   * Ẩn toàn bộ footer phân trang khi chỉ có 1 page (mặc định false — luôn hiện
+   * để nhất quán giữa các trang có ít / nhiều data).
+   */
+  hidePaginationWhenSinglePage?: boolean
 
   // Dynamic Filtering Props
   showSearch?: boolean
@@ -53,6 +87,16 @@ export interface AppTableProps<T> {
   searchKey?: string
   onFilterChange?: (filters: Record<string, any>) => void
   onRefresh?: () => void
+
+  // ---- Bulk selection (STANDARD Phần 17.1) ----
+  /** Bật cột checkbox chọn nhiều dòng. */
+  selectable?: boolean
+  /** Hàm map row → id ổn định. Bắt buộc khi selectable. */
+  getRowId?: (row: T) => string
+  /** Danh sách bulk-action hiển thị trong sticky bar. */
+  bulkActions?: BulkAction<T>[]
+  /** Offset trái cho sticky bar khi có sidebar cố định (VD "md:left-64"). */
+  bulkBarOffsetLeftClass?: string
 }
 
 export function AppTable<T>({
@@ -64,16 +108,23 @@ export function AppTable<T>({
   pageSize = 10,
   totalElements = 0,
   onPageChange,
+  pageSizeOptions = [10, 20, 50, 100],
+  hidePaginationWhenSinglePage = false,
   showSearch = false,
   searchPlaceholder = 'Tìm kiếm...',
   searchKey = 'keyword',
   onFilterChange,
   onRefresh,
+  selectable = false,
+  getRowId,
+  bulkActions,
+  bulkBarOffsetLeftClass,
 }: AppTableProps<T>) {
   const safeData = Array.isArray(data) ? data : []
   const colKey = (col: AppTableColumn<T>) => col.key ?? (col.dataIndex as string) ?? col.title
   const sttCol: AppTableColumn<T> = { key: '__stt', title: 'STT', width: 60, align: 'center' }
-  const allColumns = [sttCol, ...columns]
+  const checkboxCol: AppTableColumn<T> = { key: '__check', title: '', width: 44, align: 'center' }
+  const allColumns = selectable ? [checkboxCol, sttCol, ...columns] : [sttCol, ...columns]
   const totalCols = allColumns.length
 
   // Internal states for local pagination
@@ -148,6 +199,33 @@ export function AppTable<T>({
   const displayTotalPages = Math.ceil(displayTotalElements / displayPageSize)
 
   const isEmpty = !isLoading && displayData.length === 0
+
+  // ---- Selection state ----
+  // Warning nhẹ: nếu selectable=true mà thiếu getRowId → fallback index (không ổn định
+  // khi sort/filter). Cảnh báo dev-only, không crash prod.
+  const resolveRowId = (row: T, index: number): string => {
+    if (getRowId) return getRowId(row)
+    const r = row as unknown as Record<string, unknown>
+    if (r && (typeof r.id === 'string' || typeof r.id === 'number')) return String(r.id)
+    return `__row-${index}`
+  }
+  const selection = useTableSelection<T>(
+    displayData,
+    (row) => resolveRowId(row, displayData.indexOf(row)),
+  )
+  const headerCheckboxRef = useCheckboxIndeterminate(selection.someSelected)
+
+  // Chạy các bulk-action đang chạy → disable buttons tránh double click
+  const [runningActionKey, setRunningActionKey] = useState<string | null>(null)
+  const handleBulkClick = async (action: BulkAction<T>) => {
+    if (runningActionKey) return
+    setRunningActionKey(action.key)
+    try {
+      await Promise.resolve(action.onClick(selection.selectedRows))
+    } finally {
+      setRunningActionKey(null)
+    }
+  }
 
   // Trigger filter callback
   const notifyFilterChange = (nextKeyword: string, nextFilters: Record<string, any>) => {
@@ -245,15 +323,26 @@ export function AppTable<T>({
   const inlineItems = filterItems.slice(0, 4)
   const sidebarItems = filterItems.slice(4)
 
-  // Lock body scroll when sidebar filter is open
+  // Lock body scroll when sidebar filter is open.
+  // Compensate mất scrollbar bằng padding-right để content không dịch trái,
+  // tránh hiện tượng "gap trắng lồi" ở rìa phải khi drawer mở.
   useEffect(() => {
-    if (showFiltersPanel && sidebarItems.length > 0) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
+    if (!(showFiltersPanel && sidebarItems.length > 0)) return
+
+    const body = document.body
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
+    const prevOverflow = body.style.overflow
+    const prevPaddingRight = body.style.paddingRight
+
+    body.style.overflow = 'hidden'
+    if (scrollbarWidth > 0) {
+      const currentPadding = parseInt(window.getComputedStyle(body).paddingRight, 10) || 0
+      body.style.paddingRight = `${currentPadding + scrollbarWidth}px`
     }
+
     return () => {
-      document.body.style.overflow = ''
+      body.style.overflow = prevOverflow
+      body.style.paddingRight = prevPaddingRight
     }
   }, [showFiltersPanel, sidebarItems.length])
 
@@ -451,7 +540,19 @@ export function AppTable<T>({
                   style={{ width: col.width, textAlign: col.align || 'left' }}
                   className="font-semibold text-neutral-600"
                 >
-                  {col.title}
+                  {col.key === '__check' ? (
+                    <input
+                      ref={headerCheckboxRef}
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-300 cursor-pointer"
+                      checked={selection.allSelected}
+                      onChange={selection.toggleAll}
+                      aria-label="Chọn tất cả dòng"
+                      title="Chọn tất cả dòng đang hiển thị"
+                    />
+                  ) : (
+                    col.title
+                  )}
                 </TableHead>
               ))}
             </TableRow>
@@ -484,67 +585,183 @@ export function AppTable<T>({
             {/* Data Rows */}
             {!isLoading &&
               !isEmpty &&
-              displayData.map((row, rowIndex) => (
-                <TableRow key={rowIndex}>
-                  {allColumns.map((col) => {
-                    if (col.key === '__stt') {
+              displayData.map((row, rowIndex) => {
+                const rowSelected = selectable && selection.isSelected(row)
+                return (
+                  <TableRow
+                    key={rowIndex}
+                    className={rowSelected ? 'bg-primary-50/40 hover:bg-primary-50/60' : undefined}
+                  >
+                    {allColumns.map((col) => {
+                      if (col.key === '__check') {
+                        return (
+                          <TableCell key="__check" style={{ textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-300 cursor-pointer"
+                              checked={rowSelected}
+                              onChange={(e) => {
+                                e.stopPropagation()
+                                selection.toggleRow(row)
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label="Chọn dòng"
+                            />
+                          </TableCell>
+                        )
+                      }
+                      if (col.key === '__stt') {
+                        return (
+                          <TableCell key="__stt" style={{ textAlign: 'center' }}>
+                            {(displayPageIndex - 1) * displayPageSize + rowIndex + 1}
+                          </TableCell>
+                        )
+                      }
+                      const value = col.dataIndex ? row[col.dataIndex] : undefined
                       return (
-                        <TableCell key="__stt" style={{ textAlign: 'center' }}>
-                          {(displayPageIndex - 1) * displayPageSize + rowIndex + 1}
+                        <TableCell
+                          key={colKey(col)}
+                          style={{ textAlign: col.align || 'left' }}
+                        >
+                          {col.render
+                            ? col.render(value, row, rowIndex)
+                            : (value as React.ReactNode)}
                         </TableCell>
                       )
-                    }
-                    const value = col.dataIndex ? row[col.dataIndex] : undefined
-                    return (
-                      <TableCell
-                        key={colKey(col)}
-                        style={{ textAlign: col.align || 'left' }}
-                      >
-                        {col.render
-                          ? col.render(value, row, rowIndex)
-                          : (value as React.ReactNode)}
-                      </TableCell>
-                    )
-                  })}
-                </TableRow>
-              ))}
+                    })}
+                  </TableRow>
+                )
+              })}
           </TableBody>
         </Table>
       </div>
 
-      {/* Pagination Footer */}
-      {!isLoading && displayTotalElements > 0 && (
-        <div className="flex items-center justify-between px-2 text-sm">
-          <div className="text-neutral-500">
-            Hiển thị{' '}
+      {/* Bulk-action bar — sticky bottom khi có selection */}
+      {selectable && (
+        <BulkSelectionBar
+          selectedCount={selection.count}
+          totalCount={displayTotalElements}
+          onDeselect={selection.clear}
+          offsetLeftClass={bulkBarOffsetLeftClass}
+          actions={
+            <>
+              {(bulkActions || [])
+                .filter((a) => !a.hidden?.(selection.selectedRows))
+                .map((action) => {
+                  const Icon = action.icon
+                  const isRunning = runningActionKey === action.key
+                  const isDisabled =
+                    isRunning ||
+                    !!runningActionKey ||
+                    !!action.disabled?.(selection.selectedRows)
+                  return (
+                    <Button
+                      key={action.key}
+                      size="sm"
+                      variant={action.variant ?? 'outline'}
+                      disabled={isDisabled}
+                      onClick={() => handleBulkClick(action)}
+                      className="gap-1.5"
+                    >
+                      {Icon && <Icon size={14} />}
+                      {isRunning ? 'Đang xử lý…' : action.label}
+                    </Button>
+                  )
+                })}
+            </>
+          }
+        />
+      )}
+
+      {/* ============================================================
+          Pagination Footer — hiển thị nhất quán bất kể số records
+          - Ẩn khi loading hoặc totalElements = 0 (empty state đã show).
+          - `hidePaginationWhenSinglePage`: tuỳ chọn ẩn nếu chỉ 1 page.
+          - Left  : range + total
+          - Right : size selector + prev / N-M / next + jump-to-first/last
+          ============================================================ */}
+      {!isLoading && displayTotalElements > 0 &&
+        !(hidePaginationWhenSinglePage && displayTotalPages <= 1) && (
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-2 py-2 text-sm border-t border-neutral-100">
+          {/* --- LEFT: range info --- */}
+          <div className="text-neutral-500 flex items-center gap-1.5 flex-wrap">
+            <span>Hiển thị</span>
             <span className="font-medium text-neutral-900">
               {Math.min((displayPageIndex - 1) * displayPageSize + 1, displayTotalElements)}
-            </span>{' '}
-            -{' '}
+            </span>
+            <span>–</span>
             <span className="font-medium text-neutral-900">
               {Math.min(displayPageIndex * displayPageSize, displayTotalElements)}
-            </span>{' '}
-            trong tổng số <span className="font-medium text-neutral-900">{displayTotalElements}</span> bản ghi
+            </span>
+            <span>của</span>
+            <span className="font-medium text-neutral-900">{displayTotalElements}</span>
+            <span>bản ghi</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handlePageChange(displayPageIndex - 1, displayPageSize)}
-              disabled={displayPageIndex <= 1}
-              className="flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-surface text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span className="px-2 font-medium text-neutral-700">
-              Trang {displayPageIndex} / {displayTotalPages || 1}
-            </span>
-            <button
-              onClick={() => handlePageChange(displayPageIndex + 1, displayPageSize)}
-              disabled={displayPageIndex >= displayTotalPages}
-              className="flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-surface text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight size={16} />
-            </button>
+          {/* --- RIGHT: size selector + navigation --- */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Page-size selector — user luôn thấy quyền chọn 10/20/50/100
+                dù có ít record. Ẩn nếu pageSizeOptions rỗng. */}
+            {pageSizeOptions.length > 0 && (
+              <label className="inline-flex items-center gap-1.5 text-neutral-500">
+                <span className="text-xs">Hiển thị</span>
+                <select
+                  value={displayPageSize}
+                  onChange={(e) => handlePageChange(1, Number(e.target.value))}
+                  className="h-8 rounded-lg border border-border bg-surface text-neutral-800 text-xs font-medium px-2 pr-6 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none transition"
+                >
+                  {pageSizeOptions.map((n) => (
+                    <option key={n} value={n}>{n} / trang</option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {/* Navigation cluster */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => handlePageChange(1, displayPageSize)}
+                disabled={displayPageIndex <= 1}
+                title="Trang đầu"
+                className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-surface text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft size={14} />
+                <ChevronLeft size={14} className="-ml-2.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePageChange(displayPageIndex - 1, displayPageSize)}
+                disabled={displayPageIndex <= 1}
+                title="Trang trước"
+                className="flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-surface text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="px-2 min-w-[70px] text-center text-neutral-700 text-xs">
+                Trang <b className="text-neutral-900">{displayPageIndex}</b> /{' '}
+                <b className="text-neutral-900">{displayTotalPages || 1}</b>
+              </span>
+              <button
+                type="button"
+                onClick={() => handlePageChange(displayPageIndex + 1, displayPageSize)}
+                disabled={displayPageIndex >= displayTotalPages}
+                title="Trang sau"
+                className="flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-surface text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePageChange(displayTotalPages || 1, displayPageSize)}
+                disabled={displayPageIndex >= displayTotalPages}
+                title="Trang cuối"
+                className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-surface text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight size={14} />
+                <ChevronRight size={14} className="-ml-2.5" />
+              </button>
+            </div>
           </div>
         </div>
       )}

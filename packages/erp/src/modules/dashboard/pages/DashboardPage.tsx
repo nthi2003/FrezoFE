@@ -1,230 +1,415 @@
-import { 
-  useDashboardSummary, 
-  useExportAttendance, 
-  useProfitChart, 
-  usePriceFluctuation, 
-  useMarketComparison, 
-  useLoginByDay 
-} from '../hooks/useDashboard'
-import { ShoppingBag, TrendingUp, Users, AlertTriangle, Download, Loader2, ArrowUpRight, ArrowDownRight, Package } from 'lucide-react'
-import { Button } from '@frezo/ui'
-import { Skeleton } from '@frezo/ui'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts'
-import { AppTable } from '@/components/ui/AppTable'
+// ============================================================
+// FREZO ERP — Dashboard Page (redesigned)
+// Header + greeting theo giờ · 8 KPI cards · 4 charts · Feed · Quick actions.
+// Tách các section thành sub-component trong dashboard/components/.
+// ============================================================
 
-function StatCard({ title, value, subtitle, icon: Icon, colorClass, isLoading }: any) {
-  return (
-    <div className="relative overflow-hidden p-6 bg-white rounded-2xl border border-neutral-100 shadow-sm hover:shadow-md transition-shadow group">
-      <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10 ${colorClass.split(' ')[0]} group-hover:scale-150 transition-transform duration-500`}></div>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-neutral-500 mb-1">{title}</p>
-          {isLoading ? (
-            <Skeleton className="h-8 w-24 mb-1" />
-          ) : (
-            <h3 className="text-2xl font-bold text-neutral-900">{value}</h3>
-          )}
-          {subtitle && (
-            <p className="text-xs font-medium mt-2 flex items-center gap-1">
-              {subtitle}
-            </p>
-          )}
-        </div>
-        <div className={`p-3 rounded-xl ${colorClass}`}>
-          <Icon size={22} />
-        </div>
-      </div>
-    </div>
-  )
+import { useMemo } from 'react'
+import {
+  DollarSign, Wallet, ShoppingBag, AlertTriangle, Users,
+  UserCheck, CalendarClock, CheckSquare,
+} from 'lucide-react'
+import { PageHeader } from '@frezo/ui'
+import { formatCurrency, formatCurrencyShort } from '@frezo/utils'
+import { useAuthStore } from '@/stores/authStore'
+import { useDashboardSummary } from '../hooks/useDashboard'
+import {
+  useInvoices, usePipelines, usePipelineStages, useDealsByPipeline,
+} from '../../crm/hooks/useCrm'
+import { usePayrolls } from '../../qlns/hooks/usePayroll'
+import { useLeaveRequests } from '../../qlns/hooks/useLeave'
+import { useTasks } from '../../tasks/hooks/useTask'
+import type { Deal, Invoice } from '../../crm/services/crmApi'
+import type { LeaveRequestItem } from '../../qlns/services/leaveApi'
+
+import { KpiCard } from '../components/KpiCard'
+import { RevenueChart, type RevenueChartPoint } from '../components/RevenueChart'
+import { TopCustomersChart, type TopCustomerRow } from '../components/TopCustomersChart'
+import { CostBreakdown, type CostSlice } from '../components/CostBreakdown'
+import { PipelineFunnel, type FunnelRow } from '../components/PipelineFunnel'
+import { ActivityFeed, type FeedItem } from '../components/ActivityFeed'
+import { QuickActions } from '../components/QuickActions'
+
+// ============================================================
+// Helpers
+// ============================================================
+
+function getGreeting(): string {
+  const h = new Date().getHours()
+  if (h < 12) return 'Chào buổi sáng'
+  if (h < 18) return 'Chào buổi chiều'
+  return 'Chào buổi tối'
 }
 
-function formatCurrency(val: number) {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0)
+function getISOWeek(d: Date): number {
+  const target = new Date(d.valueOf())
+  const dayNr = (d.getDay() + 6) % 7
+  target.setDate(target.getDate() - dayNr + 3)
+  const firstThursday = target.valueOf()
+  target.setMonth(0, 1)
+  if (target.getDay() !== 4) {
+    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7)
+  }
+  return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000)
 }
+
+function startOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1)
+}
+
+function startOfYear(d: Date): Date {
+  return new Date(d.getFullYear(), 0, 1)
+}
+
+// Sum invoices theo tháng (past 12 months, key = "MM/YY")
+function buildRevenueSeries(invoices: Invoice[], payrolls: PayrollLike[]): RevenueChartPoint[] {
+  const now = new Date()
+  const months: RevenueChartPoint[] = []
+  const invByMonth = new Map<string, number>()
+  const costByMonth = new Map<string, number>()
+
+  invoices.forEach((v) => {
+    if (!v.issuedDate) return
+    if (v.status !== 'PAID' && v.status !== 'PARTIALLY_PAID' && v.status !== 'ISSUED') return
+    const d = new Date(v.issuedDate)
+    const key = `${d.getMonth() + 1}/${String(d.getFullYear()).slice(-2)}`
+    invByMonth.set(key, (invByMonth.get(key) || 0) + (v.total || 0))
+  })
+
+  payrolls.forEach((p) => {
+    const month = p.month ?? p.periodMonth
+    const year = p.year ?? p.periodYear
+    if (!month || !year) return
+    const key = `${month}/${String(year).slice(-2)}`
+    costByMonth.set(key, (costByMonth.get(key) || 0) + (p.netAmount ?? p.totalNet ?? p.netSalary ?? 0))
+  })
+
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const key = `${d.getMonth() + 1}/${String(d.getFullYear()).slice(-2)}`
+    months.push({
+      month: key,
+      revenue: invByMonth.get(key) || 0,
+      cost: costByMonth.get(key) || 0,
+    })
+  }
+  return months
+}
+
+interface PayrollLike {
+  month?: number
+  year?: number
+  periodMonth?: number
+  periodYear?: number
+  netAmount?: number
+  totalNet?: number
+  netSalary?: number
+}
+
+interface StageLike {
+  id: string
+  name: string
+  orderNo: number
+}
+
+// ============================================================
+// Main Dashboard
+// ============================================================
 
 export function DashboardPage() {
+  const user = useAuthStore((s) => s.user)
+  const now = useMemo(() => new Date(), [])
+  const monthStart = useMemo(() => startOfMonth(now), [now])
+  const yearStart = useMemo(() => startOfYear(now), [now])
+
+  // ---- Data ----
   const { data: summary, isLoading: sumLoading } = useDashboardSummary()
-  const { data: profitData, isLoading: profitLoading } = useProfitChart(30)
-  const { data: priceData, isLoading: priceLoading } = usePriceFluctuation()
-  const { data: marketData, isLoading: marketLoading } = useMarketComparison()
-  const { data: loginData, isLoading: loginLoading } = useLoginByDay()
-  
-  const exportReq = useExportAttendance()
+  const { data: invoicesRaw, isLoading: invLoading } = useInvoices()
+  const { data: payrollsRaw, isLoading: payLoading } = usePayrolls()
+  const { data: leavesRaw, isLoading: leaveLoading } = useLeaveRequests(1, 100)
+  const { data: tasksRaw, isLoading: taskLoading } = useTasks()
+  const { data: pipelines } = usePipelines()
+
+  const pipelineList = (pipelines as { id: string; isDefault?: boolean }[] | undefined) ?? []
+  const defaultPipelineId = pipelineList.find((p) => p.isDefault)?.id ?? pipelineList[0]?.id
+  const { data: stagesRaw } = usePipelineStages(defaultPipelineId)
+  const { data: dealsRaw, isLoading: dealsLoading } = useDealsByPipeline(defaultPipelineId)
+
+  // ---- Cast ----
+  const invoices = (invoicesRaw as Invoice[] | undefined) ?? []
+  const payrolls = (payrollsRaw as PayrollLike[] | undefined) ?? []
+  const leaves = (leavesRaw as LeaveRequestItem[] | undefined) ?? []
+  const tasks = (tasksRaw as { id: string; status?: string; title?: string; createdDate?: string }[] | undefined) ?? []
+  const deals = (dealsRaw as Deal[] | undefined) ?? []
+  const stages = (stagesRaw as StageLike[] | undefined) ?? []
+
+  // ---- Derived KPIs ----
+  const revenueThisMonth = useMemo(
+    () =>
+      invoices
+        .filter((v) => v.issuedDate && new Date(v.issuedDate) >= monthStart)
+        .filter((v) => v.status === 'PAID' || v.status === 'PARTIALLY_PAID' || v.status === 'ISSUED')
+        .reduce((s, v) => s + (v.total || 0), 0),
+    [invoices, monthStart],
+  )
+
+  const revenueLastMonth = useMemo(() => {
+    const lastStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const lastEnd = monthStart
+    return invoices
+      .filter((v) => v.issuedDate && new Date(v.issuedDate) >= lastStart && new Date(v.issuedDate) < lastEnd)
+      .reduce((s, v) => s + (v.total || 0), 0)
+  }, [invoices, monthStart, now])
+
+  const revenueDeltaPct = revenueLastMonth > 0
+    ? ((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100
+    : undefined
+
+  const payrollCostThisMonth = useMemo(() => {
+    return payrolls
+      .filter((p) => (p.month ?? p.periodMonth) === now.getMonth() + 1
+        && (p.year ?? p.periodYear) === now.getFullYear())
+      .reduce((s, p) => s + (p.netAmount ?? p.totalNet ?? p.netSalary ?? 0), 0)
+  }, [payrolls, now])
+
+  const openDeals = useMemo(
+    () => deals.filter((d) => d.status === 'OPEN' || d.status === 'STALLED'),
+    [deals],
+  )
+  const openDealsValue = useMemo(
+    () => openDeals.reduce((s, d) => s + (d.amount || 0), 0),
+    [openDeals],
+  )
+
+  const overdueInvoices = useMemo(() => {
+    const nowMs = now.getTime()
+    return invoices.filter(
+      (v) =>
+        (v.status === 'ISSUED' || v.status === 'PARTIALLY_PAID') &&
+        v.dueDate && new Date(v.dueDate).getTime() < nowMs,
+    )
+  }, [invoices, now])
+
+  const pendingLeaves = useMemo(
+    () => leaves.filter((l) => l.status === 'PENDING_MANAGER' || l.status === 'PENDING_HR' || l.status === 'PENDING'),
+    [leaves],
+  )
+
+  const incompleteTasks = useMemo(
+    () => tasks.filter((t) => t.status !== 'DONE'),
+    [tasks],
+  )
+
+  // ---- Charts data ----
+  const revenueSeries = useMemo(
+    () => buildRevenueSeries(invoices, payrolls),
+    [invoices, payrolls],
+  )
+
+  const topCustomers: TopCustomerRow[] = useMemo(() => {
+    const map = new Map<string, { name: string; revenue: number }>()
+    invoices
+      .filter(
+        (v) =>
+          v.issuedDate && new Date(v.issuedDate) >= yearStart &&
+          (v.status === 'PAID' || v.status === 'PARTIALLY_PAID'),
+      )
+      .forEach((v) => {
+        const key = v.customerId || v.customerName || 'unknown'
+        const prev = map.get(key)
+        const name = v.customerName || 'Khách vãng lai'
+        const amt = v.paidAmount || 0
+        if (prev) prev.revenue += amt
+        else map.set(key, { name, revenue: amt })
+      })
+    return Array.from(map.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5)
+  }, [invoices, yearStart])
+
+  const costBreakdown: CostSlice[] = useMemo(() => {
+    const payroll = payrollCostThisMonth
+    // Estimate ratio — nếu có BE endpoint chi tiết sẽ thay ở tương lai
+    const bhxh = payroll * 0.235
+    const opex = payroll * 0.4
+    const other = payroll * 0.15
+    return [
+      { name: 'Lương', value: payroll, color: '#3b82f6' },
+      { name: 'BHXH & phúc lợi', value: bhxh, color: '#8b5cf6' },
+      { name: 'Vận hành', value: opex, color: '#f59e0b' },
+      { name: 'Khác', value: other, color: '#94a3b8' },
+    ]
+  }, [payrollCostThisMonth])
+
+  const funnel: FunnelRow[] = useMemo(() => {
+    if (!stages.length) return []
+    const ordered = [...stages].sort((a, b) => a.orderNo - b.orderNo)
+    return ordered.map((s) => {
+      const inStage = openDeals.filter((d) => d.stageId === s.id)
+      return {
+        name: s.name,
+        count: inStage.length,
+        amount: inStage.reduce((sum, d) => sum + (d.amount || 0), 0),
+      }
+    })
+  }, [stages, openDeals])
+
+  // ---- Activity feed (merge 3 sources) ----
+  const feed: FeedItem[] = useMemo(() => {
+    const items: FeedItem[] = []
+    leaves.slice(0, 8).forEach((l) => {
+      if (!l.createdDate) return
+      items.push({
+        id: `leave-${l.id}`,
+        kind: 'leave',
+        title: `${l.personName || 'Nhân sự'} xin nghỉ ${l.leaveType}`,
+        subtitle: `${l.durationDays || 1} ngày · ${l.status}`,
+        timestamp: l.createdDate,
+      })
+    })
+    deals.slice(0, 8).forEach((d) => {
+      if (!d.createdDate) return
+      items.push({
+        id: `deal-${d.id}`,
+        kind: 'deal',
+        title: `Deal ${d.title}`,
+        subtitle: `${d.customerName || 'Chưa gán KH'} · ${formatCurrencyShort(d.amount)}`,
+        timestamp: d.createdDate,
+      })
+    })
+    invoices.slice(0, 8).forEach((v) => {
+      const ts = v.issuedDate || undefined
+      if (!ts) return
+      items.push({
+        id: `inv-${v.id}`,
+        kind: 'invoice',
+        title: `Hoá đơn ${v.code}`,
+        subtitle: `${v.customerName || 'KH'} · ${formatCurrencyShort(v.total)}`,
+        timestamp: ts,
+      })
+    })
+    return items
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 10)
+  }, [leaves, deals, invoices])
+
+  // ---- Header ----
+  const greeting = getGreeting()
+  const week = getISOWeek(now)
+  const dateStr = now.toLocaleDateString('vi-VN', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  })
+  const userLabel = user?.fullName || user?.username || 'bạn'
+
+  const totalEmployees = summary?.totalEmployees ?? 0
+  const todayAttendance = summary?.todayAttendance ?? 0
+  const attendancePct = totalEmployees > 0
+    ? Math.round((todayAttendance / totalEmployees) * 100)
+    : 0
+
+  const chartsLoading = invLoading || payLoading || dealsLoading
 
   return (
-    <div className="space-y-6 animate-fade-in p-6 bg-neutral-50/50 min-h-[calc(100vh-64px)]">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">Tổng quan Hoạt động</h1>
-          <p className="text-neutral-500 text-sm mt-1">Dữ liệu được cập nhật theo thời gian thực từ hệ thống</p>
-        </div>
-        <div className="flex gap-3">
-          <Button onClick={() => exportReq.mutate()} disabled={exportReq.isPending} variant="outline" className="bg-white">
-            {exportReq.isPending ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Download size={16} className="mr-2" />}
-            Xuất báo cáo
-          </Button>
-        </div>
+    <div className="p-6 space-y-5 animate-fade-in bg-neutral-50/50 min-h-[calc(100vh-64px)]">
+      <PageHeader
+        title={
+          <span>
+            {greeting}, <span className="text-primary-700">{userLabel}</span>{' '}
+            <span className="text-primary-500">👋</span>
+          </span>
+        }
+        description={`Hôm nay là ${dateStr[0].toUpperCase() + dateStr.slice(1)} · Tuần ${week}`}
+      />
+
+      {/* KPI grid 4x2 */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+        <KpiCard
+          title="Doanh thu tháng"
+          value={formatCurrency(revenueThisMonth)}
+          icon={DollarSign}
+          tone="emerald"
+          isLoading={invLoading}
+          deltaPercent={revenueDeltaPct}
+          hint="Từ hoá đơn phát hành"
+        />
+        <KpiCard
+          title="Chi phí lương tháng"
+          value={formatCurrency(payrollCostThisMonth)}
+          icon={Wallet}
+          tone="blue"
+          isLoading={payLoading}
+          hint={`${payrolls.filter((p) => (p.month ?? p.periodMonth) === now.getMonth() + 1).length} bảng lương`}
+        />
+        <KpiCard
+          title="Deal đang mở"
+          value={String(openDeals.length)}
+          icon={ShoppingBag}
+          tone="violet"
+          isLoading={dealsLoading}
+          hint={formatCurrency(openDealsValue)}
+        />
+        <KpiCard
+          title="HĐ quá hạn"
+          value={String(overdueInvoices.length)}
+          icon={AlertTriangle}
+          tone={overdueInvoices.length > 0 ? 'rose' : 'teal'}
+          isLoading={invLoading}
+          hint={overdueInvoices.length ? 'Cần thu hồi công nợ' : 'Trong hạn'}
+        />
+        <KpiCard
+          title="Nhân sự hoạt động"
+          value={String(totalEmployees)}
+          icon={Users}
+          tone="indigo"
+          isLoading={sumLoading}
+          hint={summary?.newEmployees ? `+${summary.newEmployees} mới trong tháng` : undefined}
+        />
+        <KpiCard
+          title="Chấm công hôm nay"
+          value={`${attendancePct}%`}
+          icon={UserCheck}
+          tone="teal"
+          isLoading={sumLoading}
+          hint={`${todayAttendance}/${totalEmployees} người`}
+        />
+        <KpiCard
+          title="Đơn nghỉ chờ duyệt"
+          value={String(pendingLeaves.length)}
+          icon={CalendarClock}
+          tone="amber"
+          isLoading={leaveLoading}
+          hint={pendingLeaves.length ? 'Cần bạn xử lý' : 'Không có đơn tồn'}
+        />
+        <KpiCard
+          title="Task chưa xong"
+          value={String(incompleteTasks.length)}
+          icon={CheckSquare}
+          tone="orange"
+          isLoading={taskLoading}
+          hint={`Trong ${tasks.length} task`}
+        />
       </div>
 
-      {/* Row 1: Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard 
-          title="Đơn hàng hôm nay" 
-          value={summary?.ordersToday || 0} 
-          icon={ShoppingBag} 
-          colorClass="bg-blue-50 text-blue-600" 
-          isLoading={sumLoading}
-          subtitle={<span className="text-blue-600">Phát sinh trong ngày</span>}
-        />
-        <StatCard 
-          title="Đơn hàng tháng này" 
-          value={summary?.ordersThisMonth || 0} 
-          icon={Package} 
-          colorClass="bg-indigo-50 text-indigo-600" 
-          isLoading={sumLoading}
-          subtitle={
-            summary?.ordersChangePercent >= 0 
-              ? <span className="text-green-600 flex items-center"><ArrowUpRight size={14}/> +{summary?.ordersChangePercent}% so với tháng trước</span>
-              : <span className="text-red-600 flex items-center"><ArrowDownRight size={14}/> {summary?.ordersChangePercent}% so với tháng trước</span>
-          }
-        />
-        <StatCard 
-          title="Doanh thu tháng (Tạm tính)" 
-          value={formatCurrency(summary?.revenueThisMonth)} 
-          icon={TrendingUp} 
-          colorClass="bg-green-50 text-green-600" 
-          isLoading={sumLoading}
-          subtitle={<span className="text-green-600">Đã bao gồm VAT</span>}
-        />
-        <StatCard 
-          title="Tổng nhân sự" 
-          value={summary?.totalEmployees || 0} 
-          icon={Users} 
-          colorClass="bg-orange-50 text-orange-600" 
-          isLoading={sumLoading}
-          subtitle={<span className="text-orange-600">+{summary?.newEmployees || 0} nhân sự mới tháng này</span>}
-        />
-        <StatCard 
-          title="Cảnh báo tồn kho" 
-          value={summary?.lowStockProducts || 0} 
-          icon={AlertTriangle} 
-          colorClass="bg-red-50 text-red-600" 
-          isLoading={sumLoading}
-          subtitle={<span className="text-red-600">Sản phẩm sắp hết hàng</span>}
+      {/* Charts row 1: Revenue (2/3) + Top customers (1/3) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <RevenueChart data={revenueSeries} isLoading={chartsLoading} />
+        </div>
+        <TopCustomersChart data={topCustomers} isLoading={invLoading} />
+      </div>
+
+      {/* Charts row 2: Cost donut + Funnel + Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <CostBreakdown data={costBreakdown} isLoading={payLoading} />
+        <PipelineFunnel data={funnel} isLoading={dealsLoading} />
+        <ActivityFeed
+          items={feed}
+          isLoading={leaveLoading || dealsLoading || invLoading}
         />
       </div>
 
-      {/* Row 2: Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-neutral-100 shadow-sm">
-          <h3 className="text-base font-semibold text-neutral-900 mb-6">Biểu đồ Doanh thu & Lợi nhuận (30 ngày)</h3>
-          {profitLoading ? (
-            <div className="h-[300px] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary-500" /></div>
-          ) : profitData?.length > 0 ? (
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={profitData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#16a34a" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#16a34a" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="date" tickFormatter={(v) => v.substring(5)} axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} dy={10} />
-                  <YAxis tickFormatter={(v) => `${v / 1000000}M`} axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} dx={-10} />
-                  <CartesianGrid vertical={false} stroke="#f5f5f5" />
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                  <Legend iconType="circle" />
-                  <Area type="monotone" dataKey="revenue" name="Doanh thu" stroke="#16a34a" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
-                  <Area type="monotone" dataKey="cost" name="Giá vốn" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorCost)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-neutral-400">Không có dữ liệu biểu đồ</div>
-          )}
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-neutral-100 shadow-sm">
-          <h3 className="text-base font-semibold text-neutral-900 mb-6">Thống kê Đăng nhập (7 ngày)</h3>
-          {loginLoading ? (
-            <div className="h-[300px] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary-500" /></div>
-          ) : loginData?.length > 0 ? (
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={loginData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid vertical={false} stroke="#f5f5f5" />
-                  <XAxis dataKey="date" tickFormatter={(v) => v.substring(5)} axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} />
-                  <Tooltip cursor={{fill: '#f9fafb'}} />
-                  <Bar dataKey="count" name="Lượt đăng nhập" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-neutral-400">Không có dữ liệu</div>
-          )}
-        </div>
-      </div>
-
-      {/* Row 3: Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-5 border-b border-neutral-100">
-            <h3 className="text-base font-semibold text-neutral-900">Biến động giá thị trường (Top)</h3>
-          </div>
-          <div className="p-0 flex-1 overflow-auto">
-            <AppTable 
-              data={priceData || []} 
-              isLoading={priceLoading}
-              columns={[
-                { title: 'Sản phẩm', dataIndex: 'productName' },
-                { title: 'Giá hôm qua', dataIndex: 'oldPrice', render: (v: number) => formatCurrency(v) },
-                { title: 'Giá hôm nay', dataIndex: 'newPrice', render: (v: number) => <span className="font-semibold">{formatCurrency(v)}</span> },
-                { 
-                  title: 'Biến động', 
-                  dataIndex: 'changePercent', 
-                  render: (v: number) => (
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${v > 0 ? 'bg-green-100 text-green-700' : v < 0 ? 'bg-red-100 text-red-700' : 'bg-neutral-100 text-neutral-700'}`}>
-                      {v > 0 ? '+' : ''}{v}%
-                    </span>
-                  ) 
-                }
-              ]}
-            />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-5 border-b border-neutral-100">
-            <h3 className="text-base font-semibold text-neutral-900">So sánh giá Chợ đầu mối</h3>
-          </div>
-          <div className="p-0 flex-1 overflow-auto">
-            <AppTable 
-              data={marketData || []} 
-              isLoading={marketLoading}
-              columns={[
-                { title: 'Sản phẩm', dataIndex: 'productName' },
-                { title: 'Giá nội bộ', dataIndex: 'internalPrice', render: (v: number) => <span className="text-primary-700 font-medium">{formatCurrency(v)}</span> },
-                { title: 'Giá thị trường', dataIndex: 'marketPrice', render: (v: number) => formatCurrency(v) },
-                { 
-                  title: 'Chênh lệch', 
-                  dataIndex: 'diffPercent', 
-                  render: (v: number) => (
-                    <span className={`text-sm font-medium ${v > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {v > 0 ? '+' : ''}{v}%
-                    </span>
-                  ) 
-                }
-              ]}
-            />
-          </div>
-        </div>
-      </div>
+      {/* Quick actions */}
+      <QuickActions />
     </div>
   )
 }

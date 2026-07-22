@@ -1,15 +1,22 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Save, Building2, Settings, Clock, MapPin, DollarSign, Users, RefreshCw, FileText } from 'lucide-react'
-import { Button } from '@frezo/ui'
-import { Input } from '@frezo/ui'
-import { Select } from '@frezo/ui'
-import { Switch } from '@frezo/ui'
+// ============================================================
+// FREZO — SettingsPage v2
+// Vercel/GitHub-inspired: sticky sidebar + section cards + floating save bar
+// ============================================================
+
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
-  useOrganizations,
-  useSettingByOrg,
-  useUpdateOrgSetting,
-  useCreateOrgSetting,
+  Save, Building2, Settings, Clock, MapPin, DollarSign, Users, RefreshCw, FileText,
+  Sparkles, ChevronRight, Check, Loader2,
+  type LucideIcon,
+} from 'lucide-react'
+import { Button, Input, Select, Switch } from '@frezo/ui'
+import {
+  useOrganizations, useSettingByOrg, useUpdateOrgSetting, useCreateOrgSetting,
 } from '@/modules/qtht/hooks/useAttendanceSettings'
+
+// ============================================================
+// Types
+// ============================================================
 
 interface SettingsForm {
   orgId: string
@@ -63,50 +70,26 @@ interface SettingsForm {
 
 const defaultForm: SettingsForm = {
   orgId: '',
-  isAttendance: true,
-  isEmail: false,
-  isSwap: false,
-  isColor: false,
-  allowLate: true,
-  requireAvatar: false,
-  requireCV: false,
-  requireHealthCert: false,
-  autoApproveArticle: false,
-  requireManager: false,
+  isAttendance: true, isEmail: false, isSwap: false, isColor: false, allowLate: true,
+  requireAvatar: false, requireCV: false, requireHealthCert: false, autoApproveArticle: false, requireManager: false,
   articleApprover: '',
-  morningStart: '08:00',
-  morningEnd: '12:00',
-  afternoonStart: '13:00',
-  afternoonEnd: '17:30',
-  maxMembers: 100,
-  maxPosts: 1000,
+  morningStart: '08:00', morningEnd: '12:00', afternoonStart: '13:00', afternoonEnd: '17:30',
+  maxMembers: 100, maxPosts: 1000,
   details: {
     attendance: {
-      standardHours: 8,
-      halfDayThreshold: 4.5,
-      lateThreshold: 0,
-      earlyThreshold: 0,
-      overtimeBeforeThreshold: 0,
-      overtimeAfterThreshold: 0,
-      isAutoAttendance: false,
-      maxShiftsPerDay: 2,
-      minGapBetweenShifts: 60,
+      standardHours: 8, halfDayThreshold: 4.5,
+      lateThreshold: 0, earlyThreshold: 0,
+      overtimeBeforeThreshold: 0, overtimeAfterThreshold: 0,
+      isAutoAttendance: false, maxShiftsPerDay: 2, minGapBetweenShifts: 60,
     },
     payroll: {
-      calculationStartDay: 1,
-      standardWorkingDays: 22,
-      latePenaltyPerMinute: 10000,
-      overtimePayPerMinute: 20000,
-      isAutoGeneratePayroll: false,
-      isAutoUpdatePayroll: false,
-      revenueType: 'NET',
+      calculationStartDay: 1, standardWorkingDays: 22,
+      latePenaltyPerMinute: 10000, overtimePayPerMinute: 20000,
+      isAutoGeneratePayroll: false, isAutoUpdatePayroll: false, revenueType: 'NET',
     },
     geo: {
-      officeLatitude: 10.8231,
-      officeLongitude: 106.6297,
-      allowedRadiusMeters: 300,
-      allowedWifiSsids: '',
-      allowedWifiBssids: '',
+      officeLatitude: 10.8231, officeLongitude: 106.6297,
+      allowedRadiusMeters: 300, allowedWifiSsids: '', allowedWifiBssids: '',
     },
   },
 }
@@ -121,7 +104,7 @@ function parseSetting(data: any): SettingsForm {
         payroll: { ...defaultForm.details.payroll, ...parsed.payroll },
         geo: { ...defaultForm.details.geo, ...parsed.geo },
       }
-    } catch {}
+    } catch { /* keep default */ }
   }
   return {
     orgId: data?.orgId || '',
@@ -146,44 +129,56 @@ function parseSetting(data: any): SettingsForm {
   }
 }
 
-function SectionHeader({ icon: Icon, title, description }: { icon: any; title: string; description?: string }) {
-  return (
-    <div className="flex items-center gap-3 pb-4 border-b border-neutral-200">
-      <div className="p-2 rounded-lg bg-primary-50 text-primary-700">
-        <Icon size={18} />
-      </div>
-      <div>
-        <h3 className="text-base font-semibold text-neutral-900">{title}</h3>
-        {description && <p className="text-xs text-neutral-500">{description}</p>}
-      </div>
-    </div>
-  )
+// ============================================================
+// Nav items (Vercel-style categories)
+// ============================================================
+
+interface NavItem {
+  id: string
+  label: string
+  icon: LucideIcon
+  description: string
+}
+interface NavGroup {
+  label: string
+  items: NavItem[]
 }
 
-function FormRow({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`flex items-center gap-4 ${className || ''}`}>
-      <label className="text-sm text-neutral-700 min-w-[160px] shrink-0">{label}</label>
-      <div className="flex-1 max-w-sm">{children}</div>
-    </div>
-  )
-}
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: 'Chung',
+    items: [
+      { id: 'general',  label: 'Tính năng',      icon: Sparkles,   description: 'Bật/tắt module' },
+      { id: 'schedule', label: 'Lịch làm việc',  icon: Clock,      description: 'Khung giờ chuẩn' },
+    ],
+  },
+  {
+    label: 'Chấm công & Lương',
+    items: [
+      { id: 'attendance', label: 'Chấm công', icon: RefreshCw, description: 'Đi muộn, OT' },
+      { id: 'geo',        label: 'Định vị',   icon: MapPin,    description: 'GPS & WiFi' },
+      { id: 'payroll',    label: 'Bảng lương',icon: DollarSign,description: 'Kỳ lương, phạt/OT' },
+    ],
+  },
+  {
+    label: 'Nhân sự & Bài viết',
+    items: [
+      { id: 'hr',      label: 'Hồ sơ nhân sự', icon: Users,    description: 'Yêu cầu bắt buộc' },
+      { id: 'article', label: 'Bài viết & CMS',icon: FileText, description: 'Duyệt bài' },
+    ],
+  },
+]
+const ALL_NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items)
 
-function ToggleRow({ label, description, checked, onChange }: { label: string; description?: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div className="flex items-center justify-between py-3">
-      <div>
-        <p className="text-sm font-medium text-neutral-800">{label}</p>
-        {description && <p className="text-xs text-neutral-500">{description}</p>}
-      </div>
-      <Switch checked={checked} onChange={onChange} />
-    </div>
-  )
-}
+// ============================================================
+// Page
+// ============================================================
 
 export function SettingsPage() {
   const [form, setForm] = useState<SettingsForm>(defaultForm)
+  const [initialForm, setInitialForm] = useState<SettingsForm>(defaultForm)
   const [selectedOrgId, setSelectedOrgId] = useState('')
+  const [activeTab, setActiveTab] = useState('general')
 
   const { data: orgList } = useOrganizations()
   const { data: settingData, isLoading: loadingSetting } = useSettingByOrg(selectedOrgId || null)
@@ -195,303 +190,513 @@ export function SettingsPage() {
     return orgList.map((o: any) => ({ value: o.value || o.id, label: o.label || o.name }))
   }, [orgList])
 
+  const selectedOrg = useMemo(
+    () => orgOptions.find((o) => o.value === selectedOrgId),
+    [orgOptions, selectedOrgId],
+  )
+
   useEffect(() => {
     if (settingData) {
-      setForm(parseSetting(settingData))
+      const parsed = parseSetting(settingData)
+      setForm(parsed)
+      setInitialForm(parsed)
+    } else if (selectedOrgId) {
+      // No existing setting → start with defaults but keep orgId
+      const withOrg = { ...defaultForm, orgId: selectedOrgId }
+      setForm(withOrg)
+      setInitialForm(withOrg)
     }
-  }, [settingData])
+  }, [settingData, selectedOrgId])
 
-  const updateField = <K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }))
-  }
-
-  const updateDetailsField = (section: 'attendance' | 'payroll' | 'geo', key: string, value: any) => {
-    setForm((prev) => ({
-      ...prev,
-      details: {
-        ...prev.details,
-        [section]: {
-          ...prev.details[section],
-          [key]: value,
-        },
-      },
-    }))
-  }
+  // Detect dirty
+  const isDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initialForm), [form, initialForm])
 
   const isSaving = updateSetting.isPending || createSetting.isPending
 
+  // Field updates
+  const updateField = <K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }))
+  }
+  const updateDetailsField = (section: 'attendance' | 'payroll' | 'geo', key: string, value: any) => {
+    setForm((prev) => ({
+      ...prev,
+      details: { ...prev.details, [section]: { ...prev.details[section], [key]: value } },
+    }))
+  }
+
   const handleSave = () => {
     const orgId = form.orgId || selectedOrgId
-
     const payload = {
       ...(settingData?.id && { id: settingData.id }),
       orgId,
-      isAttendance: form.isAttendance,
-      isEmail: form.isEmail,
-      isSwap: form.isSwap,
-      isColor: form.isColor,
+      isAttendance: form.isAttendance, isEmail: form.isEmail, isSwap: form.isSwap, isColor: form.isColor,
       allowLate: form.allowLate,
-      requireAvatar: form.requireAvatar,
-      requireCV: form.requireCV,
-      requireHealthCert: form.requireHealthCert,
-      autoApproveArticle: form.autoApproveArticle,
-      requireManager: form.requireManager,
+      requireAvatar: form.requireAvatar, requireCV: form.requireCV, requireHealthCert: form.requireHealthCert,
+      autoApproveArticle: form.autoApproveArticle, requireManager: form.requireManager,
       articleApprover: form.articleApprover,
-      morningStart: form.morningStart,
-      morningEnd: form.morningEnd,
-      afternoonStart: form.afternoonStart,
-      afternoonEnd: form.afternoonEnd,
-      maxMembers: form.maxMembers,
-      maxPosts: form.maxPosts,
+      morningStart: form.morningStart, morningEnd: form.morningEnd,
+      afternoonStart: form.afternoonStart, afternoonEnd: form.afternoonEnd,
+      maxMembers: form.maxMembers, maxPosts: form.maxPosts,
       details: JSON.stringify(form.details),
     }
-
     if (settingData?.id) {
       updateSetting.mutate({ id: settingData.id, data: payload }, {
-        onError: () => {},
+        onSuccess: () => setInitialForm(form),
       })
     } else {
       createSetting.mutate(payload, {
-        onError: () => {},
+        onSuccess: () => setInitialForm(form),
       })
     }
   }
 
-  const inputClass = 'h-10 text-sm'
-  const [activeTab, setActiveTab] = useState('general')
+  const handleDiscard = () => {
+    setForm(initialForm)
+  }
 
-  const TABS = [
-    { id: 'general', label: 'Chung', icon: Settings },
-    { id: 'schedule', label: 'Thời gian & Vị trí', icon: Clock },
-    { id: 'attendance', label: 'Chấm công', icon: RefreshCw },
-    { id: 'payroll', label: 'Tiền lương', icon: DollarSign },
-    { id: 'hr', label: 'Nhân sự & Khác', icon: Users },
-  ]
+  // Section refs for scroll-into-view
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const scrollToSection = (id: string) => {
+    setActiveTab(id)
+    const el = sectionRefs.current[id]
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
+  // ============================================================
+  // Render
+  // ============================================================
   return (
-    <div className="p-6 space-y-6 animate-fade-in max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 flex items-center gap-2">
-            <Settings className="text-primary-600" />
-            Cài đặt Hệ thống
-          </h1>
-          <p className="text-sm text-neutral-500 mt-1">Cấu hình toàn bộ tham số hệ thống cho tổ chức</p>
-        </div>
-        <Button onClick={handleSave} disabled={!selectedOrgId || isSaving} className="gap-2">
-          <Save size={16} />
-          {isSaving ? 'Đang lưu...' : 'Lưu cài đặt'}
-        </Button>
-      </div>
-
-      {/* Org Selector */}
-      <div className="bg-white rounded-xl border border-neutral-200 p-5">
-        <div className="flex items-center gap-4">
-          <Building2 size={20} className="text-neutral-400" />
-          <label className="text-sm font-medium text-neutral-700 shrink-0">Tổ chức</label>
-          <div className="w-80">
-            <Select
-              options={orgOptions}
-              value={selectedOrgId}
-              onChange={(v) => { setSelectedOrgId(v); setForm(defaultForm) }}
-              placeholder="Chọn tổ chức..."
-              showSearch
-            />
-          </div>
-        </div>
-      </div>
-
-      {loadingSetting && (
-        <div className="flex items-center justify-center py-16">
-          <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-          <span className="ml-3 text-sm text-neutral-500">Đang tải cấu hình...</span>
-        </div>
-      )}
-
-      {!loadingSetting && selectedOrgId && (
-        <div className="flex flex-col md:flex-row gap-6 items-start">
-          {/* Sidebar Tabs */}
-          <div className="w-full md:w-64 shrink-0 space-y-1.5 sticky top-6">
-            {TABS.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-primary-50 text-primary-700 shadow-sm border border-primary-100'
-                    : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 border border-transparent'
-                }`}
-              >
-                <tab.icon size={18} className={activeTab === tab.id ? 'text-primary-600' : 'text-neutral-400'} />
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Main Content Area */}
-          <div className="flex-1 space-y-6 w-full min-w-0">
-            {activeTab === 'general' && (
-              <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-1 animate-fade-in shadow-sm">
-                <SectionHeader icon={Settings} title="Tính năng chung" description="Bật/tắt các tính năng chính của hệ thống" />
-                <div className="divide-y divide-neutral-100">
-                  <ToggleRow label="Chấm công" description="Cho phép nhân viên check-in/check-out" checked={form.isAttendance} onChange={(v) => updateField('isAttendance', v)} />
-                  <ToggleRow label="Email" description="Bật tính năng gửi email từ hệ thống" checked={form.isEmail} onChange={(v) => updateField('isEmail', v)} />
-                  <ToggleRow label="Đổi ca" description="Cho phép nhân viên đổi ca làm việc" checked={form.isSwap} onChange={(v) => updateField('isSwap', v)} />
-                  <ToggleRow label="Tùy chỉnh màu sắc" description="Cho phép tùy chỉnh giao diện màu sắc" checked={form.isColor} onChange={(v) => updateField('isColor', v)} />
-                  <ToggleRow label="Cho phép đi muộn" description="Không tính là vi phạm nếu check-in sau giờ bắt đầu" checked={form.allowLate} onChange={(v) => updateField('allowLate', v)} />
-                </div>
+    <div className="min-h-[calc(100vh-64px)] bg-neutral-50/40">
+      {/* ==================== Hero header ==================== */}
+      <div className="bg-white border-b border-neutral-200">
+        <div className="max-w-6xl mx-auto px-6 py-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 mb-1 inline-flex items-center gap-1">
+                <Settings size={11} /> Cài đặt hệ thống
               </div>
-            )}
-
-            {activeTab === 'schedule' && (
-              <div className="space-y-6 animate-fade-in">
-                {/* 2. Work Schedule */}
-                <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4 shadow-sm">
-                  <SectionHeader icon={Clock} title="Lịch làm việc" description="Khung giờ chấm công cho toàn hệ thống" />
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-4">
-                    <FormRow label="Giờ bắt đầu sáng">
-                      <Input type="time" value={form.morningStart} onChange={(e) => updateField('morningStart', e.target.value)} className={inputClass} />
-                    </FormRow>
-                    <FormRow label="Giờ kết thúc sáng">
-                      <Input type="time" value={form.morningEnd} onChange={(e) => updateField('morningEnd', e.target.value)} className={inputClass} />
-                    </FormRow>
-                    <FormRow label="Giờ bắt đầu chiều">
-                      <Input type="time" value={form.afternoonStart} onChange={(e) => updateField('afternoonStart', e.target.value)} className={inputClass} />
-                    </FormRow>
-                    <FormRow label="Giờ kết thúc chiều">
-                      <Input type="time" value={form.afternoonEnd} onChange={(e) => updateField('afternoonEnd', e.target.value)} className={inputClass} />
-                    </FormRow>
-                  </div>
-                </div>
-
-                {/* 3. Geo Attendance */}
-                <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4 shadow-sm">
-                  <SectionHeader icon={MapPin} title="Định vị chấm công" description="Cấu hình vị trí văn phòng để check-in qua GPS & WiFi" />
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-4">
-                    <FormRow label="Vĩ độ (Latitude)">
-                      <Input type="number" step="any" value={form.details.geo.officeLatitude} onChange={(e) => updateDetailsField('geo', 'officeLatitude', parseFloat(e.target.value) || 0)} className={inputClass} />
-                    </FormRow>
-                    <FormRow label="Kinh độ (Longitude)">
-                      <Input type="number" step="any" value={form.details.geo.officeLongitude} onChange={(e) => updateDetailsField('geo', 'officeLongitude', parseFloat(e.target.value) || 0)} className={inputClass} />
-                    </FormRow>
-                    <FormRow label="Bán kính cho phép (m)">
-                      <Input type="number" value={form.details.geo.allowedRadiusMeters} onChange={(e) => updateDetailsField('geo', 'allowedRadiusMeters', parseInt(e.target.value) || 0)} className={inputClass} />
-                    </FormRow>
-                    <FormRow label="WiFi SSID">
-                      <Input value={form.details.geo.allowedWifiSsids} onChange={(e) => updateDetailsField('geo', 'allowedWifiSsids', e.target.value)} className={inputClass} placeholder="SSID1, SSID2" />
-                    </FormRow>
-                    <FormRow label="WiFi BSSID" className="col-span-2">
-                      <Input value={form.details.geo.allowedWifiBssids} onChange={(e) => updateDetailsField('geo', 'allowedWifiBssids', e.target.value)} className={`${inputClass} max-w-md`} placeholder="AA:BB:CC:DD:EE:FF" />
-                    </FormRow>
-                  </div>
-                </div>
+              <h1 className="text-2xl font-bold text-neutral-900 truncate">
+                {selectedOrg?.label || 'Cấu hình toàn hệ thống'}
+              </h1>
+              <p className="text-sm text-neutral-500 mt-1">
+                Quản lý cách hệ thống vận hành với từng tổ chức — chấm công, lương, hồ sơ nhân sự và tính năng chung.
+              </p>
+            </div>
+            <div className="shrink-0 w-full max-w-xs">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 mb-1">
+                Tổ chức áp dụng
               </div>
-            )}
-
-            {activeTab === 'attendance' && (
-              <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4 shadow-sm animate-fade-in">
-                <SectionHeader icon={RefreshCw} title="Quy tắc chấm công" description="Ngưỡng xác định đi muộn, nửa ngày, tăng ca" />
-                <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-4">
-                  <FormRow label="Số giờ tiêu chuẩn/ngày">
-                    <Input type="number" value={form.details.attendance.standardHours} onChange={(e) => updateDetailsField('attendance', 'standardHours', parseInt(e.target.value) || 8)} className={inputClass} />
-                  </FormRow>
-                  <FormRow label="Ngưỡng nửa ngày (giờ)">
-                    <Input type="number" step="0.5" value={form.details.attendance.halfDayThreshold} onChange={(e) => updateDetailsField('attendance', 'halfDayThreshold', parseFloat(e.target.value) || 4.5)} className={inputClass} />
-                  </FormRow>
-                  <FormRow label="Delay đi muộn (phút)">
-                    <Input type="number" value={form.details.attendance.lateThreshold} onChange={(e) => updateDetailsField('attendance', 'lateThreshold', parseInt(e.target.value) || 0)} className={inputClass} />
-                  </FormRow>
-                  <FormRow label="Delay về sớm (phút)">
-                    <Input type="number" value={form.details.attendance.earlyThreshold} onChange={(e) => updateDetailsField('attendance', 'earlyThreshold', parseInt(e.target.value) || 0)} className={inputClass} />
-                  </FormRow>
-                  <FormRow label="OT trước giờ (phút)">
-                    <Input type="number" value={form.details.attendance.overtimeBeforeThreshold} onChange={(e) => updateDetailsField('attendance', 'overtimeBeforeThreshold', parseInt(e.target.value) || 0)} className={inputClass} />
-                  </FormRow>
-                  <FormRow label="OT sau giờ (phút)">
-                    <Input type="number" value={form.details.attendance.overtimeAfterThreshold} onChange={(e) => updateDetailsField('attendance', 'overtimeAfterThreshold', parseInt(e.target.value) || 0)} className={inputClass} />
-                  </FormRow>
-                  <FormRow label="Số ca tối đa/ngày">
-                    <Input type="number" value={form.details.attendance.maxShiftsPerDay} onChange={(e) => updateDetailsField('attendance', 'maxShiftsPerDay', parseInt(e.target.value) || 2)} className={inputClass} />
-                  </FormRow>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'payroll' && (
-              <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-4 shadow-sm animate-fade-in">
-                <SectionHeader icon={DollarSign} title="Liên kết bảng lương" description="Cấu hình cách dữ liệu chấm công ảnh hưởng đến tính lương" />
-                <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-4">
-                  <FormRow label="Ngày công chuẩn/tháng">
-                    <Input type="number" value={form.details.payroll.standardWorkingDays} onChange={(e) => updateDetailsField('payroll', 'standardWorkingDays', parseInt(e.target.value) || 22)} className={inputClass} />
-                  </FormRow>
-                  <FormRow label="Ngày bắt đầu tính lương">
-                    <Input type="number" value={form.details.payroll.calculationStartDay} onChange={(e) => updateDetailsField('payroll', 'calculationStartDay', parseInt(e.target.value) || 1)} className={inputClass} />
-                  </FormRow>
-                  <FormRow label="Phạt đi muộn (VNĐ/phút)">
-                    <Input type="number" value={form.details.payroll.latePenaltyPerMinute} onChange={(e) => updateDetailsField('payroll', 'latePenaltyPerMinute', parseInt(e.target.value) || 0)} className={inputClass} />
-                  </FormRow>
-                  <FormRow label="Lương OT (VNĐ/phút)">
-                    <Input type="number" value={form.details.payroll.overtimePayPerMinute} onChange={(e) => updateDetailsField('payroll', 'overtimePayPerMinute', parseInt(e.target.value) || 0)} className={inputClass} />
-                  </FormRow>
-                  <div className="col-span-2 space-y-2 mt-4 bg-neutral-50 p-4 rounded-xl border border-neutral-100">
-                    <ToggleRow label="Tự động tạo bảng lương" description="Tự động tính lương cuối kỳ" checked={form.details.payroll.isAutoGeneratePayroll} onChange={(v) => updateDetailsField('payroll', 'isAutoGeneratePayroll', v)} />
-                    <ToggleRow label="Tự động cập nhật lương" description="Cập nhật lương khi có thay đổi chấm công" checked={form.details.payroll.isAutoUpdatePayroll} onChange={(v) => updateDetailsField('payroll', 'isAutoUpdatePayroll', v)} />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'hr' && (
-              <div className="space-y-6 animate-fade-in">
-                {/* 6. HR Settings */}
-                <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-1 shadow-sm">
-                  <SectionHeader icon={Users} title="Nhân sự" description="Cấu hình yêu cầu hồ sơ nhân viên" />
-                  <div className="divide-y divide-neutral-100">
-                    <ToggleRow label="Yêu cầu ảnh đại diện" description="Bắt buộc nhân viên có ảnh đại diện" checked={form.requireAvatar} onChange={(v) => updateField('requireAvatar', v)} />
-                    <ToggleRow label="Yêu cầu CV" description="Bắt buộc tải lên CV" checked={form.requireCV} onChange={(v) => updateField('requireCV', v)} />
-                    <ToggleRow label="Yêu cầu giấy khám sức khỏe" description="Bắt buộc tải lên giấy khám sức khỏe" checked={form.requireHealthCert} onChange={(v) => updateField('requireHealthCert', v)} />
-                    <ToggleRow label="Yêu cầu quản lý duyệt" description="Cần quản lý phê duyệt một số thao tác" checked={form.requireManager} onChange={(v) => updateField('requireManager', v)} />
-                    <FormRow label="Số thành viên tối đa" className="py-3">
-                      <Input type="number" value={form.maxMembers} onChange={(e) => updateField('maxMembers', parseInt(e.target.value) || 0)} className={inputClass} />
-                    </FormRow>
-                    <FormRow label="Số bài viết tối đa" className="py-3">
-                      <Input type="number" value={form.maxPosts} onChange={(e) => updateField('maxPosts', parseInt(e.target.value) || 0)} className={inputClass} />
-                    </FormRow>
-                  </div>
-                </div>
-
-                {/* 7. Article Settings */}
-                <div className="bg-white rounded-xl border border-neutral-200 p-6 md:p-7 space-y-1 shadow-sm">
-                  <SectionHeader icon={FileText} title="Bài viết & CMS" description="Cấu hình duyệt bài viết" />
-                  <div className="divide-y divide-neutral-100">
-                    <ToggleRow label="Tự động duyệt bài viết" description="Bài viết được đăng ngay không cần duyệt" checked={form.autoApproveArticle} onChange={(v) => updateField('autoApproveArticle', v)} />
-                    <FormRow label="Người duyệt bài viết" className="py-3">
-                      <Input value={form.articleApprover} onChange={(e) => updateField('articleApprover', e.target.value)} className={inputClass} placeholder="ID người duyệt" />
-                    </FormRow>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Save Button Bottom */}
-            <div className="flex justify-end pt-4">
-              <Button onClick={handleSave} disabled={!selectedOrgId || isSaving} className="gap-2 px-8 h-11 text-base shadow-sm">
-                <Save size={18} />
-                {isSaving ? 'Đang lưu...' : 'Lưu cài đặt thay đổi'}
-              </Button>
+              <Select
+                options={orgOptions}
+                value={selectedOrgId}
+                onChange={(v) => setSelectedOrgId(v)}
+                placeholder="Chọn tổ chức..."
+                showSearch
+              />
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {!loadingSetting && !selectedOrgId && (
-        <div className="bg-white rounded-xl border border-neutral-200 p-16 text-center">
-          <Building2 className="w-16 h-16 mx-auto mb-4 text-neutral-200" />
-          <p className="text-neutral-500 text-lg">Chọn tổ chức để xem và chỉnh sửa cài đặt hệ thống</p>
+      {/* ==================== Body ==================== */}
+      <div className="max-w-6xl mx-auto px-6 py-6">
+        {!selectedOrgId ? (
+          <EmptyOrgState />
+        ) : loadingSetting ? (
+          <div className="flex items-center justify-center py-24">
+            <Loader2 size={22} className="animate-spin text-primary-500" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6 items-start">
+            {/* Sidebar (sticky) */}
+            <aside className="sticky top-6 self-start space-y-4">
+              {NAV_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-3 mb-1.5">
+                    {group.label}
+                  </div>
+                  <nav className="space-y-0.5">
+                    {group.items.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => scrollToSection(item.id)}
+                        className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all group ${
+                          activeTab === item.id
+                            ? 'bg-primary-50 text-primary-800 font-semibold border border-primary-100'
+                            : 'text-neutral-600 hover:bg-neutral-100 border border-transparent'
+                        }`}
+                      >
+                        <item.icon
+                          size={14}
+                          className={activeTab === item.id ? 'text-primary-600' : 'text-neutral-400'}
+                        />
+                        <span className="flex-1 truncate">{item.label}</span>
+                        <ChevronRight
+                          size={12}
+                          className={activeTab === item.id ? 'text-primary-600' : 'text-transparent group-hover:text-neutral-300'}
+                        />
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+              ))}
+            </aside>
+
+            {/* Content */}
+            <div className="space-y-6 min-w-0 pb-24">
+              {/* General — Features */}
+              <Section
+                id="general"
+                icon={Sparkles}
+                title="Tính năng chung"
+                description="Bật/tắt các module chính. Tắt module sẽ ẩn menu và chức năng liên quan cho tất cả user thuộc tổ chức này."
+                sectionRefs={sectionRefs}
+              >
+                <SwitchList>
+                  <SwitchRow label="Chấm công"
+                    description="Cho phép nhân viên check-in/check-out qua web/app"
+                    checked={form.isAttendance} onChange={(v) => updateField('isAttendance', v)} />
+                  <SwitchRow label="Email hệ thống"
+                    description="Bật notification/marketing email từ Frezo"
+                    checked={form.isEmail} onChange={(v) => updateField('isEmail', v)} />
+                  <SwitchRow label="Đổi ca làm việc"
+                    description="Nhân viên có thể tự xin đổi ca với đồng nghiệp"
+                    checked={form.isSwap} onChange={(v) => updateField('isSwap', v)} />
+                  <SwitchRow label="Tuỳ biến màu sắc"
+                    description="Cho user chọn theme màu riêng"
+                    checked={form.isColor} onChange={(v) => updateField('isColor', v)} />
+                  <SwitchRow label="Cho phép đi muộn"
+                    description="Không tính vi phạm khi check-in sau giờ bắt đầu"
+                    checked={form.allowLate} onChange={(v) => updateField('allowLate', v)} />
+                </SwitchList>
+              </Section>
+
+              {/* Schedule */}
+              <Section
+                id="schedule"
+                icon={Clock}
+                title="Lịch làm việc"
+                description="Khung giờ chuẩn cho toàn tổ chức. Nhân viên đặc thù có thể có ca riêng."
+                sectionRefs={sectionRefs}
+              >
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <Field label="Bắt đầu sáng">
+                    <Input type="time" value={form.morningStart} onChange={(e) => updateField('morningStart', e.target.value)} className="h-9 text-sm" />
+                  </Field>
+                  <Field label="Kết thúc sáng">
+                    <Input type="time" value={form.morningEnd} onChange={(e) => updateField('morningEnd', e.target.value)} className="h-9 text-sm" />
+                  </Field>
+                  <Field label="Bắt đầu chiều">
+                    <Input type="time" value={form.afternoonStart} onChange={(e) => updateField('afternoonStart', e.target.value)} className="h-9 text-sm" />
+                  </Field>
+                  <Field label="Kết thúc chiều">
+                    <Input type="time" value={form.afternoonEnd} onChange={(e) => updateField('afternoonEnd', e.target.value)} className="h-9 text-sm" />
+                  </Field>
+                </div>
+              </Section>
+
+              {/* Attendance rules */}
+              <Section
+                id="attendance"
+                icon={RefreshCw}
+                title="Quy tắc chấm công"
+                description="Ngưỡng xác định đi muộn, nửa ngày, tăng ca — ảnh hưởng trực tiếp đến lương."
+                sectionRefs={sectionRefs}
+              >
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <Field label="Số giờ tiêu chuẩn/ngày">
+                    <NumberInput value={form.details.attendance.standardHours} onChange={(v) => updateDetailsField('attendance', 'standardHours', v)} min={1} max={24} />
+                  </Field>
+                  <Field label="Ngưỡng nửa ngày (giờ)">
+                    <NumberInput step={0.5} value={form.details.attendance.halfDayThreshold} onChange={(v) => updateDetailsField('attendance', 'halfDayThreshold', v)} />
+                  </Field>
+                  <Field label="Trễ chấp nhận (phút)" hint="Ví dụ 5 → check-in trong 5 phút không tính muộn">
+                    <NumberInput value={form.details.attendance.lateThreshold} onChange={(v) => updateDetailsField('attendance', 'lateThreshold', v)} />
+                  </Field>
+                  <Field label="Về sớm chấp nhận (phút)">
+                    <NumberInput value={form.details.attendance.earlyThreshold} onChange={(v) => updateDetailsField('attendance', 'earlyThreshold', v)} />
+                  </Field>
+                  <Field label="OT trước giờ (phút)" hint="Tính OT nếu đến sớm ≥ ngưỡng">
+                    <NumberInput value={form.details.attendance.overtimeBeforeThreshold} onChange={(v) => updateDetailsField('attendance', 'overtimeBeforeThreshold', v)} />
+                  </Field>
+                  <Field label="OT sau giờ (phút)">
+                    <NumberInput value={form.details.attendance.overtimeAfterThreshold} onChange={(v) => updateDetailsField('attendance', 'overtimeAfterThreshold', v)} />
+                  </Field>
+                  <Field label="Số ca tối đa/ngày">
+                    <NumberInput value={form.details.attendance.maxShiftsPerDay} onChange={(v) => updateDetailsField('attendance', 'maxShiftsPerDay', v)} min={1} max={5} />
+                  </Field>
+                  <Field label="Nghỉ giữa 2 ca (phút)">
+                    <NumberInput value={form.details.attendance.minGapBetweenShifts} onChange={(v) => updateDetailsField('attendance', 'minGapBetweenShifts', v)} />
+                  </Field>
+                </div>
+              </Section>
+
+              {/* Geo */}
+              <Section
+                id="geo"
+                icon={MapPin}
+                title="Định vị chấm công"
+                description="Giới hạn địa lý — nhân viên phải trong bán kính hoặc kết nối WiFi công ty để check-in hợp lệ."
+                sectionRefs={sectionRefs}
+              >
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <Field label="Vĩ độ văn phòng">
+                    <NumberInput step="any" value={form.details.geo.officeLatitude} onChange={(v) => updateDetailsField('geo', 'officeLatitude', v)} />
+                  </Field>
+                  <Field label="Kinh độ văn phòng">
+                    <NumberInput step="any" value={form.details.geo.officeLongitude} onChange={(v) => updateDetailsField('geo', 'officeLongitude', v)} />
+                  </Field>
+                  <Field label="Bán kính cho phép (m)" hint="Khuyến nghị 100–500m tuỳ diện tích văn phòng">
+                    <NumberInput value={form.details.geo.allowedRadiusMeters} onChange={(v) => updateDetailsField('geo', 'allowedRadiusMeters', v)} />
+                  </Field>
+                  <Field label="WiFi SSID cho phép" hint="Tên WiFi công ty, cách nhau bằng dấu phẩy">
+                    <Input value={form.details.geo.allowedWifiSsids} onChange={(e) => updateDetailsField('geo', 'allowedWifiSsids', e.target.value)} placeholder="Frezo-Office, Frezo-Guest" className="h-9 text-sm" />
+                  </Field>
+                  <div className="col-span-2">
+                    <Field label="WiFi BSSID (MAC) — tuỳ chọn" hint="Chính xác hơn SSID, khó bị giả mạo">
+                      <Input value={form.details.geo.allowedWifiBssids} onChange={(e) => updateDetailsField('geo', 'allowedWifiBssids', e.target.value)} placeholder="AA:BB:CC:DD:EE:FF" className="h-9 text-sm font-mono" />
+                    </Field>
+                  </div>
+                </div>
+              </Section>
+
+              {/* Payroll */}
+              <Section
+                id="payroll"
+                icon={DollarSign}
+                title="Bảng lương"
+                description="Kỳ tính lương và hệ số quy đổi công/OT thành tiền."
+                sectionRefs={sectionRefs}
+              >
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <Field label="Ngày công chuẩn / tháng">
+                    <NumberInput value={form.details.payroll.standardWorkingDays} onChange={(v) => updateDetailsField('payroll', 'standardWorkingDays', v)} min={1} max={31} />
+                  </Field>
+                  <Field label="Ngày bắt đầu kỳ lương" hint="1 = tính từ đầu tháng dương lịch">
+                    <NumberInput value={form.details.payroll.calculationStartDay} onChange={(v) => updateDetailsField('payroll', 'calculationStartDay', v)} min={1} max={28} />
+                  </Field>
+                  <Field label="Phạt đi muộn (VNĐ/phút)">
+                    <NumberInput value={form.details.payroll.latePenaltyPerMinute} onChange={(v) => updateDetailsField('payroll', 'latePenaltyPerMinute', v)} />
+                  </Field>
+                  <Field label="Lương OT (VNĐ/phút)">
+                    <NumberInput value={form.details.payroll.overtimePayPerMinute} onChange={(v) => updateDetailsField('payroll', 'overtimePayPerMinute', v)} />
+                  </Field>
+                </div>
+                <div className="mt-4">
+                  <SwitchList compact>
+                    <SwitchRow label="Tự động tạo bảng lương"
+                      description="Tự động khởi tạo payroll draft khi hết chu kỳ"
+                      checked={form.details.payroll.isAutoGeneratePayroll}
+                      onChange={(v) => updateDetailsField('payroll', 'isAutoGeneratePayroll', v)} />
+                    <SwitchRow label="Tự động cập nhật khi có thay đổi chấm công"
+                      description="Recompute payroll khi có adjustment"
+                      checked={form.details.payroll.isAutoUpdatePayroll}
+                      onChange={(v) => updateDetailsField('payroll', 'isAutoUpdatePayroll', v)} />
+                  </SwitchList>
+                </div>
+              </Section>
+
+              {/* HR */}
+              <Section
+                id="hr"
+                icon={Users}
+                title="Hồ sơ nhân sự"
+                description="Yêu cầu bắt buộc khi tạo/cập nhật hồ sơ nhân viên và giới hạn dung lượng."
+                sectionRefs={sectionRefs}
+              >
+                <SwitchList>
+                  <SwitchRow label="Ảnh đại diện"
+                    description="Bắt buộc upload avatar khi tạo hồ sơ"
+                    checked={form.requireAvatar} onChange={(v) => updateField('requireAvatar', v)} />
+                  <SwitchRow label="CV / Sơ yếu lý lịch"
+                    description="Bắt buộc upload file CV (PDF/DOCX)"
+                    checked={form.requireCV} onChange={(v) => updateField('requireCV', v)} />
+                  <SwitchRow label="Giấy khám sức khoẻ"
+                    description="Bắt buộc chứng nhận y tế"
+                    checked={form.requireHealthCert} onChange={(v) => updateField('requireHealthCert', v)} />
+                  <SwitchRow label="Yêu cầu quản lý duyệt"
+                    description="Một số thao tác nhạy cảm cần manager approve"
+                    checked={form.requireManager} onChange={(v) => updateField('requireManager', v)} />
+                </SwitchList>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 mt-4">
+                  <Field label="Số nhân viên tối đa">
+                    <NumberInput value={form.maxMembers} onChange={(v) => updateField('maxMembers', v)} />
+                  </Field>
+                  <Field label="Số bài viết tối đa">
+                    <NumberInput value={form.maxPosts} onChange={(v) => updateField('maxPosts', v)} />
+                  </Field>
+                </div>
+              </Section>
+
+              {/* Article */}
+              <Section
+                id="article"
+                icon={FileText}
+                title="Bài viết & CMS"
+                description="Quy trình đăng và duyệt bài viết trong hệ thống."
+                sectionRefs={sectionRefs}
+              >
+                <SwitchList>
+                  <SwitchRow label="Tự động duyệt bài viết"
+                    description="Bài viết được publish ngay, không cần approval"
+                    checked={form.autoApproveArticle} onChange={(v) => updateField('autoApproveArticle', v)} />
+                </SwitchList>
+                <div className="mt-3">
+                  <Field label="Người duyệt bài mặc định" hint="ID hoặc username của user có quyền duyệt">
+                    <Input value={form.articleApprover} onChange={(e) => updateField('articleApprover', e.target.value)} placeholder="username hoặc user ID" className="h-9 text-sm" />
+                  </Field>
+                </div>
+              </Section>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ==================== Floating save bar (Vercel-style) ==================== */}
+      {selectedOrgId && isDirty && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 animate-fade-in">
+          <div className="bg-neutral-900 text-white rounded-2xl shadow-2xl px-4 py-2.5 flex items-center gap-3 border border-neutral-800">
+            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+            <span className="text-sm font-medium">Bạn có thay đổi chưa lưu</span>
+            <div className="w-px h-6 bg-neutral-700 mx-1" />
+            <button
+              type="button"
+              onClick={handleDiscard}
+              className="text-xs font-medium text-neutral-300 hover:text-white px-2 py-1 rounded transition"
+            >
+              Huỷ
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="inline-flex items-center gap-1.5 bg-white text-neutral-900 hover:bg-neutral-100 disabled:opacity-70 disabled:cursor-not-allowed rounded-lg px-3 py-1.5 text-xs font-semibold transition"
+            >
+              {isSaving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+              Lưu thay đổi
+            </button>
+          </div>
         </div>
       )}
 
+      {/* Success flash when saved */}
+      {selectedOrgId && !isDirty && !loadingSetting && settingData && (
+        <div className="fixed bottom-4 right-4 z-30 opacity-0 pointer-events-none">
+          <div className="inline-flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg shadow-lg">
+            <Check size={12} /> Đã lưu
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+// ============================================================
+// Sub-components
+// ============================================================
+
+function EmptyOrgState() {
+  return (
+    <div className="bg-white border border-neutral-200 rounded-2xl p-16 text-center shadow-sm">
+      <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-neutral-100 to-neutral-200 flex items-center justify-center mb-4">
+        <Building2 size={30} className="text-neutral-400" />
+      </div>
+      <h3 className="text-base font-bold text-neutral-800">Chọn tổ chức để cấu hình</h3>
+      <p className="text-sm text-neutral-500 mt-1">
+        Mỗi tổ chức có bộ cài đặt riêng — chọn ở dropdown trên đầu để bắt đầu.
+      </p>
+    </div>
+  )
+}
+
+interface SectionProps {
+  id: string
+  icon: LucideIcon
+  title: string
+  description?: string
+  children: React.ReactNode
+  sectionRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>
+}
+function Section({ id, icon: Icon, title, description, children, sectionRefs }: SectionProps) {
+  return (
+    <div
+      id={`section-${id}`}
+      ref={(el) => { sectionRefs.current[id] = el }}
+      className="bg-white border border-neutral-200 rounded-2xl shadow-sm overflow-hidden scroll-mt-24"
+    >
+      <div className="px-6 py-4 border-b border-neutral-100 flex items-start gap-3 bg-neutral-50/40">
+        <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
+          <Icon size={15} />
+        </div>
+        <div className="min-w-0">
+          <h3 className="text-base font-bold text-neutral-900">{title}</h3>
+          {description && <p className="text-xs text-neutral-500 mt-0.5">{description}</p>}
+        </div>
+      </div>
+      <div className="p-6">{children}</div>
+    </div>
+  )
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <label className="block text-xs font-semibold text-neutral-700">{label}</label>
+      {children}
+      {hint && <p className="text-[10px] text-neutral-400 mt-0.5">{hint}</p>}
+    </div>
+  )
+}
+
+function SwitchList({ children, compact = false }: { children: React.ReactNode; compact?: boolean }) {
+  return (
+    <div className={`divide-y divide-neutral-100 ${compact ? '-mt-2 -mx-2' : ''}`}>
+      {children}
+    </div>
+  )
+}
+
+interface SwitchRowProps {
+  label: string
+  description?: string
+  checked: boolean
+  onChange: (v: boolean) => void
+}
+function SwitchRow({ label, description, checked, onChange }: SwitchRowProps) {
+  return (
+    <div className="flex items-center justify-between py-3">
+      <div className="min-w-0 pr-3">
+        <div className="text-sm font-semibold text-neutral-800">{label}</div>
+        {description && <div className="text-xs text-neutral-500 mt-0.5">{description}</div>}
+      </div>
+      <Switch checked={checked} onChange={onChange} />
+    </div>
+  )
+}
+
+interface NumberInputProps {
+  value: number
+  onChange: (v: number) => void
+  min?: number
+  max?: number
+  step?: number | 'any'
+}
+function NumberInput({ value, onChange, min, max, step }: NumberInputProps) {
+  return (
+    <Input
+      type="number"
+      value={value}
+      step={step as any}
+      min={min}
+      max={max}
+      onChange={(e) => {
+        const raw = e.target.value
+        if (raw === '') return onChange(0)
+        const n = parseFloat(raw)
+        if (!isNaN(n)) onChange(n)
+      }}
+      className="h-9 text-sm tabular-nums font-mono"
+    />
   )
 }

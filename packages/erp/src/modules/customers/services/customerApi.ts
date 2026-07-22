@@ -23,8 +23,8 @@ export const customerApi = {
 }
 
 export const nccApi = {
-  getAll: () =>
-    axiosClient.get<ApiResponse<any>>('/ncc/all').then(res => res.data),
+  getAll: (params?: any) =>
+    axiosClient.get<ApiResponse<any>>('/ncc/all', { params }).then(res => res.data),
   getById: (id: string) =>
     axiosClient.get<ApiResponse<any>>(`/ncc/${id}`).then(res => res.data),
   create: (data: any) =>
@@ -33,8 +33,20 @@ export const nccApi = {
     axiosClient.put<ApiResponse<any>>(`/ncc/${id}`, data).then(res => res.data),
   delete: (id: string) =>
     axiosClient.delete<ApiResponse<any>>(`/ncc/${id}`).then(res => res.data),
-  uploadCertificate: (id: string, data: any) =>
-    axiosClient.post<ApiResponse<any>>('/ncc/upload-certificate', data).then(res => res.data),
+  /** Upload file scan cho chứng chỉ của NCC.
+   *  Backend nhận @RequestParam nccCode + @RequestParam file (multipart).
+   *  Trả về URL file (string) trong `data`.
+   */
+  uploadCertificate: (nccCode: string, file: File) => {
+    const fd = new FormData()
+    fd.append('nccCode', nccCode || 'temp')
+    fd.append('file', file)
+    return axiosClient
+      .post<ApiResponse<any>>('/ncc/upload-certificate', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then(res => res.data)
+  },
 }
 
 export const voucherApi = {

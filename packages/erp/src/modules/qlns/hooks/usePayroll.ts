@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { unwrapList } from '@frezo/utils'
 import { payrollApi } from '../services/payrollApi'
 import { toast } from 'sonner'
 
@@ -6,7 +7,7 @@ export function usePayrolls(params?: any) {
   return useQuery({
     queryKey: ['payrolls', params],
     queryFn: () => payrollApi.getAll(params),
-    select: (res: any) => res?.data ?? [],
+    select: unwrapList,
   })
 }
 
@@ -18,15 +19,19 @@ export function usePayrollDetails(id: string) {
   })
 }
 
+/**
+ * Tính lương toàn bộ nhân sự cho 1 kỳ.
+ * KHÔNG show toast — caller (PayrollsPage) sẽ render `PayrollCalculateModal`
+ * với summary chi tiết ở stage RESULT thay vì toast text ngắn.
+ * Error cũng để caller hiển thị inline ở stage CONFIRM (không toast bay ngang).
+ */
 export function useCalculateAllPayroll() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: any) => payrollApi.calculateAll(data),
+    mutationFn: (data: { month: number; year: number }) => payrollApi.calculateAll(data),
     onSuccess: () => {
-      toast.success('Đã tính lương cho toàn bộ nhân sự')
       queryClient.invalidateQueries({ queryKey: ['payrolls'] })
     },
-    onError: (error: any) => toast.error(error?.response?.data?.message || 'Có lỗi xảy ra'),
   })
 }
 
@@ -63,15 +68,18 @@ export function usePayPayroll() {
   })
 }
 
+/**
+ * Tính lương cho 1 nhân viên cụ thể.
+ * Cùng lý do với `useCalculateAllPayroll`: caller render popup summary,
+ * không auto toast (tránh 2 UI trùng nhau).
+ */
 export function useCalculatePersonPayroll() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ personId, data }: { personId: string; data: { month: number; year: number } }) =>
       payrollApi.calculatePerson(personId, data),
     onSuccess: () => {
-      toast.success('Đã tính lương cho nhân viên')
       queryClient.invalidateQueries({ queryKey: ['payrolls'] })
     },
-    onError: (error: any) => toast.error(error?.response?.data?.message || 'Có lỗi xảy ra khi tính lương'),
   })
 }

@@ -1,12 +1,57 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search, Plus, Edit, Trash2, ChevronRight, ChevronDown, List, GitFork, Users, Loader2, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
+import { Search, Plus, Edit, Trash2, Eye, List, GitFork, Users, Loader2, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
-import { AppModal } from '@frezo/ui'
+import {
+  AppModal,
+  Switch,
+  Input,
+  Button,
+  PageHeader,
+  PageGuideButton,
+  ConfirmDialog,
+  type PageGuideConfig,
+} from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
-import { Switch } from '@frezo/ui'
-import { Input } from '@frezo/ui'
-import { Button } from '@frezo/ui'
+import { DepartmentDetailDrawer } from '../components/DepartmentDetailDrawer'
+
+const DEPARTMENTS_GUIDE: PageGuideConfig = {
+  title: 'Sơ đồ Tổ chức',
+  subtitle:
+    'Cấu trúc phòng ban, quản lý trưởng/phó phòng và phân bổ nhân sự theo hierarchy.',
+  sections: [
+    {
+      heading: 'Thao tác cơ bản',
+      type: 'steps',
+      steps: [
+        {
+          title: 'Chuyển chế độ xem',
+          description:
+            'Sơ đồ (Tree) — trực quan hierarchy. Bảng — dễ tìm kiếm, lọc. Nhân sự — xem người trong phòng ban đang chọn.',
+        },
+        {
+          title: 'Thêm phòng ban',
+          description:
+            'Chọn phòng cha (hoặc để trống nếu là root) → điền mã, tên, email liên hệ, chọn Trưởng/Phó phòng (từ danh sách Nhân sự).',
+        },
+        {
+          title: 'Chuyển nhân sự',
+          description:
+            'Ở chế độ "Nhân sự", kéo-thả (hoặc chỉnh trực tiếp trong hồ sơ nhân viên) để đổi phòng ban. Lịch sử chuyển phòng được ghi audit.',
+        },
+      ],
+    },
+    {
+      heading: 'Mẹo',
+      type: 'tips',
+      tips: [
+        'Đặt mã phòng ban ngắn gọn, phản ánh chức năng (VD: HR, IT, KD1, KD2) — dùng cho báo cáo và bút toán kế toán.',
+        'Deactivate phòng ban khi tái cấu trúc — không xóa nếu còn nhân viên hoặc dữ liệu liên quan.',
+        'Zoom trong chế độ sơ đồ bằng Ctrl+scroll hoặc nút "+ / -" ở góc.',
+      ],
+    },
+  ],
+}
 import { organizationApi } from '@/modules/qtht/services/qthtApi'
 import { personApi } from '@/modules/qlns/services/personApi'
 import { useDepartments, useCreateDepartment, useUpdateDepartment, useDeleteDepartment, useActivateDepartment, useDeactivateDepartment } from '../hooks/useQtht'
@@ -27,6 +72,8 @@ const defaultFormValues = {
 export function DepartmentsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any | null>(null)
+  const [detailDept, setDetailDept] = useState<any | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
   const [viewMode, setViewMode] = useState<'tree' | 'table' | 'personnel'>('tree')
   const [searchQuery, setSearchQuery] = useState('')
   const [scale, setScale] = useState(1)
@@ -233,9 +280,7 @@ export function DepartmentsPage() {
   }
 
   const handleDelete = (node: any) => {
-    if (confirm(`Bạn có chắc chắn muốn xóa phòng ban "${node.name}"?`)) {
-      deleteReq.mutate(node.id)
-    }
+    setDeleteTarget(node)
   }
 
   const handleSubmit = (values: any) => {
@@ -277,7 +322,10 @@ export function DepartmentsPage() {
     return (
       <div className="flex flex-col items-center">
         {/* Node Card */}
-        <div className="relative p-4 rounded-2xl bg-white shadow-sm hover:shadow-xl transition-all duration-300 w-64 text-center group overflow-hidden">
+        <div
+          onClick={() => setDetailDept(node)}
+          className="relative p-4 rounded-2xl bg-white shadow-sm hover:shadow-xl transition-all duration-300 w-64 text-center group overflow-hidden cursor-pointer"
+        >
           {/* Gradient Top Border */}
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
           
@@ -354,15 +402,22 @@ export function DepartmentsPage() {
           {/* Action Overlay */}
           <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-white/95 backdrop-blur p-0.5 rounded border border-border shadow-sm">
             <button
+              title="Xem chi tiết"
+              onClick={(e) => { e.stopPropagation(); setDetailDept(node) }}
+              className="p-1 hover:bg-blue-50 rounded text-neutral-500 hover:text-blue-600 transition-colors"
+            >
+              <Eye size={12} />
+            </button>
+            <button
               title="Chỉnh sửa"
-              onClick={() => onEdit(node)}
+              onClick={(e) => { e.stopPropagation(); onEdit(node) }}
               className="p-1 hover:bg-neutral-100 rounded text-neutral-500 hover:text-primary-600 transition-colors"
             >
               <Edit size={12} />
             </button>
             <button
               title="Xóa"
-              onClick={() => onDelete(node)}
+              onClick={(e) => { e.stopPropagation(); onDelete(node) }}
               className="p-1 hover:bg-neutral-100 rounded text-neutral-500 hover:text-red-600 transition-colors"
             >
               <Trash2 size={12} />
@@ -451,32 +506,39 @@ export function DepartmentsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in p-6 bg-neutral-50/50 min-h-[calc(100vh-64px)]">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-neutral-900 tracking-tight">Sơ đồ Tổ chức</h2>
-          <p className="text-sm text-neutral-500 mt-1">Quản lý cơ cấu phòng ban và phân bổ nhân sự</p>
+      <PageHeader
+        title="Sơ đồ Tổ chức"
+        description="Quản lý cơ cấu phòng ban, trưởng/phó phòng và phân bổ nhân sự."
+        actions={
+          <>
+            <PageGuideButton guide={DEPARTMENTS_GUIDE} />
+            <Button
+              onClick={() => { setSelectedItem(null); setModalOpen(true) }}
+              className="gap-2 bg-primary-600 hover:bg-primary-700 text-white h-9"
+            >
+              <Plus size={16} /> Thêm phòng ban
+            </Button>
+          </>
+        }
+      />
+
+      {/* KPI stats — giữ nguyên vị trí dưới header cho dễ scan */}
+      <div className="flex flex-wrap items-center gap-6 rounded-xl border border-neutral-200 bg-white px-5 py-3 text-sm">
+        <div className="flex flex-col">
+          <span className="text-neutral-500 font-medium">Tổng phòng ban</span>
+          <span className="text-lg font-bold text-neutral-900">{dataList.length}</span>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex gap-4 mr-4 text-sm">
-            <div className="flex flex-col">
-              <span className="text-neutral-500 font-medium">Tổng phòng ban</span>
-              <span className="text-lg font-bold text-neutral-900">{dataList.length}</span>
-            </div>
-            <div className="w-px h-10 bg-neutral-200"></div>
-            <div className="flex flex-col">
-              <span className="text-neutral-500 font-medium">Đang hoạt động</span>
-              <span className="text-lg font-bold text-green-600">{dataList.filter((d: any) => d.status === 'ACTIVE').length}</span>
-            </div>
-            <div className="w-px h-10 bg-neutral-200"></div>
-            <div className="flex flex-col">
-              <span className="text-neutral-500 font-medium">Tổng nhân sự</span>
-              <span className="text-lg font-bold text-blue-600">{personsData?.length || 0}</span>
-            </div>
-          </div>
-          <Button onClick={() => { setSelectedItem(null); setModalOpen(true) }} className="gap-2 bg-primary-600 hover:bg-primary-700 text-white shadow-sm rounded-xl">
-             <Plus size={16} /> Thêm phòng ban
-          </Button>
+        <div className="w-px h-10 bg-neutral-200" />
+        <div className="flex flex-col">
+          <span className="text-neutral-500 font-medium">Đang hoạt động</span>
+          <span className="text-lg font-bold text-green-600">
+            {dataList.filter((d: any) => d.status === 'ACTIVE').length}
+          </span>
+        </div>
+        <div className="w-px h-10 bg-neutral-200" />
+        <div className="flex flex-col">
+          <span className="text-neutral-500 font-medium">Tổng nhân sự</span>
+          <span className="text-lg font-bold text-blue-600">{personsData?.length || 0}</span>
         </div>
       </div>
 
@@ -637,6 +699,7 @@ export function DepartmentsPage() {
               title: 'Thao tác', dataIndex: 'id',
               render: (_: any, row: any) => (
                 <div className="flex items-center gap-2">
+                  <button title="Xem chi tiết" onClick={() => setDetailDept(row)} className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"><Eye size={15} /></button>
                   <button title="Sửa" onClick={() => handleOpenEdit(row)} className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"><Edit size={15} /></button>
                   <button title="Xóa" onClick={() => handleDelete(row)} className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={15} /></button>
                 </div>
@@ -670,6 +733,40 @@ export function DepartmentsPage() {
           ]}
         />
       </AppModal>
+
+      {/* Detail Drawer — 360° view của phòng ban */}
+      <DepartmentDetailDrawer
+        isOpen={!!detailDept}
+        dept={detailDept}
+        allDepts={dataList}
+        persons={personsData || []}
+        onClose={() => setDetailDept(null)}
+        onEdit={(d) => {
+          setDetailDept(null)
+          handleOpenEdit(d)
+        }}
+        onToggleStatus={(d) => {
+          handleToggleStatus(d)
+        }}
+        onSelectChild={(child) => setDetailDept(child)}
+      />
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return
+          deleteReq.mutate(deleteTarget.id, {
+            onSuccess: () => setDeleteTarget(null),
+          })
+        }}
+        title={`Xóa phòng ban "${deleteTarget?.name || ''}"?`}
+        message="Phòng ban sẽ bị xóa. Không nên xóa nếu còn nhân viên hoặc dữ liệu liên quan — cân nhắc deactivate thay thế."
+        confirmText="Xóa"
+        cancelText="Huỷ"
+        variant="danger"
+        isLoading={deleteReq.isPending}
+      />
     </div>
   )
 }

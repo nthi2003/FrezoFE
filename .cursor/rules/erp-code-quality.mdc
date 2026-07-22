@@ -1,0 +1,84 @@
+---
+description: Frezo ERP — Code Quality Rule (no any, no console, no nested ternary, no prop drilling)
+globs: packages/erp/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Frezo ERP — Code Quality Rule
+
+Xem chi tiết ở [FE_UI_UX_STANDARD.md](mdc:FE_UI_UX_STANDARD.md) section 9. Rule này liệt kê top vi phạm.
+
+## Priorities (khi xung đột, chọn cái trước)
+
+1. Readability > 2. Maintainability > 3. Reusable Component > 4. Accessibility > 5. Responsive > 6. Performance.
+
+Performance ưu tiên **cuối** — không premature optimize. Chỉ `memo/useCallback/useMemo` khi có bằng chứng chậm.
+
+## Forbidden — ĐỪNG viết code mới có các thứ sau
+
+| ❌ Cấm                                | ✅ Thay bằng                                                      |
+| ------------------------------------ | ---------------------------------------------------------------- |
+| `any` type                           | Type cụ thể, hoặc `unknown` + type guard                        |
+| `console.log/warn/error/debug/info`  | Xóa trước khi trả code. Cần debug → React DevTools/Network      |
+| `// eslint-disable-*`                | Fix root cause                                                   |
+| `// TODO`, `// FIXME`                | Tạo Github issue, link URL trong comment nếu buộc phải để lại   |
+| `as any`, `as unknown as X`          | Zod schema parse, hoặc refactor type upstream                   |
+| Hardcode magic number/string lặp     | `const MAX_X = 10`, hoặc enum                                    |
+| Fake/mock data inline                | API thật hoặc `msw`                                              |
+| Code demo / dead code / commented-out| Xóa. Cần tham khảo → git history                                |
+| Nested ternary >2 tầng               | `if/else` hoặc extract function                                  |
+| `useEffect` lồng (setState trong effect trigger effect khác) | React Query, `useMemo`, hoặc refactor state       |
+| Prop drilling >3 tầng                | Context / Zustand store                                          |
+| Inline function trong render list >10 items | `useCallback`                                             |
+| Duplicated JSX >10 dòng              | Extract component                                                |
+| Component không tên (`export default () => <div/>`) | Named function `export function XxxPage() {}`         |
+| Import chéo giữa modules             | Nhấc lên `lib/` hoặc `components/shared/`                       |
+
+## Bad → Good
+
+```tsx
+// ❌ BAD
+const handle = async (data: any) => {
+  console.log('submitting', data)
+  const status = data.type === 'A' ? (data.value > 100 ? 'high' : 'low') : (data.value > 50 ? 'medium' : 'low')
+  await axios.post('/api/x', { ...data, status, retries: 3 })
+}
+```
+
+```tsx
+// ✅ GOOD
+const MAX_RETRIES = 3
+
+function computeStatus(type: ContractType, value: number): ContractStatus {
+  if (type === 'A') return value > 100 ? 'high' : 'low'
+  return value > 50 ? 'medium' : 'low'
+}
+
+async function handleSubmit(data: ContractFormValues) {
+  const status = computeStatus(data.type, data.value)
+  await contractApi.create({ ...data, status, retries: MAX_RETRIES })
+}
+```
+
+## File Structure cho mỗi module (`modules/<domain>/`)
+
+```
+constants/    — enum, magic values as `const OBJECT = {...} as const`
+types/        — TS interface/type của domain
+services/     — API layer (Axios), 1 file / entity
+hooks/        — useXxx business logic (React Query)
+components/   — presentational, module-only
+pages/        — route-level, chỉ compose, không business logic
+index.ts      — public exports (nếu cần)
+```
+
+Không import chéo giữa modules. Shared → `lib/` hoặc `components/shared/` hoặc `@frezo/ui`.
+
+## Trước khi trả code, tự check:
+
+- [ ] Không `any`, không `console.*`, không `eslint-disable`, không TODO/FIXME
+- [ ] Không nested ternary >2 tầng
+- [ ] Không useEffect lồng, không prop drilling >3 tầng
+- [ ] Không magic number, không string lặp không extract
+- [ ] File structure đúng: `pages/` chỉ compose, business logic ở `hooks/`, API ở `services/`
+- [ ] Không import chéo module

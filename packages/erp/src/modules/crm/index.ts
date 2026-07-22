@@ -1,0 +1,6 @@
+export * from './services/crmApi'
+export * from './hooks/useCrm'
+export { LeadsPage } from './pages/LeadsPage'
+export { DealsPage } from './pages/DealsPage'
+export { QuotesPage } from './pages/QuotesPage'
+export { InvoicesPage } from './pages/InvoicesPage'

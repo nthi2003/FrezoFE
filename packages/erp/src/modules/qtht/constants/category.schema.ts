@@ -13,12 +13,13 @@ export const categoryFormSchema = z.object({
 
 export type CategoryFormValues = z.infer<typeof categoryFormSchema>
 
+// Các group code dùng cho trang Category management. QLTS đã bị deprecate → gộp vào
+// `LoaiTaiSan` (module Asset seeder cũng đã migrate tự động khi khởi động).
 export const GROUP_CODE_OPTIONS = [
   { value: 'ChucDanh', label: 'Chức Danh' },
   { value: 'DanhMucSP', label: 'Danh Mục Sản Phẩm' },
   { value: 'DonVi', label: 'Đơn Vị' },
   { value: 'LoaiTaiSan', label: 'Loại Tài Sản' },
-  { value: 'QLTS', label: 'Quản Lý Tài Sản' },
 ]
 
 export const GROUP_CODE_LABEL: Record<string, string> = {
@@ -26,5 +27,4 @@ export const GROUP_CODE_LABEL: Record<string, string> = {
   DanhMucSP: 'Danh Mục Sản Phẩm',
   DonVi: 'Đơn Vị',
   LoaiTaiSan: 'Loại Tài Sản',
-  QLTS: 'Quản Lý Tài Sản',
 }

@@ -1,130 +1,595 @@
-import { useState } from 'react'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  FileText,
+  Grid3x3,
+  Rows3,
+  Calendar,
+  User as UserIcon,
+  Image as ImageIcon,
+  Sparkles,
+  CheckCircle2,
+  Archive,
+  Search,
+} from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
-import { AppModal } from '@frezo/ui'
-import { AppForm } from '@/components/shared/AppForm'
-import { Button } from '@frezo/ui'
+import {
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  Input,
+  PageHeader,
+  PageGuideButton,
+  StatusBadge,
+  type PageGuideConfig,
+  type StatusConfig,
+} from '@frezo/ui'
+import { usePermission } from '@/lib/hooks/usePermission'
 import {
   useArticles,
-  useCreateArticle,
-  useUpdateArticle,
   useDeleteArticle,
 } from '../hooks/useArticle'
-import { articleFormSchema, type ArticleFormValues } from '../constants/schema'
 
-const STATUS_OPTIONS = [
+// ============================================================
+// Constants
+// ============================================================
+
+type ArticleStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+
+const STATUS_OPTIONS: { value: ArticleStatus; label: string }[] = [
   { value: 'DRAFT', label: 'Bản nháp' },
   { value: 'PUBLISHED', label: 'Đã xuất bản' },
   { value: 'ARCHIVED', label: 'Lưu trữ' },
 ]
 
+const STATUS_CONFIG: Record<ArticleStatus, StatusConfig> = {
+  DRAFT: { label: 'Bản nháp', color: 'neutral', icon: FileText },
+  PUBLISHED: { label: 'Đã xuất bản', color: 'success', icon: CheckCircle2 },
+  ARCHIVED: { label: 'Lưu trữ', color: 'warning', icon: Archive },
+}
+
+const TYPE_OPTIONS = [
+  { value: 'NEWS', label: 'Tin tức' },
+  { value: 'BLOG', label: 'Bài blog' },
+  { value: 'ANNOUNCEMENT', label: 'Thông báo' },
+  { value: 'GUIDE', label: 'Hướng dẫn' },
+  { value: 'OTHER', label: 'Khác' },
+]
+
+const TYPE_LABEL: Record<string, string> = Object.fromEntries(
+  TYPE_OPTIONS.map((o) => [o.value, o.label]),
+)
+
+const ARTICLES_GUIDE: PageGuideConfig = {
+  title: 'Quản lý Bài viết',
+  subtitle:
+    'Đăng, chỉnh sửa và phân phối tin tức nội bộ, thông báo hay bài blog cho toàn hệ thống.',
+  docHref: '/docs/guide-articles',
+  sections: [
+    {
+      heading: 'Bắt đầu nhanh',
+      type: 'steps',
+      steps: [
+        {
+          title: 'Nhấn "Thêm mới" để tạo bài viết',
+          description:
+            'Điền tiêu đề bắt buộc, tóm tắt hiển thị ngoài trang danh sách, và nội dung chi tiết. Chọn loại bài + trạng thái (Bản nháp / Xuất bản / Lưu trữ).',
+        },
+        {
+          title: 'Đính kèm ảnh đại diện',
+          description:
+            'Dán URL ảnh vào ô "URL Ảnh đại diện" — hệ thống sẽ hiển thị preview trong card. Nên dùng ảnh 16:9 (tỉ lệ 1200×675) để hiển thị đẹp.',
+        },
+        {
+          title: 'Xuất bản khi sẵn sàng',
+          description:
+            'Đổi trạng thái sang "Đã xuất bản" và lưu — bài sẽ xuất hiện trên landing công khai và inbox nội bộ.',
+        },
+      ],
+    },
+    {
+      heading: 'Mẹo sử dụng',
+      type: 'tips',
+      tips: [
+        'Dùng bộ lọc trạng thái ở đầu trang để tách nháp / đã xuất bản, tránh xóa nhầm bài đang chạy.',
+        'Chuyển "Chế độ Card" khi cần preview hình ảnh; "Chế độ Bảng" khi cần bulk edit.',
+        'Nhấn Enter trong ô tìm kiếm để tìm theo tiêu đề, tóm tắt, tác giả.',
+      ],
+    },
+    {
+      heading: 'Phím tắt',
+      type: 'shortcuts',
+      shortcuts: [
+        { keys: ['N'], label: 'Thêm bài mới' },
+        { keys: ['/'], label: 'Focus vào ô tìm kiếm' },
+        { keys: ['Esc'], label: 'Đóng modal / drawer' },
+      ],
+    },
+    {
+      heading: 'Lưu ý quan trọng',
+      type: 'notes',
+      notes: (
+        <>
+          Bài viết ở trạng thái <strong>Đã xuất bản</strong> sẽ được index trên trang public — hãy soát chính tả và bản quyền ảnh trước khi đổi trạng thái. Sau khi lưu trữ, bài không hiện ngoài landing nhưng vẫn giữ trong hệ thống.
+        </>
+      ),
+    },
+  ],
+}
+
+// ============================================================
+// Utilities
+// ============================================================
+
+function formatDate(v?: string | null) {
+  if (!v) return '---'
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return '---'
+  return d.toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+}
+
+function truncate(s: string | null | undefined, max = 120) {
+  if (!s) return ''
+  return s.length > max ? s.slice(0, max).trim() + '…' : s
+}
+
+// ============================================================
+// Card component
+// ============================================================
+
+interface ArticleCardProps {
+  article: any
+  onEdit: () => void
+  onDelete: () => void
+  canUpdate: boolean
+  canDelete: boolean
+}
+
+function ArticleCard({ article, onEdit, onDelete, canUpdate, canDelete }: ArticleCardProps) {
+  const status = (article.status || 'DRAFT') as ArticleStatus
+  const statusCfg = STATUS_CONFIG[status] || STATUS_CONFIG.DRAFT
+  const showActions = canUpdate || canDelete
+
+  return (
+    <div className="group bg-white border border-neutral-200 rounded-xl overflow-hidden hover:border-primary-300 hover:shadow-md transition-all duration-200 flex flex-col">
+      {/* Thumbnail */}
+      <div className="aspect-[16/9] bg-neutral-100 relative overflow-hidden">
+        {article.thumbnailUrl ? (
+          <img
+            src={article.thumbnailUrl}
+            alt={article.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+            onError={(e) => {
+              ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+            }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neutral-100 to-neutral-200 text-neutral-400">
+            <ImageIcon size={36} strokeWidth={1.4} />
+          </div>
+        )}
+        <div className="absolute top-2 left-2 flex items-center gap-1.5">
+          <StatusBadge {...statusCfg} />
+          {article.type && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/90 text-neutral-700 border border-neutral-200">
+              {TYPE_LABEL[article.type] || article.type}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 p-4 flex flex-col">
+        <h3 className="text-sm font-semibold text-neutral-900 line-clamp-2 leading-snug">
+          {article.title || '(Không có tiêu đề)'}
+        </h3>
+        {article.code && (
+          <p className="mt-1 text-[11px] font-mono text-neutral-400">{article.code}</p>
+        )}
+        {article.summary && (
+          <p className="mt-1.5 text-xs text-neutral-500 line-clamp-2 leading-relaxed">
+            {truncate(article.summary, 140)}
+          </p>
+        )}
+
+        {/* Meta */}
+        <div className="mt-3 pt-3 border-t border-neutral-100 flex items-center gap-3 text-[11px] text-neutral-400 flex-wrap">
+          <span className="inline-flex items-center gap-1">
+            <UserIcon size={11} />
+            {article.authorName || article.authorId || 'Ẩn danh'}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Calendar size={11} />
+            {formatDate(article.publishedDate || article.createdDate || article.publishedAt || article.createdAt)}
+          </span>
+        </div>
+      </div>
+
+      {/* Actions — hide-not-disable */}
+      {showActions && (
+        <div className="border-t border-neutral-100 p-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-neutral-50/50">
+          {canUpdate && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onEdit}
+              className="h-8 gap-1.5 text-neutral-600 hover:text-primary-700"
+            >
+              <Pencil size={13} /> Sửa
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDelete}
+              className="h-8 gap-1.5 text-neutral-600 hover:text-danger"
+            >
+              <Trash2 size={13} /> Xóa
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================================
+// Main Page
+// ============================================================
+
 export function ArticlesPage() {
-  const [modalOpen, setModalOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<any | null>(null)
+  const navigate = useNavigate()
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
+  const [statusFilter, setStatusFilter] = useState<ArticleStatus | 'ALL'>('ALL')
+  const [searchKeyword, setSearchKeyword] = useState('')
+
+  const canCreate = usePermission('QTBV.ARTICLES.CREATE')
+  const canUpdate = usePermission('QTBV.ARTICLES.UPDATE')
+  const canDelete = usePermission('QTBV.ARTICLES.DELETE')
 
   const { data: rawData, isLoading } = useArticles()
-  const createReq = useCreateArticle()
-  const updateReq = useUpdateArticle()
   const deleteReq = useDeleteArticle()
 
-  const dataList = rawData || []
+  // Defensive: rawData thường đã được `select` trong hook chuẩn hoá thành array,
+  // nhưng nếu BE đổi shape (paginated / null / object) vẫn không crash.
+  const allArticles: any[] = useMemo(() => {
+    if (Array.isArray(rawData)) return rawData
+    const anyData = rawData as any
+    if (Array.isArray(anyData?.content)) return anyData.content
+    if (Array.isArray(anyData?.items)) return anyData.items
+    if (Array.isArray(anyData?.data)) return anyData.data
+    return []
+  }, [rawData])
 
-  const handleSubmit = (values: ArticleFormValues) => {
-    if (selectedItem?.id) {
-      updateReq.mutate({ id: selectedItem.id, data: values }, { onSuccess: () => setModalOpen(false) })
-    } else {
-      createReq.mutate(values, { onSuccess: () => setModalOpen(false) })
-    }
+  // Counts by status — dùng cho tab bar
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: allArticles.length, DRAFT: 0, PUBLISHED: 0, ARCHIVED: 0 }
+    allArticles.forEach((a) => {
+      const s = a.status || 'DRAFT'
+      counts[s] = (counts[s] || 0) + 1
+    })
+    return counts
+  }, [allArticles])
+
+  // Filtered list
+  const filteredArticles = useMemo(() => {
+    return allArticles.filter((a) => {
+      if (statusFilter !== 'ALL' && (a.status || 'DRAFT') !== statusFilter) return false
+      if (searchKeyword) {
+        const k = searchKeyword.toLowerCase()
+        const hay = `${a.title || ''} ${a.summary || ''} ${a.authorName || ''} ${a.authorId || ''}`.toLowerCase()
+        if (!hay.includes(k)) return false
+      }
+      return true
+    })
+  }, [allArticles, statusFilter, searchKeyword])
+
+  const openCreate = () => navigate('/admin/article-management/new')
+  const openEdit = (row: any) => navigate(`/admin/article-management/${row.id}/edit`)
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return
+    deleteReq.mutate(deleteTarget.id, {
+      onSuccess: () => setDeleteTarget(null),
+    })
   }
 
+  // ============================================================
+  // Table columns
+  // ============================================================
+
   const columns = [
-    { title: 'Tiêu đề', dataIndex: 'title', filterType: 'text' },
-    { title: 'Tóm tắt', dataIndex: 'summary', filterType: 'text' },
-    { title: 'Loại', dataIndex: 'type', filterType: 'text' },
     {
-      title: 'Trạng thái', dataIndex: 'status',
-      filterType: 'select', filterOptions: STATUS_OPTIONS,
-      render: (val: string) => {
-        const colorMap: Record<string, string> = {
-          DRAFT: 'bg-neutral-100 text-neutral-600',
-          PUBLISHED: 'bg-green-50 text-green-700',
-          ARCHIVED: 'bg-yellow-50 text-yellow-700',
-        }
-        const labelMap: Record<string, string> = {
-          DRAFT: 'Bản nháp',
-          PUBLISHED: 'Đã xuất bản',
-          ARCHIVED: 'Lưu trữ',
-        }
-        return (
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colorMap[val] || 'bg-neutral-100 text-neutral-500'}`}>
-            {labelMap[val] || val}
+      title: 'Bài viết',
+      dataIndex: 'title',
+      render: (_: any, row: any) => (
+        <div className="flex items-center gap-3 min-w-0">
+          {row.thumbnailUrl ? (
+            <img
+              src={row.thumbnailUrl}
+              alt=""
+              className="w-12 h-12 rounded-md object-cover flex-shrink-0 border border-neutral-200"
+              loading="lazy"
+              onError={(e) => {
+                ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+              }}
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-md bg-neutral-100 flex items-center justify-center text-neutral-400 flex-shrink-0">
+              <ImageIcon size={18} />
+            </div>
+          )}
+          <div className="min-w-0">
+            <div className="font-medium text-neutral-800 truncate">
+              {row.title || '(Không tiêu đề)'}
+            </div>
+            {row.summary && (
+              <div className="text-xs text-neutral-500 truncate max-w-md">
+                {truncate(row.summary, 90)}
+              </div>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Loại',
+      dataIndex: 'type',
+      width: 130,
+      render: (val: string) =>
+        val ? (
+          <span className="text-xs text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded">
+            {TYPE_LABEL[val] || val}
           </span>
-        )
+        ) : (
+          <span className="text-xs text-neutral-400">—</span>
+        ),
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      width: 140,
+      render: (val: string) => {
+        const status = (val || 'DRAFT') as ArticleStatus
+        const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.DRAFT
+        return <StatusBadge {...cfg} />
       },
     },
     {
-      title: 'Ngày tạo', dataIndex: 'createdDate',
-      render: (val: string) => val ? new Date(val).toLocaleDateString('vi-VN') : '---',
+      title: 'Tác giả',
+      dataIndex: 'authorName',
+      width: 180,
+      render: (val: string, row: any) => (
+        <span className="text-sm text-neutral-600">
+          {val || row.authorId || '—'}
+        </span>
+      ),
     },
     {
-      title: 'Thao tác',
+      title: 'Ngày',
+      dataIndex: 'publishedDate',
+      width: 130,
+      render: (val: string, row: any) => (
+        <span className="text-sm text-neutral-600 tabular-nums">
+          {formatDate(val || row.createdDate)}
+        </span>
+      ),
+    },
+    {
+      title: '',
       dataIndex: 'id',
+      width: 100,
+      align: 'right' as const,
       render: (_: any, row: any) => (
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => { setSelectedItem(row); setModalOpen(true) }}>
-            <Pencil className="w-4 h-4 text-blue-600" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Xóa bài viết này?')) deleteReq.mutate(row.id) }}>
-            <Trash2 className="w-4 h-4 text-red-600" />
-          </Button>
+        <div className="flex items-center gap-1 justify-end">
+          {canUpdate && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => openEdit(row)}
+              title="Chỉnh sửa"
+            >
+              <Pencil className="w-4 h-4" />
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setDeleteTarget(row)}
+              title="Xóa"
+            >
+              <Trash2 className="w-4 h-4 text-danger" />
+            </Button>
+          )}
         </div>
       ),
     },
   ]
 
-  const formFields = [
-    { name: 'title', label: 'Tiêu đề', required: true },
-    { name: 'summary', label: 'Tóm tắt' },
-    { name: 'content', label: 'Nội dung' },
-    { name: 'type', label: 'Loại bài viết' },
-    { name: 'status', label: 'Trạng thái', type: 'select', options: STATUS_OPTIONS },
-    { name: 'tags', label: 'Thẻ' },
-    { name: 'thumbnailUrl', label: 'URL Ảnh đại diện' },
-    { name: 'authorId', label: 'Tác giả' },
-    { name: 'orgId', label: 'Đơn vị' },
-    { name: 'publishedDate', label: 'Ngày xuất bản', type: 'date' },
+  // ============================================================
+  // Render
+  // ============================================================
+
+  const tabs: { key: ArticleStatus | 'ALL'; label: string }[] = [
+    { key: 'ALL', label: 'Tất cả' },
+    { key: 'PUBLISHED', label: 'Đã xuất bản' },
+    { key: 'DRAFT', label: 'Bản nháp' },
+    { key: 'ARCHIVED', label: 'Lưu trữ' },
   ]
 
-  return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">Quản lý Bài viết</h1>
-          <p className="text-sm text-neutral-500">Quản lý tin tức, bài viết trên hệ thống</p>
-        </div>
-        <Button onClick={() => { setSelectedItem(null); setModalOpen(true) }} className="bg-primary-600 hover:bg-primary-700 text-white">
-           <Plus className="w-4 h-4 mr-2" /> Thêm mới
-        </Button>
-      </div>
+  const isEmpty = !isLoading && filteredArticles.length === 0
 
-      <AppTable
-        data={dataList}
-        columns={columns as any}
-        isLoading={isLoading}
-        showSearch={true}
-        searchPlaceholder="Tìm theo tiêu đề, tóm tắt..."
+  return (
+    <div className="p-6 space-y-5">
+      <PageHeader
+        title="Quản lý Bài viết"
+        description="Đăng và điều phối tin tức, bài blog, thông báo nội bộ toàn hệ thống."
+        actions={
+          <>
+            <PageGuideButton guide={ARTICLES_GUIDE} />
+            {canCreate && (
+              <Button
+                onClick={openCreate}
+                className="bg-primary-600 hover:bg-primary-700 text-white h-9"
+              >
+                <Plus className="w-4 h-4 mr-1.5" /> Thêm mới
+              </Button>
+            )}
+          </>
+        }
       />
 
-      <AppModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={selectedItem ? 'Cập nhật Bài viết' : 'Thêm Bài viết mới'} maxWidth="4xl">
-        <AppForm
-          schema={articleFormSchema}
-          defaultValues={selectedItem || { title: '', summary: '', content: '', type: '', status: 'DRAFT', tags: '', thumbnailUrl: '', authorId: '', orgId: '', publishedDate: '' }}
-          onSubmit={handleSubmit}
-          fields={formFields}
-          isLoading={createReq.isPending || updateReq.isPending}
-          submitText={selectedItem ? 'Cập nhật' : 'Thêm mới'}
+      {/* Toolbar: tabs + search + view toggle */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-white border border-neutral-200 rounded-xl px-3 py-2">
+        {/* Tabs */}
+        <div className="flex items-center gap-1 overflow-x-auto">
+          {tabs.map((tab) => {
+            const active = statusFilter === tab.key
+            const count = statusCounts[tab.key] ?? 0
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setStatusFilter(tab.key)}
+                className={`
+                  inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition
+                  ${active
+                    ? 'bg-primary-50 text-primary-700'
+                    : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800'}
+                `}
+              >
+                {tab.label}
+                <span
+                  className={`
+                    inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-semibold tabular-nums
+                    ${active ? 'bg-primary-100 text-primary-700' : 'bg-neutral-100 text-neutral-500'}
+                  `}
+                >
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Search + View toggle */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="relative flex-1 md:flex-initial md:w-64">
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
+            />
+            <Input
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              placeholder="Tìm tiêu đề, tóm tắt, tác giả…"
+              className="h-9 pl-9"
+            />
+          </div>
+          <div className="inline-flex items-center rounded-md border border-neutral-200 bg-neutral-50 p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode('card')}
+              title="Chế độ Card"
+              className={`
+                inline-flex items-center justify-center w-8 h-8 rounded transition
+                ${viewMode === 'card' ? 'bg-white text-primary-700 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}
+              `}
+            >
+              <Grid3x3 size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              title="Chế độ Bảng"
+              className={`
+                inline-flex items-center justify-center w-8 h-8 rounded transition
+                ${viewMode === 'table' ? 'bg-white text-primary-700 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}
+              `}
+            >
+              <Rows3 size={15} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      {isEmpty ? (
+        <EmptyState
+          icon={FileText}
+          title={
+            searchKeyword || statusFilter !== 'ALL'
+              ? 'Không tìm thấy bài viết phù hợp'
+              : 'Chưa có bài viết nào'
+          }
+          description={
+            searchKeyword || statusFilter !== 'ALL'
+              ? 'Thử đổi bộ lọc hoặc từ khóa tìm kiếm.'
+              : 'Tạo bài viết đầu tiên để chia sẻ tin tức và cập nhật cho toàn hệ thống.'
+          }
+          action={
+            !searchKeyword && statusFilter === 'ALL' && canCreate ? (
+              <Button onClick={openCreate} className="bg-primary-600 hover:bg-primary-700 text-white">
+                <Sparkles className="w-4 h-4 mr-1.5" /> Tạo bài viết đầu tiên
+              </Button>
+            ) : undefined
+          }
         />
-      </AppModal>
+      ) : viewMode === 'card' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {isLoading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-white border border-neutral-200 rounded-xl overflow-hidden animate-pulse">
+                  <div className="aspect-[16/9] bg-neutral-100" />
+                  <div className="p-4 space-y-2">
+                    <div className="h-4 bg-neutral-100 rounded w-3/4" />
+                    <div className="h-3 bg-neutral-100 rounded w-full" />
+                    <div className="h-3 bg-neutral-100 rounded w-1/2" />
+                  </div>
+                </div>
+              ))
+            : filteredArticles.map((a) => (
+                <ArticleCard
+                  key={a.id}
+                  article={a}
+                  onEdit={() => openEdit(a)}
+                  onDelete={() => setDeleteTarget(a)}
+                  canUpdate={canUpdate}
+                  canDelete={canDelete}
+                />
+              ))}
+        </div>
+      ) : (
+        <AppTable
+          data={filteredArticles}
+          columns={columns as any}
+          isLoading={isLoading}
+          showSearch={false}
+        />
+      )}
+
+      {/* Confirm delete */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title={`Xóa bài viết "${truncate(deleteTarget?.title, 40) || 'không tiêu đề'}"?`}
+        message="Hành động này không thể hoàn tác. Bài viết sẽ bị xóa vĩnh viễn khỏi hệ thống."
+        confirmText="Xóa vĩnh viễn"
+        cancelText="Hủy"
+        variant="danger"
+        isLoading={deleteReq.isPending}
+      />
     </div>
   )
 }

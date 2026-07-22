@@ -1,14 +1,56 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Trash2, Loader2, Search, Filter, RotateCw } from 'lucide-react'
+import { Plus, Edit, Trash2, Eye, AlertTriangle, RefreshCw } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
-import { AppModal } from '@frezo/ui'
+import {
+  AppModal,
+  ConfirmDialog,
+  Button,
+  Switch,
+  PageHeader,
+  PageGuideButton,
+  type PageGuideConfig,
+} from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
-import { ConfirmDialog } from '@frezo/ui'
-import { Button } from '@frezo/ui'
-import { Input } from '@frezo/ui'
-import { Switch } from '@frezo/ui'
-import { Select } from '@frezo/ui'
+import { PersonDetailDrawer } from '../components/PersonDetailDrawer'
+
+const PERSONS_GUIDE: PageGuideConfig = {
+  title: 'Quản lý Nhân viên (Person)',
+  subtitle:
+    'Hồ sơ nhân sự — nguồn dữ liệu chuẩn cho user, chấm công, hợp đồng và bảng lương.',
+  sections: [
+    {
+      heading: 'Quy trình chuẩn',
+      type: 'steps',
+      steps: [
+        {
+          title: 'Tạo hồ sơ Person',
+          description:
+            'Đầy đủ: họ tên, ngày sinh, giới tính, CCCD, email, phone, phòng ban, chức danh, ngày vào làm. Person tồn tại độc lập với tài khoản user.',
+        },
+        {
+          title: 'Tạo tài khoản User (tùy chọn)',
+          description:
+            'Sang trang "Người dùng" → thêm mới → chọn Person đã tạo để liên kết. Nhân viên không cần đăng nhập vào ERP thì bỏ qua bước này.',
+        },
+        {
+          title: 'Ký hợp đồng & tính lương',
+          description:
+            'Sang "Hợp đồng lao động" tạo record cho person. Bảng lương và chấm công đều tham chiếu Person ID.',
+        },
+      ],
+    },
+    {
+      heading: 'Mẹo dữ liệu',
+      type: 'tips',
+      tips: [
+        'Mã nhân viên (employee code) nên có logic: HR001, HR002 hoặc theo mã phòng ban — thuận tiện tra cứu manual.',
+        'Không xóa cứng Person có hợp đồng / bảng lương — chỉ deactivate. Xóa gây mất tham chiếu ở module Kế toán.',
+        'Khi nhân viên nghỉ việc: cập nhật ngày nghỉ + status "Không hoạt động", đồng thời khóa user trong "Người dùng".',
+      ],
+    },
+  ],
+}
 import { organizationApi, departmentApi } from '@/modules/qtht/services/qthtApi'
 import { categoryApi } from '@/modules/qtht/services/categoryApi'
 import {
@@ -45,6 +87,7 @@ const defaultFormValues = {
 export function PersonsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedPerson, setSelectedPerson] = useState<any | null>(null)
+  const [detailPerson, setDetailPerson] = useState<any | null>(null)
   const [confirm, setConfirm] = useState<{
     isOpen: boolean; title: string; message: string; onConfirm: () => void; variant?: 'danger' | 'warning'
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
@@ -72,9 +115,15 @@ export function PersonsPage() {
     queryKey: ['departments-combobox'],
     queryFn: () => departmentApi.getCombobox(),
   })
-  const { data: chucDanhList } = useQuery({
+  const {
+    data: chucDanhList,
+    isError: chucDanhError,
+    isFetching: chucDanhFetching,
+    refetch: refetchChucDanh,
+  } = useQuery({
     queryKey: ['categories', 'ChucDanh'],
-    queryFn: () => categoryApi.getAll({ type: 'ChucDanh' }),
+    queryFn: () =>
+      categoryApi.getAll({ groupCode: 'ChucDanh', pageNumber: 1, pageSize: 200, active: true }),
     select: (res: any) => res?.data?.items ?? [],
   })
   const createPerson = useCreatePerson()
@@ -85,7 +134,21 @@ export function PersonsPage() {
 
   const orgOptions = useMemo(() => Array.isArray(orgList) ? orgList.map((o: any) => ({ value: o.value, label: o.label })) : [], [orgList])
   const departmentOptions = useMemo(() => Array.isArray(departmentList) ? departmentList.map((d: any) => ({ value: d.value, label: d.label })) : [], [departmentList])
-  const chucDanhOptions = useMemo(() => Array.isArray(chucDanhList) ? chucDanhList.map((item: any) => ({ value: item.name, label: item.name })) : [], [chucDanhList])
+  const chucDanhOptions = useMemo(
+    () =>
+      Array.isArray(chucDanhList)
+        ? chucDanhList
+            .filter((item: any) => item.active !== false && item.isDeleted !== true)
+            .map((item: any) => ({ value: item.name, label: item.name }))
+        : [],
+    [chucDanhList],
+  )
+  const chucDanhEmpty = !chucDanhError && chucDanhOptions.length === 0
+  const jobTitleDescription = chucDanhError
+    ? undefined
+    : chucDanhEmpty
+      ? 'Chưa có chức danh — thêm tại Danh mục (Chức danh). Có thể lưu nhân viên mà không chọn chức danh.'
+      : undefined
   
   const dataList = rawData?.items || []
   const totalElements = rawData?.total || 0
@@ -198,13 +261,19 @@ export function PersonsPage() {
       render: (_: any, row: any) => (
         <div className="flex items-center gap-1">
           <button
+            title="Xem chi tiết (360°)"
+            onClick={() => setDetailPerson(row)}
+            className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+          >
+            <Eye size={15} />
+          </button>
+          <button
             title="Sửa"
             onClick={() => handleOpenEdit(row)}
             className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
           >
             <Edit size={15} />
           </button>
-
           <button
             title="Xóa"
             onClick={() => handleDelete(row)}
@@ -219,16 +288,21 @@ export function PersonsPage() {
 
   return (
     <div className="space-y-4 animate-fade-in p-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-neutral-900">Quản lý Nhân viên</h2>
-          <p className="text-sm text-neutral-500 mt-1">Quản lý hồ sơ nhân sự trong hệ thống</p>
-        </div>
-        <Button onClick={handleOpenCreate} className="gap-2 bg-primary-700 hover:bg-primary-800 text-white shadow-sm">
-          <Plus size={16} /> Thêm mới
-        </Button>
-      </div>
+      <PageHeader
+        title="Quản lý Nhân viên"
+        description="Hồ sơ nhân sự — nguồn dữ liệu chuẩn cho tài khoản, chấm công, hợp đồng và bảng lương."
+        actions={
+          <>
+            <PageGuideButton guide={PERSONS_GUIDE} />
+            <Button
+              onClick={handleOpenCreate}
+              className="gap-2 bg-primary-600 hover:bg-primary-700 text-white h-9"
+            >
+              <Plus size={16} /> Thêm mới
+            </Button>
+          </>
+        }
+      />
 
       {/* Table */}
       <AppTable
@@ -255,6 +329,27 @@ export function PersonsPage() {
         description={selectedPerson ? 'Chỉnh sửa thông tin hồ sơ nhân sự.' : 'Điền thông tin để tạo hồ sơ nhân viên mới.'}
         maxWidth="4xl"
       >
+        {chucDanhError && (
+          <div className="mb-4 flex items-start gap-3 rounded-md border border-danger/30 bg-danger/5 px-3 py-2.5 text-sm text-neutral-700">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-danger" />
+            <div className="flex-1 space-y-1">
+              <p className="font-medium text-danger">Không tải được danh mục chức danh</p>
+              <p className="text-xs text-neutral-500">
+                Kiểm tra mạng hoặc quyền xem danh mục, rồi thử lại. Không dùng option giả.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-8 gap-1.5 shrink-0"
+              disabled={chucDanhFetching}
+              onClick={() => void refetchChucDanh()}
+            >
+              <RefreshCw size={14} className={chucDanhFetching ? 'animate-spin' : undefined} />
+              Thử lại
+            </Button>
+          </div>
+        )}
         <AppForm
           schema={personFormSchema}
           defaultValues={selectedPerson ? selectedPerson : defaultFormValues}
@@ -269,7 +364,14 @@ export function PersonsPage() {
             { name: 'phone', label: 'Số điện thoại', placeholder: '0901 234 567' },
             { name: 'identityNumber', label: 'CCCD / CMND', placeholder: '012345678901' },
             { name: 'birthDate', label: 'Ngày sinh', type: 'date' },
-            { name: 'jobTitle', label: 'Chức danh', type: 'select', options: chucDanhOptions },
+            {
+              name: 'jobTitle',
+              label: 'Chức danh',
+              type: 'select',
+              options: chucDanhError ? [] : chucDanhOptions,
+              placeholder: chucDanhEmpty ? 'Chưa có chức danh' : '-- Chọn chức danh --',
+              description: jobTitleDescription,
+            },
             { name: 'orgId', label: 'Tổ chức', type: 'select', options: orgOptions },
             { name: 'departmentId', label: 'Phòng ban', type: 'select', options: departmentOptions },
             { name: 'activated', label: 'Trạng thái', type: 'switch' },
@@ -287,6 +389,20 @@ export function PersonsPage() {
         variant={confirm.variant || 'danger'}
         confirmText="Xác nhận"
         cancelText="Hủy"
+      />
+
+      <PersonDetailDrawer
+        isOpen={!!detailPerson}
+        person={detailPerson}
+        onClose={() => setDetailPerson(null)}
+        onEdit={(p) => {
+          setDetailPerson(null)
+          handleOpenEdit(p)
+        }}
+        onToggleActive={(p) => {
+          handleToggleActive(p)
+          setDetailPerson(null)
+        }}
       />
     </div>
   )

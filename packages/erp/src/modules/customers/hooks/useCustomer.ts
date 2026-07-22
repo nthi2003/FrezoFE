@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { unwrapList } from '@frezo/utils'
 import { customerApi } from '../services/customerApi'
 import { toast } from 'sonner'
 
@@ -6,7 +7,7 @@ export function useCustomers() {
   return useQuery({
     queryKey: ['customers'],
     queryFn: () => customerApi.getAll(),
-    select: (res: any) => res?.data ?? [],
+    select: unwrapList,
   })
 }
 

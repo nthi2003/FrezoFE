@@ -25,6 +25,49 @@
   --ring: #22c55e;
   --accent: #f0fdf4;
   --accent-foreground: #15803d;
+
+  /* Kanban card tones — saturated soft surfaces + accent border (Ticket board) */
+  --kanban-info-bg: #dbeafe;
+  --kanban-info-fg: #1e3a8a;
+  --kanban-info-muted: #93c5fd;
+  --kanban-info-dot: #2563eb;
+  --kanban-info-chip: #bfdbfe;
+  --kanban-info-accent: #3b82f6;
+
+  --kanban-warning-bg: #fef3c7;
+  --kanban-warning-fg: #9a3412;
+  --kanban-warning-muted: #fdba74;
+  --kanban-warning-dot: #d97706;
+  --kanban-warning-chip: #fde68a;
+  --kanban-warning-accent: #f59e0b;
+
+  --kanban-success-bg: #dcfce7;
+  --kanban-success-fg: #065f46;
+  --kanban-success-muted: #6ee7b7;
+  --kanban-success-dot: #16a34a;
+  --kanban-success-chip: #bbf7d0;
+  --kanban-success-accent: #22c55e;
+
+  --kanban-danger-bg: #fee2e2;
+  --kanban-danger-fg: #9f1239;
+  --kanban-danger-muted: #fda4af;
+  --kanban-danger-dot: #dc2626;
+  --kanban-danger-chip: #fecaca;
+  --kanban-danger-accent: #ef4444;
+
+  --kanban-primary-bg: #dcfce7;
+  --kanban-primary-fg: #14532d;
+  --kanban-primary-muted: #86efac;
+  --kanban-primary-dot: #15803d;
+  --kanban-primary-chip: #bbf7d0;
+  --kanban-primary-accent: #22c55e;
+
+  --kanban-neutral-bg: #f1f5f9;
+  --kanban-neutral-fg: #1e293b;
+  --kanban-neutral-muted: #94a3b8;
+  --kanban-neutral-dot: #64748b;
+  --kanban-neutral-chip: #e2e8f0;
+  --kanban-neutral-accent: #94a3b8;
 }
 
 /* ===== BASE RESET ===== */
@@ -94,6 +137,59 @@
 
   .page-subtitle {
     @apply text-sm text-neutral-500 mt-0.5;
+  }
+
+  /* ---- Kanban card tones (Ticket / Todo board) ---- */
+  .kanban-card-tone {
+    --kc-bg: var(--kanban-neutral-bg);
+    --kc-fg: var(--kanban-neutral-fg);
+    --kc-muted: var(--kanban-neutral-muted);
+    --kc-dot: var(--kanban-neutral-dot);
+    --kc-chip: var(--kanban-neutral-chip);
+    --kc-accent: var(--kanban-neutral-accent);
+    background-color: var(--kc-bg);
+    color: var(--kc-fg);
+    border-left: 4px solid var(--kc-accent);
+  }
+  .kanban-card-tone-info {
+    --kc-bg: var(--kanban-info-bg);
+    --kc-fg: var(--kanban-info-fg);
+    --kc-muted: var(--kanban-info-muted);
+    --kc-dot: var(--kanban-info-dot);
+    --kc-chip: var(--kanban-info-chip);
+    --kc-accent: var(--kanban-info-accent);
+  }
+  .kanban-card-tone-warning {
+    --kc-bg: var(--kanban-warning-bg);
+    --kc-fg: var(--kanban-warning-fg);
+    --kc-muted: var(--kanban-warning-muted);
+    --kc-dot: var(--kanban-warning-dot);
+    --kc-chip: var(--kanban-warning-chip);
+    --kc-accent: var(--kanban-warning-accent);
+  }
+  .kanban-card-tone-success {
+    --kc-bg: var(--kanban-success-bg);
+    --kc-fg: var(--kanban-success-fg);
+    --kc-muted: var(--kanban-success-muted);
+    --kc-dot: var(--kanban-success-dot);
+    --kc-chip: var(--kanban-success-chip);
+    --kc-accent: var(--kanban-success-accent);
+  }
+  .kanban-card-tone-danger {
+    --kc-bg: var(--kanban-danger-bg);
+    --kc-fg: var(--kanban-danger-fg);
+    --kc-muted: var(--kanban-danger-muted);
+    --kc-dot: var(--kanban-danger-dot);
+    --kc-chip: var(--kanban-danger-chip);
+    --kc-accent: var(--kanban-danger-accent);
+  }
+  .kanban-card-tone-primary {
+    --kc-bg: var(--kanban-primary-bg);
+    --kc-fg: var(--kanban-primary-fg);
+    --kc-muted: var(--kanban-primary-muted);
+    --kc-dot: var(--kanban-primary-dot);
+    --kc-chip: var(--kanban-primary-chip);
+    --kc-accent: var(--kanban-primary-accent);
   }
 
   /* ---- Badge / Tag ---- */
@@ -169,24 +265,22 @@
     @apply px-4 py-3 text-neutral-700;
   }
 
-  /* ---- Sidebar active state ---- */
+  /* ---- Sidebar item states (semantic tokens) ---- */
   .sidebar-item {
     @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium cursor-pointer
-           text-sidebar-text transition-all duration-150 select-none;
+           text-sidebar-text select-none;
   }
 
   .sidebar-item:hover {
-    background-color: rgb(26 46 31);
-    color: #86efac;
+    @apply bg-sidebar-hover text-sidebar-text-active;
   }
 
   .sidebar-item.active {
-    background-color: rgb(30 61 38);
-    color: #4ade80;
+    @apply bg-sidebar-active text-sidebar-text-active;
   }
 
   .sidebar-item.active .sidebar-icon {
-    color: #4ade80;
+    @apply text-sidebar-text-active;
   }
 }
 

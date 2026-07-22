@@ -8,6 +8,40 @@
 /* ── RESET & BASE ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Skip link — WCAG 2.4.1 Bypass Blocks. Ẩn hoàn toàn cho đến khi focus. */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 8px;
+  z-index: 9999;
+  background: #16a34a;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,.2);
+  transition: top .2s;
+}
+.skip-link:focus-visible { top: 8px; outline: 3px solid #052e16; outline-offset: 2px; }
+
+/* Respect prefers-reduced-motion (WCAG 2.3.3) — vô hiệu animation dài cho người nhạy cảm chuyển động */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Focus-visible chuẩn cho keyboard nav */
+:focus-visible {
+  outline: 3px solid #22c55e;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 :root {
   --green-50:  #f0fdf4;
   --green-100: #dcfce7;
@@ -976,6 +1010,9 @@ button { cursor: pointer; border: none; background: none; font-family: inherit; 
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
 .toast-icon { font-size: 18px; }
+.toast.toast-error { border-color: rgba(239,68,68,.5); background: #1c1917; }
+.toast.toast-error #toast-msg { color: #fecaca; }
+.toast.toast-success { border-color: rgba(34,197,94,.35); }
 
 /* ═══════ RESPONSIVE ═══════ */
 @media (max-width: 1024px) {

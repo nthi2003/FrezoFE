@@ -1,20 +1,49 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
-import { Send, FileText, Users, Mail, ArrowRight, Check, ChevronLeft, ChevronRight, HelpCircle, X, Search, UserCheck } from 'lucide-react'
-import { Button } from '@frezo/ui'
+import { useNavigate } from 'react-router-dom'
+import {
+  Send, FileText, Mail, ArrowRight, Check, ChevronLeft, ChevronRight,
+  HelpCircle, X, Search, AlertTriangle, Settings,
+} from 'lucide-react'
+import { Button, EmptyState, PageHeader } from '@frezo/ui'
 import { Input } from '@frezo/ui'
 import { Label } from '@frezo/ui'
 import { TiptapEditor } from '@/components/shared/TiptapEditor'
-import { useEmailTemplates, useEmailGroups } from '../hooks/useEmail'
+import { useEmailTemplates, useEmailGroups, useEmailConfigs } from '../hooks/useEmail'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import axiosClient from '@/lib/axios/axiosClient'
 import { toast } from 'sonner'
+import { usePermission } from '@/lib/hooks/usePermission'
 import { useAuthStore } from '@/stores/authStore'
 import type { ApiResponse } from '@frezo/types'
 
 type Step = 'compose' | 'review'
 
+/** Map BE error code / message → copy tiếng Việt + cờ thiếu config. */
+function resolveEmailSendError(err: unknown): { message: string; needsConfig: boolean } {
+  const data = (err as { response?: { data?: { message?: string; errorCode?: string; code?: string } } })
+    ?.response?.data
+  const raw = String(data?.message || data?.errorCode || data?.code || (err as Error)?.message || '')
+  const needsConfig =
+    /error\.email\.config\.not\.found/i.test(raw) ||
+    /email\.config\.not\.found/i.test(raw) ||
+    /không có.*cấu hình|chua co.*cau hinh|no.*activated.*config/i.test(raw)
+  if (needsConfig) {
+    return {
+      message:
+        'Chưa có cấu hình email đang kích hoạt (activated). Vào Cấu hình email → Activate rồi gửi lại.',
+      needsConfig: true,
+    }
+  }
+  return {
+    message: raw || 'Gửi email thất bại',
+    needsConfig: false,
+  }
+}
+
 export function EmailComposePage() {
+  const navigate = useNavigate()
   const user = useAuthStore(s => s.user)
+  const canSend = usePermission('EMAIL.SEND')
 
   const [step, setStep] = useState<Step>('compose')
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
@@ -25,7 +54,15 @@ export function EmailComposePage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [personKeyword, setPersonKeyword] = useState('')
   const [personOpen, setPersonOpen] = useState(false)
+  const [configBlockMessage, setConfigBlockMessage] = useState<string | null>(null)
   const personRef = useRef<HTMLDivElement>(null)
+
+  const { data: configs, isLoading: configsLoading } = useEmailConfigs()
+  const activatedConfig = useMemo(() => {
+    if (!configs) return null
+    return (configs as any[]).find((c: any) => c.activated) || null
+  }, [configs])
+  const hasActivatedConfig = Boolean(activatedConfig)
 
   const { data: persons } = useQuery({
     queryKey: ['persons-combobox', personKeyword],
@@ -89,6 +126,7 @@ export function EmailComposePage() {
       axiosClient.post<ApiResponse<any>>('/email/send/bulk', data).then(r => r.data),
     onSuccess: () => {
       toast.success('Gửi email thành công')
+      setConfigBlockMessage(null)
       setStep('compose')
       setSelectedTemplateId(null)
       setSubject('')
@@ -96,10 +134,20 @@ export function EmailComposePage() {
       setRecipients('')
       setSelectedGroupId(null)
     },
-    onError: () => toast.error('Gửi email thất bại'),
+    onError: (err) => {
+      const resolved = resolveEmailSendError(err)
+      toast.error(resolved.message)
+      if (resolved.needsConfig) setConfigBlockMessage(resolved.message)
+    },
   })
 
   const handleSend = () => {
+    if (!hasActivatedConfig) {
+      setConfigBlockMessage(
+        'Chưa có cấu hình email đang kích hoạt. Vào Cấu hình email → Activate rồi gửi lại.',
+      )
+      return
+    }
     if (allRecipients.length === 0) return
     sendMutation.mutate({
       templateCode: selectedTemplate?.code || null,
@@ -110,8 +158,59 @@ export function EmailComposePage() {
     })
   }
 
+  // LNK-09 — block compose khi chưa có config activated
+  if (!configsLoading && !hasActivatedConfig) {
+    return (
+      <div className="p-6 animate-fade-in">
+        <PageHeader
+          title="Soạn & gửi email"
+          description="Gửi bulk / compose — cần cấu hình SMTP đang kích hoạt."
+        />
+        <div className="mt-8 max-w-md mx-auto">
+          <EmptyState
+            icon={Mail}
+            title="Chưa có cấu hình email đang kích hoạt"
+            description="Hệ thống không gửi được khi thiếu config activated (error.email.config.not.found). Tạo hoặc Activate cấu hình rồi quay lại."
+            action={
+              <Button
+                onClick={() => navigate('/email/config')}
+                className="bg-primary-600 hover:bg-primary-700 text-white gap-1.5"
+              >
+                <Settings size={14} /> Đến cấu hình email (Activate)
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-6 space-y-6 animate-fade-in">
+      <PageHeader
+        title="Soạn & gửi email"
+        description={
+          activatedConfig
+            ? `Đang dùng cấu hình: ${activatedConfig.name || activatedConfig.host || activatedConfig.id}`
+            : 'Gửi bulk / compose'
+        }
+      />
+
+      {configBlockMessage && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-wrap items-start gap-3 text-sm text-amber-950">
+          <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">{configBlockMessage}</div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 border-amber-300 text-amber-900 hover:bg-amber-100"
+            onClick={() => navigate('/email/config')}
+          >
+            <Settings size={13} /> /email/config
+          </Button>
+        </div>
+      )}
+
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
           <span className={`text-xs font-semibold px-2 py-1 rounded-full ${step === 'compose' ? 'bg-primary-100 text-primary-700' : 'bg-neutral-100 text-neutral-400'}`}>
@@ -323,14 +422,20 @@ export function EmailComposePage() {
             <Button variant="outline" onClick={() => setStep('compose')}>
               <ChevronLeft size={15} className="mr-1.5" /> Quay lại
             </Button>
-            <Button
-              onClick={handleSend}
-              disabled={sendMutation.isPending || allRecipients.length === 0}
-              className="bg-primary-600 hover:bg-primary-700 text-white"
-            >
-              <Send size={15} className="mr-1.5" />
-              {sendMutation.isPending ? 'Đang gửi...' : `Gửi đến ${allRecipients.length} người`}
-            </Button>
+            {canSend ? (
+              <Button
+                onClick={handleSend}
+                disabled={sendMutation.isPending || allRecipients.length === 0 || !hasActivatedConfig}
+                className="bg-primary-600 hover:bg-primary-700 text-white"
+              >
+                <Send size={15} className="mr-1.5" />
+                {sendMutation.isPending ? 'Đang gửi...' : `Gửi đến ${allRecipients.length} người`}
+              </Button>
+            ) : (
+              <span className="text-sm text-neutral-500 self-center">
+                Thiếu quyền gửi email
+              </span>
+            )}
           </div>
         </div>
       )}

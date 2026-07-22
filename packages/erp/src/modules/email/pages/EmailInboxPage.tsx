@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Inbox, Send, FileText, Trash2, Star, AlertTriangle, ChevronLeft, ChevronRight,
-  RefreshCw, Search, Paperclip, Clock, Mail, MailOpen, Archive, MoreHorizontal,
-  Menu, X, MessageSquare, Reply, Forward, Eye, EyeOff, Pencil, SquarePen,
+  RefreshCw, Search, Paperclip, Clock, Mail, MailOpen,
+  Menu, X, SquarePen,
 } from 'lucide-react'
 import { Button } from '@frezo/ui'
 import { Input } from '@frezo/ui'
@@ -58,9 +58,10 @@ export function EmailInboxPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const { data: configs } = useEmailConfigs()
+  /** LNK-09 — chỉ dùng config đã Activate; không fallback cấu hình tắt. */
   const activeConfig = useMemo(() => {
     if (!configs) return null
-    return configs.find((c: any) => c.activated) || configs[0]
+    return (configs as any[]).find((c: any) => c.activated) || null
   }, [configs])
 
   const { data: emails, isLoading, refetch, isFetching } = useQuery<EmailItem[]>({
@@ -129,10 +130,12 @@ export function EmailInboxPage() {
           <div className="w-20 h-20 rounded-2xl bg-neutral-50 flex items-center justify-center mx-auto mb-5">
             <Mail className="w-10 h-10 text-neutral-300" />
           </div>
-          <h2 className="text-lg font-semibold text-neutral-700 mb-2">Chưa có cấu hình email</h2>
-          <p className="text-sm text-neutral-400 mb-6 leading-relaxed">Vui lòng tạo và kích hoạt cấu hình email trước khi sử dụng hộp thư.</p>
+          <h2 className="text-lg font-semibold text-neutral-700 mb-2">Chưa có cấu hình email đang kích hoạt</h2>
+          <p className="text-sm text-neutral-400 mb-6 leading-relaxed">
+            Cần ít nhất một cấu hình SMTP với trạng thái <strong className="text-neutral-600">Activate</strong> trước khi mở hộp thư hoặc gửi bulk.
+          </p>
           <Button onClick={() => navigate('/email/config')} className="bg-primary-600 hover:bg-primary-700 text-white px-6">
-            Đến cấu hình email
+            Đến cấu hình email (Activate)
           </Button>
         </div>
       </div>
@@ -201,22 +204,9 @@ export function EmailInboxPage() {
               <span>Quay lại</span>
             </button>
             <div className="flex items-center gap-1 ml-auto">
-              <button onClick={() => { /* TODO: reply */ }} title="Trả lời"
-                className="p-2 rounded-lg hover:bg-neutral-100 text-neutral-500 hover:text-neutral-700 transition-all">
-                <Reply size={16} />
-              </button>
-              <button onClick={() => { /* TODO: forward */ }} title="Chuyển tiếp"
-                className="p-2 rounded-lg hover:bg-neutral-100 text-neutral-500 hover:text-neutral-700 transition-all">
-                <Forward size={16} />
-              </button>
-              <button onClick={() => { /* TODO: archive */ }} title="Lưu trữ"
-                className="p-2 rounded-lg hover:bg-neutral-100 text-neutral-500 hover:text-neutral-700 transition-all">
-                <Archive size={16} />
-              </button>
-              <button onClick={() => { /* TODO: delete */ }} title="Xóa"
-                className="p-2 rounded-lg hover:bg-red-50 text-neutral-500 hover:text-red-600 transition-all">
-                <Trash2 size={16} />
-              </button>
+              <span className="text-[11px] text-neutral-400 px-2">
+                Trả lời / Chuyển tiếp — Chưa sẵn sàng
+              </span>
             </div>
           </div>
 

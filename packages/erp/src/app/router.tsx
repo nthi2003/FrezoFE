@@ -28,16 +28,42 @@ const WebsiteManagementPage = lazy(() => import('@/modules/qtht/pages/WebsiteMan
 const NewsPage = lazy(() => import('@/modules/qtht/pages/NewsPage').then(m => ({ default: m.NewsPage })))
 const NewsCreatePage = lazy(() => import('@/modules/qtht/pages/NewsCreatePage').then(m => ({ default: m.NewsCreatePage })))
 
+// Assets (QLTS)
+const AssetsPage = lazy(() => import('@/modules/assets/pages/AssetsPage').then(m => ({ default: m.AssetsPage })))
+const DepreciationPostPage = lazy(() => import('@/modules/assets/pages/DepreciationPostPage').then(m => ({ default: m.DepreciationPostPage })))
+
+// Workflow Engine — quy trình duyệt chung cho mọi module
+const WorkflowsPage = lazy(() => import('@/modules/workflow/pages/WorkflowsPage').then(m => ({ default: m.WorkflowsPage })))
+const WorkflowTemplateGalleryPage = lazy(() => import('@/modules/workflow/pages/WorkflowTemplateGalleryPage').then(m => ({ default: m.WorkflowTemplateGalleryPage })))
+const WorkflowDesignerPage = lazy(() => import('@/modules/workflow/pages/WorkflowDesignerPage').then(m => ({ default: m.WorkflowDesignerPage })))
+
+// Events
+const EventsAdminPage = lazy(() => import('@/modules/events/pages/EventsAdminPage').then(m => ({ default: m.EventsAdminPage })))
+const EventDetailAdminPage = lazy(() => import('@/modules/events/pages/EventsAdminPage').then(m => ({ default: m.EventDetailAdminPage })))
+const EventFormPage = lazy(() => import('@/modules/events/pages/EventsAdminPage').then(m => ({ default: m.EventFormPage })))
+
 // Contracts
 const ContractPage    = lazy(() => import('@/modules/contracts/pages/ContractPage').then(m => ({ default: m.ContractPage })))
 const ContractCreatePage = lazy(() => import('@/modules/contracts/pages/ContractCreatePage').then(m => ({ default: m.ContractCreatePage })))
+const ContractDetailPage = lazy(() => import('@/modules/contracts/pages/ContractDetailPage').then(m => ({ default: m.ContractDetailPage })))
 
 // QLNS
 const PersonsPage     = lazy(() => import('@/modules/qlns/pages/PersonsPage').then(m => ({ default: m.PersonsPage })))
 const PayrollsPage    = lazy(() => import('@/modules/qlns/pages/PayrollsPage').then(m => ({ default: m.PayrollsPage })))
+const SalaryBandsPage = lazy(() => import('@/modules/qlns/pages/SalaryBandsPage').then(m => ({ default: m.SalaryBandsPage })))
+const RequisitionsPage      = lazy(() => import('@/modules/qlns/pages/RequisitionsPage').then(m => ({ default: m.RequisitionsPage })))
+const RecruitmentBoardPage  = lazy(() => import('@/modules/qlns/pages/RecruitmentBoardPage').then(m => ({ default: m.RecruitmentBoardPage })))
+const OkrsPage                  = lazy(() => import('@/modules/qlns/pages/OkrsPage').then(m => ({ default: m.OkrsPage })))
+const PerformanceReviewsPage    = lazy(() => import('@/modules/qlns/pages/PerformanceReviewsPage').then(m => ({ default: m.PerformanceReviewsPage })))
+const OnboardingPage            = lazy(() => import('@/modules/qlns/pages/OnboardingPage').then(m => ({ default: m.OnboardingPage })))
+const ContractSignPage          = lazy(() => import('@/modules/contracts/pages/ContractSignPage').then(m => ({ default: m.ContractSignPage })))
 
 // Customers
 const CustomersPage   = lazy(() => import('@/modules/customers/pages/CustomersPage').then(m => ({ default: m.CustomersPage })))
+const Customer360Page = lazy(() => import('@/modules/customers/pages/Customer360Page').then(m => ({ default: m.Customer360Page })))
+
+// Suppliers (NCC)
+const NccPage         = lazy(() => import('@/modules/suppliers/pages/NccPage').then(m => ({ default: m.NccPage })))
 
 // Products
 const ProductsPage    = lazy(() => import('@/modules/products/pages/ProductsPage').then(m => ({ default: m.ProductsPage })))
@@ -49,10 +75,10 @@ const TicketsPage     = lazy(() => import('@/modules/tasks/pages/TicketsPage').t
 const TagsPage        = lazy(() => import('@/modules/tasks/pages/TagsPage').then(m => ({ default: m.TagsPage })))
 const LeavesPage      = lazy(() => import('@/modules/qlns/pages/LeavesPage').then(m => ({ default: m.LeavesPage })))
 const AttendancePage  = lazy(() => import('@/modules/qlns/pages/AttendancePage').then(m => ({ default: m.AttendancePage })))
-const AttendanceSettingsPage = lazy(() => import('@/modules/qlns/pages/AttendanceSettingsPage').then(m => ({ default: m.AttendanceSettingsPage })))
 
 // Articles
-const ArticlesPage    = lazy(() => import('@/modules/articles/pages/ArticlesPage').then(m => ({ default: m.ArticlesPage })))
+const ArticlesPage       = lazy(() => import('@/modules/articles/pages/ArticlesPage').then(m => ({ default: m.ArticlesPage })))
+const ArticleEditorPage  = lazy(() => import('@/modules/articles/pages/ArticleEditorPage').then(m => ({ default: m.ArticleEditorPage })))
 
 // Category Management
 const CategoriesPage  = lazy(() => import('@/modules/qtht/pages/CategoriesPage').then(m => ({ default: m.CategoriesPage })))
@@ -67,6 +93,45 @@ const EmailInboxPage    = lazy(() => import('@/modules/email/pages/EmailInboxPag
 // Profile
 const ProfilePage     = lazy(() => import('@/modules/profile/pages/ProfilePage').then(m => ({ default: m.ProfilePage })))
 
+// Notifications
+const NotificationsPage = lazy(() => import('@/modules/common/pages/NotificationsPage').then(m => ({ default: m.NotificationsPage })))
+
+// Docs Hub
+const DocsHubPage = lazy(() => import('@/modules/docs/pages/DocsHubPage').then(m => ({ default: m.DocsHubPage })))
+const DocsViewerPage = lazy(() => import('@/modules/docs/pages/DocsViewerPage').then(m => ({ default: m.DocsViewerPage })))
+
+// Approval (FZ-003)
+const ApprovalInboxPage = lazy(() => import('@/modules/approval/pages/ApprovalInboxPage').then(m => ({ default: m.ApprovalInboxPage })))
+const ApprovalFlowConfigPage = lazy(() => import('@/modules/approval/pages/ApprovalFlowConfigPage').then(m => ({ default: m.ApprovalFlowConfigPage })))
+
+// Warehouse (FZ-010)
+const ReorderRulesPage = lazy(() => import('@/modules/warehouse/pages/ReorderRulesPage').then(m => ({ default: m.ReorderRulesPage })))
+const StockAlertsPage = lazy(() => import('@/modules/warehouse/pages/StockAlertsPage').then(m => ({ default: m.StockAlertsPage })))
+const StockTakePage = lazy(() => import('@/modules/warehouse/pages/StockTakePage').then(m => ({ default: m.StockTakePage })))
+const PurchaseRequestsPage = lazy(() => import('@/modules/warehouse/pages/PurchaseRequestsPage').then(m => ({ default: m.PurchaseRequestsPage })))
+const PurchaseRequestDetailPage = lazy(() => import('@/modules/warehouse/pages/PurchaseRequestDetailPage').then(m => ({ default: m.PurchaseRequestDetailPage })))
+const PurchaseOrdersPage = lazy(() => import('@/modules/warehouse/pages/PurchaseOrdersPage').then(m => ({ default: m.PurchaseOrdersPage })))
+const PurchaseOrderDetailPage = lazy(() => import('@/modules/warehouse/pages/PurchaseOrderDetailPage').then(m => ({ default: m.PurchaseOrderDetailPage })))
+
+// Accounting
+const AccountsPage            = lazy(() => import('@/modules/accounting/pages/AccountsPage').then(m => ({ default: m.AccountsPage })))
+const JournalsPage            = lazy(() => import('@/modules/accounting/pages/JournalsPage').then(m => ({ default: m.JournalsPage })))
+const GeneralLedgerPage       = lazy(() => import('@/modules/accounting/pages/GeneralLedgerPage').then(m => ({ default: m.GeneralLedgerPage })))
+const TrialBalancePage        = lazy(() => import('@/modules/accounting/pages/TrialBalancePage').then(m => ({ default: m.TrialBalancePage })))
+const FinancialStatementsPage = lazy(() => import('@/modules/accounting/pages/FinancialStatementsPage').then(m => ({ default: m.FinancialStatementsPage })))
+const AccountingSettingsPage  = lazy(() => import('@/modules/accounting/pages/AccountingSettingsPage').then(m => ({ default: m.AccountingSettingsPage })))
+const FiscalPeriodsPage       = lazy(() => import('@/modules/accounting/pages/FiscalPeriodsPage').then(m => ({ default: m.FiscalPeriodsPage })))
+const BankReconciliationPage  = lazy(() => import('@/modules/accounting/pages/BankReconciliationPage').then(m => ({ default: m.BankReconciliationPage })))
+const BankStatementImportPage = lazy(() => import('@/modules/accounting/pages/BankStatementImportPage').then(m => ({ default: m.BankStatementImportPage })))
+
+// CRM
+const LeadsPage     = lazy(() => import('@/modules/crm/pages/LeadsPage').then(m => ({ default: m.LeadsPage })))
+const DealsPage     = lazy(() => import('@/modules/crm/pages/DealsPage').then(m => ({ default: m.DealsPage })))
+const QuotesPage    = lazy(() => import('@/modules/crm/pages/QuotesPage').then(m => ({ default: m.QuotesPage })))
+const InvoicesPage  = lazy(() => import('@/modules/crm/pages/InvoicesPage').then(m => ({ default: m.InvoicesPage })))
+const MeetingsPage  = lazy(() => import('@/modules/crm/pages/MeetingsPage').then(m => ({ default: m.MeetingsPage })))
+const EmailSequencesPage = lazy(() => import('@/modules/crm/pages/EmailSequencesPage').then(m => ({ default: m.EmailSequencesPage })))
+
 // FB Automation
 const FbDashboardPage     = lazy(() => import('@/modules/fbautomation/pages/FbDashboardPage').then(m => ({ default: m.FbDashboardPage })))
 const FbAccountsPage      = lazy(() => import('@/modules/fbautomation/pages/FbAccountsPage').then(m => ({ default: m.FbAccountsPage })))
@@ -74,8 +139,15 @@ const FbGroupScannerPage  = lazy(() => import('@/modules/fbautomation/pages/FbGr
 const FbGroupsPage        = lazy(() => import('@/modules/fbautomation/pages/FbGroupsPage').then(m => ({ default: m.FbGroupsPage })))
 const FbLeadsPage         = lazy(() => import('@/modules/fbautomation/pages/FbLeadsPage').then(m => ({ default: m.FbLeadsPage })))
 
+// MKT Suite — nhóm mới (Marketing/CSKH tools). Không dùng grey-area API, chỉ Graph API + Zalo OA chính thức.
+const LeadImportPage      = lazy(() => import('@/modules/fbautomation/pages/LeadImportPage').then(m => ({ default: m.LeadImportPage })))
+const SocialContentPage   = lazy(() => import('@/modules/fbautomation/pages/SocialContentPage').then(m => ({ default: m.SocialContentPage })))
+const AffiliatePage       = lazy(() => import('@/modules/fbautomation/pages/AffiliatePage').then(m => ({ default: m.AffiliatePage })))
+
 // Error / Not Found Page
 import { NotFoundPage } from '@/components/shared/NotFoundPage'
+import { PlaceholderPage } from '@/components/shared/PlaceholderPage'
+import { RouteErrorBoundary } from '@/components/shared/RouteErrorBoundary'
 import logoImg from '@/img/logo.png'
 
 // ---- Page loading fallback ----
@@ -125,9 +197,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isAdmin && flatMenus) {
     const path = location.pathname
 
-    // Always allowed paths
-    const publicProtectedPaths = ['/', '/dashboard', '/profile']
-    if (publicProtectedPaths.includes(path)) {
+    // Always allowed paths (mọi user đăng nhập đều truy cập được)
+    const publicProtectedPaths = [
+      '/',
+      '/dashboard',
+      '/profile',
+      '/notifications',
+      '/approval/inbox',
+      '/docs',
+    ]
+    if (
+      publicProtectedPaths.includes(path) ||
+      path.startsWith('/docs/')
+    ) {
       return <>{children}</>
     }
 
@@ -161,6 +243,7 @@ export const router = createBrowserRouter([
   // Public routes
   {
     path: '/login',
+    errorElement: <RouteErrorBoundary />,
     element: (
       <PublicRoute>
         <Suspense fallback={<PageLoader />}>
@@ -173,6 +256,9 @@ export const router = createBrowserRouter([
   // Protected routes (inside MainLayout)
   {
     path: '/',
+    // errorElement ở root chặn mọi lỗi runtime từ lazy chunk / render trong subtree —
+    // thay vì crash cả app, hiện panel Route Error Boundary có action Reload / Home.
+    errorElement: <RouteErrorBoundary />,
     element: (
       <ProtectedRoute>
         <MainLayout />
@@ -192,6 +278,9 @@ export const router = createBrowserRouter([
       { path: 'qtht/security',      element: <Suspense fallback={<PageLoader />}><SecurityPage /></Suspense> },
       { path: 'qtht/settings',      element: <Suspense fallback={<PageLoader />}><SettingsPage /></Suspense> },
       { path: 'qtht/apilogs',       element: <Suspense fallback={<PageLoader />}><ApiLogsPage /></Suspense> },
+      { path: 'qtht/workflows',     element: <Suspense fallback={<PageLoader />}><WorkflowsPage /></Suspense> },
+      { path: 'qtht/workflows/templates', element: <Suspense fallback={<PageLoader />}><WorkflowTemplateGalleryPage /></Suspense> },
+      { path: 'qtht/workflows/:id/designer', element: <Suspense fallback={<PageLoader />}><WorkflowDesignerPage /></Suspense> },
       { path: 'qtht/website',        element: <Suspense fallback={<PageLoader />}><WebsiteManagementPage /></Suspense> },
       { path: 'qtht/tin-tuc',        element: <Suspense fallback={<PageLoader />}><NewsPage /></Suspense> },
       { path: 'qtht/tin-tuc/tao-moi', element: <Suspense fallback={<PageLoader />}><NewsCreatePage /></Suspense> },
@@ -200,10 +289,22 @@ export const router = createBrowserRouter([
       { path: 'qlns/persons',     element: <Suspense fallback={<PageLoader />}><PersonsPage /></Suspense> },
       { path: 'qlns/contract',        element: <Suspense fallback={<PageLoader />}><ContractPage /></Suspense> },
       { path: 'qlns/contract/create', element: <Suspense fallback={<PageLoader />}><ContractCreatePage /></Suspense> },
+      { path: 'qlns/contract/sign/:id', element: <Suspense fallback={<PageLoader />}><ContractSignPage /></Suspense> },
+      { path: 'qlns/contract/:id', element: <Suspense fallback={<PageLoader />}><ContractDetailPage /></Suspense> },
       { path: 'qlns/payrolls',    element: <Suspense fallback={<PageLoader />}><PayrollsPage /></Suspense> },
+      { path: 'qlns/salary-bands', element: <Suspense fallback={<PageLoader />}><SalaryBandsPage /></Suspense> },
+      { path: 'qtht/salary-bands', element: <Suspense fallback={<PageLoader />}><SalaryBandsPage /></Suspense> },
+      { path: 'qlns/recruitment/requisitions', element: <Suspense fallback={<PageLoader />}><RequisitionsPage /></Suspense> },
+      { path: 'qlns/recruitment/board',        element: <Suspense fallback={<PageLoader />}><RecruitmentBoardPage /></Suspense> },
+      { path: 'qlns/okrs', element: <Suspense fallback={<PageLoader />}><OkrsPage /></Suspense> },
+      { path: 'qlns/performance-reviews', element: <Suspense fallback={<PageLoader />}><PerformanceReviewsPage /></Suspense> },
+      { path: 'qlns/onboarding', element: <Suspense fallback={<PageLoader />}><OnboardingPage /></Suspense> },
 
       // Customer
-      { path: 'customer',         element: <Suspense fallback={<PageLoader />}><CustomersPage /></Suspense> },
+      { path: 'customer',            element: <Suspense fallback={<PageLoader />}><CustomersPage /></Suspense> },
+      { path: 'customer/:id/360',    element: <Suspense fallback={<PageLoader />}><Customer360Page /></Suspense> },
+      { path: 'customer/ncc',        element: <Suspense fallback={<PageLoader />}><NccPage /></Suspense> },
+      { path: 'ncc',                 element: <Suspense fallback={<PageLoader />}><NccPage /></Suspense> },
 
       // Product
       { path: 'product',          element: <Suspense fallback={<PageLoader />}><ProductsPage /></Suspense> },
@@ -217,10 +318,11 @@ export const router = createBrowserRouter([
 
       // Attendance
       { path: 'admin/attendance', element: <Suspense fallback={<PageLoader />}><AttendancePage /></Suspense> },
-      { path: 'admin/attendance/settings', element: <Suspense fallback={<PageLoader />}><AttendanceSettingsPage /></Suspense> },
 
       // Articles
-      { path: 'admin/article-management', element: <Suspense fallback={<PageLoader />}><ArticlesPage /></Suspense> },
+      { path: 'admin/article-management',            element: <Suspense fallback={<PageLoader />}><ArticlesPage /></Suspense> },
+      { path: 'admin/article-management/new',        element: <Suspense fallback={<PageLoader />}><ArticleEditorPage /></Suspense> },
+      { path: 'admin/article-management/:id/edit',   element: <Suspense fallback={<PageLoader />}><ArticleEditorPage /></Suspense> },
 
       // Category Management
       { path: 'admin/category-management', element: <Suspense fallback={<PageLoader />}><CategoriesPage /></Suspense> },
@@ -236,15 +338,96 @@ export const router = createBrowserRouter([
       // Profile
       { path: 'profile',          element: <Suspense fallback={<PageLoader />}><ProfilePage /></Suspense> },
 
+      // Notifications (Notification Center)
+      { path: 'notifications',    element: <Suspense fallback={<PageLoader />}><NotificationsPage /></Suspense> },
+
+      // Docs Hub
+      { path: 'docs', element: <Suspense fallback={<PageLoader />}><DocsHubPage /></Suspense> },
+      { path: 'docs/:slug', element: <Suspense fallback={<PageLoader />}><DocsViewerPage /></Suspense> },
+
+      // Approval module (FZ-003 / FE-1)
+      { path: 'approval/inbox',   element: <Suspense fallback={<PageLoader />}><ApprovalInboxPage /></Suspense> },
+      { path: 'approval/flows',   element: <Suspense fallback={<PageLoader />}><ApprovalFlowConfigPage /></Suspense> },
+
+      // Warehouse (FZ-010 / FE-3)
+      { path: 'warehouse/reorder-rules', element: <Suspense fallback={<PageLoader />}><ReorderRulesPage /></Suspense> },
+      { path: 'warehouse/stock-alerts',  element: <Suspense fallback={<PageLoader />}><StockAlertsPage /></Suspense> },
+      { path: 'warehouse/stock-takes',   element: <Suspense fallback={<PageLoader />}><StockTakePage /></Suspense> },
+      { path: 'warehouse/purchase-requests', element: <Suspense fallback={<PageLoader />}><PurchaseRequestsPage /></Suspense> },
+      { path: 'warehouse/purchase-requests/:id', element: <Suspense fallback={<PageLoader />}><PurchaseRequestDetailPage /></Suspense> },
+      { path: 'warehouse/purchase-orders', element: <Suspense fallback={<PageLoader />}><PurchaseOrdersPage /></Suspense> },
+      { path: 'warehouse/purchase-orders/:id', element: <Suspense fallback={<PageLoader />}><PurchaseOrderDetailPage /></Suspense> },
+
+      // Accounting
+      { path: 'accounting/accounts',       element: <Suspense fallback={<PageLoader />}><AccountsPage /></Suspense> },
+      { path: 'accounting/journals',       element: <Suspense fallback={<PageLoader />}><JournalsPage /></Suspense> },
+      { path: 'accounting/ledger',         element: <Suspense fallback={<PageLoader />}><GeneralLedgerPage /></Suspense> },
+      { path: 'accounting/trial-balance',  element: <Suspense fallback={<PageLoader />}><TrialBalancePage /></Suspense> },
+      { path: 'accounting/financial-statements', element: <Suspense fallback={<PageLoader />}><FinancialStatementsPage /></Suspense> },
+      { path: 'accounting/settings',       element: <Suspense fallback={<PageLoader />}><AccountingSettingsPage /></Suspense> },
+      { path: 'accounting/periods',        element: <Suspense fallback={<PageLoader />}><FiscalPeriodsPage /></Suspense> },
+      { path: 'accounting/bank-reconciliation',        element: <Suspense fallback={<PageLoader />}><BankReconciliationPage /></Suspense> },
+      { path: 'accounting/bank-reconciliation/import', element: <Suspense fallback={<PageLoader />}><BankStatementImportPage /></Suspense> },
+
+      // CRM
+      { path: 'crm/leads',     element: <Suspense fallback={<PageLoader />}><LeadsPage /></Suspense> },
+      { path: 'crm/deals',     element: <Suspense fallback={<PageLoader />}><DealsPage /></Suspense> },
+      { path: 'crm/quotes',    element: <Suspense fallback={<PageLoader />}><QuotesPage /></Suspense> },
+      { path: 'crm/invoices',  element: <Suspense fallback={<PageLoader />}><InvoicesPage /></Suspense> },
+      { path: 'crm/meetings',  element: <Suspense fallback={<PageLoader />}><MeetingsPage /></Suspense> },
+      { path: 'crm/email-sequences', element: <Suspense fallback={<PageLoader />}><EmailSequencesPage /></Suspense> },
+
       // FB Automation
       { path: 'fb',                element: <Suspense fallback={<PageLoader />}><FbDashboardPage /></Suspense> },
       { path: 'fb/accounts',       element: <Suspense fallback={<PageLoader />}><FbAccountsPage /></Suspense> },
       { path: 'fb/scan-groups',    element: <Suspense fallback={<PageLoader />}><FbGroupScannerPage /></Suspense> },
       { path: 'fb/groups',         element: <Suspense fallback={<PageLoader />}><FbGroupsPage /></Suspense> },
       { path: 'fb/leads',          element: <Suspense fallback={<PageLoader />}><FbLeadsPage /></Suspense> },
+
+      // CSKH — Inbox tổng (alias sang FbLeadsPage đã multi-channel)
+      { path: 'support/inbox',     element: <Suspense fallback={<PageLoader />}><FbLeadsPage /></Suspense> },
+
+      // ============================================================
+      // MKT Suite — nhóm Marketing/CSKH tools (route /mkt/*)
+      // ------------------------------------------------------------
+      // Chi tiết trạng thái từng module trong MKT_ROADMAP.md.
+      // Ready = không cần API bên ngoài.
+      // Placeholder = cần Meta App Review + Page Token (5 module).
+      // ============================================================
+      { path: 'mkt/inbox',        element: <Suspense fallback={<PageLoader />}><FbLeadsPage /></Suspense> },
+      { path: 'mkt/leads/import', element: <Suspense fallback={<PageLoader />}><LeadImportPage /></Suspense> },
+      { path: 'mkt/content',      element: <Suspense fallback={<PageLoader />}><SocialContentPage /></Suspense> },
+      { path: 'mkt/affiliate',    element: <Suspense fallback={<PageLoader />}><AffiliatePage /></Suspense> },
+
+      // Cần Meta App Review + Page Token — hiện placeholder, sẽ implement khi có credentials.
+      { path: 'mkt/insights',     element: <PlaceholderPage title="Page Insights" moduleCode="MKT · INSIGHTS" description="Reach / engagement / follower theo Graph API. Cần Meta App + permission read_insights. Xem MKT_ROADMAP.md." /> },
+      { path: 'mkt/ads',          element: <PlaceholderPage title="Báo cáo Ads" moduleCode="MKT · ADS" description="Chi phí / ROAS / CTR từ Meta Marketing API. Cần Ad Account Token + permission ads_read." /> },
+      { path: 'mkt/comments',     element: <PlaceholderPage title="Kiểm duyệt Comment" moduleCode="MKT · MODERATOR" description="Auto-reply / hide spam theo từ khoá. Cần Page Token + webhook feed." /> },
+      { path: 'mkt/reviews',      element: <PlaceholderPage title="Theo dõi đánh giá" moduleCode="MKT · REVIEWS" description="Poll ratings, alert khi có review 1-2 sao. Cần Page Token + permission pages_read_user_content." /> },
+      { path: 'mkt/live',         element: <PlaceholderPage title="Livestream Reminder" moduleCode="MKT · LIVE" description="Tạo event + notify khách đăng ký trước giờ live. Standalone — không cần Meta App." /> },
+      { path: 'mkt/zalo',         element: <PlaceholderPage title="Zalo OA Broadcast" moduleCode="MKT · ZALO" description="Gửi ZNS theo template đã duyệt. Cần Zalo OA verified + template duyệt trước." /> },
+
+      // Placeholder routes — menu đã seed nhưng UI chi tiết chưa build.
+      // Giữ menu trong sidebar để giữ nguyên IA + phân quyền, nhưng thay 404 bằng trang "đang phát triển".
+      { path: 'admin/events',      element: <Suspense fallback={<PageLoader />}><EventsAdminPage /></Suspense> },
+      { path: 'admin/events/new',  element: <Suspense fallback={<PageLoader />}><EventFormPage /></Suspense> },
+      { path: 'admin/events/:id/edit', element: <Suspense fallback={<PageLoader />}><EventFormPage /></Suspense> },
+      { path: 'admin/events/:id',  element: <Suspense fallback={<PageLoader />}><EventDetailAdminPage /></Suspense> },
+      { path: 'admin/qlts',        element: <Suspense fallback={<PageLoader />}><AssetsPage /></Suspense> },
+      { path: 'assets/depreciation', element: <Suspense fallback={<PageLoader />}><DepreciationPostPage /></Suspense> },
+      { path: 'admin/qlbghd',      element: <PlaceholderPage title="Quản Lý Bảng Giá Hợp Đồng" moduleCode="BGHD" description="Bảng giá / phụ lục hợp đồng, phê duyệt và version — đang được xây dựng." /> },
     ],
   },
 
   // Catch all
-  { path: '*', element: <NotFoundPage /> },
-])
+  { path: '*', element: <NotFoundPage />, errorElement: <RouteErrorBoundary /> },
+], {
+  // React 18 + React Router v6 lazy chunk: khi user click Link → route load lazy chunk,
+  // React coi đây là "synchronous input" → cảnh báo "component suspended...".
+  // Flag này bật startTransition() nội bộ cho mọi navigation → mọi Suspense boundary
+  // fallback (PageLoader) sẽ hiển thị mượt thay vì bị thay thế đột ngột.
+  // Bonus: chuẩn bị migration sang React Router v7 mà không cần rewrite.
+  future: {
+    v7_startTransition: true,
+  },
+})
