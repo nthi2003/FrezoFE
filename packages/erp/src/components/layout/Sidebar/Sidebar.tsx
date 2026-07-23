@@ -43,6 +43,7 @@ import { FacebookIcon } from '@/components/shared/FacebookIcon'
 import { useMenus } from '@/modules/menus/hooks/useMenus'
 import { useAppStore } from '@/stores/appStore'
 import { useAuthStore } from '@/stores/authStore'
+import { resolveAvatarUrl } from '@/modules/auth/utils/resolveAvatarUrl'
 import type { MenuTreeNode } from '@/modules/menus/types/menu.types'
 
 import type { LucideIcon } from 'lucide-react'
@@ -252,6 +253,7 @@ export function Sidebar() {
   const { menuTree, isLoading } = useMenus()
   const { sidebarCollapsed, toggleSidebar } = useAppStore()
   const { user, logout } = useAuthStore()
+  const avatarSrc = resolveAvatarUrl(user)
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const docsActive = pathname === '/docs' || pathname.startsWith('/docs/')
@@ -381,11 +383,19 @@ export function Sidebar() {
           ${sidebarCollapsed ? 'justify-center' : ''}
         `}
         >
-          <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center shrink-0">
-            <span className="text-white text-xs font-bold uppercase">
-              {user?.fullName?.charAt(0) || user?.username?.charAt(0) || 'U'}
-            </span>
-          </div>
+          {avatarSrc ? (
+            <img
+              src={avatarSrc}
+              alt="avatar"
+              className="w-8 h-8 rounded-full object-cover shrink-0 border border-sidebar-border"
+            />
+          ) : (
+            <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center shrink-0">
+              <span className="text-white text-xs font-bold uppercase">
+                {user?.fullName?.charAt(0) || user?.username?.charAt(0) || 'U'}
+              </span>
+            </div>
+          )}
 
           {!sidebarCollapsed && (
             <>

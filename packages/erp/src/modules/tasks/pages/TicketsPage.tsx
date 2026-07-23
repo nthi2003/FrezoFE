@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Search, LayoutGrid, CalendarDays, Users, Filter, X, Flame, Zap, AlertCircle, Clock, MessageSquare, type LucideIcon } from 'lucide-react'
 import { TicketCalendar } from '../components/TicketCalendar'
 import { TicketCard } from '../components/TicketCard'
@@ -20,8 +21,13 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
 import { personApi } from '@/modules/qlns/services/personApi'
 import { profileApi } from '@/modules/profile/services/profileApi'
-import { tagApi } from '../services/taskApi'
-import { useTickets, useCreateTicket, useUpdateTicket, useDeleteTicket } from '../hooks/useTicketTag'
+import {
+  useTickets,
+  useCreateTicket,
+  useUpdateTicket,
+  useUpdateTicketStatus,
+  useDeleteTicket,
+} from '../hooks/useTicketTag'
 import { ticketSchema } from '../constants/schema'
 import { TICKETS_GUIDE } from '../constants/tickets.guide'
 import { CommentDrawer } from '@/components/shared/CommentThread'
@@ -58,8 +64,17 @@ const STATUSES = [
   },
 ] as const
 
+/** Map BE Ticket.TicketStatus — dùng chung filter + form create/edit */
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
+  { value: 'OPEN', label: 'Mở' },
+  { value: 'IN_PROGRESS', label: 'Đang xử lý' },
+  { value: 'RESOLVED', label: 'Đã giải quyết' },
+  { value: 'CLOSED', label: 'Đã đóng' },
+]
+
+const STATUS_FORM_OPTIONS = [
+  { value: '', label: '-- Chọn --' },
   { value: 'OPEN', label: 'Mở' },
   { value: 'IN_PROGRESS', label: 'Đang xử lý' },
   { value: 'RESOLVED', label: 'Đã giải quyết' },
@@ -74,6 +89,22 @@ const CATEGORY_OPTIONS = [
   { value: 'OTHER', label: 'Khác' },
 ]
 
+/** Map BE Ticket.TicketPriority — dùng chung filter + form create/edit */
+const PRIORITY_FORM_OPTIONS = [
+  { value: '', label: '-- Chọn --' },
+  { value: 'LOW', label: 'Thấp' },
+  { value: 'MEDIUM', label: 'Trung bình' },
+  { value: 'HIGH', label: 'Cao' },
+  { value: 'URGENT', label: 'Khẩn cấp' },
+]
+
+const PRIORITY_META: Record<string, { color: string; name: string }> = {
+  URGENT: { color: '#e11d48', name: 'Khẩn cấp' },
+  HIGH: { color: '#f97316', name: 'Cao' },
+  MEDIUM: { color: '#f59e0b', name: 'Trung bình' },
+  LOW: { color: '#9ca3af', name: 'Thấp' },
+}
+
 const PRIORITY_FILTER = [
   { value: 'URGENT', label: 'Khẩn cấp', icon: Flame, tone: 'text-danger-dark bg-danger-light hover:bg-danger-light border-danger/30' },
   { value: 'HIGH', label: 'Cao', icon: Zap, tone: 'text-warning-dark bg-warning-light hover:bg-warning-light border-warning/30' },
@@ -86,6 +117,10 @@ const PRIORITY_FILTER = [
 // ============================================================
 
 export function TicketsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const deepLinkTicketId = searchParams.get('ticketId')
+  const deepLinkHandledRef = useRef<string | null>(null)
+
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any | null>(null)
   const [commentTicket, setCommentTicket] = useState<any | null>(null)
@@ -118,6 +153,7 @@ export function TicketsPage() {
   const { data: rawData, isLoading, isError, refetch, isFetching } = useTickets(params)
   const createReq = useCreateTicket()
   const updateReq = useUpdateTicket()
+  const updateStatusReq = useUpdateTicketStatus()
   const deleteReq = useDeleteTicket()
 
   const { data: personOptions } = useQuery({
@@ -134,42 +170,8 @@ export function TicketsPage() {
     return m
   }, [personOptions])
 
-  const { data: priorityOptionsData } = useQuery({
-    queryKey: ['tags-priority'],
-    queryFn: () => tagApi.getAll({ category: 'priority' }),
-    select: (res: any) => res?.data ?? res ?? [],
-  })
-
-  const { data: statusOptionsData } = useQuery({
-    queryKey: ['tags-status'],
-    queryFn: () => tagApi.getAll({ category: 'status' }),
-    select: (res: any) => res?.data ?? res ?? [],
-  })
-
-  const priorityOptions = [
-    { value: '', label: '-- Chọn --' },
-    ...(priorityOptionsData || []).map((t: any) => ({ value: t.code, label: t.name })),
-  ]
-  const priorityMetaMap = useMemo(() => {
-    const m: Record<string, { color?: string; name?: string }> = {
-      URGENT: { color: '#e11d48', name: 'Khẩn cấp' },
-      HIGH: { color: '#f97316', name: 'Cao' },
-      MEDIUM: { color: '#f59e0b', name: 'Trung bình' },
-      LOW: { color: '#9ca3af', name: 'Thấp' },
-    }
-    for (const t of priorityOptionsData || []) {
-      if (t.code) m[t.code] = { color: t.color, name: t.name }
-    }
-    return m
-  }, [priorityOptionsData])
-
-  const statusFormOptions = [
-    { value: '', label: '-- Chọn --' },
-    ...(statusOptionsData || []).map((t: any) => ({ value: t.code, label: t.name })),
-  ]
-
   // ---- Form ----
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors, dirtyFields } } = useForm({
     resolver: zodResolver(ticketSchema),
     defaultValues: {
       title: '', description: '', status: '', priority: '', category: '',
@@ -180,6 +182,22 @@ export function TicketsPage() {
   const formPriority = watch('priority')
   const formCategory = watch('category')
   const formAssignee = watch('assigneeId')
+
+  const fillFormFromTicket = useCallback(
+    (ticket: any) => {
+      reset({
+        title: ticket.title || '',
+        description: ticket.description || '',
+        status: ticket.status || '',
+        priority: ticket.priority || '',
+        category: ticket.category || '',
+        assigneeId: ticket.assigneeId || '',
+        dueDate: ticket.dueDate ? String(ticket.dueDate).slice(0, 16) : '',
+        resolutionNote: ticket.resolutionNote || '',
+      })
+    },
+    [reset],
+  )
 
   // ---- Filter client-side (backend chưa hỗ trợ priority/mine filter) ----
   const filteredList = useMemo(() => {
@@ -224,28 +242,59 @@ export function TicketsPage() {
 
   const handleOpenEdit = (ticket: any) => {
     setSelectedItem(ticket)
-    reset({
-      title: ticket.title || '',
-      description: ticket.description || '',
-      status: ticket.status || '',
-      priority: ticket.priority || '',
-      category: ticket.category || '',
-      assigneeId: ticket.assigneeId || '',
-      dueDate: ticket.dueDate ? ticket.dueDate.slice(0, 16) : '',
-      resolutionNote: ticket.resolutionNote || '',
-    })
+    fillFormFromTicket(ticket)
     setModalOpen(true)
   }
 
+  // Re-hydrate form khi Dialog mount children (tránh field trống sau mở modal)
+  useEffect(() => {
+    if (!modalOpen || !selectedItem) return
+    fillFormFromTicket(selectedItem)
+  }, [modalOpen, selectedItem?.id, fillFormFromTicket]) // eslint-disable-line react-hooks/exhaustive-deps -- sync theo ticket id khi mở
+
+  const clearTicketDeepLink = useCallback(() => {
+    if (!searchParams.get('ticketId')) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('ticketId')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  const handleCloseModal = useCallback(() => {
+    setModalOpen(false)
+    clearTicketDeepLink()
+  }, [clearTicketDeepLink])
+
+  // Deep-link từ notification: /task/tickets?ticketId=... (hoặc alias /tasks?ticketId=...)
+  useEffect(() => {
+    if (!deepLinkTicketId) {
+      deepLinkHandledRef.current = null
+      return
+    }
+    if (deepLinkHandledRef.current === deepLinkTicketId) return
+    const ticket = (rawData || []).find((t: any) => t.id === deepLinkTicketId)
+    if (ticket) {
+      deepLinkHandledRef.current = deepLinkTicketId
+      handleOpenEdit(ticket)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkTicketId, rawData])
+
   const onSubmit = (values: any) => {
+    // Partial payload: omit field trống → BE IGNORE giữ nguyên.
+    // assigneeId: chỉ gửi '' khi user cố ý clear (dirtyFields).
     const payload: any = { title: values.title }
-    for (const k of ['description', 'status', 'priority', 'category', 'assigneeId', 'dueDate', 'resolutionNote'] as const) {
+    for (const k of ['description', 'status', 'priority', 'category', 'dueDate', 'resolutionNote'] as const) {
       if (values[k]) payload[k] = values[k]
     }
+    if (values.assigneeId) {
+      payload.assigneeId = values.assigneeId
+    } else if (selectedItem?.id && dirtyFields.assigneeId) {
+      payload.assigneeId = ''
+    }
     if (selectedItem?.id) {
-      updateReq.mutate({ id: selectedItem.id, data: payload }, { onSuccess: () => setModalOpen(false) })
+      updateReq.mutate({ id: selectedItem.id, data: payload }, { onSuccess: () => handleCloseModal() })
     } else {
-      createReq.mutate(payload, { onSuccess: () => setModalOpen(false) })
+      createReq.mutate(payload, { onSuccess: () => handleCloseModal() })
     }
   }
 
@@ -253,10 +302,11 @@ export function TicketsPage() {
     (ticketId: string, newStatus: string) => {
       const ticket = (rawData || []).find((t: any) => t.id === ticketId)
       if (ticket && ticket.status !== newStatus) {
-        updateReq.mutate({ id: ticketId, data: { title: ticket.title, status: newStatus } })
+        // PATCH status only — không PUT partial (trước đây wipe assignee)
+        updateStatusReq.mutate({ id: ticketId, status: newStatus })
       }
     },
-    [rawData, updateReq],
+    [rawData, updateStatusReq],
   )
 
   const onDragStart = (id: string) => setDraggedId(id)
@@ -283,9 +333,10 @@ export function TicketsPage() {
       if (ticket) {
         const newDueDate = new Date(dateStr)
         newDueDate.setHours(23, 59, 0, 0)
+        // Chỉ patch dueDate — BE IGNORE null giữ assignee/priority/...
         updateReq.mutate({
           id: ticketId,
-          data: { title: ticket.title, dueDate: newDueDate.toISOString() },
+          data: { dueDate: newDueDate.toISOString() },
         })
       }
     },
@@ -460,8 +511,14 @@ export function TicketsPage() {
       ) : viewMode === 'calendar' ? (
         <TicketCalendar
           tickets={filteredList}
-          priorityColorMap={Object.fromEntries(Object.entries(priorityMetaMap).map(([k, v]) => [k, v.color || '#9ca3af']))}
-          priorityOptionsData={priorityOptionsData || []}
+          priorityColorMap={Object.fromEntries(
+            Object.entries(PRIORITY_META).map(([k, v]) => [k, v.color]),
+          )}
+          priorityOptionsData={PRIORITY_FORM_OPTIONS.filter((o) => o.value).map((o) => ({
+            code: o.value,
+            name: o.label,
+            color: PRIORITY_META[o.value]?.color,
+          }))}
           personOptions={personOptions || []}
           onEditTicket={handleOpenEdit}
           onDropTicket={handleDropOnCalendar}
@@ -542,7 +599,7 @@ export function TicketsPage() {
                       onDragEnd={onDragEnd}
                       onComment={() => setCommentTicket(ticket)}
                       onDelete={() => setDeleteTarget(ticket)}
-                      priorityMeta={priorityMetaMap[ticket.priority]}
+                      priorityMeta={PRIORITY_META[ticket.priority]}
                       assigneeName={personMap[ticket.assigneeId]}
                       currentPersonId={currentPersonId}
                     />
@@ -557,7 +614,7 @@ export function TicketsPage() {
       {/* === Modal ===  (giữ nguyên form flow — chỉ chỉnh label & spacing) */}
       <AppModal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={handleCloseModal}
         title={selectedItem ? 'Chi tiết & chỉnh sửa giao việc' : 'Tạo giao việc mới'}
         maxWidth="2xl"
       >
@@ -593,18 +650,18 @@ export function TicketsPage() {
             <div className="space-y-2">
               <Label>Trạng thái</Label>
               <Select
-                options={statusFormOptions}
+                options={STATUS_FORM_OPTIONS}
                 value={formStatus || ''}
-                onChange={(v) => setValue('status', v || '')}
+                onChange={(v) => setValue('status', v || '', { shouldDirty: true })}
                 placeholder="Chọn trạng thái"
               />
             </div>
             <div className="space-y-2">
               <Label>Mức ưu tiên</Label>
               <Select
-                options={priorityOptions}
+                options={PRIORITY_FORM_OPTIONS}
                 value={formPriority || ''}
-                onChange={(v) => setValue('priority', v || '')}
+                onChange={(v) => setValue('priority', v || '', { shouldDirty: true })}
                 placeholder="Chọn mức ưu tiên"
               />
             </div>
@@ -613,7 +670,7 @@ export function TicketsPage() {
               <Select
                 options={CATEGORY_OPTIONS}
                 value={formCategory || ''}
-                onChange={(v) => setValue('category', v || '')}
+                onChange={(v) => setValue('category', v || '', { shouldDirty: true })}
                 placeholder="Chọn danh mục"
               />
             </div>
@@ -625,7 +682,7 @@ export function TicketsPage() {
               <Select
                 options={personOptions || []}
                 value={formAssignee || ''}
-                onChange={(v) => setValue('assigneeId', v || '')}
+                onChange={(v) => setValue('assigneeId', v || '', { shouldDirty: true })}
                 placeholder="Chọn người thực hiện"
                 showSearch
                 showClear
@@ -659,13 +716,13 @@ export function TicketsPage() {
                 className="gap-1.5 mr-auto"
                 onClick={() => {
                   setCommentTicket(selectedItem)
-                  setModalOpen(false)
+                  handleCloseModal()
                 }}
               >
                 <MessageSquare size={14} /> Bình luận
               </Button>
             )}
-            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
+            <Button type="button" variant="outline" onClick={handleCloseModal}>
               Hủy
             </Button>
             <Button

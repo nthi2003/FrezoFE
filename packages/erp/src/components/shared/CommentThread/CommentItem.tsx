@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { Pencil, Trash2, Reply, MoreHorizontal } from 'lucide-react'
+import { Pencil, Trash2, Reply, MoreHorizontal, Paperclip, FileText } from 'lucide-react'
 import type { CommentDto } from './types'
+import { MAX_COMMENT_DEPTH } from './types'
 
 interface Props {
   comment: CommentDto
-  depth?: 0 | 1
+  /** 0 = root; Reply ẩn khi depth >= MAX_COMMENT_DEPTH */
+  depth?: number
   onReply?: (parent: CommentDto) => void
   onEdit?: (id: string, content: string) => void
   onDelete?: (id: string) => void
@@ -22,6 +24,7 @@ export function CommentItem({
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(comment.content)
+  const canReply = depth < MAX_COMMENT_DEPTH && !comment.deleted && !!onReply
 
   if (comment.isSystem) {
     return (
@@ -34,7 +37,7 @@ export function CommentItem({
   }
 
   return (
-    <div className={`flex gap-2.5 ${depth === 1 ? 'ml-10 mt-2' : 'py-2'}`}>
+    <div className={`flex gap-2.5 ${depth > 0 ? 'mt-2' : 'py-2'}`}>
       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-violet-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
         {(comment.authorName || '?').charAt(0).toUpperCase()}
       </div>
@@ -115,11 +118,50 @@ export function CommentItem({
           </div>
         ) : (
           <div className="text-sm text-neutral-700 mt-0.5 leading-relaxed whitespace-pre-wrap">
-            {renderContentWithMentions(comment.content, comment.mentions)}
+            {comment.content && comment.content !== '(Đính kèm)'
+              ? renderContentWithMentions(comment.content, comment.mentions)
+              : null}
           </div>
         )}
 
-        {depth === 0 && !comment.deleted && onReply && (
+        {!!comment.attachments?.length && (
+          <ul className="mt-1.5 flex flex-col gap-1">
+            {comment.attachments.map((att) => {
+              const isImage = (att.contentType || '').startsWith('image/')
+                || /\.(png|jpe?g|gif|webp)$/i.test(att.name || '')
+              return (
+                <li key={att.id || att.url}>
+                  <a
+                    href={att.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-[12px] text-primary-700 hover:underline max-w-full"
+                    title={att.name}
+                  >
+                    {isImage ? (
+                      <img
+                        src={att.url}
+                        alt={att.name}
+                        className="max-h-28 max-w-full rounded-md border border-neutral-200 object-cover"
+                      />
+                    ) : (
+                      <>
+                        {/\.pdf$/i.test(att.name || '') ? (
+                          <FileText size={12} className="shrink-0" />
+                        ) : (
+                          <Paperclip size={12} className="shrink-0" />
+                        )}
+                        <span className="truncate">{att.name || 'Tệp đính kèm'}</span>
+                      </>
+                    )}
+                  </a>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        {canReply && (
           <button
             type="button"
             className="mt-1 inline-flex items-center gap-1 text-[11px] text-neutral-500 hover:text-primary-600"

@@ -9,8 +9,10 @@ export const taskApi = {
   getAll: (params?: any) => axiosClient.get<ApiResponse<any>>('/task/task', { params }).then(res => res.data),
   assign: (id: string, assigneeId: string) =>
     axiosClient.patch<ApiResponse<any>>(`/task/task/${id}/assign/${assigneeId}`).then(res => res.data),
-  updateStatus: (id: string, data: { status: string }) =>
-    axiosClient.patch<ApiResponse<any>>(`/task/task/${id}/status`, data).then(res => res.data),
+  updateStatus: (id: string, status: string) =>
+    axiosClient
+      .patch<ApiResponse<any>>(`/task/task/${id}/status`, null, { params: { status } })
+      .then((res) => res.data),
 }
 
 export const ticketApi = {
@@ -21,8 +23,11 @@ export const ticketApi = {
   getAll: (params?: any) => axiosClient.get<ApiResponse<any>>('/task/ticket', { params }).then(res => res.data),
   assign: (id: string, assigneeId: string) =>
     axiosClient.patch<ApiResponse<any>>(`/task/ticket/${id}/assign/${assigneeId}`).then(res => res.data),
-  updateStatus: (id: string, data: { status: string }) =>
-    axiosClient.patch<ApiResponse<any>>(`/task/ticket/${id}/status`, data).then(res => res.data),
+  /** BE: PATCH /task/ticket/{id}/status?status= — chỉ đổi status, không đụng assignee/priority/... */
+  updateStatus: (id: string, status: string) =>
+    axiosClient
+      .patch<ApiResponse<any>>(`/task/ticket/${id}/status`, null, { params: { status } })
+      .then((res) => res.data),
 }
 
 export const tagApi = {

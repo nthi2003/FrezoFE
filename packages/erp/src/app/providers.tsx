@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { router } from './router'
+import { AuthProfileSync } from '@/modules/auth/components/AuthProfileSync'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,6 +25,7 @@ const queryClient = new QueryClient({
 export function AppProviders() {
   return (
     <QueryClientProvider client={queryClient}>
+      <AuthProfileSync />
       <RouterProvider router={router} />
       <Toaster
         position="top-right"

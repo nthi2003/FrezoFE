@@ -111,7 +111,7 @@ export function AssetAssignModal({ open, asset, onClose }: Props) {
       isOpen={open}
       onClose={onClose}
       title="Tạo yêu cầu cấp phát tài sản"
-      maxWidth="lg"
+      maxWidth="2xl"
     >
       <div className="space-y-4">
         {/* Asset preview */}
@@ -302,7 +302,7 @@ function buildPreviewSteps(
 
 function formatApproverBanner(def?: WorkflowDefinition): string | null {
   if (!def?.steps?.length) {
-    return 'Chưa tìm thấy quy trình ASSET active — cấu hình module ASSET tại /qtht/workflows trước khi gửi.'
+    return 'Chưa tìm thấy quy trình ASSET đang bật — cấu hình quy trình duyệt (module ASSET) trước khi gửi.'
   }
   const actors = def.steps.map((s) => {
     const who = describeApprover(s.approverType, s.approverValue)

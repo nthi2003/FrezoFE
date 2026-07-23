@@ -3,7 +3,6 @@
 // ============================================================
 
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   Inbox, CheckCircle2, XCircle, ChevronDown, ChevronRight,
   Loader2, ClipboardCheck,
@@ -38,7 +37,6 @@ const STATUS_LABEL: Record<ApprovalStatus, string> = {
 }
 
 export function ApprovalInboxPage() {
-  const navigate = useNavigate()
   const [tab, setTab] = useState<FilterTab>('pending')
   const { data: rows = [], isLoading } = useMyApprovals(tab)
   const approve = useApproveRequest()
@@ -77,29 +75,9 @@ export function ApprovalInboxPage() {
     <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
         title="Hộp thư duyệt"
-        description="Duyệt đơn nghiệp vụ đang chờ bạn — nghỉ phép, lương, PR… (không phải trang thiết kế quy trình)."
+        description="Duyệt đơn nghiệp vụ đang chờ bạn — nghỉ phép, lương, PR…"
         actions={<PageGuideButton guide={APPROVAL_INBOX_GUIDE} />}
       />
-
-      <div className="rounded-xl border border-primary-100 bg-primary-50/50 px-4 py-2.5 text-sm text-primary-900">
-        Cần cấu hình template visual? Đó là{' '}
-        <button
-          type="button"
-          className="font-semibold underline underline-offset-2 text-primary-700"
-          onClick={() => navigate('/qtht/workflows')}
-        >
-          /qtht/workflows
-        </button>
-        {' '}(Admin) — khác với hộp duyệt này. Flow theo subject:{' '}
-        <button
-          type="button"
-          className="font-semibold underline underline-offset-2 text-primary-700"
-          onClick={() => navigate('/approval/flows')}
-        >
-          /approval/flows
-        </button>
-        .
-      </div>
 
       {/* Tabs */}
       <div className="flex items-center gap-2">

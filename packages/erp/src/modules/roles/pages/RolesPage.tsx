@@ -727,7 +727,7 @@ export function RolesPage() {
         isOpen={isRoleModalOpen}
         onClose={() => setIsRoleModalOpen(false)}
         title={isEditMode ? 'Cập nhật vai trò' : 'Thêm vai trò mới'}
-        maxWidth="lg"
+        maxWidth="2xl"
       >
         <form onSubmit={handleSubmit(onSubmitRole)} className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-4">

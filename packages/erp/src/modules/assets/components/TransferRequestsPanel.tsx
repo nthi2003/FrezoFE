@@ -161,7 +161,7 @@ function TransferRequestCard({
             </span>
             {hasEngine && (
               <span
-                title="Ticket đang được lái bởi Workflow Engine — có thể tuỳ chỉnh flow ở /qtht/workflows"
+                title="Ticket đang chạy theo quy trình duyệt đã cấu hình"
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary-50 text-primary-700 border border-primary-100"
               >
                 Workflow

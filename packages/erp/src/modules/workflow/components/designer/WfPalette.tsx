@@ -18,7 +18,7 @@ export const WF_PALETTE: {
 }[] = [
   { type: 'START', label: 'Bắt đầu', hint: 'Điểm bắt đầu', icon: Play },
   { type: 'ACTION', label: 'Hành động', hint: 'Hành động / xử lý', icon: Zap },
-  { type: 'DECISION', label: 'Điều kiện', hint: 'Nhánh điều kiện', icon: GitBranch },
+  { type: 'DECISION', label: 'Điều kiện', hint: 'Tự tạo 2 nhánh Có/Không', icon: GitBranch },
   { type: 'APPROVAL', label: 'Duyệt', hint: 'Bước duyệt', icon: ShieldCheck },
   { type: 'END', label: 'Kết thúc', hint: 'Kết thúc', icon: Square },
 ]

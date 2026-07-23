@@ -15,7 +15,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import {
   ArrowLeft, Save, Loader2, Plus, BookOpen, ChevronDown, ChevronUp,
-  GitBranch, ShieldAlert, Trash2, CircleCheck, Pencil,
+  GitBranch, Trash2, CircleCheck,
 } from 'lucide-react'
 import {
   Button, PageHeader, EmptyState, ErrorState, ConfirmDialog, PageGuideButton,
@@ -117,14 +117,17 @@ function WorkflowDesignerInner() {
 
   const addNode = useCallback(
     (type: GraphNodeType) => {
-      const { node, edge } = createNodeAtDefaultPosition(
+      const { nodes: added, edges: newEdges } = createNodeAtDefaultPosition(
         type,
         nodes,
         lanes,
         selectedLaneId,
       )
-      setNodes((ns) => [...ns.map((n) => ({ ...n, selected: false })), { ...node, selected: true }])
-      if (edge) setEdges((eds) => [...eds, edge])
+      setNodes((ns) => [
+        ...ns.map((n) => ({ ...n, selected: false })),
+        ...added.map((n, i) => ({ ...n, selected: i === 0 })),
+      ])
+      if (newEdges.length) setEdges((eds) => [...eds, ...newEdges])
     },
     [lanes, nodes, selectedLaneId, setEdges, setNodes],
   )
@@ -164,13 +167,6 @@ function WorkflowDesignerInner() {
   const guardedNavigate = (fn: () => void) => {
     if (dirty) setLeaveConfirm(() => fn)
     else fn()
-  }
-
-  const openStepsEditor = () => {
-    if (!id) return
-    guardedNavigate(() =>
-      nav('/qtht/workflows', { state: { editWorkflowId: id } }),
-    )
   }
 
   const handleSave = () => {
@@ -230,7 +226,7 @@ function WorkflowDesignerInner() {
       <EmptyState
         icon={GitBranch}
         title="Thiếu ID quy trình"
-        description="/qtht/workflows/:id/designer"
+        description="Mở lại từ danh sách quy trình để thiết kế."
       />
     )
   }
@@ -269,8 +265,8 @@ function WorkflowDesignerInner() {
         }
         description={
           canUpdate
-            ? 'Kéo node từ palette vào canvas — template visual, không phải hộp duyệt đơn.'
-            : 'Chế độ xem — thiếu quyền WORKFLOWS.DEFINITIONS.UPDATE để sửa / lưu graph.'
+            ? 'Kéo node từ palette vào canvas để thiết kế bước duyệt.'
+            : 'Chế độ xem — thiếu quyền sửa / lưu graph.'
         }
         actions={
           <>
@@ -321,32 +317,6 @@ function WorkflowDesignerInner() {
           </>
         }
       />
-
-      {/* Path A — approver config lives in SIMPLE steps drawer + LNK-04 inbox note */}
-      <div className="rounded-xl border border-warning/30 bg-warning-light px-4 py-3 flex flex-wrap items-start gap-3 text-sm text-warning-dark shrink-0">
-        <ShieldAlert size={18} className="text-warning shrink-0 mt-0.5" />
-        <div className="min-w-0 flex-1 leading-snug">
-          <span className="font-semibold">Designer = template visual</span> — duyệt đơn hàng ngày ở{' '}
-          <button
-            type="button"
-            className="font-semibold text-primary-700 underline underline-offset-2"
-            onClick={() => guardedNavigate(() => nav('/approval/inbox'))}
-          >
-            /approval/inbox
-          </button>
-          . <span className="font-semibold">Ai duyệt</span> cấu hình ở{' '}
-          <span className="font-semibold">Chỉnh sửa (steps)</span> — Designer chỉ vẽ graph,
-          không đồng bộ approver sang steps trong MVP (Path A).
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5 shrink-0"
-          onClick={openStepsEditor}
-        >
-          <Pencil size={12} /> Mở Chỉnh sửa
-        </Button>
-      </div>
 
       {validateErrors.length > 0 && (
         <div className="rounded-xl border border-danger/20 bg-danger-light px-4 py-2 text-sm text-danger-dark shrink-0">

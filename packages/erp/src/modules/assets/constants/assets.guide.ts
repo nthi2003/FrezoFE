@@ -40,7 +40,7 @@ export const ASSETS_GUIDE: PageGuideConfig = {
       type: 'tips',
       heading: 'Mẹo dùng nhanh',
       tips: [
-        'Cấu hình ai duyệt ở /qtht/workflows — lọc module ASSET (thường code ASSET_TRANSFER_DEFAULT). Đổi step/role ở đó, QLTS tự theo khi tạo ticket mới.',
+        'Cấu hình ai duyệt ở Thiết kế quy trình — lọc module ASSET (thường code ASSET_TRANSFER_DEFAULT). Đổi bước/role ở đó, QLTS tự theo khi tạo ticket mới.',
         'Tab "Yêu cầu cấp phát" có badge số PENDING — ưu tiên xử lý ticket chờ trước khi tạo thêm.',
         'Trong lúc ticket chờ duyệt, asset vẫn Sẵn sàng và không tạo được ticket cấp phát trùng cho cùng tài sản.',
       ],

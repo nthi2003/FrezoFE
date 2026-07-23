@@ -1,6 +1,6 @@
 # Hướng dẫn Quản lý tài sản (QLTS)
 
-Trang: `/admin/qlts` — kiểm kê, cấp phát và theo dõi trạng thái tài sản doanh nghiệp.
+Trang **Quản lý tài sản** — kiểm kê, cấp phát và theo dõi trạng thái tài sản doanh nghiệp.
 
 ## Luồng cấp phát (happy path)
 
@@ -11,12 +11,11 @@ Trang: `/admin/qlts` — kiểm kê, cấp phát và theo dõi trạng thái tà
 
 ## Ai duyệt?
 
-Không hardcode Admin/HR trên màn QLTS. Cấu hình tại:
+Không hardcode Admin/HR trên màn QLTS. Cấu hình tại **Thiết kế quy trình** → lọc module **ASSET**.
 
-- `/qtht/workflows` → lọc module **ASSET**
-- Code thường gặp: `ASSET_TRANSFER_DEFAULT` (entity type instance: `ASSET_TRANSFER`)
+Code thường gặp: `ASSET_TRANSFER_DEFAULT` (loại yêu cầu: cấp phát / điều chuyển).
 
-Stepper trên ticket đọc `wf/instances/by-entity/ASSET_TRANSFER/{requestId}` khi ticket đã gắn engine.
+Stepper trên ticket đọc bước duyệt khi ticket đã gắn quy trình.
 
 ## Hai tab trên trang
 
@@ -29,7 +28,7 @@ Stepper trên ticket đọc `wf/instances/by-entity/ASSET_TRANSFER/{requestId}` 
 
 Sau khi tài sản có giá mua, mở drawer tài sản → tab **Khấu hao** → **Sinh lịch**.
 
-Ghi sổ theo tháng tại **Khấu hao định kỳ** (`/assets/depreciation`): chọn kỳ → **Xem trước** → **Ghi sổ**.
+Ghi sổ theo tháng tại **Khấu hao định kỳ**: chọn kỳ → **Xem trước** → **Ghi sổ**.
 
 Chi tiết luồng: [Khấu hao tài sản](/docs/guide-depreciation).
 

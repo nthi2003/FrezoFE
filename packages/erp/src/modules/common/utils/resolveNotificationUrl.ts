@@ -26,19 +26,31 @@ function normalizePath(url: string): string {
 }
 
 /**
+ * BE từng emit `/tasks?ticketId=...` (không có route).
+ * Canonical FE: `/task/tickets?ticketId=...`.
+ */
+function canonicalizeTicketDeepLink(path: string): string {
+  if (!path.startsWith('/tasks')) return path
+  // /tasks → /task/tickets ; /tasks?... → /task/tickets?...
+  if (path === '/tasks' || path.startsWith('/tasks?') || path.startsWith('/tasks#')) {
+    return `/task/tickets${path.slice('/tasks'.length)}`
+  }
+  return path
+}
+
+/**
  * Ưu tiên actionUrl/link; fallback map type/entity → route module.
  */
 export function resolveNotificationUrl(n: NotifDeepLinkInput): string | null {
   const raw = n.actionUrl || n.link
   if (raw) {
     const path = normalizePath(raw)
-    if (path) return path
+    if (path) return canonicalizeTicketDeepLink(path)
   }
 
   const type = (n.type || '').toUpperCase()
   const entityType = (n.entityType || '').toUpperCase()
   const id = n.entityId
-
   if (type.startsWith('LEAVE') || entityType === 'LEAVE') {
     return id ? `/qlns/leaves` : '/approval/inbox'
   }
@@ -66,6 +78,22 @@ export function resolveNotificationUrl(n: NotifDeepLinkInput): string | null {
       ? `/warehouse/purchase-orders/${id}`
       : '/warehouse/purchase-orders'
   }
+  if (
+    type.includes('GOODS_RECEIPT') ||
+    type.includes('GRN') ||
+    entityType === 'GRN' ||
+    entityType === 'GOODS_RECEIPT_NOTE'
+  ) {
+    return id ? `/warehouse/grn/${id}` : '/warehouse/grn'
+  }
+  if (
+    type.includes('GOODS_ISSUE') ||
+    type.includes('GIN') ||
+    entityType === 'GIN' ||
+    entityType === 'GOODS_ISSUE_NOTE'
+  ) {
+    return id ? `/warehouse/gin/${id}` : '/warehouse/gin'
+  }
   if (type.includes('STOCK') || entityType === 'STOCK_ALERT') {
     return '/warehouse/stock-alerts'
   }
@@ -75,7 +103,7 @@ export function resolveNotificationUrl(n: NotifDeepLinkInput): string | null {
       : '/accounting/bank-reconciliation'
   }
   if (type.startsWith('TICKET') || entityType === 'TICKET') {
-    return '/task/tickets'
+    return id ? `/task/tickets?ticketId=${encodeURIComponent(id)}` : '/task/tickets'
   }
   if (
     type.includes('RECRUIT') ||

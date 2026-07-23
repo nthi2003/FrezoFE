@@ -61,7 +61,7 @@ async function resolveLeaveApprovalId(leaveId: string): Promise<string> {
   )
   if (!hit?.id) {
     throw new Error(
-      'Không tìm thấy Approval pending cho đơn này. Mở /approval/inbox để duyệt.',
+      'Không tìm thấy đơn chờ duyệt. Mở Hộp thư duyệt để xử lý.',
     )
   }
   return hit.id

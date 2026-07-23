@@ -6,6 +6,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '../services/authApi'
+import { mapProfileToUser } from '../utils/mapProfileToUser'
 import { useAuthStore } from '@/stores/authStore'
 import type { LoginRequest } from '@frezo/types'
 
@@ -22,13 +23,14 @@ export function useLogin() {
         accessToken: response.token,
         refreshToken: response.refreshToken,
       })
-      const userProfile = await authApi.getProfile()
+      const rawProfile = await authApi.getProfile()
+      const userProfile = mapProfileToUser(rawProfile as Record<string, unknown>)
       return { response, userProfile }
     },
     onSuccess: ({ response, userProfile }) => {
-      // Finalize store with real user
+      // Finalize store with user đã bind avatarUrl từ API
       setAuth({
-        user: userProfile as any,
+        user: userProfile,
         accessToken: response.token,
         refreshToken: response.refreshToken,
       })

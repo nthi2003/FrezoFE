@@ -11,14 +11,14 @@ Chào mừng bạn đến **Frezo** — hệ thống ERP nội bộ.
 
 ## Module chính
 
-| Module | Path | Mô tả ngắn |
-|--------|------|------------|
-| Dashboard | `/` | Tổng quan KPI & thao tác nhanh |
-| Nhân sự (QLNS) | `/qlns/*` | Nhân sự, lương, nghỉ, tuyển dụng |
-| Kế toán | `/accounting/*` | Sổ cái, trial balance, BCTC |
-| Kho | `/warehouse/*` | Reorder, stock alert, PR/PO |
-| CRM | `/crm/*` | Lead, deal, invoice |
-| Phê duyệt | `/approval/inbox` | Inbox approval đa loại |
+| Module | Mô tả ngắn |
+|--------|------------|
+| Dashboard | Tổng quan KPI & thao tác nhanh |
+| Nhân sự (QLNS) | Nhân sự, lương, nghỉ, tuyển dụng |
+| Kế toán | Sổ cái, trial balance, BCTC |
+| Kho | Reorder, stock alert, PR/PO |
+| CRM | Lead, deal, invoice |
+| Phê duyệt | Hộp thư duyệt đa loại đơn |
 
 ## Next steps
 

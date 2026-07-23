@@ -2,22 +2,30 @@
 // CommentThread — panel bình luận + activity feed (FZ-004 / FE-2)
 // ============================================================
 
-import { useState } from 'react'
-import { MessageSquare, Paperclip, Send, Loader2 } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { MessageSquare, Paperclip, Send, Loader2, X } from 'lucide-react'
 import { Button } from '@frezo/ui'
+import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/authStore'
 import { MentionInput } from './MentionInput'
 import { ActivityFeed } from './ActivityFeed'
 import {
   useComments, useCreateComment, useUpdateComment, useDeleteComment,
+  useUploadCommentAttachment,
 } from './useComments'
-import type { CommentDto } from './types'
+import type { CommentAttachment, CommentDto } from './types'
+import { COMMENT_ATTACH_ACCEPT, COMMENT_ATTACH_MAX_BYTES } from './types'
 
 interface Props {
   subjectType: string
   subjectId: string
   title?: string
   className?: string
+}
+
+interface PendingFile {
+  key: string
+  file: File
 }
 
 export function CommentThread({
@@ -33,27 +41,72 @@ export function CommentThread({
   const create = useCreateComment(subjectType, subjectId)
   const update = useUpdateComment(subjectType, subjectId)
   const remove = useDeleteComment(subjectType, subjectId)
+  const upload = useUploadCommentAttachment()
 
   const [text, setText] = useState('')
   const [mentionedIds, setMentionedIds] = useState<string[]>([])
   const [replyTo, setReplyTo] = useState<CommentDto | null>(null)
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const userComments = items.filter((c) => !c.isSystem && !c.deleted)
+  const busy = create.isPending || upload.isPending
+  const canSubmit = !!text.trim() || pendingFiles.length > 0
 
-  const submit = () => {
+  const onPickFiles = (list: FileList | null) => {
+    if (!list?.length) return
+    const next: PendingFile[] = []
+    for (const file of Array.from(list)) {
+      if (file.size > COMMENT_ATTACH_MAX_BYTES) {
+        toast.error(`"${file.name}" vượt quá 10MB`)
+        continue
+      }
+      next.push({ key: `${file.name}-${file.size}-${file.lastModified}`, file })
+    }
+    if (next.length) {
+      setPendingFiles((prev) => {
+        const seen = new Set(prev.map((p) => p.key))
+        return [...prev, ...next.filter((n) => !seen.has(n.key))]
+      })
+    }
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const submit = async () => {
     const content = text.trim()
-    if (!content) return
+    if (!content && pendingFiles.length === 0) return
+
+    let attachments: CommentAttachment[] = []
+    try {
+      if (pendingFiles.length > 0) {
+        const uploaded = await Promise.all(
+          pendingFiles.map((p) => upload.mutateAsync(p.file)),
+        )
+        attachments = uploaded.filter(Boolean).map((u) => ({
+          url: u!.url,
+          name: u!.name,
+          contentType: u!.contentType,
+          size: u!.size,
+          objectName: u!.objectName,
+        }))
+      }
+    } catch {
+      return
+    }
+
     create.mutate(
       {
         content,
         parentId: replyTo?.id,
         mentionedUserIds: mentionedIds,
+        attachments: attachments.length ? attachments : undefined,
       },
       {
         onSuccess: () => {
           setText('')
           setMentionedIds([])
           setReplyTo(null)
+          setPendingFiles([])
         },
       },
     )
@@ -84,7 +137,6 @@ export function CommentThread({
           </div>
         ) : (
           <>
-            {/* BUG-13: luôn hiện ActivityFeed (system log) kể cả khi chưa có comment user */}
             {items.length > 0 && (
               <ActivityFeed
                 items={items}
@@ -125,26 +177,62 @@ export function CommentThread({
             setText(v)
             setMentionedIds(ids)
           }}
-          onSubmit={submit}
-          disabled={create.isPending}
+          onSubmit={() => {
+            void submit()
+          }}
+          disabled={busy}
         />
+        {pendingFiles.length > 0 && (
+          <ul className="flex flex-wrap gap-1.5">
+            {pendingFiles.map((p) => (
+              <li
+                key={p.key}
+                className="inline-flex items-center gap-1 max-w-full text-[11px] px-2 py-1 rounded-md bg-neutral-50 border border-neutral-200 text-neutral-700"
+              >
+                <Paperclip size={11} className="shrink-0 text-neutral-400" />
+                <span className="truncate" title={p.file.name}>{p.file.name}</span>
+                <button
+                  type="button"
+                  className="p-0.5 rounded hover:bg-neutral-200 text-neutral-500"
+                  aria-label={`Bỏ ${p.file.name}`}
+                  onClick={() =>
+                    setPendingFiles((prev) => prev.filter((x) => x.key !== p.key))
+                  }
+                >
+                  <X size={11} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept={COMMENT_ATTACH_ACCEPT}
+            multiple
+            onChange={(e) => onPickFiles(e.target.files)}
+          />
           <button
             type="button"
-            className="inline-flex items-center gap-1 h-8 px-2.5 text-xs text-neutral-400 border border-dashed border-neutral-200 rounded-md cursor-not-allowed"
-            title="Coming — chờ MinIO upload"
-            disabled
+            className="inline-flex items-center gap-1 h-8 px-2.5 text-xs text-neutral-700 border border-neutral-200 rounded-md hover:bg-neutral-50 hover:border-neutral-300 transition disabled:opacity-50"
+            title="Đính kèm ảnh, PDF hoặc Word (tối đa 10MB)"
+            disabled={busy}
+            onClick={() => fileInputRef.current?.click()}
           >
-            <Paperclip size={12} /> Đính kèm (Coming)
+            <Paperclip size={12} /> Đính kèm
           </button>
           <div className="flex-1" />
           <Button
             size="sm"
             className="gap-1.5"
-            disabled={create.isPending || !text.trim()}
-            onClick={submit}
+            disabled={busy || !canSubmit}
+            onClick={() => {
+              void submit()
+            }}
           >
-            {create.isPending ? (
+            {busy ? (
               <Loader2 size={13} className="animate-spin" />
             ) : (
               <Send size={13} />

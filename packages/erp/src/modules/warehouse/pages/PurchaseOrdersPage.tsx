@@ -1,38 +1,89 @@
 // ============================================================
 // PurchaseOrdersPage — danh sách PO
-// Receive CTA ẩn — Chưa sẵn sàng (QA-FE-015)
+// Receive → tạo GRN (Epic A / đóng vòng PXK-PNK)
 // ============================================================
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Package, Loader2, CheckCircle2 } from 'lucide-react'
+import { Package, Loader2, CheckCircle2, PackagePlus } from 'lucide-react'
 import { Button, PageHeader, EmptyState, ErrorState, ConfirmDialog } from '@frezo/ui'
 import {
   usePurchaseOrders,
   useConfirmPurchaseOrder,
 } from '../hooks/usePurchaseOrder'
+import { useCreateGrn } from '../hooks/useGrn'
 import { usePermission } from '@/lib/hooks/usePermission'
 import type { PurchaseOrderDto } from '../services/purchaseOrderApi'
+import { toast } from 'sonner'
 
 export function PurchaseOrdersPage() {
   const nav = useNavigate()
   const { data: list = [], isLoading, isError, isFetching, refetch } = usePurchaseOrders()
   const confirm = useConfirmPurchaseOrder()
+  const createGrn = useCreateGrn()
   const canConfirm = usePermission('WAREHOUSE.WAREHOUSE.UPDATE')
+  const canCreateGrn = usePermission('WAREHOUSE.GRN.CREATE')
   const [confirmTarget, setConfirmTarget] = useState<PurchaseOrderDto | null>(null)
+  const [receiveTarget, setReceiveTarget] = useState<PurchaseOrderDto | null>(null)
+
+  const receiveFromPo = (po: PurchaseOrderDto) => {
+    if (!po.warehouseId) {
+      toast.error('PO thiếu warehouseId — không tạo được PNK')
+      return
+    }
+    const items = (po.lines || [])
+      .map((ln) => {
+        const remaining = Number(ln.qtyOrdered || 0) - Number(ln.qtyReceived || 0)
+        return {
+          productId: ln.productId,
+          qtyExpected: remaining > 0 ? remaining : 0,
+          unitCost: ln.unitPrice,
+        }
+      })
+      .filter((x) => x.productId && x.qtyExpected > 0)
+
+    if (items.length === 0) {
+      toast.error('Không còn dòng hàng cần nhận')
+      return
+    }
+
+    createGrn.mutate(
+      {
+        purchaseOrderId: po.id,
+        warehouseId: po.warehouseId,
+        supplierId: po.supplierId,
+        items,
+      },
+      {
+        onSuccess: (grn) => {
+          setReceiveTarget(null)
+          if (grn?.id) nav(`/warehouse/grn/${grn.id}`)
+          else nav('/warehouse/grn')
+        },
+      },
+    )
+  }
 
   return (
     <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
         title="Purchase Orders"
-        description="PO tạo từ PR đã APPROVED — confirm / nhận hàng."
+        description="PO tạo từ PR đã APPROVED — confirm / nhận hàng (PNK)."
         actions={
-          <Button
-            variant="outline"
-            onClick={() => nav('/warehouse/purchase-requests')}
-          >
-            Từ Purchase Requests
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => nav('/warehouse/grn')}
+            >
+              Phiếu nhập kho
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => nav('/warehouse/purchase-requests')}
+            >
+              Từ Purchase Requests
+            </Button>
+          </div>
         }
       />
 
@@ -124,10 +175,15 @@ export function PurchaseOrdersPage() {
                           <CheckCircle2 size={12} /> Confirm
                         </Button>
                       )}
-                      {receivePending && (
-                        <span className="inline-block text-[11px] text-neutral-500 px-2 py-1">
-                          Chưa sẵn sàng
-                        </span>
+                      {receivePending && canCreateGrn && (
+                        <Button
+                          size="sm"
+                          className="gap-1"
+                          disabled={createGrn.isPending}
+                          onClick={() => setReceiveTarget(po)}
+                        >
+                          <PackagePlus size={12} /> Nhận hàng
+                        </Button>
                       )}
                     </td>
                   </tr>
@@ -153,6 +209,21 @@ export function PurchaseOrdersPage() {
         cancelText="Huỷ"
         variant="default"
         isLoading={confirm.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={!!receiveTarget}
+        onClose={() => setReceiveTarget(null)}
+        onConfirm={() => {
+          if (!receiveTarget) return
+          receiveFromPo(receiveTarget)
+        }}
+        title={`Tạo PNK từ PO ${receiveTarget?.code || receiveTarget?.id || ''}?`}
+        message="Sẽ tạo phiếu nhập kho DRAFT từ các dòng còn lại của PO."
+        confirmText="Tạo PNK"
+        cancelText="Huỷ"
+        variant="default"
+        isLoading={createGrn.isPending}
       />
     </div>
   )

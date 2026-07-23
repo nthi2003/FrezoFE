@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Plus, Edit, Trash2, Eye, Building2, GitBranch, Search,
-  ChevronRight, ChevronDown, LayoutGrid, List, X, Filter,
+  ChevronRight, ChevronDown, List, X, Filter,
 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import {
@@ -334,13 +334,14 @@ export function OrganizationsPage() {
           )}
         </div>
       ) : view === 'tree' ? (
-        <div className="p-4 bg-white border border-neutral-200 rounded-2xl shadow-sm">
-          <div className="space-y-1">
-            {treeRoots.map((node) => (
+        <div className="px-3 py-3 bg-white border border-neutral-200 rounded-2xl shadow-sm">
+          <div className="org-tree">
+            {treeRoots.map((node, idx) => (
               <OrgTreeNode
                 key={node.id}
                 node={node}
                 depth={0}
+                isLast={idx === treeRoots.length - 1}
                 onView={setDetailOrg}
                 onEdit={handleOpenEdit}
                 onAddChild={(parent) => handleOpenCreate(parent.id)}
@@ -476,6 +477,7 @@ export function OrganizationsPage() {
         onClose={() => setDetailOrg(null)}
         onEdit={handleOpenEdit}
         onDelete={setConfirmDel}
+        onAddChild={(parent) => handleOpenCreate(parent.id)}
         onSelectChild={(child) => setDetailOrg(child)}
       />
 
@@ -494,67 +496,91 @@ export function OrganizationsPage() {
 }
 
 // ============================================================
-// Tree Node
+// Tree Node — connector lines + denser SME hierarchy
 // ============================================================
 
 interface OrgTreeNodeProps {
   node: any
   depth: number
+  isLast: boolean
   onView: (o: any) => void
   onEdit: (o: any) => void
   onAddChild: (parent: any) => void
   onDelete: (o: any) => void
 }
 
-function OrgTreeNode({ node, depth, onView, onEdit, onAddChild, onDelete }: OrgTreeNodeProps) {
+function OrgTreeNode({
+  node, depth, isLast, onView, onEdit, onAddChild, onDelete,
+}: OrgTreeNodeProps) {
   const [expanded, setExpanded] = useState(depth === 0)
-  const hasChildren = node.children && node.children.length > 0
+  const hasChildren = Array.isArray(node.children) && node.children.length > 0
   const statusCfg = STATUS_LABEL[node.status || 'ACTIVE'] || STATUS_LABEL.ACTIVE
   const typeLabel = TYPE_OPTIONS.find((t) => t.value === node.type)?.label || node.type
+  const isRoot = depth === 0
 
   return (
-    <div>
+    <div className={`relative ${isRoot ? '' : 'pl-6'}`}>
+      {/* Connector: vertical + horizontal stub (non-root) */}
+      {!isRoot && (
+        <>
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute left-0 top-0 w-px bg-neutral-300 ${
+              isLast ? 'h-5' : 'bottom-0'
+            }`}
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute left-0 top-5 h-px w-6 bg-neutral-300"
+          />
+        </>
+      )}
+
       {/* Node row */}
       <div
-        className={`group flex items-center gap-2 rounded-lg hover:bg-neutral-50 transition-colors ${
-          depth === 0 ? 'bg-neutral-50/40' : ''
+        className={`group relative flex items-center gap-1.5 rounded-md transition-colors ${
+          isRoot
+            ? 'bg-primary-50/60 hover:bg-primary-50 border border-primary-100 px-1.5'
+            : 'hover:bg-neutral-50 pr-1'
         }`}
-        style={{ paddingLeft: `${depth * 20 + 8}px` }}
       >
-        {/* Toggle */}
         <button
           type="button"
-          onClick={() => hasChildren && setExpanded((v) => !v)}
+          onClick={(e) => {
+            e.stopPropagation()
+            if (hasChildren) setExpanded((v) => !v)
+          }}
+          aria-label={hasChildren ? (expanded ? 'Thu gọn' : 'Mở rộng') : undefined}
           className={`w-5 h-5 shrink-0 flex items-center justify-center rounded ${
-            hasChildren ? 'text-neutral-400 hover:text-primary-600 hover:bg-neutral-200' : 'text-transparent cursor-default'
+            hasChildren
+              ? 'text-neutral-500 hover:text-primary-700 hover:bg-primary-100'
+              : 'text-neutral-300 cursor-default'
           }`}
         >
           {hasChildren ? (
-            expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />
+            expanded ? <ChevronDown size={14} strokeWidth={2.25} /> : <ChevronRight size={14} strokeWidth={2.25} />
           ) : (
-            <span className="w-1 h-1 rounded-full bg-neutral-300" />
+            <span className="w-1.5 h-1.5 rounded-full bg-neutral-300" />
           )}
         </button>
 
-        {/* Avatar */}
         <button
           type="button"
           onClick={() => onView(node)}
-          className={`w-8 h-8 rounded-lg bg-gradient-to-br ${pickTone(node.name)} flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-sm`}
+          className={`w-7 h-7 rounded-md bg-gradient-to-br ${pickTone(node.name)} flex items-center justify-center text-white text-[10px] font-bold shrink-0 ring-1 ring-black/5`}
           title="Xem chi tiết"
         >
           {getInitials(node.shortName || node.name)}
         </button>
 
-        {/* Info */}
         <button
           type="button"
           onClick={() => onView(node)}
-          className="flex-1 min-w-0 flex items-center gap-2 py-2 pr-2 text-left"
+          className="flex-1 min-w-0 flex items-center gap-2 py-1.5 pr-1 text-left"
         >
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-sm font-semibold text-neutral-800 truncate group-hover:text-primary-700 transition-colors">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-[13px] font-semibold text-neutral-800 truncate group-hover:text-primary-700 transition-colors">
                 {node.name}
               </span>
               <span className="text-[10px] font-mono text-neutral-400 shrink-0">
@@ -566,18 +592,12 @@ function OrgTreeNode({ node, depth, onView, onEdit, onAddChild, onDelete }: OrgT
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-neutral-500">
+            <div className="flex items-center gap-1.5 mt-px text-[11px] text-neutral-500">
               <span>{typeLabel}</span>
-              {node.email && (
-                <>
-                  <span className="text-neutral-300">·</span>
-                  <span className="truncate">{node.email}</span>
-                </>
-              )}
               {hasChildren && (
                 <>
                   <span className="text-neutral-300">·</span>
-                  <span className="text-primary-600 font-medium">
+                  <span className="text-primary-700 font-medium">
                     {node.children.length} đơn vị con
                   </span>
                 </>
@@ -586,48 +606,49 @@ function OrgTreeNode({ node, depth, onView, onEdit, onAddChild, onDelete }: OrgT
           </div>
         </button>
 
-        {/* Status */}
         <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded border shrink-0 ${statusCfg.className}`}>
           {statusCfg.text}
         </span>
 
-        {/* Hover actions */}
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pr-2">
+        <div className="flex items-center gap-0.5 shrink-0 opacity-45 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
           <button
             type="button"
-            onClick={() => onAddChild(node)}
-            className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded transition"
+            onClick={(e) => { e.stopPropagation(); onAddChild(node) }}
+            className="p-1.5 text-neutral-500 hover:text-primary-700 hover:bg-primary-50 rounded transition"
             title="Thêm đơn vị con"
+            aria-label="Thêm đơn vị con"
           >
             <Plus size={13} />
           </button>
           <button
             type="button"
-            onClick={() => onEdit(node)}
-            className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded transition"
+            onClick={(e) => { e.stopPropagation(); onEdit(node) }}
+            className="p-1.5 text-neutral-500 hover:text-primary-700 hover:bg-primary-50 rounded transition"
             title="Sửa"
+            aria-label="Sửa"
           >
             <Edit size={13} />
           </button>
           <button
             type="button"
-            onClick={() => onDelete(node)}
-            className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
+            onClick={(e) => { e.stopPropagation(); onDelete(node) }}
+            className="p-1.5 text-neutral-500 hover:text-rose-600 hover:bg-rose-50 rounded transition"
             title="Xoá"
+            aria-label="Xoá"
           >
             <Trash2 size={13} />
           </button>
         </div>
       </div>
 
-      {/* Children */}
       {hasChildren && expanded && (
-        <div className="mt-0.5 space-y-0.5 border-l border-dashed border-neutral-200 ml-[13px]">
-          {node.children.map((child: any) => (
+        <div className="mt-0.5">
+          {node.children.map((child: any, idx: number) => (
             <OrgTreeNode
               key={child.id}
               node={child}
               depth={depth + 1}
+              isLast={idx === node.children.length - 1}
               onView={onView}
               onEdit={onEdit}
               onAddChild={onAddChild}
@@ -706,14 +727,14 @@ function getInitials(name?: string): string {
 }
 
 function pickTone(seed?: string): string {
+  // Frezo green SME palette — tránh purple/pink lệch brand
   const tones = [
     'from-emerald-500 to-teal-600',
-    'from-blue-500 to-indigo-600',
-    'from-violet-500 to-purple-600',
-    'from-orange-500 to-rose-600',
-    'from-pink-500 to-fuchsia-600',
-    'from-cyan-500 to-blue-600',
-    'from-amber-500 to-orange-600',
+    'from-primary-500 to-emerald-600',
+    'from-teal-500 to-emerald-700',
+    'from-emerald-600 to-green-700',
+    'from-lime-600 to-emerald-600',
+    'from-cyan-600 to-teal-700',
   ]
   const s = (seed || '?').split('').reduce((a, c) => a + c.charCodeAt(0), 0)
   return tones[s % tones.length]
