@@ -1,9 +1,11 @@
 // ============================================================
 // OnboardingPage — template + assignment items[] / progress
+// LNK-06: bước User ẩn khi policy B (mặc định FE) — copy rõ không cấp TK.
 // ============================================================
 
 import { useState } from 'react'
-import { Plus, ClipboardList, Loader2, UserPlus } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, ClipboardList, Loader2, UserPlus, Info } from 'lucide-react'
 import { Button, PageHeader, AppModal, EmptyState } from '@frezo/ui'
 import {
   useOnboardingTemplates,
@@ -13,7 +15,18 @@ import {
   useCompleteOnboardingItem,
 } from '../hooks/useOnboarding'
 
+/**
+ * LNK-06 policy (FE SSOT tạm đến khi PO chốt BE flag):
+ * - 'B' = không tạo User từ HRM/onboarding; checklist không có bước Tài khoản.
+ * - 'A' = bắt buộc tạo User+Role (wizard — chờ BE).
+ */
+const LNK06_POLICY: 'A' | 'B' = 'B'
+
+const DEFAULT_TPL_ITEMS_B = 'Nhận máy · Email công ty · Training · Giấy tờ'
+const DEFAULT_TPL_ITEMS_A = 'Nhận máy · Email · Tài khoản User+Role · Training'
+
 export function OnboardingPage() {
+  const navigate = useNavigate()
   const { data: templates = [], isLoading: loadingT } = useOnboardingTemplates()
   const { data: assignments = [], isLoading: loadingA } = useOnboardingAssignments()
   const createTpl = useCreateOnboardingTemplate()
@@ -23,7 +36,9 @@ export function OnboardingPage() {
   const [tplOpen, setTplOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
   const [tplName, setTplName] = useState('')
-  const [tplItems, setTplItems] = useState('Nhận máy · Email · Tài khoản · Training')
+  const [tplItems, setTplItems] = useState(
+    LNK06_POLICY === 'A' ? DEFAULT_TPL_ITEMS_A : DEFAULT_TPL_ITEMS_B,
+  )
   const [assignForm, setAssignForm] = useState({ templateId: '', personId: '' })
 
   return (
@@ -42,6 +57,27 @@ export function OnboardingPage() {
           </>
         }
       />
+
+      {LNK06_POLICY === 'B' && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-950 flex gap-3">
+          <Info size={18} className="shrink-0 mt-0.5 text-amber-700" />
+          <div className="space-y-1">
+            <p className="font-semibold">Policy tài khoản (LNK-06 · B): không cấp User từ Onboarding</p>
+            <p className="text-amber-900/90">
+              Checklist <strong>không</strong> gồm bước «Tài khoản». Nhân viên có hồ sơ Person nhưng
+              chưa login ERP — liên hệ QTHT tạo User + gán Role tại{' '}
+              <button
+                type="button"
+                className="font-semibold underline underline-offset-2"
+                onClick={() => navigate('/qtht/users')}
+              >
+                /qtht/users
+              </button>
+              . Không dùng copy mơ hồ «có thể tạo sau».
+            </p>
+          </div>
+        </div>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-neutral-700">Templates</h2>
@@ -171,6 +207,11 @@ export function OnboardingPage() {
                   .split(/[·\n,]/)
                   .map((s) => s.trim())
                   .filter(Boolean)
+                  // LNK-06 policy B: strip bước Tài khoản / User khỏi template
+                  .filter((title) => {
+                    if (LNK06_POLICY !== 'B') return true
+                    return !/tài\s*khoản|user\s*\+?\s*role|tạo\s*user/i.test(title)
+                  })
                   .map((title, i) => ({
                     title,
                     sortOrder: i + 1,

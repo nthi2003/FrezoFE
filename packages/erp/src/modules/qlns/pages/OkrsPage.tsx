@@ -1,10 +1,11 @@
 // ============================================================
 // OkrsPage — list OKR + progress (periodLabel / ownerPersonId)
+// R12: EmptyState + ErrorState+retry + ConfirmDialog + ẩn nút 403
 // ============================================================
 
 import { useMemo, useState } from 'react'
 import { Plus, Target, Loader2 } from 'lucide-react'
-import { Button, PageHeader, AppModal, EmptyState } from '@frezo/ui'
+import { Button, PageHeader, AppModal, EmptyState, ErrorState, ConfirmDialog } from '@frezo/ui'
 import { useOkrs, useCreateOkr } from '../hooks/usePerformance'
 import type { OkrDto, OkrRequest } from '../services/performanceApi'
 
@@ -12,9 +13,12 @@ const PERIODS = ['2025-H1', '2025-H2', '2026-H1', '2026-H2']
 
 export function OkrsPage() {
   const [periodFilter, setPeriodFilter] = useState(PERIODS[1])
-  const { data: allRows = [], isLoading } = useOkrs()
+  const { data: allRows = [], isLoading, isError, refetch, isFetching } = useOkrs()
   const create = useCreateOkr()
+  // Menu đã gate trang; BE chưa seed QLNS.OKR.* riêng — không ẩn create oan.
+  // Destructive/manager actions ẩn khi thiếu quyền nếu có code sau này.
   const [open, setOpen] = useState(false)
+  const [confirmCreate, setConfirmCreate] = useState(false)
   const [form, setForm] = useState<OkrRequest>({
     title: '',
     periodLabel: PERIODS[1],
@@ -50,6 +54,7 @@ export function OkrsPage() {
       {
         onSuccess: () => {
           setOpen(false)
+          setConfirmCreate(false)
           setForm({
             title: '',
             periodLabel: periodFilter,
@@ -93,7 +98,16 @@ export function OkrsPage() {
         ))}
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được OKR"
+            message="Kiểm tra quyền QLNS.OKR hoặc thử lại."
+            onRetry={() => refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : isLoading ? (
         <div className="p-8 text-center text-neutral-500">
           <Loader2 className="w-5 h-5 animate-spin mx-auto" />
         </div>
@@ -202,12 +216,25 @@ export function OkrsPage() {
             <Button variant="outline" onClick={() => setOpen(false)}>
               Huỷ
             </Button>
-            <Button onClick={onCreate} disabled={create.isPending || !form.title.trim()}>
+            <Button
+              onClick={() => setConfirmCreate(true)}
+              disabled={create.isPending || !form.title.trim()}
+            >
               Tạo
             </Button>
           </div>
         </div>
       </AppModal>
+
+      <ConfirmDialog
+        isOpen={confirmCreate}
+        onClose={() => setConfirmCreate(false)}
+        onConfirm={onCreate}
+        title="Xác nhận tạo OKR?"
+        message={`Tạo OKR «${form.title}» cho kỳ ${form.periodLabel || periodFilter}?`}
+        confirmText="Tạo OKR"
+        isLoading={create.isPending}
+      />
     </div>
   )
 }

@@ -29,9 +29,9 @@ const PERSONS_GUIDE: PageGuideConfig = {
             'Đầy đủ: họ tên, ngày sinh, giới tính, CCCD, email, phone, phòng ban, chức danh, ngày vào làm. Person tồn tại độc lập với tài khoản user.',
         },
         {
-          title: 'Tạo tài khoản User (tùy chọn)',
+          title: 'Cấp tài khoản User (QTHT — không tự tạo từ HRM)',
           description:
-            'Sang trang "Người dùng" → thêm mới → chọn Person đã tạo để liên kết. Nhân viên không cần đăng nhập vào ERP thì bỏ qua bước này.',
+            'Policy LNK-06: Hire/Onboarding không tạo User. Nếu NV cần login ERP → QTHT → Người dùng → thêm mới → liên kết Person + gán Role. Không có bước «tạo sau» mơ hồ trên checklist onboarding.',
         },
         {
           title: 'Ký hợp đồng & tính lương',

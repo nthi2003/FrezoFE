@@ -437,7 +437,7 @@ export function SettingsPage() {
                 id="geo"
                 icon={MapPin}
                 title="Định vị chấm công"
-                description="Giới hạn địa lý — nhân viên phải trong bán kính hoặc kết nối WiFi công ty để check-in hợp lệ."
+                description="Giới hạn địa lý — nhân viên phải trong bán kính hoặc kết nối WiFi công ty để check-in hợp lệ. Chỉ Admin cấu hình."
                 sectionRefs={sectionRefs}
               >
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -457,6 +457,43 @@ export function SettingsPage() {
                     <Field label="WiFi BSSID (MAC) — tuỳ chọn" hint="Chính xác hơn SSID, khó bị giả mạo">
                       <Input value={form.details.geo.allowedWifiBssids} onChange={(e) => updateDetailsField('geo', 'allowedWifiBssids', e.target.value)} placeholder="AA:BB:CC:DD:EE:FF" className="h-9 text-sm font-mono" />
                     </Field>
+                  </div>
+                </div>
+
+                {/* Preview bán kính + WiFi — giảm ticket Mobile check-in fail */}
+                <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50/80 p-4">
+                  <div className="text-sm font-semibold text-neutral-800 mb-2">Preview rule check-in</div>
+                  <div className="flex flex-col sm:flex-row gap-4 items-start">
+                    <div
+                      className="relative w-36 h-36 rounded-full border-2 border-dashed border-primary-300 bg-primary-50/40 shrink-0 flex items-center justify-center"
+                      title={`Bán kính ${form.details.geo.allowedRadiusMeters || 0}m`}
+                    >
+                      <div className="w-3 h-3 rounded-full bg-primary-600 shadow" />
+                      <span className="absolute bottom-2 text-[10px] font-semibold text-primary-700 tabular-nums">
+                        r = {form.details.geo.allowedRadiusMeters || 0}m
+                      </span>
+                    </div>
+                    <div className="text-xs text-neutral-600 space-y-1.5 flex-1">
+                      <p>
+                        Tâm: <span className="font-mono">{form.details.geo.officeLatitude || '—'}, {form.details.geo.officeLongitude || '—'}</span>
+                      </p>
+                      <p>
+                        WiFi SSID:{' '}
+                        <span className="font-medium">
+                          {form.details.geo.allowedWifiSsids?.trim()
+                            ? form.details.geo.allowedWifiSsids
+                            : 'Chưa cấu hình — Mobile có thể từ chối nếu bắt buộc WiFi'}
+                        </span>
+                      </p>
+                      <p className="text-neutral-500">
+                        Mobile check-in hợp lệ khi trong bán kính <strong>hoặc</strong> khớp SSID/BSSID.
+                        Hướng dẫn Admin:{' '}
+                        <a href="/docs" className="text-primary-700 underline underline-offset-2 font-medium">
+                          Docs Hub
+                        </a>
+                        .
+                      </p>
+                    </div>
                   </div>
                 </div>
               </Section>

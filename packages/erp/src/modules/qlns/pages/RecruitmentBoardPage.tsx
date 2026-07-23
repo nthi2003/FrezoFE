@@ -242,6 +242,11 @@ export function RecruitmentBoardPage() {
               ? <> cho tin <strong>{hireTarget.requisitionTitle}</strong></>
               : null}
             . Hệ thống sẽ chuyển sang HIRED và tạo hồ sơ nhân sự.
+            {' '}
+            <span className="block mt-2 text-amber-800">
+              LNK-06: bước này <strong>không</strong> tạo tài khoản đăng nhập.
+              Cấp User + Role tại QTHT → Người dùng nếu NV cần vào ERP.
+            </span>
           </span>
         }
         confirmText="Duyệt thuê"

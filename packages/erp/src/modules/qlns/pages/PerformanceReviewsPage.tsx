@@ -1,10 +1,11 @@
 // ============================================================
 // PerformanceReviewsPage — create / submit / manager-score
+// R12: ErrorState+retry · ConfirmDialog submit · ẩn manager score nếu không quyền
 // ============================================================
 
 import { useState } from 'react'
 import { Plus, Star, Loader2 } from 'lucide-react'
-import { Button, PageHeader, AppModal, EmptyState } from '@frezo/ui'
+import { Button, PageHeader, AppModal, EmptyState, ErrorState, ConfirmDialog } from '@frezo/ui'
 import {
   usePerformanceReviews,
   useCreatePerformanceReview,
@@ -15,16 +16,21 @@ import type {
   PerformanceReviewDto,
   PerformanceReviewRequest,
 } from '../services/performanceApi'
+import { usePermission } from '@/lib/hooks/usePermission'
 
 export function PerformanceReviewsPage() {
-  const { data: rows = [], isLoading } = usePerformanceReviews()
+  const { data: rows = [], isLoading, isError, refetch, isFetching } =
+    usePerformanceReviews()
   const create = useCreatePerformanceReview()
   const submit = useSubmitPerformanceReview()
   const managerScore = useManagerScoreReview()
+  const canManagerScore =
+    usePermission('QLNS.PERFORMANCE.SCORE') || usePermission('LEAVE.APPROVE')
   const [open, setOpen] = useState(false)
   const [scoreTarget, setScoreTarget] = useState<PerformanceReviewDto | null>(null)
   const [score, setScore] = useState(3)
   const [comments, setComments] = useState('')
+  const [submitTarget, setSubmitTarget] = useState<PerformanceReviewDto | null>(null)
   const [form, setForm] = useState<PerformanceReviewRequest>({
     cycleId: '2025-Q3',
     personId: '',
@@ -44,7 +50,15 @@ export function PerformanceReviewsPage() {
         }
       />
 
-      {isLoading ? (
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được đánh giá"
+            onRetry={() => refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : isLoading ? (
         <div className="p-8 text-center">
           <Loader2 className="w-5 h-5 animate-spin mx-auto text-neutral-400" />
         </div>
@@ -92,26 +106,27 @@ export function PerformanceReviewsPage() {
                         size="sm"
                         variant="outline"
                         disabled={submit.isPending}
-                        onClick={() => submit.mutate(r.id)}
+                        onClick={() => setSubmitTarget(r)}
                       >
                         Submit
                       </Button>
                     )}
-                    {['SUBMITTED', 'SCORED'].includes(
-                      (r.status || '').toUpperCase(),
-                    ) && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setScoreTarget(r)
-                          setScore(r.managerScore ?? 3)
-                          setComments(r.managerComment || '')
-                        }}
-                      >
-                        Manager score
-                      </Button>
-                    )}
+                    {canManagerScore &&
+                      ['SUBMITTED', 'SCORED'].includes(
+                        (r.status || '').toUpperCase(),
+                      ) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setScoreTarget(r)
+                            setScore(r.managerScore ?? 3)
+                            setComments(r.managerComment || '')
+                          }}
+                        >
+                          Manager score
+                        </Button>
+                      )}
                   </td>
                 </tr>
               ))}
@@ -119,6 +134,21 @@ export function PerformanceReviewsPage() {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!submitTarget}
+        onClose={() => setSubmitTarget(null)}
+        onConfirm={() => {
+          if (!submitTarget) return
+          submit.mutate(submitTarget.id, {
+            onSuccess: () => setSubmitTarget(null),
+          })
+        }}
+        title="Submit đánh giá?"
+        message="Sau khi submit, bạn không sửa self-score được. Manager sẽ chấm điểm."
+        confirmText="Submit"
+        isLoading={submit.isPending}
+      />
 
       <AppModal isOpen={open} onClose={() => setOpen(false)} title="Tạo đánh giá">
         <div className="space-y-3">

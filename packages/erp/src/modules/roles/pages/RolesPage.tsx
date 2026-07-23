@@ -32,7 +32,7 @@ import { toast } from 'sonner'
 const ROLES_GUIDE: PageGuideConfig = {
   title: 'Vai trò & Phân quyền',
   subtitle:
-    'Vai trò gom quyền truy cập theo nhóm chức năng. Chọn 1 role bên trái → tick menu bên phải → Lưu.',
+    'Vai trò gom quyền truy cập theo nhóm chức năng. Chọn 1 role bên trái → tick menu bên phải → Lưu. Không lưu role trống menu.',
   sections: [
     {
       heading: 'Quy trình',
@@ -44,9 +44,9 @@ const ROLES_GUIDE: PageGuideConfig = {
             'Bấm "Thêm vai trò". Đặt mã UPPER_SNAKE (VD: MANAGER_KD, STAFF_HR), chọn app, mô tả ngắn.',
         },
         {
-          title: '2. Chọn menu được truy cập',
+          title: '2. Ma trận role ↔ menu',
           description:
-            'Bấm vào role → tick các menu ở panel phải. Tick folder = chọn tất cả menu con. Bấm "Lưu phân quyền".',
+            'Bấm vào role → tick các menu ở panel phải (menu gắn route/API phía BE). Tick folder = chọn tất cả menu con. Bấm "Lưu phân quyền". Role 0 menu = chặn lưu.',
         },
         {
           title: '3. Nhân bản (Clone)',
@@ -54,9 +54,9 @@ const ROLES_GUIDE: PageGuideConfig = {
             'Muốn tạo role tương tự (VD: STAFF_KD1 giống STAFF_KD2)? Bấm icon copy → đặt mã mới → hệ thống copy toàn bộ quyền menu.',
         },
         {
-          title: '4. Gán role cho user',
+          title: '4. Gán role + audit',
           description:
-            'Sang trang "Người dùng" → chỉnh user → chọn multi-role. User cần logout/login lại để menu mới có hiệu lực.',
+            'Sang trang "Người dùng" → chỉnh user → chọn multi-role. Mỗi lần gán/đổi role được audit theo username. User cần logout/login lại để menu mới có hiệu lực.',
         },
       ],
     },
@@ -374,13 +374,25 @@ export function RolesPage() {
 
   const handleSaveMenus = () => {
     if (!selectedRole) return
+    // Chặn role trống menu — user gán role này sẽ không thấy menu / khó audit RBAC
+    if (selectedMenus.size === 0) {
+      toast.error('Không lưu role trống menu — chọn ít nhất 1 menu (hoặc clone từ role mẫu).')
+      return
+    }
     saveMenusReq.mutate(
       {
         roleId: selectedRole.id!,
         appCode: selectedRole.appCode,
         menuIds: Array.from(selectedMenus),
       },
-      { onSuccess: () => setDirty(false) },
+      {
+        onSuccess: () => {
+          setDirty(false)
+          toast.success(
+            `Đã lưu ${selectedMenus.size} menu cho ${selectedRole.code} — audit: gán role tại Người dùng.`,
+          )
+        },
+      },
     )
   }
 
@@ -665,7 +677,11 @@ export function RolesPage() {
 
               {/* Sticky footer */}
               <div className="px-5 py-3 border-t border-neutral-100 bg-neutral-50/70 flex items-center gap-3 shrink-0">
-                {dirty ? (
+                {selectedMenus.size === 0 ? (
+                  <span className="text-xs text-rose-700 inline-flex items-center gap-1.5">
+                    <AlertTriangle size={12} /> Role trống menu — không lưu được (chặn RBAC mơ hồ)
+                  </span>
+                ) : dirty ? (
                   <span className="text-xs text-amber-700 inline-flex items-center gap-1.5">
                     <AlertTriangle size={12} /> Bạn có thay đổi chưa lưu
                   </span>
