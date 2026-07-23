@@ -152,6 +152,18 @@ export function useCreateJournalPost() {
   })
 }
 
+export function usePostJournal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => journalsApi.post(id),
+    onSuccess: () => {
+      toast.success('Đã ghi sổ chứng từ')
+      qc.invalidateQueries({ queryKey: ['accounting'] })
+    },
+    onError: () => toast.error('Không thể ghi sổ chứng từ'),
+  })
+}
+
 export function useReverseJournal() {
   const qc = useQueryClient()
   return useMutation({

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Search, Send, Landmark, DollarSign, MessageSquare } from 'lucide-react'
 import { Button, PageHeader, AppModal, ConfirmDialog } from '@frezo/ui'
 import { formatCurrency, formatDate } from '@frezo/utils'
@@ -36,6 +37,12 @@ export function InvoicesPage() {
   const [payTarget, setPayTarget] = useState<Invoice | null>(null)
   const [payAmount, setPayAmount] = useState('')
   const [postTarget, setPostTarget] = useState<Invoice | null>(null)
+  const [postResult, setPostResult] = useState<{
+    code: string
+    journalEntryId?: string | null
+    skipped?: boolean
+    message?: string
+  } | null>(null)
 
   const list = (rows as any[]) ?? []
   const filtered = useMemo(() => {
@@ -237,7 +244,37 @@ export function InvoicesPage() {
         onClose={() => setPostTarget(null)}
         onConfirm={() => {
           if (!postTarget) return
-          post.mutate(postTarget.id, { onSuccess: () => setPostTarget(null) })
+          const code = postTarget.code
+          post.mutate(postTarget.id, {
+            onSuccess: (res: any) => {
+              setPostTarget(null)
+              const data = res?.data ?? res
+              const journalEntryId =
+                data?.journalEntryId ??
+                data?.glJournalEntryId ??
+                data?.id ??
+                null
+              const skipped = !!(data?.skipped || data?.alreadyPosted)
+              setPostResult({
+                code,
+                journalEntryId,
+                skipped,
+                message: data?.message || (skipped
+                  ? 'Kỳ đã hạch toán trước đó — không ghi đôi.'
+                  : 'Đã post GL thành công.'),
+              })
+            },
+            onError: (err: any) => {
+              setPostTarget(null)
+              setPostResult({
+                code,
+                message:
+                  err?.response?.data?.message ||
+                  err?.message ||
+                  'Post GL thất bại. Kiểm tra kỳ kế toán / mapping tài khoản.',
+              })
+            },
+          })
         }}
         title="Hạch toán vào sổ cái?"
         message={`Hoá đơn ${postTarget?.code || ''} sẽ được post GL. Thao tác idempotent theo BE.`}
@@ -245,6 +282,37 @@ export function InvoicesPage() {
         variant="warning"
         isLoading={post.isPending}
       />
+
+      <AppModal
+        isOpen={!!postResult}
+        onClose={() => setPostResult(null)}
+        title="Kết quả hạch toán GL"
+        description={postResult ? `Hoá đơn ${postResult.code}` : undefined}
+      >
+        <div className="space-y-3 text-sm">
+          <p className="text-neutral-700">
+            {postResult?.message || 'Đã xử lý yêu cầu hạch toán.'}
+          </p>
+          {postResult?.journalEntryId ? (
+            <p className="text-neutral-600">
+              JE:{' '}
+              <code className="text-xs bg-neutral-100 px-1.5 py-0.5 rounded">
+                {postResult.journalEntryId}
+              </code>
+            </p>
+          ) : null}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setPostResult(null)}>
+              Đóng
+            </Button>
+            <Button asChild>
+              <Link to="/accounting/journals" onClick={() => setPostResult(null)}>
+                Mở sổ nhật ký
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </AppModal>
 
       <CommentDrawer
         open={!!commentInv}

@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { Search } from 'lucide-react'
+import { Download, Search } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button, PageHeader } from '@frezo/ui'
 import { formatCurrency, formatDate } from '@frezo/utils'
+import { downloadCsv } from '@/lib/export/toCsv'
 import { useGeneralLedger, useAccounts } from '../hooks/useAccounting'
-import type { Account } from '../services/accountingApi'
+import type { Account, GLLine } from '../services/accountingApi'
 
 function firstOfMonth() {
   const d = new Date()
@@ -29,6 +31,29 @@ export function GeneralLedgerPage() {
     applied?.from,
     applied?.to,
   )
+
+  const exportCsv = () => {
+    if (!gl) return
+    const lines = (gl.lines ?? []) as GLLine[]
+    downloadCsv(
+      `so-cai-${gl.accountCode}-${gl.from}_${gl.to}`,
+      lines,
+      [
+        {
+          header: 'Ngày',
+          accessor: 'postingDate',
+          format: (v) => (v ? formatDate(v as string) : ''),
+        },
+        { header: 'Số CT', accessor: 'journalCode' },
+        { header: 'Diễn giải', accessor: 'description' },
+        { header: 'Nợ', accessor: 'debit' },
+        { header: 'Có', accessor: 'credit' },
+        { header: 'Luỹ kế Nợ', accessor: 'runningDebit' },
+        { header: 'Luỹ kế Có', accessor: 'runningCredit' },
+      ],
+    )
+    toast.success(`Đã xuất ${lines.length} dòng sổ cái ra CSV`)
+  }
 
   return (
     <div className="p-6 space-y-4">
@@ -75,6 +100,14 @@ export function GeneralLedgerPage() {
         </div>
         <Button className="gap-2" onClick={() => setApplied({ code, from, to })}>
           <Search size={14} /> Tra cứu
+        </Button>
+        <Button
+          variant="outline"
+          className="gap-2"
+          disabled={!gl}
+          onClick={exportCsv}
+        >
+          <Download size={14} /> Xuất CSV
         </Button>
       </div>
 

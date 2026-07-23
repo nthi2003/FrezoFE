@@ -6,14 +6,15 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  CalendarDays, MapPin, RefreshCw, AlertTriangle,
+  CalendarDays, MapPin, RefreshCw, AlertTriangle, Download,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { Button, EmptyState, ErrorState, Select } from '@frezo/ui'
 import { departmentApi } from '@/modules/qtht/services/qthtApi'
 import { usePersonsCombobox } from '../hooks/usePerson'
 import { useAttendanceDaily } from '../hooks/useAttendance'
-import type { AttendanceDailyRow } from '../services/attendanceApi'
+import { attendanceApi, type AttendanceDailyRow } from '../services/attendanceApi'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -35,12 +36,14 @@ const DAILY_STATUS_OPTIONS = [
   { value: 'LATE', label: 'Đi muộn (LATE)' },
   { value: 'NOT_CHECKED_IN', label: 'Chưa check-in' },
   { value: 'CHECKED_IN', label: 'Đã check-in' },
+  { value: 'CHECKED_OUT', label: 'Đã check-out' },
 ]
 
 const DAILY_STATUS_MAP: Record<string, { label: string; color: string }> = {
   OK: { label: 'Đúng giờ', color: 'bg-emerald-100 text-emerald-700' },
   PRESENT: { label: 'Có mặt', color: 'bg-emerald-100 text-emerald-700' },
   CHECKED_IN: { label: 'Đã check-in', color: 'bg-blue-100 text-blue-700' },
+  CHECKED_OUT: { label: 'Đã check-out', color: 'bg-indigo-100 text-indigo-700' },
   LATE: { label: 'Đi muộn', color: 'bg-orange-100 text-orange-700' },
   NOT_CHECKED_IN: { label: 'Chưa check-in', color: 'bg-neutral-100 text-neutral-600' },
   ABSENT: { label: 'Vắng', color: 'bg-rose-100 text-rose-700' },
@@ -112,6 +115,7 @@ export function AttendanceDailyRoster() {
   const [personId, setPersonId] = useState('')
   const [page, setPage] = useState(1)
   const [size, setSize] = useState(20)
+  const [exporting, setExporting] = useState(false)
 
   const { options: personOptions, isLoading: personsLoading } = usePersonsCombobox()
 
@@ -289,6 +293,62 @@ export function AttendanceDailyRoster() {
     (error as Error)?.message ||
     'Không tải được roster ngày.'
 
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const res = await attendanceApi.exportDaily({
+        date,
+        ...(departmentId && { departmentId }),
+        ...(status && { status }),
+        ...(personId && { personId }),
+      })
+      const blob = res.data as Blob
+      const contentType = String(res.headers?.['content-type'] || '')
+      // BE chưa sẵn / trả JSON lỗi dưới dạng blob → fallback CSV client
+      if (contentType.includes('application/json') || contentType.includes('text/plain')) {
+        throw new Error('export-not-ready')
+      }
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `attendance-daily-${date}.xlsx`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Đã tải roster ngày')
+    } catch {
+      // ATT-FE-02: CSV client khi BE export chưa sẵn
+      const header = ['Tên', 'Phòng', 'In', 'Out', 'Status', 'GPS', 'Ghi chú']
+      const rows = items.map((row) => {
+        const key = resolveDisplayStatus(row)
+        const gps =
+          formatCoord(row.checkInLatitude, row.checkInLongitude) ||
+          formatCoord(row.checkOutLatitude, row.checkOutLongitude) ||
+          ''
+        return [
+          resolvePersonName(row),
+          resolveDepartmentName(row),
+          formatTime(row.checkInTime),
+          formatTime(row.checkOutTime),
+          key,
+          gps,
+          row.note || '',
+        ]
+          .map((c) => `"${String(c).replace(/"/g, '""')}"`)
+          .join(',')
+      })
+      const csv = '\uFEFF' + [header.join(','), ...rows].join('\n')
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `attendance-daily-${date}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Đã xuất CSV (client)')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -349,6 +409,15 @@ export function AttendanceDailyRoster() {
             />
           </div>
           <div className="flex-1" />
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => void handleExport()}
+            disabled={exporting || isLoading || isError}
+          >
+            <Download size={14} className={exporting ? 'animate-pulse' : ''} />
+            Xuất
+          </Button>
           <Button
             variant="outline"
             className="gap-2"

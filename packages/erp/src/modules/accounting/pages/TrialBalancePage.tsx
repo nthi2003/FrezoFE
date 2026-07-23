@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
+import { Download, Search } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button, PageHeader } from '@frezo/ui'
 import { formatCurrency } from '@frezo/utils'
+import { downloadCsv } from '@/lib/export/toCsv'
 import { useTrialBalance } from '../hooks/useAccounting'
 import type { TrialBalanceRow } from '../services/accountingApi'
 
@@ -38,6 +40,25 @@ export function TrialBalancePage() {
 
   const balanced = totals.pD === totals.pC
 
+  const exportCsv = () => {
+    if (list.length === 0) return
+    downloadCsv(
+      `trial-balance-${applied?.from ?? from}_${applied?.to ?? to}`,
+      list,
+      [
+        { header: 'TK', accessor: 'accountCode' },
+        { header: 'Tên tài khoản', accessor: 'accountName' },
+        { header: 'Đầu Nợ', accessor: 'openingDebit' },
+        { header: 'Đầu Có', accessor: 'openingCredit' },
+        { header: 'PS Nợ', accessor: 'periodDebit' },
+        { header: 'PS Có', accessor: 'periodCredit' },
+        { header: 'Cuối Nợ', accessor: 'closingDebit' },
+        { header: 'Cuối Có', accessor: 'closingCredit' },
+      ],
+    )
+    toast.success(`Đã xuất ${list.length} tài khoản ra CSV`)
+  }
+
   return (
     <div className="p-6 space-y-4">
       <PageHeader
@@ -60,6 +81,14 @@ export function TrialBalancePage() {
           <Search size={14} /> Tra cứu
         </Button>
         <div className="flex-1" />
+        <Button
+          variant="outline"
+          className="gap-2"
+          disabled={list.length === 0}
+          onClick={exportCsv}
+        >
+          <Download size={14} /> Xuất CSV
+        </Button>
         <Button variant="outline" className="gap-2" onClick={() => window.print()}>
           In
         </Button>

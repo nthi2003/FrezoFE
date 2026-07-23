@@ -22,6 +22,9 @@ export interface BulkSelectionBarProps {
  * Thanh hiển thị dưới cùng khi user chọn nhiều row trong table (STANDARD section 17.1).
  * Sticky bottom, animation slide-up, dark theme để nổi bật trên nội dung.
  *
+ * Lưu ý contrast: `text-white` chỉ áp dụng bên trái (count). Cụm `actions` reset
+ * về `text-neutral-900` để nút outline/secondary (bg sáng) không bị chữ trắng trên nền trắng.
+ *
  * @example
  * <BulkSelectionBar
  *   selectedCount={selected.length}
@@ -52,7 +55,7 @@ export function BulkSelectionBar({
       aria-label="Thanh thao tác hàng loạt"
       aria-hidden={!isVisible}
       className={cn(
-        'fixed bottom-0 left-0 right-0 z-40 border-t border-neutral-800 bg-neutral-900 text-white shadow-card-md',
+        'fixed bottom-0 left-0 right-0 z-40 border-t border-neutral-800 bg-neutral-900 shadow-card-md',
         'transition-transform duration-200 ease-out',
         isVisible ? 'translate-y-0' : 'translate-y-full pointer-events-none',
         offsetLeftClass,
@@ -60,7 +63,7 @@ export function BulkSelectionBar({
       )}
     >
       <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4 px-4 md:px-6 py-3">
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 text-white">
           <button
             type="button"
             onClick={onDeselect}
@@ -80,7 +83,8 @@ export function BulkSelectionBar({
           </span>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">{actions}</div>
+        {/* text-neutral-900: outline/secondary trên dark bar phải đọc được chữ */}
+        <div className="flex items-center gap-2 shrink-0 text-neutral-900">{actions}</div>
       </div>
     </div>
   )

@@ -174,7 +174,7 @@ export function DepreciationPostPage() {
           {canPost && (
             <Button
               className="gap-1.5"
-              disabled={post.isPending}
+              disabled={post.isPending || !!existingPosted}
               onClick={() => setConfirmOpen(true)}
             >
               {post.isPending ? (
@@ -222,7 +222,7 @@ export function DepreciationPostPage() {
                 {existingPosted.journalEntryId
                   ? ` · JE ${existingPosted.journalEntryId}`
                   : ''}
-                . Ghi sổ lại cùng kỳ là <strong>idempotent</strong> (trả JE cũ, không double).
+                . Nút Ghi sổ đã khoá — không ghi lại từ UI.
               </p>
             )}
             {preview.errorMessage && (

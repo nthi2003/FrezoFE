@@ -646,7 +646,12 @@ export function AppTable<T>({
           actions={
             <>
               {(bulkActions || [])
-                .filter((a) => !a.hidden?.(selection.selectedRows))
+                .filter((a) => {
+                  if (a.hidden?.(selection.selectedRows)) return false
+                  // Không render nút trống — thiếu / blank label dễ sót thành “nút trắng”
+                  const label = (a.label ?? '').trim()
+                  return label.length > 0
+                })
                 .map((action) => {
                   const Icon = action.icon
                   const isRunning = runningActionKey === action.key
@@ -654,17 +659,24 @@ export function AppTable<T>({
                     isRunning ||
                     !!runningActionKey ||
                     !!action.disabled?.(selection.selectedRows)
+                  const variant = action.variant ?? 'outline'
+                  const isSecondaryOnDark =
+                    variant === 'outline' || variant === 'ghost'
                   return (
                     <Button
                       key={action.key}
                       size="sm"
-                      variant={action.variant ?? 'outline'}
+                      variant={variant}
                       disabled={isDisabled}
                       onClick={() => handleBulkClick(action)}
-                      className="gap-1.5"
+                      className={
+                        isSecondaryOnDark
+                          ? 'gap-1.5 bg-white text-neutral-900 border-neutral-200 hover:bg-neutral-100 hover:text-neutral-900'
+                          : 'gap-1.5'
+                      }
                     >
                       {Icon && <Icon size={14} />}
-                      {isRunning ? 'Đang xử lý…' : action.label}
+                      {isRunning ? 'Đang xử lý…' : action.label.trim()}
                     </Button>
                   )
                 })}

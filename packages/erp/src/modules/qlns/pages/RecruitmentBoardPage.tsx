@@ -8,7 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Briefcase, ChevronLeft, Loader2, Mail, Phone, Star, User, UserCheck,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, ConfirmDialog } from '@frezo/ui'
 import {
   useApplications, useMoveApplication, useHireApplication, useRequisitions,
 } from '../hooks/useRecruitment'
@@ -65,6 +65,7 @@ export function RecruitmentBoardPage() {
   const currentReq = requisitions.find((r) => r.id === requisitionId)
 
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [hireTarget, setHireTarget] = useState<Application | null>(null)
 
   const byStage = useMemo(() => {
     const map = new Map<ApplicationStage, Application[]>()
@@ -205,7 +206,7 @@ export function RecruitmentBoardPage() {
                       borderClass={s.border}
                       showHire={s.key === 'OFFER'}
                       hiring={hire.isPending}
-                      onHire={() => hire.mutate(a.id)}
+                      onHire={() => setHireTarget(a)}
                       onDragStart={() => setDraggingId(a.id)}
                       onDragEnd={() => setDraggingId(null)}
                     />
@@ -221,6 +222,33 @@ export function RecruitmentBoardPage() {
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!hireTarget}
+        onClose={() => {
+          if (!hire.isPending) setHireTarget(null)
+        }}
+        onConfirm={() => {
+          if (!hireTarget) return
+          hire.mutate(hireTarget.id, {
+            onSettled: () => setHireTarget(null),
+          })
+        }}
+        title="Duyệt thuê ứng viên?"
+        message={
+          <span>
+            Xác nhận thuê <strong>{hireTarget?.candidateName ?? 'ứng viên'}</strong>
+            {hireTarget?.requisitionTitle
+              ? <> cho tin <strong>{hireTarget.requisitionTitle}</strong></>
+              : null}
+            . Hệ thống sẽ chuyển sang HIRED và tạo hồ sơ nhân sự.
+          </span>
+        }
+        confirmText="Duyệt thuê"
+        cancelText="Huỷ"
+        variant="warning"
+        isLoading={hire.isPending}
+      />
     </div>
   )
 }

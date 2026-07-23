@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import {
-  Button, AppModal, PageHeader, PageGuideButton, EmptyState, ConfirmDialog,
+  Button, AppModal, PageHeader, PageGuideButton, EmptyState, ErrorState, ConfirmDialog,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { usePersonsCombobox } from '../hooks/usePerson'
@@ -624,26 +624,17 @@ export function PayrollsPage() {
 
       {/* ── Error / Empty / Table ── */}
       {!isLoading && isError ? (
-        <div className="bg-white rounded-xl border border-dashed border-red-200 py-12">
-          <EmptyState
-            icon={FileSpreadsheet}
+        <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+          <ErrorState
             title="Không tải được bảng lương"
-            description={
-              (error as any)?.response?.status === 401
+            message={
+              (error as { response?: { status?: number } })?.response?.status === 401
                 ? 'Phiên đăng nhập hết hạn hoặc thiếu JWT — đăng nhập lại rồi thử lại.'
-                : 'Lỗi API / mạng. Không hiển thị bảng trống giả như “chưa có lương”.'
+                : (error as Error)?.message ||
+                  'Lỗi API / mạng. Không hiển thị bảng trống giả như “chưa có lương”.'
             }
-            action={
-              <Button
-                variant="outline"
-                onClick={() => refetch()}
-                disabled={isFetching}
-                className="gap-1.5"
-              >
-                <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
-                Thử lại
-              </Button>
-            }
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
           />
         </div>
       ) : !isLoading && stats.total === 0 ? (

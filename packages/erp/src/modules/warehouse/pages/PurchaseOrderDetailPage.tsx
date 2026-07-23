@@ -3,9 +3,10 @@
 // Receive CTA ẩn — Chưa sẵn sàng (QA-FE-015)
 // ============================================================
 
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, CheckCircle2, Loader2, Package } from 'lucide-react'
-import { Button, PageHeader, EmptyState } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, ErrorState, ConfirmDialog } from '@frezo/ui'
 import {
   usePurchaseOrder,
   useConfirmPurchaseOrder,
@@ -14,8 +15,9 @@ import {
 export function PurchaseOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
-  const { data: po, isLoading, isError } = usePurchaseOrder(id)
+  const { data: po, isLoading, isError, refetch, isFetching } = usePurchaseOrder(id)
   const confirm = useConfirmPurchaseOrder()
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   if (!id) {
     return (
@@ -38,15 +40,17 @@ export function PurchaseOrderDetailPage() {
   if (isError || !po) {
     return (
       <div className="p-6">
-        <EmptyState
-          icon={Package}
+        <ErrorState
           title="Không tải được PO"
-          description="BE có thể chưa sẵn /warehouse/purchase-orders/:id"
-          action={{
-            label: 'Quay lại',
-            onClick: () => nav('/warehouse/purchase-orders'),
-          }}
+          message="BE có thể chưa sẵn /warehouse/purchase-orders/:id"
+          onRetry={() => void refetch()}
+          isRetrying={isFetching}
         />
+        <div className="flex justify-center mt-2">
+          <Button variant="outline" onClick={() => nav('/warehouse/purchase-orders')}>
+            Quay lại danh sách
+          </Button>
+        </div>
       </div>
     )
   }
@@ -72,7 +76,7 @@ export function PurchaseOrderDetailPage() {
               <Button
                 className="gap-1"
                 disabled={confirm.isPending}
-                onClick={() => confirm.mutate(po.id)}
+                onClick={() => setConfirmOpen(true)}
               >
                 <CheckCircle2 size={14} /> Confirm
               </Button>
@@ -121,6 +125,22 @@ export function PurchaseOrderDetailPage() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => {
+          if (!confirm.isPending) setConfirmOpen(false)
+        }}
+        onConfirm={() => {
+          confirm.mutate(po.id, { onSettled: () => setConfirmOpen(false) })
+        }}
+        title="Xác nhận đơn mua hàng?"
+        message={`PO ${po.code || po.id} sẽ chuyển từ DRAFT sang CONFIRMED.`}
+        confirmText="Confirm"
+        cancelText="Huỷ"
+        variant="warning"
+        isLoading={confirm.isPending}
+      />
     </div>
   )
 }

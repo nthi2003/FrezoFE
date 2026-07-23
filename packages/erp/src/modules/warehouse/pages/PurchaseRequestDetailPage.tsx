@@ -1,10 +1,11 @@
 // ============================================================
-// PurchaseRequestDetailPage — chi tiết + submit Approval
+// PurchaseRequestDetailPage — chi tiết + submit Approval (LNK-05)
 // ============================================================
 
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Send, Loader2, Inbox, Package } from 'lucide-react'
-import { Button, PageHeader, EmptyState } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, ErrorState, ConfirmDialog } from '@frezo/ui'
 import {
   usePurchaseRequest,
   useSubmitPurchaseRequest,
@@ -13,12 +14,37 @@ import { useCreatePoFromPr } from '../hooks/usePurchaseOrder'
 import { ApprovalTimeline } from '@/modules/approval/components/ApprovalTimeline'
 import { SubjectType } from '@/modules/approval/types'
 
+const STATUS_TONE: Record<string, string> = {
+  DRAFT: 'bg-neutral-100 text-neutral-700 border-neutral-200',
+  PENDING: 'bg-amber-50 text-amber-800 border-amber-200',
+  SUBMITTED: 'bg-amber-50 text-amber-800 border-amber-200',
+  IN_APPROVAL: 'bg-amber-50 text-amber-800 border-amber-200',
+  APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
+  CANCELLED: 'bg-neutral-100 text-neutral-500 border-neutral-200',
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  DRAFT: 'Nháp',
+  PENDING: 'Chờ duyệt',
+  SUBMITTED: 'Chờ duyệt',
+  IN_APPROVAL: 'Đang duyệt',
+  APPROVED: 'Đã duyệt',
+  REJECTED: 'Từ chối',
+  CANCELLED: 'Đã huỷ',
+}
+
+function isPendingApproval(status: string): boolean {
+  return ['PENDING', 'SUBMITTED', 'IN_APPROVAL', 'WAITING_APPROVAL'].includes(status)
+}
+
 export function PurchaseRequestDetailPage() {
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
-  const { data: pr, isLoading, isError } = usePurchaseRequest(id)
+  const { data: pr, isLoading, isError, refetch, isFetching } = usePurchaseRequest(id)
   const submit = useSubmitPurchaseRequest()
   const createPo = useCreatePoFromPr()
+  const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false)
 
   if (!id) {
     return (
@@ -41,12 +67,17 @@ export function PurchaseRequestDetailPage() {
   if (isError || !pr) {
     return (
       <div className="p-6">
-        <EmptyState
-          icon={Inbox}
+        <ErrorState
           title="Không tải được PR"
-          description="BE có thể chưa sẵn — kiểm tra /warehouse/purchase-requests/:id"
-          action={{ label: 'Quay lại', onClick: () => nav('/warehouse/purchase-requests') }}
+          message="BE có thể chưa sẵn — kiểm tra /warehouse/purchase-requests/:id"
+          onRetry={() => void refetch()}
+          isRetrying={isFetching}
         />
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" onClick={() => nav('/warehouse/purchase-requests')}>
+            Quay lại danh sách
+          </Button>
+        </div>
       </div>
     )
   }
@@ -54,12 +85,24 @@ export function PurchaseRequestDetailPage() {
   const status = (pr.status || '').toUpperCase()
   const isDraft = status === 'DRAFT'
   const isApproved = status === 'APPROVED'
+  const pending = isPendingApproval(status)
+  const tone = STATUS_TONE[status] || 'bg-neutral-100 text-neutral-700 border-neutral-200'
+  const label = STATUS_LABEL[status] || pr.status || '—'
 
   return (
     <div className="p-6 space-y-4 animate-fade-in max-w-3xl">
       <PageHeader
         title={pr.code || pr.id}
-        description={`Supplier: ${pr.supplierName || pr.supplierId || '—'} · ${pr.status}`}
+        description={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <span>Supplier: {pr.supplierName || pr.supplierId || '—'}</span>
+            <span
+              className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium border ${tone}`}
+            >
+              {label}
+            </span>
+          </span>
+        }
         actions={
           <div className="flex gap-2">
             <Button
@@ -73,11 +116,7 @@ export function PurchaseRequestDetailPage() {
               <Button
                 className="gap-1"
                 disabled={submit.isPending}
-                onClick={() =>
-                  submit.mutate(pr.id, {
-                    onSuccess: () => nav('/approval/inbox'),
-                  })
-                }
+                onClick={() => setSubmitConfirmOpen(true)}
               >
                 <Send size={14} /> Submit → Approval
               </Button>
@@ -100,14 +139,36 @@ export function PurchaseRequestDetailPage() {
                 <Package size={14} /> Tạo PO
               </Button>
             )}
-            <Link to="/approval/inbox">
-              <Button variant="outline" className="gap-1">
-                <Inbox size={14} /> Inbox
-              </Button>
-            </Link>
+            {pending ? (
+              <Link to="/approval/inbox">
+                <Button className="gap-1">
+                  <Inbox size={14} /> Mở Hộp thư duyệt
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/approval/inbox">
+                <Button variant="outline" className="gap-1">
+                  <Inbox size={14} /> Inbox
+                </Button>
+              </Link>
+            )}
           </div>
         }
       />
+
+      {pending && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex flex-wrap items-center gap-3">
+          <span className="flex-1 min-w-0">
+            PR đang <strong>chờ duyệt</strong>. Theo dõi / duyệt tại Hộp thư duyệt — không
+            cấu hình lại trên Workflow designer.
+          </span>
+          <Link to="/approval/inbox">
+            <Button size="sm" className="gap-1 shrink-0">
+              <Inbox size={14} /> Hộp thư duyệt
+            </Button>
+          </Link>
+        </div>
+      )}
 
       <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
         <table className="w-full text-sm">
@@ -154,6 +215,25 @@ export function PurchaseRequestDetailPage() {
           subjectId={pr.id}
         />
       </section>
+
+      <ConfirmDialog
+        isOpen={submitConfirmOpen}
+        onClose={() => setSubmitConfirmOpen(false)}
+        onConfirm={() => {
+          submit.mutate(pr.id, {
+            onSuccess: () => {
+              setSubmitConfirmOpen(false)
+              nav('/approval/inbox')
+            },
+          })
+        }}
+        title={`Gửi duyệt PR ${pr.code || pr.id}?`}
+        message="PR sẽ vào Hộp thư duyệt. Bạn có thể theo dõi trạng thái tại /approval/inbox."
+        confirmText="Gửi duyệt"
+        cancelText="Huỷ"
+        variant="warning"
+        isLoading={submit.isPending}
+      />
     </div>
   )
 }

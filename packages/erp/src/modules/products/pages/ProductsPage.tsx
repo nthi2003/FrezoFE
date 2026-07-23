@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppTable } from '@/components/ui/AppTable'
-import { AppModal, PageHeader, PageGuideButton, EmptyState } from '@frezo/ui'
+import { AppModal, PageHeader, PageGuideButton, EmptyState, ErrorState } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { Button, ConfirmDialog, Select } from '@frezo/ui'
 import { categoryApi } from '@/modules/qtht/services/categoryApi'
@@ -31,6 +31,7 @@ export function ProductsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<any | null>(null)
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const [imageUploading, setImageUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -43,7 +44,7 @@ export function ProductsPage() {
   const [onlyNew, setOnlyNew] = useState(false)
   const [selected, setSelected] = useState<Record<string, boolean>>({})
 
-  const { data: rawData, isLoading } = useProducts()
+  const { data: rawData, isLoading, isError, refetch, isFetching } = useProducts()
   const createReq = useCreateProduct()
   const updateReq = useUpdateProduct()
   const deleteReq = useDeleteProduct()
@@ -167,9 +168,13 @@ export function ProductsPage() {
 
   const bulkDelete = () => {
     if (!selectedIds.length) return
-    if (!confirm(`Xoá ${selectedIds.length} sản phẩm đã chọn? Không thể hoàn tác.`)) return
+    setConfirmBulkDelete(true)
+  }
+
+  const runBulkDelete = () => {
     Promise.all(selectedIds.map((id) => deleteReq.mutateAsync(id))).then(() => {
       clearSelection()
+      setConfirmBulkDelete(false)
       toast.success(`Đã xoá ${selectedIds.length} sản phẩm`)
     })
   }
@@ -523,6 +528,15 @@ export function ProductsPage() {
         <div className="flex items-center justify-center h-40">
           <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
         </div>
+      ) : isError ? (
+        <div className="bg-white rounded-xl border border-neutral-200">
+          <ErrorState
+            title="Không tải được catalog"
+            message="Lỗi mạng hoặc máy chủ. Thử lại."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
       ) : filteredList.length === 0 ? (
         <div className="bg-white rounded-xl border border-dashed border-neutral-200">
           {hasActiveFilter ? (
@@ -733,6 +747,18 @@ export function ProductsPage() {
         variant="danger"
         confirmText="Xóa"
         cancelText="Hủy"
+        isLoading={deleteReq.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmBulkDelete}
+        onClose={() => setConfirmBulkDelete(false)}
+        onConfirm={runBulkDelete}
+        title={`Xoá ${selectedIds.length} sản phẩm đã chọn?`}
+        message="Không thể hoàn tác. Các sản phẩm đã chọn sẽ bị xoá."
+        variant="danger"
+        confirmText="Xoá hết"
+        cancelText="Huỷ"
         isLoading={deleteReq.isPending}
       />
     </div>

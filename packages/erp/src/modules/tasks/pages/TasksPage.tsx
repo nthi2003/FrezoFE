@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
-import { AppModal } from '@frezo/ui'
+import { AppModal, Button, ConfirmDialog, ErrorState, EmptyState } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
-import { Button } from '@frezo/ui'
 import {
   useTasks,
   useCreateTask,
@@ -16,9 +15,10 @@ export function TasksPage() {
   // ---- State ----
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<any | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title?: string } | null>(null)
   
   // ---- Queries & Mutations ----
-  const { data: rawData, isLoading } = useTasks()
+  const { data: rawData, isLoading, isError, refetch, isFetching } = useTasks()
   const createTask = useCreateTask()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
@@ -36,10 +36,8 @@ export function TasksPage() {
     setModalOpen(true)
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm('Bạn có chắc chắn muốn xóa task này?')) {
-      deleteTask.mutate(id)
-    }
+  const handleDelete = (id: string, title?: string) => {
+    setDeleteTarget({ id, title })
   }
 
   const handleSubmit = (values: TaskFormValues) => {
@@ -100,7 +98,7 @@ export function TasksPage() {
           <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(row)}>
             <Pencil className="w-4 h-4 text-blue-600" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => handleDelete(row.id)}>
+          <Button variant="ghost" size="icon" onClick={() => handleDelete(row.id, row.title)}>
             <Trash2 className="w-4 h-4 text-red-600" />
           </Button>
         </div>
@@ -130,11 +128,27 @@ export function TasksPage() {
         </Button>
       </div>
 
-      <AppTable 
-        data={dataList} 
-        columns={columns} 
-        isLoading={isLoading} 
-      />
+      {isError ? (
+        <ErrorState
+          title="Không tải được danh sách task"
+          message="Lỗi mạng hoặc máy chủ. Thử lại."
+          onRetry={() => void refetch()}
+          isRetrying={isFetching}
+        />
+      ) : !isLoading && dataList.length === 0 ? (
+        <EmptyState
+          icon={Plus}
+          title="Chưa có công việc"
+          description="Tạo task mới để giao việc cho nhân sự."
+          action={{ label: 'Thêm task', onClick: handleOpenCreate }}
+        />
+      ) : (
+        <AppTable
+          data={dataList}
+          columns={columns}
+          isLoading={isLoading}
+        />
+      )}
 
       <AppModal
         isOpen={modalOpen}
@@ -150,6 +164,29 @@ export function TasksPage() {
           submitText={selectedTask ? 'Cập nhật' : 'Tạo mới'}
         />
       </AppModal>
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => {
+          if (!deleteTask.isPending) setDeleteTarget(null)
+        }}
+        onConfirm={() => {
+          if (!deleteTarget) return
+          deleteTask.mutate(deleteTarget.id, {
+            onSettled: () => setDeleteTarget(null),
+          })
+        }}
+        title="Xoá task này?"
+        message={
+          deleteTarget?.title
+            ? `Task "${deleteTarget.title}" sẽ bị xoá. Không thể hoàn tác.`
+            : 'Task sẽ bị xoá. Không thể hoàn tác.'
+        }
+        confirmText="Xoá"
+        cancelText="Huỷ"
+        variant="danger"
+        isLoading={deleteTask.isPending}
+      />
     </div>
   )
 }

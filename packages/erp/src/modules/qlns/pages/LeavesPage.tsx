@@ -17,7 +17,7 @@ import {
   Plus, Search, X, RefreshCw, CalendarDays, Filter, CheckCircle2, XCircle,
   Clock, User, Ban, Loader2, ArrowRight, Bell,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, ErrorState } from '@frezo/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useLeaveRequests, useMyLeaveRequests } from '../hooks/useLeave'
 import type { LeaveRequestItem, LeaveStatus } from '../services/leaveApi'
@@ -279,6 +279,13 @@ export function LeavesPage() {
             <Loader2 size={22} className="animate-spin text-primary-500" />
             <span className="text-sm">Đang tải danh sách đơn...</span>
           </div>
+        ) : source.isError ? (
+          <ErrorState
+            title="Không tải được đơn nghỉ"
+            message="Lỗi mạng hoặc máy chủ. Thử lại; nếu vẫn lỗi hãy liên hệ HR."
+            onRetry={() => void source.refetch()}
+            isRetrying={source.isFetching}
+          />
         ) : list.length === 0 ? (
           <EmptyState
             icon={hasFilter ? Search : CalendarDays}

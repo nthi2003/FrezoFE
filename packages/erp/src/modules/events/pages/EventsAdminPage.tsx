@@ -9,7 +9,7 @@ import {
   CalendarDays, Plus, RefreshCw, Loader2, Search, X, MapPin, Users,
   Megaphone, Ban, Trash2, Edit3, ArrowLeft, CheckCircle2,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, AppModal, Input, Label } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, AppModal, Input, Label, ConfirmDialog } from '@frezo/ui'
 import {
   useCancelEvent,
   useDeleteEvent,
@@ -56,6 +56,11 @@ export function EventsAdminPage() {
   const [search, setSearch] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<EventDto | null>(null)
+  const [confirmAction, setConfirmAction] = useState<
+    | { type: 'cancel'; id: string; title: string }
+    | { type: 'delete'; id: string; title: string }
+    | null
+  >(null)
 
   const { data: events = [], isLoading, isFetching, refetch } = useEvents(
     status === 'all' ? undefined : status,
@@ -219,9 +224,9 @@ export function EventsAdminPage() {
                     variant="outline"
                     className="gap-1 text-rose-600"
                     disabled={cancel.isPending}
-                    onClick={() => {
-                      if (confirm('Huỷ sự kiện này?')) cancel.mutate(e.id)
-                    }}
+                    onClick={() =>
+                      setConfirmAction({ type: 'cancel', id: e.id, title: e.title })
+                    }
                   >
                     <Ban size={12} /> Huỷ
                   </Button>
@@ -239,9 +244,9 @@ export function EventsAdminPage() {
                   variant="outline"
                   className="gap-1 text-rose-600"
                   disabled={del.isPending}
-                  onClick={() => {
-                    if (confirm(`Xoá "${e.title}"?`)) del.mutate(e.id)
-                  }}
+                  onClick={() =>
+                    setConfirmAction({ type: 'delete', id: e.id, title: e.title })
+                  }
                 >
                   <Trash2 size={12} />
                 </Button>
@@ -258,6 +263,39 @@ export function EventsAdminPage() {
           setFormOpen(false)
           setEditing(null)
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={!!confirmAction}
+        onClose={() => {
+          if (!cancel.isPending && !del.isPending) setConfirmAction(null)
+        }}
+        onConfirm={() => {
+          if (!confirmAction) return
+          if (confirmAction.type === 'cancel') {
+            cancel.mutate(confirmAction.id, {
+              onSettled: () => setConfirmAction(null),
+            })
+          } else {
+            del.mutate(confirmAction.id, {
+              onSettled: () => setConfirmAction(null),
+            })
+          }
+        }}
+        title={
+          confirmAction?.type === 'cancel'
+            ? 'Huỷ sự kiện này?'
+            : `Xoá "${confirmAction?.title ?? 'sự kiện'}"?`
+        }
+        message={
+          confirmAction?.type === 'cancel'
+            ? `Sự kiện "${confirmAction.title}" sẽ chuyển sang Đã huỷ.`
+            : 'Thao tác không thể hoàn tác.'
+        }
+        confirmText={confirmAction?.type === 'cancel' ? 'Huỷ sự kiện' : 'Xoá'}
+        cancelText="Giữ lại"
+        variant={confirmAction?.type === 'delete' ? 'danger' : 'warning'}
+        isLoading={cancel.isPending || del.isPending}
       />
     </div>
   )
@@ -434,6 +472,7 @@ export function EventDetailAdminPage() {
   const publish = usePublishEvent()
   const cancel = useCancelEvent()
   const [editOpen, setEditOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
 
   if (!id) {
     return <EmptyState icon={CalendarDays} title="Thiếu ID sự kiện" />
@@ -508,9 +547,7 @@ export function EventDetailAdminPage() {
                 variant="outline"
                 className="gap-1 text-rose-600"
                 disabled={cancel.isPending}
-                onClick={() => {
-                  if (confirm('Huỷ sự kiện?')) cancel.mutate(event.id)
-                }}
+                onClick={() => setCancelOpen(true)}
               >
                 <Ban size={14} /> Huỷ
               </Button>
@@ -553,6 +590,22 @@ export function EventDetailAdminPage() {
         isOpen={editOpen}
         initial={event}
         onClose={() => setEditOpen(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={cancelOpen}
+        onClose={() => {
+          if (!cancel.isPending) setCancelOpen(false)
+        }}
+        onConfirm={() => {
+          cancel.mutate(event.id, { onSettled: () => setCancelOpen(false) })
+        }}
+        title="Huỷ sự kiện?"
+        message={`Sự kiện "${event.title}" sẽ chuyển sang Đã huỷ.`}
+        confirmText="Huỷ sự kiện"
+        cancelText="Giữ lại"
+        variant="warning"
+        isLoading={cancel.isPending}
       />
     </div>
   )

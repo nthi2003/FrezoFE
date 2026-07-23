@@ -8,7 +8,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Loader2, AlertCircle, ClipboardCheck, ExternalLink } from 'lucide-react'
-import { AppModal, Button, Select } from '@frezo/ui'
+import { AppModal, Button, Select, ConfirmDialog } from '@frezo/ui'
 import { toast } from 'sonner'
 import { Link } from 'react-router-dom'
 import { usePersonsCombobox } from '@/modules/qlns/hooks/usePerson'
@@ -34,6 +34,7 @@ export function AssetAssignModal({ open, asset, onClose }: Props) {
   const [personId, setPersonId] = useState('')
   const [reason, setReason] = useState('')
   const [plannedDate, setPlannedDate] = useState<string>('')
+  const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false)
 
   const { options: personOptions, isLoading: personsLoading } = usePersonsCombobox()
   const createReq = useCreateTransferRequest()
@@ -76,6 +77,11 @@ export function AssetAssignModal({ open, asset, onClose }: Props) {
       toast.warning('Vui lòng chọn nhân viên')
       return
     }
+    setSubmitConfirmOpen(true)
+  }
+
+  const runSubmit = () => {
+    if (!asset || !personId) return
     createReq.mutate(
       {
         assetId: asset.id,
@@ -87,7 +93,12 @@ export function AssetAssignModal({ open, asset, onClose }: Props) {
           plannedDate: plannedDate || undefined,
         },
       },
-      { onSuccess: () => onClose() },
+      {
+        onSuccess: () => {
+          setSubmitConfirmOpen(false)
+          onClose()
+        },
+      },
     )
   }
 
@@ -95,6 +106,7 @@ export function AssetAssignModal({ open, asset, onClose }: Props) {
   const Icon = getCategoryIcon(asset.categoryCode)
 
   return (
+    <>
     <AppModal
       isOpen={open}
       onClose={onClose}
@@ -216,6 +228,26 @@ export function AssetAssignModal({ open, asset, onClose }: Props) {
         </div>
       </div>
     </AppModal>
+
+    <ConfirmDialog
+      isOpen={submitConfirmOpen}
+      onClose={() => {
+        if (!createReq.isPending) setSubmitConfirmOpen(false)
+      }}
+      onConfirm={runSubmit}
+      title="Gửi yêu cầu cấp phát?"
+      message={
+        <span>
+          Tài sản <strong>{asset.code}</strong> sẽ tạo ticket cấp phát cho{' '}
+          <strong>{personName || 'nhân viên đã chọn'}</strong>. Cần duyệt trước khi bàn giao.
+        </span>
+      }
+      confirmText="Gửi yêu cầu"
+      cancelText="Huỷ"
+      variant="warning"
+      isLoading={createReq.isPending}
+    />
+    </>
   )
 }
 

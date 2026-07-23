@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle, FileText, RefreshCw, RotateCcw, Eye, Search,
-  Scale, TrendingDown, TrendingUp,
+  Scale, TrendingDown, TrendingUp, Send,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Button, PageHeader, AppModal } from '@frezo/ui'
+import { Button, PageHeader, AppModal, ConfirmDialog, EmptyState, ErrorState } from '@frezo/ui'
 import { formatCurrency, formatDate } from '@frezo/utils'
 import {
-  usePeriods, useJournalsByPeriod, useJournalDetail, useReverseJournal,
+  usePeriods, useJournalsByPeriod, useJournalDetail, useReverseJournal, usePostJournal,
 } from '../hooks/useAccounting'
 import type { JournalEntry, JournalStatus } from '../services/accountingApi'
 import { usePermission } from '@/lib/hooks/usePermission'
@@ -33,6 +33,8 @@ export function JournalsPage() {
   const [search, setSearch] = useState('')
   const [reverseOpen, setReverseOpen] = useState(false)
   const [reverseReason, setReverseReason] = useState('')
+  const [postConfirmOpen, setPostConfirmOpen] = useState(false)
+  const [reverseConfirmOpen, setReverseConfirmOpen] = useState(false)
 
   const { data: periods } = usePeriods(year)
   const periodList = (periods as any[]) ?? []
@@ -44,9 +46,17 @@ export function JournalsPage() {
     }
   }, [periodList, selectedPeriodId, now])
 
-  const { data: entries, isLoading, refetch } = useJournalsByPeriod(selectedPeriodId ?? undefined)
+  const {
+    data: entries,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useJournalsByPeriod(selectedPeriodId ?? undefined)
   const { data: detail } = useJournalDetail(detailId ?? undefined)
   const reverse = useReverseJournal()
+  const postJournal = usePostJournal()
   const canUpdateJournal = usePermission('ACCOUNTING.JOURNALS.UPDATE')
 
   const list = (entries as JournalEntry[]) ?? []
@@ -57,7 +67,6 @@ export function JournalsPage() {
       e.code.toLowerCase().includes(q) || (e.description || '').toLowerCase().includes(q))
   }, [list, search])
 
-  // KPI: Số chứng từ · Tổng Nợ · Tổng Có · Lệch (Nợ - Có)
   const kpi = useMemo(() => {
     const posted = list.filter((e) => e.status !== 'REVERSED')
     const totalDebit = posted.reduce((s, e) => s + (e.totalDebit || 0), 0)
@@ -70,6 +79,11 @@ export function JournalsPage() {
     }
   }, [list])
 
+  const errMsg =
+    (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+    (error as Error)?.message ||
+    'Không tải được chứng từ.'
+
   return (
     <div className="p-6 space-y-4">
       <PageHeader
@@ -77,7 +91,6 @@ export function JournalsPage() {
         description="Danh sách bút toán trong kỳ. Bấm để xem chi tiết Nợ / Có."
       />
 
-      {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <JournalKpi
           icon={FileText}
@@ -106,7 +119,6 @@ export function JournalsPage() {
         />
       </div>
 
-      {/* Period selector */}
       <div className="flex flex-wrap items-center gap-3">
         <select
           className="border rounded-md px-3 py-2 text-sm"
@@ -143,60 +155,81 @@ export function JournalsPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button variant="outline" onClick={() => refetch()} className="gap-2">
-          <RefreshCw size={14} /> Refresh
+        <Button variant="outline" onClick={() => refetch()} className="gap-2" disabled={isFetching}>
+          <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} /> Refresh
         </Button>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto border rounded-lg bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-neutral-50 text-neutral-600">
-            <tr>
-              <th className="p-3 text-left font-medium">Số CT</th>
-              <th className="p-3 text-left font-medium">Ngày</th>
-              <th className="p-3 text-left font-medium">Diễn giải</th>
-              <th className="p-3 text-left font-medium">Nguồn</th>
-              <th className="p-3 text-right font-medium">Tổng Nợ</th>
-              <th className="p-3 text-right font-medium">Tổng Có</th>
-              <th className="p-3 text-center font-medium">Trạng thái</th>
-              <th className="p-3 text-right font-medium w-24"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-100">
-            {isLoading && <tr><td colSpan={8} className="p-6 text-center text-neutral-500">Đang tải…</td></tr>}
-            {!isLoading && filtered.length === 0 && (
-              <tr><td colSpan={8} className="p-6 text-center text-neutral-500">Chưa có chứng từ nào trong kỳ</td></tr>
-            )}
-            {filtered.map((e: JournalEntry) => (
-              <tr key={e.id} className="hover:bg-neutral-50">
-                <td className="p-3 font-mono text-xs text-blue-700">{e.code}</td>
-                <td className="p-3">{formatDate(e.postingDate)}</td>
-                <td className="p-3 text-neutral-800">{e.description}</td>
-                <td className="p-3 text-xs text-neutral-500">{e.sourceType}</td>
-                <td className="p-3 text-right font-mono">{formatCurrency(e.totalDebit)}</td>
-                <td className="p-3 text-right font-mono">{formatCurrency(e.totalCredit)}</td>
-                <td className="p-3 text-center">
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs border ${STATUS_TONE[e.status]}`}>
-                    {STATUS_LABEL[e.status]}
-                  </span>
-                </td>
-                <td className="p-3 text-right">
-                  <button
-                    className="p-1.5 rounded hover:bg-neutral-100 text-neutral-700"
-                    onClick={() => setDetailId(e.id)}
-                    title="Xem chi tiết"
-                  >
-                    <Eye size={14} />
-                  </button>
-                </td>
+      {isError ? (
+        <div className="border rounded-xl bg-white overflow-hidden">
+          <ErrorState
+            title="Không tải được chứng từ"
+            message={errMsg}
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : !isLoading && filtered.length === 0 ? (
+        <div className="border rounded-xl bg-white overflow-hidden">
+          <EmptyState
+            icon={FileText}
+            title="Chưa có chứng từ nào trong kỳ"
+            description="Chọn kỳ khác hoặc đợi nghiệp vụ (lương / kho / CRM) ghi sổ."
+            action={{ label: 'Làm mới', onClick: () => void refetch() }}
+          />
+        </div>
+      ) : (
+        <div className="overflow-x-auto border rounded-lg bg-white">
+          <table className="w-full text-sm">
+            <thead className="bg-neutral-50 text-neutral-600">
+              <tr>
+                <th className="p-3 text-left font-medium">Số CT</th>
+                <th className="p-3 text-left font-medium">Ngày</th>
+                <th className="p-3 text-left font-medium">Diễn giải</th>
+                <th className="p-3 text-left font-medium">Nguồn</th>
+                <th className="p-3 text-right font-medium">Tổng Nợ</th>
+                <th className="p-3 text-right font-medium">Tổng Có</th>
+                <th className="p-3 text-center font-medium">Trạng thái</th>
+                <th className="p-3 text-right font-medium w-24"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              {isLoading && (
+                <tr>
+                  <td colSpan={8} className="p-6 text-center text-neutral-500">
+                    Đang tải…
+                  </td>
+                </tr>
+              )}
+              {filtered.map((e: JournalEntry) => (
+                <tr key={e.id} className="hover:bg-neutral-50">
+                  <td className="p-3 font-mono text-xs text-blue-700">{e.code}</td>
+                  <td className="p-3">{formatDate(e.postingDate)}</td>
+                  <td className="p-3 text-neutral-800">{e.description}</td>
+                  <td className="p-3 text-xs text-neutral-500">{e.sourceType}</td>
+                  <td className="p-3 text-right font-mono">{formatCurrency(e.totalDebit)}</td>
+                  <td className="p-3 text-right font-mono">{formatCurrency(e.totalCredit)}</td>
+                  <td className="p-3 text-center">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs border ${STATUS_TONE[e.status]}`}>
+                      {STATUS_LABEL[e.status]}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right">
+                    <button
+                      className="p-1.5 rounded hover:bg-neutral-100 text-neutral-700"
+                      onClick={() => setDetailId(e.id)}
+                      title="Xem chi tiết"
+                    >
+                      <Eye size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      {/* Detail modal */}
       <AppModal
         isOpen={!!detailId}
         onClose={() => setDetailId(null)}
@@ -246,18 +279,29 @@ export function JournalsPage() {
                 </tbody>
               </table>
             </div>
-            {detail.status === 'POSTED' && canUpdateJournal && (
-              <div className="flex justify-end">
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => {
-                    setReverseReason('')
-                    setReverseOpen(true)
-                  }}
-                >
-                  <RotateCcw size={14} /> Đảo chứng từ
-                </Button>
+            {canUpdateJournal && (
+              <div className="flex justify-end gap-2">
+                {detail.status === 'DRAFT' && (
+                  <Button
+                    className="gap-2"
+                    onClick={() => setPostConfirmOpen(true)}
+                    disabled={postJournal.isPending}
+                  >
+                    <Send size={14} /> Ghi sổ
+                  </Button>
+                )}
+                {detail.status === 'POSTED' && (
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => {
+                      setReverseReason('')
+                      setReverseOpen(true)
+                    }}
+                  >
+                    <RotateCcw size={14} /> Đảo chứng từ
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -286,29 +330,65 @@ export function JournalsPage() {
             <Button
               disabled={reverse.isPending}
               onClick={() => {
-                if (!detail) return
                 const reason = reverseReason.trim()
                 if (reason.length < 3) {
                   toast.error('Lý do đảo tối thiểu 3 ký tự')
                   return
                 }
-                reverse.mutate(
-                  { id: detail.id, reason },
-                  {
-                    onSuccess: () => {
-                      setReverseOpen(false)
-                      setDetailId(null)
-                      setReverseReason('')
-                    },
-                  },
-                )
+                setReverseConfirmOpen(true)
               }}
             >
-              Xác nhận đảo
+              Tiếp tục…
             </Button>
           </div>
         </div>
       </AppModal>
+
+      <ConfirmDialog
+        isOpen={postConfirmOpen && !!detail}
+        onClose={() => setPostConfirmOpen(false)}
+        onConfirm={() => {
+          if (!detail) return
+          postJournal.mutate(detail.id, {
+            onSuccess: () => {
+              setPostConfirmOpen(false)
+              setDetailId(null)
+            },
+          })
+        }}
+        title={`Ghi sổ chứng từ ${detail?.code || ''}?`}
+        message="Chứng từ sẽ chuyển sang Đã ghi sổ. Không thể sửa dòng sau khi post."
+        confirmText="Ghi sổ"
+        cancelText="Huỷ"
+        variant="warning"
+        isLoading={postJournal.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={reverseConfirmOpen && !!detail}
+        onClose={() => setReverseConfirmOpen(false)}
+        onConfirm={() => {
+          if (!detail) return
+          const reason = reverseReason.trim()
+          reverse.mutate(
+            { id: detail.id, reason },
+            {
+              onSuccess: () => {
+                setReverseConfirmOpen(false)
+                setReverseOpen(false)
+                setDetailId(null)
+                setReverseReason('')
+              },
+            },
+          )
+        }}
+        title={`Xác nhận đảo ${detail?.code || ''}?`}
+        message={`Thao tác không hoàn tác trực tiếp. Lý do: ${reverseReason.trim() || '—'}`}
+        confirmText="Đảo chứng từ"
+        cancelText="Huỷ"
+        variant="danger"
+        isLoading={reverse.isPending}
+      />
     </div>
   )
 }
@@ -321,10 +401,6 @@ function Info({ label, value }: { label: string; value: any }) {
     </div>
   )
 }
-
-// ============================================================
-// KPI strip cho Journals — số CT / Tổng Nợ / Tổng Có / Lệch
-// ============================================================
 
 interface JournalKpiProps {
   icon: LucideIcon
@@ -359,4 +435,3 @@ function JournalKpi({ icon: Icon, label, value, tone, hint }: JournalKpiProps) {
     </div>
   )
 }
-
