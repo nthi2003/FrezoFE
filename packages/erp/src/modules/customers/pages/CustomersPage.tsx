@@ -9,7 +9,7 @@ import {
 import { toast } from 'sonner'
 import { AppTable } from '@/components/ui/AppTable'
 import type { BulkAction } from '@/components/ui/AppTable/AppTable'
-import { AppModal, PageHeader, PageGuideButton, ConfirmDialog } from '@frezo/ui'
+import { AppModal, PageHeader, PageGuideButton, ConfirmDialog, EmptyState, ErrorState } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { Button } from '@frezo/ui'
 import {
@@ -27,6 +27,9 @@ export function CustomersPage() {
   const qc = useQueryClient()
   const canRevealPhone = usePermission('CUSTOMER.REVEAL_PHONE')
   const canExport = usePermission('CUSTOMER.EXPORT')
+  const canDelete = usePermission('CUSTOMER.DELETE')
+  // Create: menu đã gate trang — hiện nút; Delete ẩn nếu thiếu quyền (admin bypass).
+  const showDelete = canDelete
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any | null>(null)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
@@ -40,7 +43,7 @@ export function CustomersPage() {
   // Reveal-phone state (per customer)
   const [revealed, setRevealed] = useState<Record<string, string>>({})
 
-  const { data: rawData, isLoading } = useCustomers()
+  const { data: rawData, isLoading, isError, refetch, isFetching } = useCustomers()
   const createReq = useCreateCustomer()
   const updateReq = useUpdateCustomer()
   const deleteReq = useDeleteCustomer()
@@ -215,13 +218,17 @@ export function CustomersPage() {
           },
         ]
       : []),
-    {
-      key: 'delete',
-      label: 'Xoá',
-      icon: Trash2,
-      variant: 'destructive',
-      onClick: (rows) => setConfirmBulkDelete(rows),
-    },
+    ...(showDelete
+      ? [
+          {
+            key: 'delete',
+            label: 'Xoá',
+            icon: Trash2,
+            variant: 'destructive' as const,
+            onClick: (rows: any[]) => setConfirmBulkDelete(rows),
+          },
+        ]
+      : []),
   ]
 
   // ---- Table columns ----
@@ -340,13 +347,15 @@ export function CustomersPage() {
           >
             <Pencil className="w-4 h-4" />
           </button>
-          <button
-            title="Xóa"
-            onClick={() => setConfirmDelete(row)}
-            className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {showDelete && (
+            <button
+              title="Xóa"
+              onClick={() => setConfirmDelete(row)}
+              className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       ),
     },
@@ -404,6 +413,16 @@ export function CustomersPage() {
           </>
         }
       />
+
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được khách hàng"
+            onRetry={() => refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : null}
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -479,6 +498,16 @@ export function CustomersPage() {
       </div>
 
       {/* Table */}
+      {!isError && !isLoading && filteredList.length === 0 ? (
+        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm">
+          <EmptyState
+            icon={Users}
+            title="Chưa có khách hàng"
+            description="Thêm khách hàng hoặc mở hồ sơ 360 để xem Deal / Invoice liên quan."
+            action={{ label: 'Thêm khách hàng', onClick: openCreate }}
+          />
+        </div>
+      ) : !isError ? (
       <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
         <AppTable
           data={filteredList}
@@ -490,6 +519,7 @@ export function CustomersPage() {
           bulkActions={bulkActions}
         />
       </div>
+      ) : null}
 
       {/* Create/Edit Modal */}
       <AppModal

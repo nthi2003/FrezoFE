@@ -6,7 +6,7 @@
 // ============================================================
 
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Trash2, Loader2, Download, CheckCircle, Inbox, Facebook, MessageCircle,
   Globe, User, Sparkles, Filter, Search, X, RefreshCw, ExternalLink,
@@ -57,6 +57,7 @@ const STATUS_META: Record<
 }
 
 export function FbLeadsPage() {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   // Deep-link support: khi vào từ notification bell → URL có `?highlight={leadId}`
   // → tự động mở drawer chi tiết + highlight row.
@@ -166,6 +167,15 @@ export function FbLeadsPage() {
         description="Gộp lead từ Facebook Groups · Landing page · Zalo OA · Nhập tay — xử lý & convert thành khách hàng."
         actions={
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/crm/leads')}
+              className="gap-1.5"
+              title="Handoff sang CRM Leads (NEW→follow-up)"
+            >
+              <ExternalLink size={14} />
+              CRM Leads
+            </Button>
             <Button variant="outline" onClick={() => refetch()} disabled={isFetching} className="gap-1.5">
               <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
               Làm mới

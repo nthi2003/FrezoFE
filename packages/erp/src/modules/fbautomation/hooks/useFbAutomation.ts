@@ -86,7 +86,8 @@ export function useImportLead() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: FB_KEYS.leads })
       qc.invalidateQueries({ queryKey: ['customers'] })
-      toast.success('Đã import vào danh sách khách hàng')
+      qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
+      toast.success('Đã import KH — mở CRM Leads để follow-up (status NEW→IMPORTED map)')
     },
     onError: (e: any) => toast.error(e?.response?.data?.message || 'Lỗi import'),
   })
@@ -99,7 +100,12 @@ export function useImportBatchLeads() {
     onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: FB_KEYS.leads })
       qc.invalidateQueries({ queryKey: ['customers'] })
-      toast.success(data || 'Đã import hàng loạt thành công')
+      qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
+      toast.success(
+        typeof data === 'string'
+          ? `${data} · Mở CRM Leads để tiếp tục`
+          : 'Đã import hàng loạt — mở CRM Leads (trùng SĐT/email đã skip)',
+      )
     },
     onError: (e: any) => toast.error(e?.response?.data?.message || 'Lỗi import hàng loạt'),
   })

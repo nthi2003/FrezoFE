@@ -34,6 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
   PageGuideButton,
+  ErrorState,
   type PageGuideConfig,
 } from '@frezo/ui'
 
@@ -86,6 +87,8 @@ const PROFILE_GUIDE: PageGuideConfig = {
       type: 'tips',
       tips: [
         'Vào tab "Đăng nhập" để xem lịch sử phiên gần đây — nếu thấy phiên lạ (IP/thiết bị bất thường), đổi mật khẩu ngay và liên hệ IT.',
+        'Đăng xuất: mở menu avatar góc phải Header → «Đăng xuất» (không có nút logout riêng trên trang này).',
+        'Thông báo push / chuông: nằm ở Header — Profile không cấu hình push; giữ session để nhận duyệt/inbox.',
         'Không dùng chung tài khoản với người khác. Mọi thao tác đều được audit theo username.',
         'File tài liệu upload chỉ bạn và HR nhìn thấy được — không public ra ngoài landing.',
       ],
@@ -423,7 +426,7 @@ export function ProfilePage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>('info')
 
-  const { data: profile, isLoading: profileLoading } = useQuery({
+  const { data: profile, isLoading: profileLoading, isError: profileError, refetch: refetchProfile, isFetching: profileFetching } = useQuery({
     queryKey: ['profile'],
     queryFn: profileApi.getProfile,
   })
@@ -470,6 +473,19 @@ export function ProfilePage() {
     )
     return sorted[0]?.loginTime
   }, [loginHistory])
+
+  if (profileError) {
+    return (
+      <div className="p-6">
+        <ErrorState
+          title="Không tải được hồ sơ"
+          message="Thử lại hoặc đăng xuất rồi đăng nhập lại từ menu avatar (Header)."
+          onRetry={() => refetchProfile()}
+          isRetrying={profileFetching}
+        />
+      </div>
+    )
+  }
 
   if (profileLoading) {
     return (

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus, Trophy, XCircle, User, CalendarDays, MessageSquare } from 'lucide-react'
-import { Button, PageHeader, AppModal, ConfirmDialog } from '@frezo/ui'
+import { Button, PageHeader, AppModal, ConfirmDialog, EmptyState, ErrorState } from '@frezo/ui'
 import { formatCurrency, formatDate } from '@frezo/utils'
 import {
   usePipelines, usePipelineStages, useDealsByPipeline, useCreateDeal,
@@ -66,7 +66,7 @@ export function DealsPage() {
   const { data: stages } = usePipelineStages(pipelineId)
   const stageList = ((stages as any[]) ?? []) as Stage[]
 
-  const { data: deals, isLoading } = useDealsByPipeline(pipelineId)
+  const { data: deals, isLoading, isError, refetch, isFetching } = useDealsByPipeline(pipelineId)
   const dealList = ((deals as any[]) ?? []) as Deal[]
 
   const dealsByStage = useMemo(() => {
@@ -168,7 +168,34 @@ export function DealsPage() {
         </Button>
       </div>
 
+      {isError && (
+        <div className="border rounded-lg bg-white">
+          <ErrorState
+            title="Không tải được deals"
+            onRetry={() => refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      )}
+
       {isLoading && <div className="text-sm text-neutral-500">Đang tải pipeline…</div>}
+
+      {!isLoading && !isError && dealList.filter((d) => d.status === 'OPEN' || d.status === 'STALLED').length === 0 && (
+        <div className="border rounded-lg bg-white mb-2">
+          <EmptyState
+            icon={Trophy}
+            title="Pipeline trống"
+            description="Chưa có deal OPEN — thêm deal hoặc kéo từ stage khác. Kéo-thả để đổi stage (1 bước)."
+            action={{
+              label: 'Thêm Deal',
+              onClick: () => {
+                if (stageList[0]) setForm((f) => ({ ...f, stageId: stageList[0].id }))
+                setShowCreate(true)
+              },
+            }}
+          />
+        </div>
+      )}
 
       <div className="flex gap-3 overflow-x-auto pb-4 min-h-[500px]">
         {stageList.map((stage) => {

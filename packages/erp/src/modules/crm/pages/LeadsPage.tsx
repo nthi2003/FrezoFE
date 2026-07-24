@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Plus, Search, ArrowRight, Trash2 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Plus, Search, ArrowRight, Trash2, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button, PageHeader, AppModal, BulkSelectionBar, ConfirmDialog,
+  EmptyState, ErrorState,
 } from '@frezo/ui'
 import { formatDate } from '@frezo/utils'
 import {
@@ -23,14 +25,20 @@ const STATUS_TABS: Array<{ key: LeadStatus | 'ALL'; label: string; tone: string 
 ]
 
 export function LeadsPage() {
-  const [status, setStatus] = useState<LeadStatus | 'ALL'>('ALL')
+  const [searchParams] = useSearchParams()
+  const statusFromUrl = searchParams.get('status')?.toUpperCase() as LeadStatus | undefined
+  const initialStatus: LeadStatus | 'ALL' =
+    statusFromUrl && STATUS_TABS.some((t) => t.key === statusFromUrl)
+      ? statusFromUrl
+      : 'ALL'
+  const [status, setStatus] = useState<LeadStatus | 'ALL'>(initialStatus)
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [confirmBulk, setConfirmBulk] = useState<Lead[] | null>(null)
   const [convertTarget, setConvertTarget] = useState<Lead | null>(null)
   const [form, setForm] = useState({ fullName: '', phone: '', email: '', companyName: '', source: '' })
 
-  const { data: rows, isLoading } = useLeads(status === 'ALL' ? undefined : status)
+  const { data: rows, isLoading, isError, refetch, isFetching } = useLeads(status === 'ALL' ? undefined : status)
   const create = useCreateLead()
   const convert = useConvertLead()
   const del = useDeleteLead()
@@ -109,6 +117,28 @@ export function LeadsPage() {
         </Button>
       </div>
 
+      {isError ? (
+        <div className="border rounded-lg bg-white">
+          <ErrorState
+            title="Không tải được leads"
+            onRetry={() => refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : !isLoading && filtered.length === 0 ? (
+        <div className="border rounded-lg bg-white">
+          <EmptyState
+            icon={Users}
+            title="Chưa có lead"
+            description={
+              search.trim() || status !== 'ALL'
+                ? 'Không khớp bộ lọc — thử xoá tìm kiếm hoặc chọn «Tất cả».'
+                : 'Thêm lead thủ công hoặc import từ MKT / Facebook.'
+            }
+            action={{ label: 'Thêm Lead', onClick: () => setShowCreate(true) }}
+          />
+        </div>
+      ) : (
       <div className="overflow-x-auto border rounded-lg bg-white">
         <table className="w-full text-sm">
           <thead className="bg-neutral-50 text-neutral-600">
@@ -135,9 +165,6 @@ export function LeadsPage() {
           </thead>
           <tbody className="divide-y divide-neutral-100">
             {isLoading && <tr><td colSpan={9} className="p-6 text-center text-neutral-500">Đang tải…</td></tr>}
-            {!isLoading && filtered.length === 0 && (
-              <tr><td colSpan={9} className="p-6 text-center text-neutral-500">Chưa có lead nào</td></tr>
-            )}
             {filtered.map((l: Lead) => {
               const rowSelected = selection.isSelected(l)
               return (
@@ -187,6 +214,7 @@ export function LeadsPage() {
           </tbody>
         </table>
       </div>
+      )}
 
       {/* Sticky bulk-action bar */}
       <BulkSelectionBar

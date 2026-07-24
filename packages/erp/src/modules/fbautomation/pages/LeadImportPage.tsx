@@ -9,9 +9,10 @@
 // ============================================================
 
 import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Upload, FileSpreadsheet, CheckCircle, XCircle, Loader2, Info,
-  RotateCcw, Download, History, AlertCircle, FileCheck2,
+  RotateCcw, Download, History, AlertCircle, FileCheck2, ExternalLink,
 } from 'lucide-react'
 import { Button, PageHeader, EmptyState, Input, Label } from '@frezo/ui'
 import { toast } from 'sonner'
@@ -41,10 +42,14 @@ Trần Thị B,0912345678,b@example.com,HCM,Báo giá,Cần bảng giá gói doa
 `
 
 export function LeadImportPage() {
+  const navigate = useNavigate()
   const [file, setFile] = useState<File | null>(null)
   const [source, setSource] = useState('MANUAL_IMPORT')
   const [dedupe, setDedupe] = useState(true)
   const [preview, setPreview] = useState<string[][] | null>(null)
+  const [lastResult, setLastResult] = useState<{
+    ok: number; skip: number; fail: number; total: number
+  } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const previewMut = usePreviewLeadImport()
@@ -54,6 +59,7 @@ export function LeadImportPage() {
 
   const chooseFile = (f: File | null) => {
     setPreview(null)
+    setLastResult(null)
     setFile(f)
     if (f) {
       previewMut.mutate(f, {
@@ -70,7 +76,13 @@ export function LeadImportPage() {
     uploadMut.mutate(
       { file, source, dedupe },
       {
-        onSuccess: () => {
+        onSuccess: (batch: any) => {
+          setLastResult({
+            total: batch?.rowCount ?? 0,
+            ok: batch?.successCount ?? 0,
+            skip: batch?.skippedCount ?? 0,
+            fail: batch?.failedCount ?? 0,
+          })
           setFile(null)
           setPreview(null)
           if (inputRef.current) inputRef.current.value = ''
@@ -102,12 +114,40 @@ export function LeadImportPage() {
           title="Nhập lead hàng loạt"
           description="Upload file CSV hoặc Excel (.xlsx) — hệ thống tự parse, dedupe theo SĐT/email và tạo lead."
           actions={
-            <Button variant="outline" onClick={downloadSample}>
-              <Download size={16} className="mr-2" />
-              Tải file mẫu
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => navigate('/crm/leads')}>
+                <ExternalLink size={16} className="mr-2" />
+                Mở CRM Leads
+              </Button>
+              <Button variant="outline" onClick={downloadSample}>
+                <Download size={16} className="mr-2" />
+                Tải file mẫu
+              </Button>
+            </div>
           }
         />
+
+        {lastResult && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+            <div className="text-sm text-emerald-950">
+              <p className="font-semibold">Import xong — map sang CRM Leads</p>
+              <p className="text-emerald-900/90 mt-0.5">
+                OK {lastResult.ok}/{lastResult.total}
+                {lastResult.skip > 0 && (
+                  <> · <strong>{lastResult.skip} trùng</strong> đã bỏ qua (không tạo duplicate silent)</>
+                )}
+                {lastResult.fail > 0 && <> · {lastResult.fail} lỗi</>}
+                . Status MKT NEW → CRM Lead NEW khi mở CRM.
+              </p>
+            </div>
+            <Button
+              className="shrink-0 gap-1.5"
+              onClick={() => navigate('/crm/leads?status=NEW')}
+            >
+              <ExternalLink size={14} /> Mở CRM Leads
+            </Button>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* ==== LEFT: UPLOADER ==== */}
