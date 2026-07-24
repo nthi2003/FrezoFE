@@ -4,16 +4,16 @@
 
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Edit, Loader2, KeyRound, Lock, Unlock } from 'lucide-react'
+import { Plus, Edit, Loader2, KeyRound, Lock, Unlock, Eye, EyeOff } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import {
   AppModal,
   ConfirmDialog,
   Button,
   Input,
-  Label,
   Select,
   MultiSelect,
+  FormField,
   PageHeader,
   PageGuideButton,
   type PageGuideConfig,
@@ -22,23 +22,27 @@ import { unwrapList } from '@frezo/utils'
 
 const USERS_GUIDE: PageGuideConfig = {
   title: 'Quản lý Người dùng',
-  subtitle: 'Cấp / thu hồi tài khoản truy cập hệ thống, gán vai trò và liên kết với nhân sự HR.',
+  subtitle:
+    'Cấp hoặc thu hồi tài khoản đăng nhập, gắn với hồ sơ nhân sự và chọn vai trò làm việc trên hệ thống.',
   sections: [
     {
       heading: 'Cách thêm người dùng mới',
       type: 'steps',
       steps: [
         {
-          title: 'Nhấn "Thêm mới"',
-          description: 'Điền tên đăng nhập (không dấu, không trùng), mật khẩu tạm (user sẽ đổi lần đầu), email.',
+          title: 'Bấm "Thêm mới"',
+          description:
+            'Điền tên đăng nhập (không dấu, không trùng với người khác) và mật khẩu tạm thời. Người dùng sẽ đổi mật khẩu khi đăng nhập lần đầu.',
         },
         {
           title: 'Liên kết với nhân sự',
-          description: 'Chọn record trong "Nhân sự" (person) đã tồn tại — dùng chung dữ liệu HR (họ tên, phòng ban, chức danh). Nếu chưa có, HR phải tạo person trước.',
+          description:
+            'Chọn đúng nhân viên đã có trong danh mục Nhân sự để dùng chung họ tên, phòng ban, chức danh. Email lấy từ hồ sơ nhân sự nếu có. Nếu chưa có hồ sơ, nhờ bộ phận Nhân sự tạo trước rồi quay lại gắn.',
         },
         {
-          title: 'Gán Vai trò',
-          description: 'Chọn 1 hoặc nhiều role (ADMIN / MANAGER / STAFF) — quyết định menu và API user được truy cập. Có thể chỉnh sau ở tab "Vai trò".',
+          title: 'Gán vai trò',
+          description:
+            'Chọn một hoặc nhiều vai trò (Quản trị viên / Quản lý / Nhân viên). Vai trò quyết định menu và chức năng người đó được dùng. Có thể chỉnh lại sau tại tab "Vai trò".',
         },
       ],
     },
@@ -46,9 +50,9 @@ const USERS_GUIDE: PageGuideConfig = {
       heading: 'Vòng đời tài khoản',
       type: 'tips',
       tips: [
-        'Tạm khóa tài khoản (Lock) thay vì xóa khi nhân viên nghỉ tạm hoặc nghi ngờ bảo mật — vẫn giữ lịch sử audit.',
-        'Reset mật khẩu qua nút "Reset password" — hệ thống sinh mã mới, gửi qua email đăng ký.',
-        'Không xóa cứng tài khoản đang có audit log / hợp đồng ký — hệ thống sẽ chặn.',
+        'Khi nhân viên nghỉ tạm hoặc nghi vấn bảo mật: dùng "Khóa" thay vì xóa — tài khoản dừng đăng nhập nhưng vẫn giữ lịch sử thao tác.',
+        'Quên mật khẩu: bấm "Đặt lại mật khẩu" — hệ thống tạo mật khẩu mới và gửi về email đã đăng ký.',
+        'Không xóa tài khoản đang gắn hợp đồng hoặc lịch sử làm việc quan trọng. Hệ thống sẽ từ chối nếu còn dữ liệu liên quan — hãy khóa thay vì xóa.',
       ],
     },
     {
@@ -56,7 +60,8 @@ const USERS_GUIDE: PageGuideConfig = {
       type: 'notes',
       notes: (
         <>
-          Tài khoản gán role <strong>ADMIN</strong> / <strong>SUPER_ADMIN</strong> có quyền truy cập toàn bộ menu, kể cả module Bảo mật và Nhật ký API. Chỉ cấp cho người vận hành hệ thống.
+          Vai trò <strong>Quản trị viên</strong> / <strong>Quản trị viên hệ thống</strong> mở toàn bộ menu,
+          gồm cả phần Bảo mật và Nhật ký hoạt động. Chỉ cấp cho người được giao vận hành hệ thống.
         </>
       ),
     },
@@ -79,6 +84,7 @@ export function UsersPage() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserDTO | null>(null)
   const [dataPersonId, setDataPersonId] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [confirm, setConfirm] = useState<{
     isOpen: boolean; title: string; message: string; onConfirm: () => void
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
@@ -97,19 +103,30 @@ export function UsersPage() {
   const resetPassword = useResetPassword()
   const assignRole = useAssignRole()
 
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<UserFormValues>({
+  const { register, handleSubmit, reset, setValue, setError, setFocus, watch, formState: { errors } } = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: { username: '', password: '', email: '', fullname: '', dataAction: 1, personId: '', roleIds: [], orgId: '' },
   })
   const selectedRoleIds = watch('roleIds') || []
 
+  const closeModal = () => {
+    setIsModalOpen(false)
+    setShowPassword(false)
+  }
 
-
-  const handleOpenCreate = () => { setIsEditMode(false); setSelectedUser(null); setDataPersonId(''); reset(); setIsModalOpen(true) }
+  const handleOpenCreate = () => {
+    setIsEditMode(false)
+    setSelectedUser(null)
+    setDataPersonId('')
+    setShowPassword(false)
+    reset()
+    setIsModalOpen(true)
+  }
 
   const handleOpenEdit = (user: UserDTO) => {
     setIsEditMode(true)
     setSelectedUser(user)
+    setShowPassword(false)
     setValue('username', user.username)
     setValue('email', user.email || '')
     setValue('fullname', user.fullName || '')
@@ -124,7 +141,6 @@ export function UsersPage() {
         setValue('roleIds', Array.isArray(roles) ? roles : [])
       }).catch(() => {})
     }
-    // Data already set from user object above; no need to fetch Person
   }
 
   const onSubmit = (data: UserFormValues) => {
@@ -147,25 +163,41 @@ export function UsersPage() {
               })
             }).catch(() => {})
           }
-          setIsModalOpen(false); reset()
+          closeModal()
+          reset()
         },
       })
     } else {
-      if (!data.password) return
+      if (!data.password || data.password.length < 6) {
+        setError('password', { type: 'manual', message: 'Mật khẩu tối thiểu 6 ký tự' })
+        setFocus('password')
+        return
+      }
+      // Email không có trên form create — chỉ gửi nếu đã lấy được từ person liên kết
       const payload: RegisterRequest = {
         username: data.username,
         password: data.password,
         dataAction: data.dataAction,
         personId: data.personId || undefined,
-        email: data.email || undefined,
+        ...(data.email ? { email: data.email } : {}),
         fullname: data.fullname || undefined,
-        roleIds: data.roleIds || undefined,
+        roleIds: data.roleIds?.length ? data.roleIds : undefined,
         orgId: data.orgId || undefined,
       }
       createUser.mutate(payload, {
-        onSuccess: () => { setIsModalOpen(false); reset() },
+        onSuccess: () => { closeModal(); reset() },
       })
     }
+  }
+
+  const onInvalid = (errs: typeof errors) => {
+    const order: (keyof UserFormValues)[] = ['username', 'password', 'personId', 'fullname', 'email', 'roleIds']
+    const first = order.find((key) => errs[key])
+    if (first === 'personId' || first === 'fullname') {
+      document.getElementById('user-person')?.focus()
+      return
+    }
+    if (first) setFocus(first)
   }
 
   const columns: AppTableColumn<UserDTO>[] = [
@@ -270,80 +302,144 @@ export function UsersPage() {
       {/* Modal Thêm / Sửa */}
       <AppModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={closeModal}
         title={isEditMode ? 'Cập nhật người dùng' : 'Thêm mới người dùng'}
         description={isEditMode ? 'Chỉnh sửa thông tin tài khoản.' : 'Điền thông tin chi tiết để tạo tài khoản mới.'}
-        maxWidth="md"
+        maxWidth="4xl"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="username">Tên đăng nhập <span className="text-danger">*</span></Label>
-              <Input id="username" placeholder="vd: nguyenvana" {...register('username')} disabled={isEditMode} />
-              {errors.username && <p className="text-xs text-danger">{errors.username.message}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password">{isEditMode ? 'Mật khẩu (để trống nếu không đổi)' : 'Mật khẩu'} <span className="text-danger">{!isEditMode ? '*' : ''}</span></Label>
-              <Input id="password" type="password" placeholder="Tối thiểu 6 ký tự" {...register('password')} />
-              {errors.password && <p className="text-xs text-danger">{errors.password.message}</p>}
-            </div>
-          </div>
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+            <FormField
+              label="Tên đăng nhập"
+              htmlFor="user-username"
+              required
+              error={errors.username?.message}
+            >
+              <Input
+                id="user-username"
+                placeholder="vd: nguyenvana"
+                autoComplete="username"
+                aria-required
+                {...register('username')}
+                disabled={isEditMode}
+              />
+            </FormField>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="personSelect">Nhân sự liên kết <span className="text-danger">*</span></Label>
+            <FormField
+              label={isEditMode ? 'Mật khẩu (để trống nếu không đổi)' : 'Mật khẩu'}
+              htmlFor="user-password"
+              required={!isEditMode}
+              error={errors.password?.message}
+              hint={isEditMode ? 'Chỉ nhập nếu muốn đổi mật khẩu.' : undefined}
+            >
+              <div className="relative">
+                <Input
+                  id="user-password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Tối thiểu 6 ký tự"
+                  autoComplete="new-password"
+                  aria-required={!isEditMode}
+                  className="pr-10"
+                  {...register('password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} strokeWidth={1.5} /> : <Eye size={16} strokeWidth={1.5} />}
+                </button>
+              </div>
+            </FormField>
+
+            <FormField
+              label="Nhân sự liên kết"
+              htmlFor="user-person"
+              required
+              error={errors.personId?.message || errors.fullname?.message}
+              className={isEditMode ? undefined : 'md:col-span-2'}
+            >
               <Select
+                id="user-person"
+                aria-label="Nhân sự liên kết"
+                aria-required
+                aria-invalid={!!(errors.personId || errors.fullname)}
                 options={personOptions || []}
                 value={dataPersonId}
+                showSearch
+                showClear
                 onChange={(id) => {
                   setDataPersonId(id)
-                  setValue('personId', id)
+                  setValue('personId', id, { shouldValidate: true })
                   const selected = (personOptions || []).find((p: any) => p.value === id)
                   if (selected) {
                     const name = selected.label.split(' (')[0]
                     const email = selected.description?.split(' - ')[1] || ''
-                    setValue('fullname', name)
-                    setValue('email', email)
+                    setValue('fullname', name, { shouldValidate: true })
+                    // Create: ẩn field email — vẫn lấy từ person nếu có để gửi BE (optional)
+                    setValue('email', email, { shouldValidate: true })
                   } else {
-                    setValue('fullname', '')
+                    setValue('fullname', '', { shouldValidate: true })
                     setValue('email', '')
                   }
                 }}
-                placeholder="Chọn nhân sự liên kết..."
+                placeholder="Chọn nhân sự..."
               />
-              <input type="hidden" {...register('fullname')} />
-              {errors.fullname && <p className="text-xs text-danger">{errors.fullname.message}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Email <span className="text-danger">*</span></Label>
-              <Input id="email" type="email" placeholder="example@frezo.com" {...register('email')} />
-              {errors.email && <p className="text-xs text-danger">{errors.email.message}</p>}
-            </div>
+            </FormField>
+
+            {isEditMode && (
+              <FormField
+                label="Email"
+                htmlFor="user-email"
+                error={errors.email?.message}
+              >
+                <Input
+                  id="user-email"
+                  type="email"
+                  placeholder="example@frezo.com"
+                  autoComplete="email"
+                  {...register('email')}
+                />
+              </FormField>
+            )}
+
+            <FormField
+              label="Vai trò"
+              htmlFor="user-roles"
+              error={errors.roleIds?.message}
+              className="md:col-span-2"
+            >
+              <MultiSelect
+                id="user-roles"
+                aria-label="Vai trò"
+                aria-invalid={!!errors.roleIds}
+                options={(Array.isArray(rolesData) ? rolesData : []).map((r: any) => ({
+                  value: r.code,
+                  label: r.name,
+                }))}
+                value={selectedRoleIds}
+                onChange={(updated) => {
+                  setValue('roleIds', updated, { shouldValidate: true })
+                }}
+                placeholder="Chọn vai trò..."
+              />
+            </FormField>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Vai trò</Label>
-            <MultiSelect
-              options={(Array.isArray(rolesData) ? rolesData : []).map((r: any) => ({
-                value: r.code,
-                label: r.name,
-              }))}
-              value={selectedRoleIds}
-              onChange={(updated) => {
-                setValue('roleIds', updated, { shouldValidate: true })
-              }}
-              placeholder="Chọn vai trò..."
-            />
-            {errors.roleIds && <p className="text-xs text-danger">{errors.roleIds.message}</p>}
-          </div>
-
-          {/* Hidden */}
+          <input type="hidden" {...register('fullname')} />
+          <input type="hidden" {...register('personId')} />
           <input type="hidden" {...register('dataAction', { valueAsNumber: true })} />
+          {!isEditMode && <input type="hidden" {...register('email')} />}
 
-          <div className="flex justify-end gap-2 pt-4 border-t border-border">
-            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Hủy</Button>
+          <div className="flex flex-wrap justify-end gap-2 pt-5 border-t border-border">
+            <Button type="button" variant="outline" onClick={closeModal}>
+              Hủy
+            </Button>
             <Button type="submit" disabled={createUser.isPending || updateUser.isPending}>
-              {(createUser.isPending || updateUser.isPending) && <Loader2 size={16} className="mr-2 animate-spin" />}
+              {(createUser.isPending || updateUser.isPending) && (
+                <Loader2 size={16} className="mr-2 animate-spin" />
+              )}
               {isEditMode ? 'Cập nhật' : 'Lưu tài khoản'}
             </Button>
           </div>

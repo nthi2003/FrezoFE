@@ -7,6 +7,7 @@ import {
   Trash2,
   Circle,
   CheckCircle2,
+  ListChecks,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -78,10 +79,12 @@ export function TicketCard({
     : Array.isArray(ticket.checklistItems)
       ? ticket.checklistItems
       : []
+  // BE aggregate (user comments only). Fallback 0 khi chưa có field — không nhầm với checklist.
   const commentCount =
-    typeof ticket.commentCount === 'number' ? ticket.commentCount : null
+    typeof ticket.commentCount === 'number' ? ticket.commentCount : 0
   const attachmentCount =
     typeof ticket.attachmentCount === 'number' ? ticket.attachmentCount : null
+  const checklistDone = checklist.filter((i) => !!i.done).length
   const tags = buildTags(ticket, priorityMeta)
 
   useEffect(() => {
@@ -277,22 +280,33 @@ export function TicketCard({
         </div>
 
         <div className="flex items-center gap-2.5 text-[11px] font-medium text-neutral-600">
-          {(commentCount != null || onComment) && (
+          {checklist.length > 0 && (
+            <span
+              className="inline-flex items-center gap-1"
+              title={`Checklist ${checklistDone}/${checklist.length}`}
+            >
+              <ListChecks size={13} strokeWidth={1.5} />
+              <span className="tabular-nums">
+                {checklistDone}/{checklist.length}
+              </span>
+            </span>
+          )}
+          {(onComment || commentCount > 0) && (
             <button
               type="button"
               className="inline-flex items-center gap-1 hover:text-neutral-900 transition"
-              title="Bình luận"
+              title={`${commentCount} bình luận`}
               onClick={(e) => {
                 e.stopPropagation()
                 onComment?.()
               }}
             >
               <MessageSquare size={13} strokeWidth={1.5} />
-              <span className="tabular-nums">{commentCount ?? 0}</span>
+              <span className="tabular-nums">{commentCount}</span>
             </button>
           )}
-          {attachmentCount != null && (
-            <span className="inline-flex items-center gap-1" title="Đính kèm">
+          {attachmentCount != null && attachmentCount > 0 && (
+            <span className="inline-flex items-center gap-1" title="Đính kèm trên bình luận">
               <Paperclip size={13} strokeWidth={1.5} />
               <span className="tabular-nums">{attachmentCount}</span>
             </span>

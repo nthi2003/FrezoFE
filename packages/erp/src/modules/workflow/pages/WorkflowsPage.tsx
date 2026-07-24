@@ -12,7 +12,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Plus, Workflow, Search, X, RefreshCw, Edit3, Trash2,
   Layers, Building2, ClipboardList, Package, FileText, Briefcase,
-  type LucideIcon, MoreVertical, Copy, AlertTriangle, BookOpen, BookTemplate, PencilRuler,
+  type LucideIcon, MoreVertical, Copy, BookOpen, BookTemplate, PencilRuler,
 } from 'lucide-react'
 import {
   Button, PageHeader, EmptyState, PageGuideButton, ErrorState, Skeleton, ConfirmDialog,
@@ -128,7 +128,7 @@ export function WorkflowsPage() {
         }
         description={
           <>
-            Template visual bước duyệt (Admin/HR) — duyệt đơn hàng ngày ở Hộp thư duyệt.
+            Cấu hình bước duyệt cho từng module.
             <span className="text-neutral-400"> · </span>
             <b className="text-neutral-700">{stats.total}</b> quy trình
             <span className="text-neutral-400"> · </span>
@@ -159,30 +159,6 @@ export function WorkflowsPage() {
         }
       />
 
-      {/* UX guard banner — LNK-04: Inbox ≠ Designer */}
-      <div className="rounded-xl border border-warning/30 bg-warning-light px-4 py-3 flex items-start gap-3 text-sm text-warning-dark">
-        <AlertTriangle size={18} className="text-warning shrink-0 mt-0.5" />
-        <div className="min-w-0 leading-snug">
-          <span className="font-semibold">Trang thiết kế template — không phải hộp duyệt.</span>{' '}
-          Duyệt đơn hàng ngày ở{' '}
-          <button
-            type="button"
-            className="font-semibold text-primary-700 underline underline-offset-2"
-            onClick={() => nav('/approval/inbox')}
-          >
-            /approval/inbox
-          </button>
-          . Flow theo subject:{' '}
-          <button
-            type="button"
-            className="font-semibold text-primary-700 underline underline-offset-2"
-            onClick={() => nav('/approval/flows')}
-          >
-            /approval/flows
-          </button>
-          . Đọc hướng dẫn trước khi tạo mới — đừng nhân đôi luồng.
-        </div>
-      </div>
       {/* Toolbar */}
       <div className="bg-white rounded-xl border border-neutral-200 p-3 flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[220px]">

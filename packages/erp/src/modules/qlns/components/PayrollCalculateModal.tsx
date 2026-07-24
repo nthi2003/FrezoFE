@@ -158,7 +158,7 @@ export function PayrollCalculateModal({
       isOpen={isOpen}
       onClose={handleClose}
       title={title}
-      maxWidth={stage === 'result' ? '2xl' : 'lg'}
+      maxWidth="2xl"
     >
       {stage === 'confirm' && (
         <ConfirmStage

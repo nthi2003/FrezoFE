@@ -327,7 +327,7 @@ export function PersonsPage() {
         onClose={() => setModalOpen(false)}
         title={selectedPerson ? 'Cập nhật thông tin nhân viên' : 'Thêm nhân viên mới'}
         description={selectedPerson ? 'Chỉnh sửa thông tin hồ sơ nhân sự.' : 'Điền thông tin để tạo hồ sơ nhân viên mới.'}
-        maxWidth="4xl"
+        maxWidth="5xl"
       >
         {chucDanhError && (
           <div className="mb-4 flex items-start gap-3 rounded-md border border-danger/30 bg-danger/5 px-3 py-2.5 text-sm text-neutral-700">
@@ -359,7 +359,7 @@ export function PersonsPage() {
           fields={[
             { name: 'code', label: 'Mã nhân viên', required: true, placeholder: 'NV001' },
             { name: 'name', label: 'Họ và tên', required: true, placeholder: 'Nguyễn Văn A' },
-            { name: 'gender', label: 'Giới tính', type: 'select', options: GENDER_OPTIONS },
+            { name: 'gender', label: 'Giới tính', type: 'radio', options: GENDER_OPTIONS },
             { name: 'email', label: 'Email', placeholder: 'example@frezo.com' },
             { name: 'phone', label: 'Số điện thoại', placeholder: '0901 234 567' },
             { name: 'identityNumber', label: 'CCCD / CMND', placeholder: '012345678901' },
@@ -375,7 +375,7 @@ export function PersonsPage() {
             { name: 'orgId', label: 'Tổ chức', type: 'select', options: orgOptions },
             { name: 'departmentId', label: 'Phòng ban', type: 'select', options: departmentOptions },
             { name: 'activated', label: 'Trạng thái', type: 'switch' },
-            { name: 'address', label: 'Địa chỉ', placeholder: 'Số nhà, đường, quận, thành phố...' },
+            { name: 'address', label: 'Địa chỉ', placeholder: 'Số nhà, đường, quận, thành phố...', colSpan: 2 },
           ]}
         />
       </AppModal>

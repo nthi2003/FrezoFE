@@ -75,7 +75,7 @@ export function ApprovalFlowConfigPage() {
     <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
         title="Cấu hình luồng duyệt"
-        description="Gắn flow theo subject → Hộp thư duyệt (/approval/inbox). Khác với template visual ở /qtht/workflows."
+        description="Gắn luồng duyệt theo loại đơn — đơn chờ sẽ vào Hộp thư duyệt."
         actions={
           canCreate ? (
             <Button className="gap-2" onClick={openCreate}>

@@ -1,37 +1,30 @@
 import type { PageGuideConfig } from '@frezo/ui'
 
 /**
- * Hướng dẫn in-app cho /approval/inbox
- * Phân biệt với Visual Workflow designer (/qtht/workflows).
+ * Hướng dẫn in-app cho Hộp thư duyệt
  */
 export const APPROVAL_INBOX_GUIDE: PageGuideConfig = {
-  title: 'Hộp thư duyệt (Approval Inbox)',
+  title: 'Hộp thư duyệt',
   subtitle:
-    'Duyệt đơn nghiệp vụ hàng ngày (nghỉ phép, PR, lương…). Không phải trang thiết kế template quy trình.',
+    'Duyệt đơn nghiệp vụ hàng ngày (nghỉ phép, PR, lương…).',
   docHref: '/docs/guide-workflows',
   sections: [
     {
-      type: 'notes',
-      heading: 'Inbox vs Workflow designer',
-      notes:
-        'Hai lớp khác nhau: (1) Approval Inbox + Flows = duyệt đơn thật / cấu hình subject→flow. (2) /qtht/workflows = template visual (Admin/HR). Đơn hàng ngày vào đây — không mở Designer để “duyệt”.',
-    },
-    {
       type: 'steps',
-      heading: 'Cách duyệt đúng',
+      heading: 'Cách duyệt',
       steps: [
         {
-          title: 'Mở Hộp duyệt',
-          description: 'Vào /approval/inbox — tab Chờ duyệt để xem đơn PENDING của bạn.',
+          title: 'Mở Hộp thư duyệt',
+          description: 'Tab Chờ duyệt để xem đơn đang chờ bạn xử lý.',
         },
         {
           title: 'Duyệt hoặc từ chối',
-          description: 'Approve kèm ghi chú (tuỳ chọn); Reject bắt buộc lý do ≥ 3 ký tự.',
+          description: 'Duyệt kèm ghi chú (tuỳ chọn); Từ chối bắt buộc lý do ≥ 3 ký tự.',
         },
         {
           title: 'Thiếu đơn?',
           description:
-            'Kiểm tra flow tại /approval/flows (subject-type đúng). Đừng cấu hình lại trên /qtht/workflows nếu module đã dùng Approval Engine.',
+            'Liên hệ Admin kiểm tra cấu hình luồng duyệt đúng loại đơn. Đừng thiết kế lại quy trình nếu đơn đã gắn luồng duyệt sẵn.',
         },
       ],
     },
@@ -39,9 +32,9 @@ export const APPROVAL_INBOX_GUIDE: PageGuideConfig = {
       type: 'links',
       heading: 'Liên quan',
       links: [
-        { label: 'Cấu hình Approval Flows', href: '/approval/flows' },
-        { label: 'Thiết kế template quy trình (khác Inbox)', href: '/qtht/workflows' },
-        { label: 'Tài liệu Workflow vs Inbox', href: '/docs/guide-workflows' },
+        { label: 'Cấu hình luồng duyệt', href: '/approval/flows' },
+        { label: 'Thiết kế quy trình', href: '/qtht/workflows' },
+        { label: 'Tài liệu quy trình duyệt', href: '/docs/guide-workflows' },
       ],
     },
   ],

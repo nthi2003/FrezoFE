@@ -5,6 +5,7 @@
 import axiosClient from '@/lib/axios/axiosClient'
 import type { ApiResponse } from '@frezo/types'
 import type {
+  CommentAttachment,
   CommentCreatePayload,
   CommentDto,
   CommentUpdatePayload,
@@ -37,6 +38,17 @@ export const commentApi = {
 
   remove: (id: string) =>
     axiosClient.delete<ApiResponse<void>>(`${BASE}/${id}`).then((r) => r.data),
+
+  /** POST /comments/attachments — multipart MinIO upload */
+  uploadAttachment: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return axiosClient
+      .post<ApiResponse<CommentAttachment>>(`${BASE}/attachments`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data.data)
+  },
 
   /** GET /qtht/user/search?q= */
   searchUsers: (q: string) =>

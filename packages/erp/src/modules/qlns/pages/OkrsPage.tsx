@@ -128,7 +128,7 @@ export function OkrsPage() {
         </div>
       )}
 
-      <AppModal isOpen={open} onClose={() => setOpen(false)} title="Tạo OKR" maxWidth="lg">
+      <AppModal isOpen={open} onClose={() => setOpen(false)} title="Tạo OKR" maxWidth="2xl">
         <div className="space-y-3">
           <Field label="Tiêu đề *">
             <input

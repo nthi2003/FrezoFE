@@ -60,11 +60,12 @@ export function TasksPage() {
       dataIndex: 'status',
       render: (val: any) => {
         const statusMap: Record<string, { label: string, color: string }> = {
-          'DONE': { label: 'Hoàn thành', color: 'bg-green-100 text-green-700' },
-          'IN_PROGRESS': { label: 'Đang làm', color: 'bg-blue-100 text-blue-700' },
-          'TODO': { label: 'Cần làm', color: 'bg-neutral-100 text-neutral-700' },
+          OPEN: { label: 'Chưa làm', color: 'bg-neutral-100 text-neutral-700' },
+          IN_PROGRESS: { label: 'Đang làm', color: 'bg-blue-100 text-blue-700' },
+          DONE: { label: 'Hoàn thành', color: 'bg-green-100 text-green-700' },
+          CANCELLED: { label: 'Đã hủy', color: 'bg-red-100 text-red-700' },
         }
-        const s = statusMap[val || 'TODO'] || statusMap['TODO']
+        const s = statusMap[val || 'OPEN'] || statusMap.OPEN
         return (
           <span className={`px-2 py-1 text-xs rounded-full ${s.color}`}>
             {s.label}
@@ -106,14 +107,35 @@ export function TasksPage() {
     },
   ]
 
-  // ---- Form Fields ----
+  // ---- Form Fields (map BE TaskStatusEnum / PriorityEnum) ----
   const formFields = [
-    { name: 'title', label: 'Tiêu đề', placeholder: 'Task...' },
-    { name: 'description', label: 'Mô tả' },
-    { name: 'status', label: 'Trạng thái' },
-    { name: 'priority', label: 'Mức độ' },
+    { name: 'title', label: 'Tiêu đề', placeholder: 'Task...', colSpan: 3 },
+    { name: 'description', label: 'Mô tả', type: 'textarea', colSpan: 3 },
+    {
+      name: 'status',
+      label: 'Trạng thái',
+      type: 'select',
+      options: [
+        { value: '', label: '-- Chọn --' },
+        { value: 'OPEN', label: 'Chưa làm' },
+        { value: 'IN_PROGRESS', label: 'Đang làm' },
+        { value: 'DONE', label: 'Hoàn thành' },
+        { value: 'CANCELLED', label: 'Đã hủy' },
+      ],
+    },
+    {
+      name: 'priority',
+      label: 'Mức độ',
+      type: 'select',
+      options: [
+        { value: '', label: '-- Chọn --' },
+        { value: 'LOW', label: 'Thấp' },
+        { value: 'MEDIUM', label: 'Trung bình' },
+        { value: 'HIGH', label: 'Cao' },
+      ],
+    },
     { name: 'assigneeId', label: 'Người thực hiện' },
-    { name: 'dueDate', label: 'Deadline' },
+    { name: 'dueDate', label: 'Deadline', type: 'date' },
   ]
 
   return (

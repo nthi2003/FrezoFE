@@ -527,7 +527,7 @@ export function CustomersPage() {
         onClose={() => setModalOpen(false)}
         title={selectedItem ? 'Cập nhật khách hàng' : 'Thêm khách hàng mới'}
         description={selectedItem ? 'Chỉnh sửa thông tin liên hệ và ghi chú.' : 'Điền thông tin để thêm khách hàng vào CRM.'}
-        maxWidth="lg"
+        maxWidth="3xl"
       >
         <AppForm
           schema={customerFormSchema}

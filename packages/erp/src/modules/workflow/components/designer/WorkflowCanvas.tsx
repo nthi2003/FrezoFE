@@ -27,6 +27,7 @@ import {
   LANE_HEIGHT,
   WF_DND_MIME,
   buildAutoEdge,
+  buildDecisionBranchStubs,
   defaultLabel,
   findAutoConnectSourceId,
   isValidWfConnection,
@@ -112,10 +113,18 @@ export function WorkflowCanvas({
       const selectedIds = nodes.filter((n) => n.selected).map((n) => n.id)
       const sourceId = findAutoConnectSourceId(nodes, position, type, selectedIds)
 
-      setNodes((ns) => [...ns, newNode])
-      if (sourceId) {
-        setEdges((eds) => [...eds, buildAutoEdge(sourceId, idN)])
-      }
+      const stubs =
+        type === 'DECISION'
+          ? buildDecisionBranchStubs(idN, laneId, position)
+          : { nodes: [] as Node[], edges: [] as Edge[] }
+
+      setNodes((ns) => [...ns, newNode, ...stubs.nodes])
+      setEdges((eds) => {
+        const next = [...eds]
+        if (sourceId) next.push(buildAutoEdge(sourceId, idN))
+        next.push(...stubs.edges)
+        return next
+      })
     },
     [lanes, nodes, selectedLaneId, setEdges, setNodes],
   )
@@ -281,7 +290,7 @@ export function createNodeAtDefaultPosition(
   nodes: Node[],
   lanes: WorkflowSwimlane[],
   selectedLaneId?: string | null,
-): { node: Node; edge: Edge | null } {
+): { nodes: Node[]; edges: Edge[] } {
   const sorted = [...lanes].sort((a, b) => a.order - b.order)
   const lane =
     (selectedLaneId ? sorted.find((l) => l.id === selectedLaneId) : undefined) ??
@@ -302,6 +311,14 @@ export function createNodeAtDefaultPosition(
   }
   const selectedIds = nodes.filter((n) => n.selected).map((n) => n.id)
   const sourceId = findAutoConnectSourceId(nodes, position, type, selectedIds)
-  const edge = sourceId ? buildAutoEdge(sourceId, idN) : null
-  return { node, edge }
+  const edges: Edge[] = []
+  if (sourceId) edges.push(buildAutoEdge(sourceId, idN))
+
+  const resultNodes: Node[] = [node]
+  if (type === 'DECISION') {
+    const stubs = buildDecisionBranchStubs(idN, lane?.id, position)
+    resultNodes.push(...stubs.nodes)
+    edges.push(...stubs.edges)
+  }
+  return { nodes: resultNodes, edges }
 }

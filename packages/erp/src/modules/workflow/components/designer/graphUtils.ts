@@ -174,11 +174,56 @@ export function findAutoConnectSourceId(
   return eligible[eligible.length - 1]?.id ?? null
 }
 
-export function buildAutoEdge(sourceId: string, targetId: string): Edge {
+export function buildAutoEdge(
+  sourceId: string,
+  targetId: string,
+  label?: string,
+): Edge {
   return {
     id: nextId('e'),
     source: sourceId,
     target: targetId,
+    label,
     type: 'smoothstep',
+  }
+}
+
+/**
+ * Khi thả DECISION: tạo sẵn 2 nhánh ra (Có / Không) tới 2 END stub
+ * để graph luôn thỏa validate ≥ 2 cạnh ra.
+ */
+export function buildDecisionBranchStubs(
+  decisionId: string,
+  laneId: string | undefined,
+  origin: { x: number; y: number },
+): { nodes: Node[]; edges: Edge[] } {
+  const yesId = nextId('end')
+  const noId = nextId('end')
+  const yesNode: Node = {
+    id: yesId,
+    type: 'wfNode',
+    position: { x: origin.x + 200, y: origin.y - 60 },
+    data: {
+      label: 'Nhánh Có / Duyệt',
+      nodeType: 'END',
+      laneId,
+    } satisfies WfNodeData,
+  }
+  const noNode: Node = {
+    id: noId,
+    type: 'wfNode',
+    position: { x: origin.x + 200, y: origin.y + 60 },
+    data: {
+      label: 'Nhánh Không / Từ chối',
+      nodeType: 'END',
+      laneId,
+    } satisfies WfNodeData,
+  }
+  return {
+    nodes: [yesNode, noNode],
+    edges: [
+      buildAutoEdge(decisionId, yesId, 'Có'),
+      buildAutoEdge(decisionId, noId, 'Không'),
+    ],
   }
 }

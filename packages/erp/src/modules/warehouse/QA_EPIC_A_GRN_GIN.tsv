@@ -1,0 +1,37 @@
+Case ID	Module	Step	Expected	Priority	Result	Bug ID	Note
+A-GRN-001	GRN/PNK	Mở /warehouse/grn	List PNK load (empty OK) hoặc bảng + filter status	P0			Route + menu WH_GRN
+A-GRN-002	GRN/PNK	Tạo PNK: chọn kho + lines productId,qty,cost	Tạo DRAFT, redirect detail, toast success	P0			Cần WAREHOUSE.GRN.CREATE
+A-GRN-003	GRN/PNK	Tạo thiếu warehouse	Nút Tạo disabled / không gọi API	P0			
+A-GRN-004	GRN/PNK	Tạo thiếu line / lines trống	Nút Tạo disabled	P0			
+A-GRN-005	GRN/PNK	Tạo qtyExpected = 0 trên line	BE chấp nhận hoặc reject rõ ràng	P1		Edge
+A-GRN-006	GRN/PNK	Tạo warehouseId invalid	API lỗi + toast fail	P1		Edge
+A-GRN-007	GRN/PNK	Mở detail /warehouse/grn/:id	Hiển thị mã, kho, lines, status	P0			
+A-GRN-008	GRN/PNK	Confirm DRAFT (sửa qty nhận)	Status → CONFIRMED; stock ledger/balance tăng	P0			WAREHOUSE.GRN.UPDATE
+A-GRN-009	GRN/PNK	Confirm lần 2 phiếu đã CONFIRMED	API reject already.confirmed	P0			
+A-GRN-010	GRN/PNK	Huỷ DRAFT	Status CANCELLED	P1			
+A-GRN-011	GRN/PNK	Nút In trên detail	Mở HTML print (popup)	P0			GET /warehouse/grn/{id}/print
+A-GRN-012	GRN/PNK	Filter status DRAFT/CONFIRMED	List lọc đúng	P2			
+A-GRN-013	GRN/PNK	User thiếu quyền CREATE	Ẩn nút Tạo PNK	P1			Permission
+A-PO-GRN-001	PO→GRN	PO CONFIRMED → Nhận hàng	Tạo GRN DRAFT từ lines còn lại; navigate detail	P0			Đóng vòng PO
+A-PO-GRN-002	PO→GRN	PO thiếu warehouseId → Nhận hàng	Toast lỗi không tạo PNK	P1		Edge
+A-PO-GRN-003	PO→GRN	PO đã nhận hết (qtyRemaining=0)	Toast không còn dòng	P1		Edge
+A-GIN-001	GIN/PXK	Mở /warehouse/gin	List PXK load	P0			Route + menu WH_GIN
+A-GIN-002	GIN/PXK	Tạo PXK: kho + lines productId,qty	Tạo DRAFT, redirect detail	P0			WAREHOUSE.GIN.CREATE
+A-GIN-003	GIN/PXK	Tạo thiếu kho / line	Nút Tạo disabled	P0			
+A-GIN-004	GIN/PXK	Tạo qty=0	BE chấp nhận hoặc reject rõ	P1		Edge
+A-GIN-005	GIN/PXK	Detail + Confirm DRAFT	Status CONFIRMED; stock giảm	P0			WAREHOUSE.GIN.UPDATE
+A-GIN-006	GIN/PXK	Confirm khi tồn không đủ	Lỗi rõ / hoặc âm tồn (ghi bug nếu âm)	P0		Stock impact
+A-GIN-007	GIN/PXK	Confirm lần 2	Reject already.confirmed	P0			
+A-GIN-008	GIN/PXK	Huỷ DRAFT	CANCELLED	P1			
+A-GIN-009	GIN/PXK	Nút In	HTML print popup	P0			GET /warehouse/gin/{id}/print
+A-GIN-010	GIN/PXK	User thiếu CREATE	Ẩn nút Tạo	P1			Permission
+A-APR-001	Approval	PR DRAFT → Submit → Approval inbox	PR chờ duyệt; không đụng GRN/GIN engine	P0			Reuse /approval/*
+A-APR-002	Approval	Từ GRN/GIN detail → link Approval	Vào /approval/inbox	P2			Deep-link UX
+A-NAV-001	Menu	Seed/re-run menu_tree_v3: WH_GRN WH_GIN	Sidebar hiện Phiếu nhập/xuất kho	P0			DB seed
+A-NAV-002	Deep-link	resolveNotificationUrl GRN/GIN	Đúng /warehouse/grn|gin/:id	P2			
+A-BUG-LOG	QA	Ghi bug mở vào cột Result/Bug ID	Severity + repro	P0			
+BUG-A-001	Menu	DB cũ chưa seed WH_GRN/WH_GIN	Sidebar thiếu PNK/PXK dù route hoạt động	P0	OPEN	BUG-A-001	Chạy lại menu_tree_v3.sql hoặc insert menu thủ công
+BUG-A-002	PO↔GRN	Confirm GRN có PO link	Stock tăng OK nhưng PO.qtyReceived / status PARTIAL_RECEIVED có thể chưa sync nếu listener thiếu	P1	OPEN	BUG-A-002	Verify GrnConfirmedEvent listener cập nhật PO; nếu không → BE ticket
+BUG-A-003	UX	Create GRN/GIN	Nhập productId thủ công (không picker)	P2	OPEN	BUG-A-003	Scope cắt — đủ smoke; cải thiện product picker sau
+BUG-A-004	BE	GrnCreateRequest.qtyExpected @NotBlank trên Double	Annotation Jakarta sai kiểu; validation qty có thể không chạy đúng	P2	OPEN	BUG-A-004	Pre-existing BE; nên đổi @NotNull + @Positive
+BUG-A-005	Manual QA	API smoke / E2E runtime	Chưa chạy được trong session (env BE/FE chưa verify)	P0	BLOCKED	BUG-A-005	Cần QA manual trên env local với token + warehouse/product seed

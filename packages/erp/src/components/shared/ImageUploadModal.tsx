@@ -75,7 +75,7 @@ export function ImageUploadModal({ isOpen, onClose, onUploaded }: ImageUploadMod
   }
 
   return (
-    <AppModal isOpen={isOpen} onClose={handleClose} title="Upload hình ảnh" maxWidth="lg">
+    <AppModal isOpen={isOpen} onClose={handleClose} title="Upload hình ảnh" maxWidth="2xl">
       <div className="space-y-4">
         <div
           onDragOver={(e) => e.preventDefault()}

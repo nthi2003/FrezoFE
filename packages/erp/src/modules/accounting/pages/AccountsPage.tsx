@@ -451,7 +451,7 @@ export function AccountsPage() {
         onClose={() => setModalOpen(false)}
         title="Thêm tài khoản"
         description="Nhập số hiệu, chọn loại và TK cha (nếu có)."
-        maxWidth="lg"
+        maxWidth="2xl"
       >
         <form onSubmit={onSubmitCreate} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">

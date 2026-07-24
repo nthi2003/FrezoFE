@@ -112,6 +112,10 @@ const PurchaseRequestsPage = lazy(() => import('@/modules/warehouse/pages/Purcha
 const PurchaseRequestDetailPage = lazy(() => import('@/modules/warehouse/pages/PurchaseRequestDetailPage').then(m => ({ default: m.PurchaseRequestDetailPage })))
 const PurchaseOrdersPage = lazy(() => import('@/modules/warehouse/pages/PurchaseOrdersPage').then(m => ({ default: m.PurchaseOrdersPage })))
 const PurchaseOrderDetailPage = lazy(() => import('@/modules/warehouse/pages/PurchaseOrderDetailPage').then(m => ({ default: m.PurchaseOrderDetailPage })))
+const GoodsReceiptNotesPage = lazy(() => import('@/modules/warehouse/pages/GoodsReceiptNotesPage').then(m => ({ default: m.GoodsReceiptNotesPage })))
+const GoodsReceiptNoteDetailPage = lazy(() => import('@/modules/warehouse/pages/GoodsReceiptNoteDetailPage').then(m => ({ default: m.GoodsReceiptNoteDetailPage })))
+const GoodsIssueNotesPage = lazy(() => import('@/modules/warehouse/pages/GoodsIssueNotesPage').then(m => ({ default: m.GoodsIssueNotesPage })))
+const GoodsIssueNoteDetailPage = lazy(() => import('@/modules/warehouse/pages/GoodsIssueNoteDetailPage').then(m => ({ default: m.GoodsIssueNoteDetailPage })))
 
 // Accounting
 const AccountsPage            = lazy(() => import('@/modules/accounting/pages/AccountsPage').then(m => ({ default: m.AccountsPage })))
@@ -313,6 +317,8 @@ export const router = createBrowserRouter([
       // Task
       { path: 'task',             element: <Suspense fallback={<PageLoader />}><TasksPage /></Suspense> },
       { path: 'task/tickets',     element: <Suspense fallback={<PageLoader />}><TicketsPage /></Suspense> },
+      // Alias legacy BE notification deep-link `/tasks?ticketId=...`
+      { path: 'tasks',            element: <Suspense fallback={<PageLoader />}><TicketsPage /></Suspense> },
       { path: 'task/tags',        element: <Suspense fallback={<PageLoader />}><TagsPage /></Suspense> },
       { path: 'qlns/leaves',      element: <Suspense fallback={<PageLoader />}><LeavesPage /></Suspense> },
 
@@ -357,6 +363,10 @@ export const router = createBrowserRouter([
       { path: 'warehouse/purchase-requests/:id', element: <Suspense fallback={<PageLoader />}><PurchaseRequestDetailPage /></Suspense> },
       { path: 'warehouse/purchase-orders', element: <Suspense fallback={<PageLoader />}><PurchaseOrdersPage /></Suspense> },
       { path: 'warehouse/purchase-orders/:id', element: <Suspense fallback={<PageLoader />}><PurchaseOrderDetailPage /></Suspense> },
+      { path: 'warehouse/grn', element: <Suspense fallback={<PageLoader />}><GoodsReceiptNotesPage /></Suspense> },
+      { path: 'warehouse/grn/:id', element: <Suspense fallback={<PageLoader />}><GoodsReceiptNoteDetailPage /></Suspense> },
+      { path: 'warehouse/gin', element: <Suspense fallback={<PageLoader />}><GoodsIssueNotesPage /></Suspense> },
+      { path: 'warehouse/gin/:id', element: <Suspense fallback={<PageLoader />}><GoodsIssueNoteDetailPage /></Suspense> },
 
       // Accounting
       { path: 'accounting/accounts',       element: <Suspense fallback={<PageLoader />}><AccountsPage /></Suspense> },

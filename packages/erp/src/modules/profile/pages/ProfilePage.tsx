@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   User,
@@ -26,6 +26,8 @@ import {
   Phone,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
+import { mapProfileToUser } from '@/modules/auth/utils/mapProfileToUser'
+import { resolveAvatarUrl } from '@/modules/auth/utils/resolveAvatarUrl'
 import { profileApi } from '../services/profileApi'
 import type { ProfileInfo, LoginHistoryItem, PersonDocument } from '../services/profileApi'
 import {
@@ -431,6 +433,13 @@ export function ProfilePage() {
     queryFn: profileApi.getProfile,
   })
 
+  // Bind avatar/profile từ API vào auth store (không dùng localStorage làm nguồn)
+  useEffect(() => {
+    if (!profile) return
+    const prev = useAuthStore.getState().user
+    useAuthStore.getState().setUser(mapProfileToUser(profile as unknown as Record<string, unknown>, prev))
+  }, [profile])
+
   const { data: loginHistory, isLoading: historyLoading } = useQuery({
     queryKey: ['login-history'],
     queryFn: profileApi.getLoginHistory,
@@ -441,6 +450,7 @@ export function ProfilePage() {
     onSuccess: (avatarUrl) => {
       setPreviewUrl(null)
       queryClient.invalidateQueries({ queryKey: ['profile'] })
+      queryClient.invalidateQueries({ queryKey: ['auth-profile'] })
       if (avatarUrl && user) {
         useAuthStore.getState().setUser({ ...user, avatar: avatarUrl })
       }
@@ -496,7 +506,7 @@ export function ProfilePage() {
   }
 
   const p = profile as ProfileInfo | undefined
-  const currentAvatar = previewUrl || p?.avatarUrl
+  const currentAvatar = previewUrl || resolveAvatarUrl(p) || resolveAvatarUrl(user)
   const personId = p?.personId
   const isAdmin = user?.isAdmin || p?.isAdmin
 

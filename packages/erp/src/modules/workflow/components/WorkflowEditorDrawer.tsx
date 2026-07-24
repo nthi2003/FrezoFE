@@ -289,12 +289,7 @@ export function WorkflowEditorDrawer({ definitionId, cloneFrom, onClose }: Props
             >
               Đọc hướng dẫn
             </Link>
-            {' · '}
-            Nếu module đã dùng{' '}
-            <Link to="/approval/flows" className="underline underline-offset-2" onClick={requestClose}>
-              /approval/flows
-            </Link>
-            , đừng tạo luồng trùng.
+            .
           </div>
 
           <section>

@@ -19,8 +19,8 @@ import { uploadImage } from '@/lib/upload'
  *
  * Mỗi field: { name, label, type?, options?, placeholder?, required?, colSpan?, rows?, description? }
  * - `type`: 'text' (default) | 'number' | 'date' | 'textarea' | 'select' | 'multiselect' | 'switch'
- *            | 'richtext' | 'image'
- * - `colSpan`: 1 | 2 | 3 — span bao nhiêu cột trong grid 3-col (mặc định 1). VD `colSpan: 3` = full-width.
+ *            | 'radio' | 'richtext' | 'image'
+ * - `colSpan`: 1 | 2 | 3 — span trong grid 2-col (mặc định 1). `colSpan: 2|3` = full-width.
  * - `rows`: chiều cao textarea (mặc định 4). Chỉ dùng khi `type = 'textarea'`.
  * - `description`: text mô tả nhỏ dưới field (hint).
  * - `richtext` extra: `minHeight` (default 320), `placeholder`.
@@ -58,7 +58,6 @@ export function AppForm({
   const colSpanClass = (span?: number) => {
     switch (span) {
       case 3:
-        return 'md:col-span-3'
       case 2:
         return 'md:col-span-2'
       default:
@@ -68,14 +67,15 @@ export function AppForm({
 
   return (
     <form id={formId} onSubmit={handleSubmit(onSubmit)}>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
         {fields.map((f: any) => (
           <div
             key={f.name}
             className={`space-y-1.5 ${colSpanClass(f.colSpan)}`}
           >
             <Label
-              htmlFor={f.name}
+              id={`${f.name}-label`}
+              htmlFor={f.type === 'radio' || f.type === 'switch' ? undefined : f.name}
               className="text-sm font-medium text-neutral-700"
             >
               {f.label}
@@ -83,6 +83,14 @@ export function AppForm({
             </Label>
             {f.type === 'switch' ? (
               <SwitchField name={f.name} control={control} setValue={setValue} />
+            ) : f.type === 'radio' ? (
+              <RadioField
+                name={f.name}
+                control={control}
+                setValue={setValue}
+                options={f.options || []}
+                labelledBy={`${f.name}-label`}
+              />
             ) : f.type === 'multiselect' ? (
               <MultiSelectField
                 name={f.name}
@@ -188,6 +196,52 @@ function SwitchField({ name, control, setValue }: any) {
         onChange={(v) => setValue(name, v, { shouldValidate: true })}
       />
       <span className="text-sm text-neutral-500">{value ? 'Bật' : 'Tắt'}</span>
+    </div>
+  )
+}
+
+function RadioField({
+  name,
+  control,
+  setValue,
+  options,
+  labelledBy,
+}: {
+  name: string
+  control: any
+  setValue: any
+  options: { value: string; label: string }[]
+  labelledBy: string
+}) {
+  const value = String(useWatch({ control, name }) ?? '')
+  return (
+    <div
+      role="radiogroup"
+      aria-labelledby={labelledBy}
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1.5"
+    >
+      {options.map((opt) => {
+        const id = `${name}-${opt.value}`
+        const checked = value === opt.value
+        return (
+          <label
+            key={opt.value}
+            htmlFor={id}
+            className="inline-flex cursor-pointer items-center gap-2 text-sm text-neutral-700"
+          >
+            <input
+              id={id}
+              type="radio"
+              name={name}
+              value={opt.value}
+              checked={checked}
+              onChange={() => setValue(name, opt.value, { shouldValidate: true, shouldDirty: true })}
+              className="h-4 w-4 cursor-pointer border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary focus:ring-offset-1"
+            />
+            <span>{opt.label}</span>
+          </label>
+        )
+      })}
     </div>
   )
 }

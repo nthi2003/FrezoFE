@@ -228,7 +228,7 @@ export function PurchaseRequestDetailPage() {
           })
         }}
         title={`Gửi duyệt PR ${pr.code || pr.id}?`}
-        message="PR sẽ vào Hộp thư duyệt. Bạn có thể theo dõi trạng thái tại /approval/inbox."
+        message="PR sẽ vào Hộp thư duyệt. Bạn có thể theo dõi trạng thái tại đó."
         confirmText="Gửi duyệt"
         cancelText="Huỷ"
         variant="warning"

@@ -259,7 +259,7 @@ export function ReorderRulesPage() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Thêm quy tắc tái nhập"
-        maxWidth="lg"
+        maxWidth="2xl"
       >
         <div className="space-y-3">
           <Field label="Kho *">

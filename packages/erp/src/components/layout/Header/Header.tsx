@@ -7,6 +7,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { Search, ChevronRight, User, LogOut, Command } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
+import { resolveAvatarUrl } from '@/modules/auth/utils/resolveAvatarUrl'
 import { useMenus } from '@/modules/menus/hooks/useMenus'
 import type { MenuTreeNode } from '@/modules/menus/types/menu.types'
 import { useCommandPaletteContext } from '@/components/shared/CommandPalette/context'
@@ -92,6 +93,7 @@ export function Header() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+  const avatarSrc = resolveAvatarUrl(user)
   const { menuTree } = useMenus()
   const commandPalette = useCommandPaletteContext()
 
@@ -161,8 +163,8 @@ export function Header() {
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-2 pl-2 border-l border-border cursor-pointer"
           >
-            {user?.avatar ? (
-              <img src={user.avatar} alt="avatar" className="w-7 h-7 rounded-full object-cover border border-border" />
+            {avatarSrc ? (
+              <img src={avatarSrc} alt="avatar" className="w-7 h-7 rounded-full object-cover border border-border" />
             ) : (
               <div className="w-7 h-7 bg-primary-600 rounded-full flex items-center justify-center
                 hover:bg-primary-700 transition-colors">

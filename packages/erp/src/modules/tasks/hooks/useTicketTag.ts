@@ -33,6 +33,18 @@ export function useUpdateTicket() {
   })
 }
 
+/** Chỉ đổi status (PATCH) — không gửi partial PUT (tránh wipe assignee khi BE cũ full-replace). */
+export function useUpdateTicketStatus() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => ticketApi.updateStatus(id, status),
+    onSuccess: () => {
+      toast.success('Cập nhật trạng thái thành công')
+      queryClient.invalidateQueries({ queryKey: ['tickets'] })
+    },
+  })
+}
+
 export function useDeleteTicket() {
   const queryClient = useQueryClient()
   return useMutation({
