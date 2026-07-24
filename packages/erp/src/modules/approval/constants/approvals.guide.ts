@@ -24,7 +24,7 @@ export const APPROVAL_INBOX_GUIDE: PageGuideConfig = {
         {
           title: 'Thiếu đơn?',
           description:
-            'Liên hệ Admin kiểm tra cấu hình luồng duyệt đúng loại đơn. Đừng thiết kế lại quy trình nếu đơn đã gắn luồng duyệt sẵn.',
+            'Admin kiểm tra: (1) flow seed đúng loại đơn, (2) bước duyệt có User mang Role tương ứng — thiếu Role → BE chặn tạo phiếu (không treo Inbox). Không mở /qtht/workflows khi chỉ cần duyệt.',
         },
       ],
     },

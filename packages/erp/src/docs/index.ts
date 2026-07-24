@@ -9,6 +9,7 @@ import guideWorkflows from './guide-workflows.md?raw'
 import guideQlts from './guide-qlts.md?raw'
 import guideDepreciation from './guide-depreciation.md?raw'
 import guideArticles from './guide-articles.md?raw'
+import guideAttendanceSettings from './guide-attendance-settings.md?raw'
 
 export interface DocMeta {
   slug: string
@@ -62,10 +63,17 @@ export const DOCS: DocMeta[] = [
     body: guideArticles,
   },
   {
+    slug: 'guide-attendance-settings',
+    title: 'Chấm công GPS / WiFi',
+    description: 'Admin-only: bán kính, SSID và preview rule — giảm Mobile check-in fail.',
+    order: 7,
+    body: guideAttendanceSettings,
+  },
+  {
     slug: 'sprint-changelog',
     title: 'Sprint changelog',
     description: 'Tính năng mới theo sprint và next steps.',
-    order: 7,
+    order: 8,
     body: sprintChangelog,
   },
 ].sort((a, b) => a.order - b.order)

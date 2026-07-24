@@ -3,11 +3,12 @@
 // ============================================================
 
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Inbox, CheckCircle2, XCircle, ChevronDown, ChevronRight,
-  Loader2, ClipboardCheck,
+  Loader2, ClipboardCheck, Info,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, PageGuideButton } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, ErrorState, PageGuideButton } from '@frezo/ui'
 import { toast } from 'sonner'
 import {
   useMyApprovals, useApproveRequest, useRejectRequest,
@@ -38,7 +39,7 @@ const STATUS_LABEL: Record<ApprovalStatus, string> = {
 
 export function ApprovalInboxPage() {
   const [tab, setTab] = useState<FilterTab>('pending')
-  const { data: rows = [], isLoading } = useMyApprovals(tab)
+  const { data: rows = [], isLoading, isError, refetch, error } = useMyApprovals(tab)
   const approve = useApproveRequest()
   const reject = useRejectRequest()
   const canApprove = usePermission('APPROVALS.APPROVE')
@@ -78,6 +79,18 @@ export function ApprovalInboxPage() {
         description="Duyệt đơn nghiệp vụ đang chờ bạn — nghỉ phép, lương, PR…"
         actions={<PageGuideButton guide={APPROVAL_INBOX_GUIDE} />}
       />
+
+      {/* LNK-04 / ANTI-BLOCK: tách Inbox vận hành ↔ Workflow designer */}
+      <div className="flex gap-2.5 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-2.5 text-sm text-sky-900">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
+        <p className="leading-snug">
+          Đây là <b>hộp thư duyệt hàng ngày</b>. Thiết kế template quy trình nằm ở{' '}
+          <Link to="/qtht/workflows" className="font-semibold underline underline-offset-2 hover:text-sky-700">
+            /qtht/workflows
+          </Link>
+          {' '}— không mở designer khi chỉ cần duyệt đơn.
+        </p>
+      </div>
 
       {/* Tabs */}
       <div className="flex items-center gap-2">
@@ -120,13 +133,24 @@ export function ApprovalInboxPage() {
           <div className="p-8 text-center text-neutral-500">
             <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Đang tải…
           </div>
+        ) : isError ? (
+          <div className="p-6">
+            <ErrorState
+              title="Không tải được hộp thư duyệt"
+              message={
+                (error as { message?: string })?.message
+                || 'Kiểm tra kết nối / quyền APPROVALS rồi thử lại.'
+              }
+              onRetry={() => void refetch()}
+            />
+          </div>
         ) : rows.length === 0 ? (
           <EmptyState
             icon={Inbox}
             title="Bạn chưa có gì cần duyệt"
             description={
               tab === 'pending'
-                ? 'Khi có yêu cầu mới (nghỉ phép, lương, hợp đồng…), chúng sẽ xuất hiện ở đây.'
+                ? 'Khi có yêu cầu mới (nghỉ phép, lương, hợp đồng…), chúng sẽ xuất hiện ở đây. Nếu vừa gửi đơn mà không thấy — Admin kiểm tra flow + User có Role duyệt.'
                 : 'Chưa có lịch sử duyệt.'
             }
           />

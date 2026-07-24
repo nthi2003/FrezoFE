@@ -8,11 +8,11 @@
 // ============================================================
 
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Plus, Workflow, Search, X, RefreshCw, Edit3, Trash2,
   Layers, Building2, ClipboardList, Package, FileText, Briefcase,
-  type LucideIcon, MoreVertical, Copy, BookOpen, BookTemplate, PencilRuler,
+  type LucideIcon, MoreVertical, Copy, BookOpen, BookTemplate, PencilRuler, Info,
 } from 'lucide-react'
 import {
   Button, PageHeader, EmptyState, PageGuideButton, ErrorState, Skeleton, ConfirmDialog,
@@ -158,6 +158,22 @@ export function WorkflowsPage() {
           </>
         }
       />
+
+      {/* LNK-04 / ANTI-BLOCK: designer ≠ hộp thư duyệt hàng ngày */}
+      <div className="flex gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-950">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+        <p className="leading-snug">
+          Trang này chỉ <b>thiết kế template</b>. Duyệt đơn hàng ngày ở{' '}
+          <Link to="/approval/inbox" className="font-semibold underline underline-offset-2 hover:text-amber-800">
+            Hộp thư duyệt
+          </Link>
+          {' '}· cấu hình flow nghiệp vụ ở{' '}
+          <Link to="/approval/flows" className="font-semibold underline underline-offset-2 hover:text-amber-800">
+            /approval/flows
+          </Link>
+          .
+        </p>
+      </div>
 
       {/* Toolbar */}
       <div className="bg-white rounded-xl border border-neutral-200 p-3 flex flex-wrap items-center gap-2">

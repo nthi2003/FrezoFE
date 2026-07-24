@@ -488,8 +488,11 @@ export function SettingsPage() {
                       <p className="text-neutral-500">
                         Mobile check-in hợp lệ khi trong bán kính <strong>hoặc</strong> khớp SSID/BSSID.
                         Hướng dẫn Admin:{' '}
-                        <a href="/docs" className="text-primary-700 underline underline-offset-2 font-medium">
-                          Docs Hub
+                        <a
+                          href="/docs/guide-attendance-settings"
+                          className="text-primary-700 underline underline-offset-2 font-medium"
+                        >
+                          Docs Hub · GPS/WiFi
                         </a>
                         .
                       </p>

@@ -14,8 +14,9 @@ import {
   TrendingUp, AlertTriangle, Clock, FolderOpen,
   Calendar, DollarSign, CheckCircle2,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, ErrorState } from '@frezo/ui'
 import { formatCurrency, formatDate, formatDateTime } from '@frezo/utils'
+import { useAnyPermission } from '@/lib/hooks/usePermission'
 import { customerApi } from '../services/customerApi'
 import {
   useInvoices,
@@ -146,8 +147,11 @@ export function Customer360Page() {
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
   const [tab, setTab] = useState<TabKey>('overview')
+  const canEditCustomer = useAnyPermission(['CUSTOMER.UPDATE', 'CUSTOMER_CUSTOMER_UPDATE', 'CUSTOMER.EXPORT'])
+  const canCreateDeal = useAnyPermission(['CRM.DEAL.CREATE', 'CRM_DEAL_CREATE', 'CRM.DEALS.VIEW', 'CRM.LEAD.VIEW'])
+  const canCreateInvoice = useAnyPermission(['CRM.INVOICE.CREATE', 'CRM_INVOICE_CREATE', 'CRM.INVOICE.VIEW'])
 
-  const { data: customer, isLoading: loadingCust } = useCustomerDetail(id)
+  const { data: customer, isLoading: loadingCust, isError: custError, refetch, isFetching } = useCustomerDetail(id)
   const { data: activities } = useCustomerActivities(id)
   const { data: pipelines } = usePipelines()
   const defaultPipelineId = (pipelines as { id: string; isDefault?: boolean }[] | undefined)
@@ -201,6 +205,19 @@ export function Customer360Page() {
     })
     return sorted[0] ?? null
   }, [acts])
+
+  if (custError) {
+    return (
+      <div className="p-6 border rounded-xl bg-white">
+        <ErrorState
+          title="Không tải được hồ sơ 360"
+          message="Kiểm tra quyền CUSTOMER hoặc thử lại."
+          onRetry={() => refetch()}
+          isRetrying={isFetching}
+        />
+      </div>
+    )
+  }
 
   if (loadingCust) {
     return (
@@ -261,15 +278,21 @@ export function Customer360Page() {
         description={customer.address || 'Chưa có địa chỉ đăng ký'}
         actions={
           <>
-            <Button variant="outline" className="gap-2" onClick={() => nav('/customer')}>
-              <Pencil size={15} /> Sửa thông tin
-            </Button>
-            <Button variant="outline" className="gap-2" onClick={() => nav('/crm/deals')}>
-              <Plus size={15} /> Deal mới
-            </Button>
-            <Button className="gap-2 bg-primary-700 hover:bg-primary-800 text-white" onClick={() => nav('/crm/invoices')}>
-              <Plus size={15} /> Hoá đơn mới
-            </Button>
+            {canEditCustomer && (
+              <Button variant="outline" className="gap-2" onClick={() => nav('/customer')}>
+                <Pencil size={15} /> Sửa thông tin
+              </Button>
+            )}
+            {canCreateDeal && (
+              <Button variant="outline" className="gap-2" onClick={() => nav('/crm/deals')}>
+                <Plus size={15} /> Deal mới
+              </Button>
+            )}
+            {canCreateInvoice && (
+              <Button className="gap-2 bg-primary-700 hover:bg-primary-800 text-white" onClick={() => nav('/crm/invoices')}>
+                <Plus size={15} /> Hoá đơn mới
+              </Button>
+            )}
           </>
         }
       />

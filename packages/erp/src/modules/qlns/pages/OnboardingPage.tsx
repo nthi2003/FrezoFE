@@ -6,7 +6,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, ClipboardList, Loader2, UserPlus, Info } from 'lucide-react'
-import { Button, PageHeader, AppModal, EmptyState } from '@frezo/ui'
+import { Button, PageHeader, AppModal, EmptyState, ErrorState } from '@frezo/ui'
 import {
   useOnboardingTemplates,
   useOnboardingAssignments,
@@ -27,8 +27,20 @@ const DEFAULT_TPL_ITEMS_A = 'Nhận máy · Email · Tài khoản User+Role · T
 
 export function OnboardingPage() {
   const navigate = useNavigate()
-  const { data: templates = [], isLoading: loadingT } = useOnboardingTemplates()
-  const { data: assignments = [], isLoading: loadingA } = useOnboardingAssignments()
+  const {
+    data: templates = [],
+    isLoading: loadingT,
+    isError: errT,
+    refetch: refetchT,
+    isFetching: fetchingT,
+  } = useOnboardingTemplates()
+  const {
+    data: assignments = [],
+    isLoading: loadingA,
+    isError: errA,
+    refetch: refetchA,
+    isFetching: fetchingA,
+  } = useOnboardingAssignments()
   const createTpl = useCreateOnboardingTemplate()
   const assign = useAssignOnboarding()
   const complete = useCompleteOnboardingItem()
@@ -81,7 +93,15 @@ export function OnboardingPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-neutral-700">Templates</h2>
-        {loadingT ? (
+        {errT ? (
+          <div className="border rounded-xl bg-white">
+            <ErrorState
+              title="Không tải được template"
+              onRetry={() => refetchT()}
+              isRetrying={fetchingT}
+            />
+          </div>
+        ) : loadingT ? (
           <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
         ) : templates.length === 0 ? (
           <div className="border rounded-xl bg-white">
@@ -117,10 +137,24 @@ export function OnboardingPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-neutral-700">Tiến độ nhân viên</h2>
-        {loadingA ? (
+        {errA ? (
+          <div className="border rounded-xl bg-white">
+            <ErrorState
+              title="Không tải được checklist"
+              onRetry={() => refetchA()}
+              isRetrying={fetchingA}
+            />
+          </div>
+        ) : loadingA ? (
           <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
         ) : assignments.length === 0 ? (
-          <p className="text-sm text-neutral-400">Chưa gán checklist cho ai.</p>
+          <div className="border rounded-xl bg-white">
+            <EmptyState
+              icon={ClipboardList}
+              title="Chưa gán checklist"
+              description="Gán template cho Person sau khi hire — không có bước Tài khoản (LNK-06 · B)."
+            />
+          </div>
         ) : (
           <div className="space-y-3">
             {assignments.map((a) => {

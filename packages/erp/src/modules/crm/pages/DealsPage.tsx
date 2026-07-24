@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Trophy, XCircle, User, CalendarDays, MessageSquare } from 'lucide-react'
+import { Plus, Trophy, XCircle, User, CalendarDays, MessageSquare, ChevronRight } from 'lucide-react'
 import { Button, PageHeader, AppModal, ConfirmDialog, EmptyState, ErrorState } from '@frezo/ui'
 import { formatCurrency, formatDate } from '@frezo/utils'
 import {
@@ -198,10 +198,11 @@ export function DealsPage() {
       )}
 
       <div className="flex gap-3 overflow-x-auto pb-4 min-h-[500px]">
-        {stageList.map((stage) => {
+        {stageList.map((stage, stageIdx) => {
           const items = dealsByStage.get(stage.id) ?? []
           const totalStage = items.reduce((s, d) => s + (d.amount || 0), 0)
           const color = stageColor(stage.orderNo)
+          const nextStage = stageList[stageIdx + 1]
           return (
             <div
               key={stage.id}
@@ -261,6 +262,19 @@ export function DealsPage() {
                       )}
                     </div>
                     <div className="flex justify-end gap-1 mt-2 pt-2 border-t border-neutral-100">
+                      {nextStage && (
+                        <button
+                          className="p-1 rounded hover:bg-blue-50 text-blue-700 inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            move.mutate({ id: d.id, stageId: nextStage.id })
+                          }}
+                          title={`Chuyển → ${nextStage.name} (1 bước)`}
+                          disabled={move.isPending}
+                        >
+                          Next <ChevronRight size={12} />
+                        </button>
+                      )}
                       <button
                         className="p-1 rounded hover:bg-primary-50 text-primary-600"
                         onClick={(e) => {

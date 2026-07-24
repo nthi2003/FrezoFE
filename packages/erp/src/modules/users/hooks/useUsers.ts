@@ -82,8 +82,9 @@ export function useAssignRole() {
   return useMutation({
     mutationFn: ({ username, roleCode, appCode }: { username: string; roleCode: string; appCode?: string }) =>
       userApi.assignRole(username, roleCode, appCode),
-    onSuccess: () => {
-      toast.success('Gán vai trò thành công')
+    onSuccess: (_data, vars) => {
+      // Audit hint trên UI — BE log theo username; FE surface rõ ai nhận role gì
+      toast.success(`Audit: gán role ${vars.roleCode} → ${vars.username}`)
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || 'Lỗi gán vai trò')

@@ -9,7 +9,7 @@ export const userFormSchema = z.object({
   fullname: z.string().min(2, 'Vui lòng chọn nhân sự').max(100, 'Tối đa 100 ký tự'),
   dataAction: z.number().int(), // 1=Nội bộ, 2=Cha con, 3=Toàn quyền
   personId: z.string().optional().nullable(),
-  roleIds: z.array(z.string()).optional(),
+  roleIds: z.array(z.string()).min(1, 'Chọn ít nhất 1 vai trò — không lưu user không role'),
   orgId: z.string().optional().nullable(),
 })
 
