@@ -1,35 +1,40 @@
-# Hướng dẫn Bài viết (CMS)
+# Bài viết nội bộ
 
-Trang: `/admin/article-management` — soạn tin nội bộ, gửi duyệt và xuất bản.
+Để soạn tin nội bộ, gửi duyệt và xuất bản — làm theo các bước dưới đây. Hệ thống tự cấp mã bài; bạn không cần nhập mã.
 
-## Tạo bài mới (mã tự sinh)
+## Tạo bài và lưu nháp
 
-1. Mở **Quản lý Bài viết** → bấm **Thêm mới**.
-2. Nhập **tiêu đề** và **nội dung** (bắt buộc). Có thể thêm tóm tắt, ảnh đại diện, đơn vị, người duyệt.
-3. Bấm **Lưu nháp**. Hệ thống tự cấp **mã bài** (dạng `QTBV-ngày-số`, ví dụ `QTBV-20260721-001`). Bạn không cần — và không thể — nhập mã tay.
-4. Sau khi lưu, mã hiện ở thanh trên và sidebar (chỉ xem / sao chép).
+1. Vào **Quản lý Bài viết**.
+2. Bấm **Thêm mới**.
+3. Nhập **tiêu đề** và **nội dung** (bắt buộc). Có thể thêm tóm tắt, ảnh đại diện, đơn vị, người duyệt.
+4. Bấm **Lưu nháp**.
+
+**Kết quả:** Hệ thống cấp **mã bài** (hiện ở thanh trên / sidebar — chỉ xem hoặc sao chép). Bạn không nhập và không sửa được mã.
 
 ## Gửi duyệt → duyệt → xuất bản
 
+1. Khi nháp sẵn sàng, bấm **Gửi duyệt** (nhớ đã **Lưu nháp** trước).
+2. Người được chọn làm người duyệt mở bài trạng thái **Chờ duyệt** → bấm **Duyệt** hoặc **Từ chối**.
+3. Khi bài **Đã duyệt**, người duyệt bấm **Xuất bản**.
+
+**Kết quả:** Bài hiện cho mọi người theo quy định xuất bản của công ty.
+
 | Bước | Ai làm | Nút trên màn |
 |------|--------|--------------|
-| Gửi duyệt | Người viết (nháp / bị từ chối) | **Gửi duyệt** — nhớ lưu nháp trước |
-| Duyệt / Từ chối | Quản lý được chọn làm người duyệt | **Duyệt** hoặc **Từ chối** khi bài **Chờ duyệt** |
-| Xuất bản | Cùng quản lý đó | **Xuất bản** khi bài **Đã duyệt** |
+| Gửi duyệt | Người viết (nháp / bị từ chối) | **Gửi duyệt** |
+| Duyệt / Từ chối | Quản lý được chọn làm người duyệt | **Duyệt** / **Từ chối** |
+| Xuất bản | Cùng quản lý đó | **Xuất bản** |
 
-Nếu bạn không thấy nút nào đó, thường là chưa có quyền hoặc bài chưa đúng trạng thái.
+## Lỗi thường gặp
 
-## Hai tài khoản demo để thử
+| Bạn thấy trên màn | Cách xử lý |
+|-------------------|------------|
+| Không lưu được | Thiếu tiêu đề hoặc nội dung — form báo đỏ ngay trên ô |
+| Không thấy **Gửi duyệt** | Bài chưa phải nháp / bị từ chối, hoặc chưa có quyền gửi |
+| Không thấy **Duyệt** / **Xuất bản** | Bạn không phải người duyệt của bài, hoặc bài chưa đúng trạng thái |
+| Muốn đổi mã bài | Không đổi được — dùng mã hệ thống đã cấp |
 
-Mật khẩu mặc định: `123456`
+## Gợi ý
 
-| Tài khoản | Vai trò | Việc nên thử |
-|-----------|---------|----------------|
-| `bichvn` | Nhân viên (Content) | Tạo nháp, gửi duyệt — **không** thấy Duyệt / Xuất bản |
-| `anhhd` | Quản lý | Nhận bài chờ duyệt (khi được chọn người duyệt), Duyệt rồi Xuất bản |
-
-## Lưu ý thường gặp
-
-- Thiếu tiêu đề hoặc nội dung → không lưu được; form báo lỗi ngay trên màn.
-- Mã bài không sửa được sau khi tạo.
-- Chi tiết hướng dẫn in-app: nút **Hướng dẫn** trên danh sách / màn soạn.
+- Trên danh sách hoặc màn soạn, bấm **Hướng dẫn** để xem nhanh các bước.
+- Soát chính tả và ảnh trước khi **Xuất bản**.

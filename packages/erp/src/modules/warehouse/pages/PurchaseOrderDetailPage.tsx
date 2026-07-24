@@ -14,6 +14,11 @@ import {
 import { useCreateGrn } from '../hooks/useGrn'
 import { usePermission } from '@/lib/hooks/usePermission'
 import { toast } from 'sonner'
+import {
+  StatusPipelineStepper,
+  PO_PIPELINE,
+  poStepIndex,
+} from '../components/StatusPipelineStepper'
 
 export function PurchaseOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -136,6 +141,29 @@ export function PurchaseOrderDetailPage() {
               </Button>
             )}
           </div>
+        }
+      />
+
+      {/* FR-UX-15 pipeline */}
+      <StatusPipelineStepper
+        steps={PO_PIPELINE}
+        currentIndex={poStepIndex(st)}
+        nextCta={
+          st === 'DRAFT'
+            ? {
+                label: 'Bước kế: Xác nhận PO',
+                onClick: () => setConfirmOpen(true),
+                disabled: confirm.isPending,
+                loading: confirm.isPending,
+              }
+            : receivePending && canCreateGrn
+              ? {
+                  label: 'Bước kế: Nhận hàng (PNK)',
+                  onClick: () => setReceiveOpen(true),
+                  disabled: createGrn.isPending,
+                  loading: createGrn.isPending,
+                }
+              : null
         }
       />
 

@@ -27,6 +27,11 @@ import {
   usePrintGrn,
 } from '../hooks/useGrn'
 import { usePermission } from '@/lib/hooks/usePermission'
+import {
+  StatusPipelineStepper,
+  GRN_PIPELINE,
+  grnStepIndex,
+} from '../components/StatusPipelineStepper'
 
 export function GoodsReceiptNoteDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -149,6 +154,22 @@ export function GoodsReceiptNoteDetailPage() {
               </>
             )}
           </div>
+        }
+      />
+
+      {/* FR-UX-15 pipeline */}
+      <StatusPipelineStepper
+        steps={GRN_PIPELINE}
+        currentIndex={grnStepIndex(st)}
+        nextCta={
+          isDraft && canUpdate
+            ? {
+                label: 'Bước kế: Confirm nhập kho',
+                onClick: () => setConfirmOpen(true),
+                disabled: confirm.isPending,
+                loading: confirm.isPending,
+              }
+            : null
         }
       />
 

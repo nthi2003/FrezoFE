@@ -51,6 +51,7 @@ const FALLBACK_LABELS: Record<string, string> = {
   '/task':         'Công việc',
   '/task/tickets': 'Giao việc',
   '/task/tags':    'Thẻ',
+  '/task/categories': 'Danh mục Ticket',
   '/profile':      'Hồ sơ',
   '/notifications': 'Thông báo',
 }

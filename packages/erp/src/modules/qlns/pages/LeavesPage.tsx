@@ -17,7 +17,7 @@ import {
   Plus, Search, X, RefreshCw, CalendarDays, Filter, CheckCircle2, XCircle,
   Clock, User, Ban, Loader2, ArrowRight, Bell,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, ErrorState } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, ErrorState, PageGuideButton } from '@frezo/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useLeaveRequests, useMyLeaveRequests } from '../hooks/useLeave'
 import type { LeaveRequestItem, LeaveStatus } from '../services/leaveApi'
@@ -25,6 +25,7 @@ import { LEAVE_TYPES, type LeaveTypeCode } from '../constants/schema'
 import { LeaveRequestModal } from '../components/LeaveRequestModal'
 import { LeaveDetailDrawer } from '../components/LeaveDetailDrawer'
 import { usePermission } from '@/lib/hooks/usePermission'
+import { LEAVES_GUIDE } from '../constants/leaves.guide'
 
 // ============================================================
 // Config maps — status → label + màu
@@ -171,7 +172,7 @@ export function LeavesPage() {
         }
         description={
           <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span>Workflow duyệt 2 tầng: <b>QL trực tiếp</b> → <b>HR chốt</b>.</span>
+            <span>Duyệt theo luồng <b>Nghỉ phép</b> đang kích hoạt tại Cấu hình luồng duyệt.</span>
             <span className="text-neutral-300">·</span>
             <span className="tabular-nums">
               <b>{stats.pending}</b> chờ duyệt · <b className="text-emerald-700">{stats.approved}</b> đã duyệt
@@ -181,6 +182,7 @@ export function LeavesPage() {
         }
         actions={
           <>
+            <PageGuideButton guide={LEAVES_GUIDE} />
             <Button variant="outline" onClick={() => source.refetch()} disabled={source.isFetching} className="gap-1.5">
               <RefreshCw size={14} className={source.isFetching ? 'animate-spin' : ''} />
               Làm mới

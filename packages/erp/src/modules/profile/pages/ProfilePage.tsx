@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   User,
@@ -24,6 +25,10 @@ import {
   Briefcase,
   Building2,
   Phone,
+  Wallet,
+  CalendarDays,
+  ChevronRight,
+  type LucideIcon,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { mapProfileToUser } from '@/modules/auth/utils/mapProfileToUser'
@@ -37,8 +42,12 @@ import {
   DialogTitle,
   PageGuideButton,
   ErrorState,
+  EmptyState,
   type PageGuideConfig,
 } from '@frezo/ui'
+import { useAnyPermission } from '@/lib/hooks/usePermission'
+import { useMenus } from '@/modules/menus/hooks/useMenus'
+import type { MenuTreeNode } from '@/modules/menus/types/menu.types'
 
 // ============================================================
 // Tabs
@@ -133,6 +142,160 @@ function formatDate(v?: string | null) {
   const d = new Date(v)
   if (Number.isNaN(d.getTime())) return '—'
   return d.toLocaleDateString('vi-VN')
+}
+
+function collectFeUrls(nodes: MenuTreeNode[]): Set<string> {
+  const urls = new Set<string>()
+  const walk = (list: MenuTreeNode[]) => {
+    for (const n of list) {
+      if (n.feUrl) {
+        const path = n.feUrl.startsWith('/') ? n.feUrl : `/${n.feUrl}`
+        urls.add(path.replace(/\/+$/, '') || '/')
+      }
+      if (n.children?.length) walk(n.children)
+    }
+  }
+  walk(nodes)
+  return urls
+}
+
+function pathAllowed(menuUrls: Set<string>, to: string): boolean {
+  const norm = to.replace(/\/+$/, '') || '/'
+  if (menuUrls.size === 0) return true
+  if (menuUrls.has(norm)) return true
+  for (const u of menuUrls) {
+    if (norm === u || norm.startsWith(`${u}/`)) return true
+  }
+  return false
+}
+
+/** FR-UX-18 — 3 quick links self-service (Payslip / Đơn phép / Công tháng) */
+function ProfileSelfServiceHub({
+  hasPerson,
+}: {
+  hasPerson: boolean
+}) {
+  const { menuTree } = useMenus()
+  const menuUrls = useMemo(() => collectFeUrls(menuTree || []), [menuTree])
+  const canPayroll = useAnyPermission(['PAYROLL.VIEW', 'QLNS_PAYROLL_VIEW', 'PAYROLL.APPROVE'])
+  const canLeave = useAnyPermission(['LEAVE.VIEW', 'LEAVE.CREATE', 'QLNS_LEAVE_VIEW', 'QLNS_LEAVE_CREATE'])
+  const canAttendance = useAnyPermission([
+    'ATTENDANCE.UPDATE',
+    'QLNS_ATTENDANCE_UPDATE',
+    'ATTENDANCE.VIEW',
+    'QLNS_ATTENDANCE_VIEW',
+  ])
+
+  type HubLink = {
+    key: string
+    label: string
+    hint: string
+    to: string
+    icon: LucideIcon
+    allowed: boolean
+    emptyReason?: string
+  }
+
+  const links: HubLink[] = [
+    {
+      key: 'payslip',
+      label: 'Phiếu lương / Bảng lương',
+      hint: 'Kỳ gần — xem trên web (app Mobile: tab Phiếu lương)',
+      to: '/qlns/payrolls',
+      icon: Wallet,
+      allowed: canPayroll && pathAllowed(menuUrls, '/qlns/payrolls'),
+      emptyReason: !canPayroll
+        ? 'Không có quyền xem bảng lương'
+        : 'Trang không có trên menu của bạn',
+    },
+    {
+      key: 'leave',
+      label: 'Đơn phép của tôi',
+      hint: 'Tạo / theo dõi đơn nghỉ — parity tab Nghỉ phép trên Mobile',
+      to: '/qlns/leaves',
+      icon: CalendarDays,
+      allowed: canLeave && pathAllowed(menuUrls, '/qlns/leaves'),
+      emptyReason: !canLeave ? 'Không có quyền nghỉ phép' : 'Trang không có trên menu của bạn',
+    },
+    {
+      key: 'attendance',
+      label: 'Công tháng / Chấm công',
+      hint: 'Xem công trên web — parity tab Chấm công trên Mobile',
+      to: '/admin/attendance',
+      icon: Clock,
+      allowed: canAttendance && pathAllowed(menuUrls, '/admin/attendance'),
+      emptyReason: !canAttendance
+        ? 'Không có quyền xem chấm công'
+        : 'Trang không có trên menu của bạn',
+    },
+  ]
+
+  const visible = links.filter((l) => l.allowed)
+  const hidden = links.filter((l) => !l.allowed)
+
+  return (
+    <section className="mt-6 rounded-xl border border-border bg-surface p-4 md:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-900">Lối tắt tự phục vụ</h2>
+          <p className="text-xs text-neutral-500 mt-0.5">
+            Phiếu lương · Đơn phép · Công tháng — cùng ý với tab trên app Mobile.
+          </p>
+        </div>
+        <span className="text-[11px] text-neutral-400 inline-flex items-center gap-1">
+          <Smartphone size={12} /> Mobile: Profile → Công việc
+        </span>
+      </div>
+
+      {!hasPerson && (
+        <p className="mb-3 text-xs text-warning-dark bg-warning-light border border-warning/30 rounded-lg px-3 py-2">
+          Tài khoản chưa gắn hồ sơ nhân viên — một số lối tắt có thể trống dữ liệu. Liên hệ HR để liên kết Person.
+        </p>
+      )}
+
+      {visible.length === 0 ? (
+        <EmptyState
+          title="Chưa có lối tắt khả dụng"
+          description="Bạn không có quyền hoặc menu Phiếu lương / Nghỉ phép / Chấm công. Không hiện dữ liệu nhạy cảm."
+          className="py-6 border-0 shadow-none"
+        />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {visible.map((l) => {
+            const Icon = l.icon
+            return (
+              <Link
+                key={l.key}
+                to={l.to}
+                className="group flex items-start gap-3 rounded-lg border border-border bg-neutral-50/80 px-3 py-3 hover:border-primary-300 hover:bg-primary-50/40 transition"
+              >
+                <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-700 flex items-center justify-center shrink-0">
+                  <Icon size={16} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-neutral-900 group-hover:text-primary-800 flex items-center gap-1">
+                    {l.label}
+                    <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition" />
+                  </div>
+                  <p className="text-[11px] text-neutral-500 mt-0.5 leading-snug">{l.hint}</p>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+
+      {hidden.length > 0 && visible.length > 0 && (
+        <ul className="mt-3 space-y-1">
+          {hidden.map((l) => (
+            <li key={l.key} className="text-[11px] text-neutral-400">
+              {l.label}: {l.emptyReason}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
 }
 
 // ============================================================
@@ -733,6 +896,9 @@ export function ProfilePage() {
             Tải ảnh thất bại: {(uploadMutation.error as any)?.message || 'Lỗi không xác định'}
           </div>
         )}
+
+        {/* FR-UX-18 Profile hub quick links */}
+        <ProfileSelfServiceHub hasPerson={!!personId} />
 
         {/* KPI Stats */}
         <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">

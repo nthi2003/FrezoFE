@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Button, PageHeader, EmptyState, Input, Label, Textarea } from '@frezo/ui'
 import { toast } from 'sonner'
+import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 import {
   useSocialPosts, useCreateSocialPost, useUpdateSocialPost, useDeleteSocialPost,
   useSocialPostAction,
@@ -70,6 +71,7 @@ const EMPTY_FORM = {
 }
 
 export function SocialContentPage() {
+  const { askConfirm, confirmDialog } = useConfirmDialog()
   const [statusFilter, setStatusFilter] = useState<StatusKey | 'all'>('all')
   const [channelFilter, setChannelFilter] = useState<ChannelKey | 'all'>('all')
   const [form, setForm] = useState(EMPTY_FORM)
@@ -208,7 +210,12 @@ export function SocialContentPage() {
                   isActive={form.id === p.id}
                   onSelect={() => loadPost(p)}
                   onDelete={() => {
-                    if (confirm('Xoá bài viết này?')) deleteMut.mutate(p.id)
+                    askConfirm({
+                      title: 'Xoá bài viết này?',
+                      message: 'Bài viết sẽ bị xoá khỏi lịch đăng.',
+                      confirmText: 'Xoá',
+                      onConfirm: () => deleteMut.mutate(p.id),
+                    })
                   }}
                   onDuplicate={() => actionMut.mutate({ id: p.id, action: 'duplicate' })}
                   onCancel={() => actionMut.mutate({ id: p.id, action: 'cancel' })}
@@ -352,6 +359,7 @@ export function SocialContentPage() {
           </div>
         </div>
       </div>
+      {confirmDialog}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { unwrapList, unwrapOne as unwrap } from '@frezo/utils'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import {
   accountsApi, periodsApi, journalsApi, glApi, settingApi, payrollGlApi,
   type AccountingStandard, type JournalEntryPayload, type PostingSource,
@@ -25,7 +25,7 @@ export function useCreateAccount() {
       toast.success('Đã thêm tài khoản')
       qc.invalidateQueries({ queryKey: ['accounting', 'accounts'] })
     },
-    onError: () => toast.error('Không thể thêm tài khoản'),
+    onError: (err) => toast.apiError(err, 'Không thể thêm tài khoản'),
   })
 }
 
@@ -37,7 +37,7 @@ export function useUpdateAccount() {
       toast.success('Đã cập nhật')
       qc.invalidateQueries({ queryKey: ['accounting', 'accounts'] })
     },
-    onError: () => toast.error('Không thể cập nhật tài khoản'),
+    onError: (err) => toast.apiError(err, 'Không thể cập nhật tài khoản'),
   })
 }
 

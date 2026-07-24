@@ -4,10 +4,11 @@
 // Tách các section thành sub-component trong dashboard/components/.
 // ============================================================
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   DollarSign, Wallet, ShoppingBag, AlertTriangle, Users,
-  UserCheck, CalendarClock, CheckSquare,
+  UserCheck, CalendarClock, CheckSquare, LayoutGrid, BarChart3,
 } from 'lucide-react'
 import { PageHeader } from '@frezo/ui'
 import { formatCurrency, formatCurrencyShort } from '@frezo/utils'
@@ -29,6 +30,10 @@ import { CostBreakdown, type CostSlice } from '../components/CostBreakdown'
 import { PipelineFunnel, type FunnelRow } from '../components/PipelineFunnel'
 import { ActivityFeed, type FeedItem } from '../components/ActivityFeed'
 import { QuickActions } from '../components/QuickActions'
+import { TaskBoardWidget } from '../components/TaskBoardWidget'
+import { CompanyAnnouncements } from '../components/CompanyAnnouncements'
+import { ModuleLauncher } from '../components/ModuleLauncher'
+import { RecentArticles } from '../components/RecentArticles'
 
 // ============================================================
 // Helpers
@@ -116,18 +121,37 @@ interface StageLike {
 // Main Dashboard
 // ============================================================
 
+type HomeTab = 'portal' | 'overview'
+
 export function DashboardPage() {
+  const nav = useNavigate()
   const user = useAuthStore((s) => s.user)
+  const [homeTab, setHomeTab] = useState<HomeTab>('portal')
   const now = useMemo(() => new Date(), [])
   const monthStart = useMemo(() => startOfMonth(now), [now])
   const yearStart = useMemo(() => startOfYear(now), [now])
 
   // ---- Data ----
-  const { data: summary, isLoading: sumLoading } = useDashboardSummary()
+  const {
+    data: summary,
+    isLoading: sumLoading,
+    isError: sumError,
+    refetch: refetchSummary,
+    isFetching: sumFetching,
+  } = useDashboardSummary()
   const { data: invoicesRaw, isLoading: invLoading } = useInvoices()
   const { data: payrollsRaw, isLoading: payLoading } = usePayrolls()
   const { data: leavesRaw, isLoading: leaveLoading } = useLeaveRequests(1, 100)
-  const { data: tasksRaw, isLoading: taskLoading } = useTasks()
+  // KPI: ưu tiên summary.pendingTasks (BE đếm thật); fallback GET /task/task nếu thiếu
+  const hasSummaryPending = !sumLoading && typeof summary?.pendingTasks === 'number'
+  const needTasksFallback = !sumLoading && !hasSummaryPending
+  const {
+    data: tasksRaw,
+    isLoading: taskLoading,
+    isError: taskError,
+    refetch: refetchTasks,
+    isFetching: taskFetching,
+  } = useTasks(undefined, { enabled: needTasksFallback })
   const { data: pipelines } = usePipelines()
 
   const pipelineList = (pipelines as { id: string; isDefault?: boolean }[] | undefined) ?? []
@@ -139,7 +163,6 @@ export function DashboardPage() {
   const invoices = (invoicesRaw as Invoice[] | undefined) ?? []
   const payrolls = (payrollsRaw as PayrollLike[] | undefined) ?? []
   const leaves = (leavesRaw as LeaveRequestItem[] | undefined) ?? []
-  const tasks = (tasksRaw as { id: string; status?: string; title?: string; createdDate?: string }[] | undefined) ?? []
   const deals = (dealsRaw as Deal[] | undefined) ?? []
   const stages = (stagesRaw as StageLike[] | undefined) ?? []
 
@@ -193,11 +216,6 @@ export function DashboardPage() {
   const pendingLeaves = useMemo(
     () => leaves.filter((l) => l.status === 'PENDING_MANAGER' || l.status === 'PENDING_HR' || l.status === 'PENDING'),
     [leaves],
-  )
-
-  const incompleteTasks = useMemo(
-    () => tasks.filter((t) => t.status !== 'DONE'),
-    [tasks],
   )
 
   // ---- Charts data ----
@@ -307,6 +325,23 @@ export function DashboardPage() {
     ? Math.round((todayAttendance / totalEmployees) * 100)
     : 0
 
+  const tasks = (tasksRaw as { status?: string }[] | undefined) ?? []
+  const tasksFallbackIncomplete = useMemo(
+    () => tasks.filter((t) => t.status !== 'DONE').length,
+    [tasks],
+  )
+  const incompleteTaskCount = hasSummaryPending
+    ? Number(summary!.pendingTasks)
+    : tasksFallbackIncomplete
+  const totalTaskCount = tasks.length
+  const taskKpiLoading = sumLoading || (needTasksFallback && taskLoading)
+  const taskKpiError = hasSummaryPending ? sumError : needTasksFallback && taskError
+  const taskKpiFetching = hasSummaryPending ? sumFetching : taskFetching
+  const retryTaskKpi = () => {
+    if (hasSummaryPending || sumError) void refetchSummary()
+    else void refetchTasks()
+  }
+
   const chartsLoading = invLoading || payLoading || dealsLoading
 
   return (
@@ -314,13 +349,58 @@ export function DashboardPage() {
       <PageHeader
         title={
           <span>
-            {greeting}, <span className="text-primary-700">{userLabel}</span>{' '}
-            <span className="text-primary-500">👋</span>
+            {greeting}, <span className="text-primary-700">{userLabel}</span>
           </span>
         }
         description={`Hôm nay là ${dateStr[0].toUpperCase() + dateStr.slice(1)} · Tuần ${week}`}
       />
 
+      {/* Home tabs: Cổng thông tin (default) | Tổng quan KPI */}
+      <div
+        role="tablist"
+        aria-label="Trang chủ"
+        className="inline-flex rounded-xl border border-neutral-200 bg-white p-1 shadow-sm"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={homeTab === 'portal'}
+          onClick={() => setHomeTab('portal')}
+          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition ${
+            homeTab === 'portal'
+              ? 'bg-primary-600 text-white shadow-sm'
+              : 'text-neutral-600 hover:bg-neutral-50'
+          }`}
+        >
+          <LayoutGrid size={15} />
+          Cổng thông tin
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={homeTab === 'overview'}
+          onClick={() => setHomeTab('overview')}
+          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition ${
+            homeTab === 'overview'
+              ? 'bg-primary-600 text-white shadow-sm'
+              : 'text-neutral-600 hover:bg-neutral-50'
+          }`}
+        >
+          <BarChart3 size={15} />
+          Tổng quan
+        </button>
+      </div>
+
+      {homeTab === 'portal' && (
+        <div className="space-y-5" role="tabpanel">
+          <CompanyAnnouncements />
+          <ModuleLauncher />
+          <RecentArticles />
+        </div>
+      )}
+
+      {homeTab === 'overview' && (
+      <div className="space-y-5" role="tabpanel">
       {/* KPI grid 4x2 */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
         <KpiCard
@@ -382,11 +462,21 @@ export function DashboardPage() {
         />
         <KpiCard
           title="Task chưa xong"
-          value={String(incompleteTasks.length)}
+          value={String(incompleteTaskCount)}
           icon={CheckSquare}
           tone="orange"
-          isLoading={taskLoading}
-          hint={`Trong ${tasks.length} task`}
+          isLoading={taskKpiLoading}
+          isError={!!taskKpiError}
+          onRetry={retryTaskKpi}
+          isRetrying={taskKpiFetching}
+          onClick={() => nav('/task')}
+          hint={
+            hasSummaryPending
+              ? (incompleteTaskCount > 0 ? 'Toàn hệ thống · chưa DONE' : 'Không còn task tồn')
+              : totalTaskCount > 0
+                ? `${incompleteTaskCount} trong ${totalTaskCount}`
+                : 'Chưa có task'
+          }
         />
       </div>
 
@@ -408,8 +498,13 @@ export function DashboardPage() {
         />
       </div>
 
+      {/* Task board — GET /task/ticket */}
+      <TaskBoardWidget mineOnly />
+
       {/* Quick actions */}
       <QuickActions />
+      </div>
+      )}
     </div>
   )
 }

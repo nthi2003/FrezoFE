@@ -73,12 +73,15 @@ const ProductCategoriesPage = lazy(() => import('@/modules/products/pages/Produc
 const TasksPage       = lazy(() => import('@/modules/tasks/pages/TasksPage').then(m => ({ default: m.TasksPage })))
 const TicketsPage     = lazy(() => import('@/modules/tasks/pages/TicketsPage').then(m => ({ default: m.TicketsPage })))
 const TagsPage        = lazy(() => import('@/modules/tasks/pages/TagsPage').then(m => ({ default: m.TagsPage })))
+const TicketCategoriesPage = lazy(() => import('@/modules/tasks/pages/TicketCategoriesPage').then(m => ({ default: m.TicketCategoriesPage })))
 const LeavesPage      = lazy(() => import('@/modules/qlns/pages/LeavesPage').then(m => ({ default: m.LeavesPage })))
 const AttendancePage  = lazy(() => import('@/modules/qlns/pages/AttendancePage').then(m => ({ default: m.AttendancePage })))
 
 // Articles
 const ArticlesPage       = lazy(() => import('@/modules/articles/pages/ArticlesPage').then(m => ({ default: m.ArticlesPage })))
 const ArticleEditorPage  = lazy(() => import('@/modules/articles/pages/ArticleEditorPage').then(m => ({ default: m.ArticleEditorPage })))
+const ArticleListPage    = lazy(() => import('@/modules/articles/pages/ArticleListPage').then(m => ({ default: m.ArticleListPage })))
+const ArticleDetailPage  = lazy(() => import('@/modules/articles/pages/ArticleDetailPage').then(m => ({ default: m.ArticleDetailPage })))
 
 // Category Management
 const CategoriesPage  = lazy(() => import('@/modules/qtht/pages/CategoriesPage').then(m => ({ default: m.CategoriesPage })))
@@ -96,9 +99,11 @@ const ProfilePage     = lazy(() => import('@/modules/profile/pages/ProfilePage')
 // Notifications
 const NotificationsPage = lazy(() => import('@/modules/common/pages/NotificationsPage').then(m => ({ default: m.NotificationsPage })))
 
-// Docs Hub
+// Docs Hub + Guide CMS (FR-DOC-03/04)
 const DocsHubPage = lazy(() => import('@/modules/docs/pages/DocsHubPage').then(m => ({ default: m.DocsHubPage })))
 const DocsViewerPage = lazy(() => import('@/modules/docs/pages/DocsViewerPage').then(m => ({ default: m.DocsViewerPage })))
+const GuidesAdminPage = lazy(() => import('@/modules/docs/pages/GuidesAdminPage').then(m => ({ default: m.GuidesAdminPage })))
+const GuideEditorPage = lazy(() => import('@/modules/docs/pages/GuideEditorPage').then(m => ({ default: m.GuideEditorPage })))
 
 // Approval (FZ-003)
 const ApprovalInboxPage = lazy(() => import('@/modules/approval/pages/ApprovalInboxPage').then(m => ({ default: m.ApprovalInboxPage })))
@@ -209,10 +214,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       '/notifications',
       '/approval/inbox',
       '/docs',
+      '/bai-viet',
     ]
     if (
       publicProtectedPaths.includes(path) ||
-      path.startsWith('/docs/')
+      path.startsWith('/docs/') ||
+      path.startsWith('/bai-viet/')
     ) {
       return <>{children}</>
     }
@@ -272,6 +279,10 @@ export const router = createBrowserRouter([
       { index: true, element: <Suspense fallback={<PageLoader />}><DashboardPage /></Suspense> },
       { path: 'dashboard', element: <Navigate to="/" replace /> },
 
+      // Reader — tin / bài viết nội bộ (Home portal)
+      { path: 'bai-viet', element: <Suspense fallback={<PageLoader />}><ArticleListPage /></Suspense> },
+      { path: 'bai-viet/:id', element: <Suspense fallback={<PageLoader />}><ArticleDetailPage /></Suspense> },
+
       // QTHT
       { path: 'qtht/users',         element: <Suspense fallback={<PageLoader />}><UsersPage /></Suspense> },
       { path: 'qtht/roles',         element: <Suspense fallback={<PageLoader />}><RolesPage /></Suspense> },
@@ -320,6 +331,7 @@ export const router = createBrowserRouter([
       // Alias legacy BE notification deep-link `/tasks?ticketId=...`
       { path: 'tasks',            element: <Suspense fallback={<PageLoader />}><TicketsPage /></Suspense> },
       { path: 'task/tags',        element: <Suspense fallback={<PageLoader />}><TagsPage /></Suspense> },
+      { path: 'task/categories',  element: <Suspense fallback={<PageLoader />}><TicketCategoriesPage /></Suspense> },
       { path: 'qlns/leaves',      element: <Suspense fallback={<PageLoader />}><LeavesPage /></Suspense> },
 
       // Attendance
@@ -347,9 +359,12 @@ export const router = createBrowserRouter([
       // Notifications (Notification Center)
       { path: 'notifications',    element: <Suspense fallback={<PageLoader />}><NotificationsPage /></Suspense> },
 
-      // Docs Hub
+      // Docs Hub + Guide CMS admin
       { path: 'docs', element: <Suspense fallback={<PageLoader />}><DocsHubPage /></Suspense> },
       { path: 'docs/:slug', element: <Suspense fallback={<PageLoader />}><DocsViewerPage /></Suspense> },
+      { path: 'admin/guides', element: <Suspense fallback={<PageLoader />}><GuidesAdminPage /></Suspense> },
+      { path: 'admin/guides/new', element: <Suspense fallback={<PageLoader />}><GuideEditorPage /></Suspense> },
+      { path: 'admin/guides/:id/edit', element: <Suspense fallback={<PageLoader />}><GuideEditorPage /></Suspense> },
 
       // Approval module (FZ-003 / FE-1)
       { path: 'approval/inbox',   element: <Suspense fallback={<PageLoader />}><ApprovalInboxPage /></Suspense> },

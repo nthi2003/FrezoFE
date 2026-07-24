@@ -1,12 +1,22 @@
 // ============================================================
-// Docs side nav — sticky list (DOC-03)
+// Docs side nav — sticky list (EU docs / CMS list)
 // ============================================================
 
 import { NavLink } from 'react-router-dom'
 import { BookOpen } from 'lucide-react'
-import { DOCS } from '@/docs'
+import { EU_DOCS, type DocMeta } from '@/docs'
 
-export function DocsSideNav({ activeSlug }: { activeSlug?: string }) {
+type NavDoc = Pick<DocMeta, 'slug' | 'title' | 'description'>
+
+export function DocsSideNav({
+  activeSlug,
+  docs,
+}: {
+  activeSlug?: string
+  docs?: NavDoc[]
+}) {
+  const items = docs && docs.length > 0 ? docs : EU_DOCS
+
   return (
     <aside className="lg:sticky lg:top-6 lg:self-start">
       <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
@@ -30,7 +40,7 @@ export function DocsSideNav({ activeSlug }: { activeSlug?: string }) {
           >
             Tất cả tài liệu
           </NavLink>
-          {DOCS.map((doc) => {
+          {items.map((doc) => {
             const active = activeSlug === doc.slug
             return (
               <NavLink

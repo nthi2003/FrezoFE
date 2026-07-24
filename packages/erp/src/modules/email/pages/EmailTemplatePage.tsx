@@ -1,8 +1,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { Plus, Trash2, Pencil, Eye, Send, FileText, Variable, X, HelpCircle, ImageIcon, Link } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
-import { AppModal } from '@frezo/ui'
-import { Button } from '@frezo/ui'
+import { AppModal, Button, ErrorState } from '@frezo/ui'
 import { Input } from '@frezo/ui'
 import { Label } from '@frezo/ui'
 import { useForm } from 'react-hook-form'
@@ -17,6 +16,7 @@ import {
 } from '../hooks/useEmail'
 import { emailTemplateSchema } from '../constants/schema'
 import { TiptapEditor } from '@/components/shared/TiptapEditor'
+import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 
 const SUGGESTED_VARS = ['name', 'email', 'orderId', 'date', 'amount', 'phone', 'address', 'link']
 
@@ -28,6 +28,7 @@ function extractVars(html: string): string[] {
 }
 
 export function EmailTemplatePage() {
+  const { askConfirm, confirmDialog } = useConfirmDialog()
   const [modalOpen, setModalOpen] = useState(false)
   const [viewModalOpen, setViewModalOpen] = useState(false)
   const [sendModalOpen, setSendModalOpen] = useState(false)
@@ -39,7 +40,7 @@ export function EmailTemplatePage() {
   const [sendParams, setSendParams] = useState('')
   const [showHelp, setShowHelp] = useState(false)
 
-  const { data, isLoading, refetch } = useEmailTemplates()
+  const { data, isLoading, isError, refetch, isFetching } = useEmailTemplates()
   const createReq = useCreateEmailTemplate()
   const updateReq = useUpdateEmailTemplate()
   const deleteReq = useDeleteEmailTemplate()
@@ -158,7 +159,19 @@ export function EmailTemplatePage() {
           <Button variant="ghost" size="sm" onClick={() => openSend(row.id)} title="Gửi test">
             <Send className="w-3.5 h-3.5 text-primary-600" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => { if (confirm('Xóa mẫu này?')) deleteReq.mutate(row.id) }} title="Xóa">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              askConfirm({
+                title: 'Xóa mẫu này?',
+                message: `Mẫu "${row.name || row.code || ''}" sẽ bị xóa.`,
+                confirmText: 'Xóa',
+                onConfirm: () => deleteReq.mutate(row.id),
+              })
+            }
+            title="Xóa"
+          >
             <Trash2 className="w-3.5 h-3.5 text-red-500" />
           </Button>
         </div>
@@ -181,14 +194,24 @@ export function EmailTemplatePage() {
         </Button>
       </div>
 
-      <AppTable
-        columns={columns}
-        data={data}
-        isLoading={isLoading}
-        showSearch
-        searchPlaceholder="Tìm kiếm mẫu email..."
-        onRefresh={refetch}
-      />
+      {isError ? (
+        <div className="border rounded-xl bg-white overflow-hidden">
+          <ErrorState
+            title="Không tải được mẫu email"
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : (
+        <AppTable
+          columns={columns}
+          data={data}
+          isLoading={isLoading}
+          showSearch
+          searchPlaceholder="Tìm kiếm mẫu email..."
+          onRefresh={refetch}
+        />
+      )}
 
       {/* Create/Edit Modal */}
       <AppModal
@@ -390,6 +413,7 @@ export function EmailTemplatePage() {
           </div>
         </div>
       </AppModal>
+      {confirmDialog}
     </div>
   )
 }

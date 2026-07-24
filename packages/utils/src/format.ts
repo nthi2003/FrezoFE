@@ -90,6 +90,22 @@ export const formatPercent = (value: number | null | undefined): string => {
   return `${value.toFixed(1)}%`
 }
 
+/**
+ * Format số phút thành chuỗi tiếng Việt dễ đọc.
+ * dưới 60 → "45 phút"; từ 60 trở lên → "5 giờ 11 phút" (bỏ phần phút nếu = 0).
+ */
+export const formatMinutesDuration = (
+  minutes: number | null | undefined,
+): string => {
+  if (minutes === null || minutes === undefined || Number.isNaN(minutes)) return '—'
+  const total = Math.max(0, Math.floor(minutes))
+  if (total < 60) return `${total} phút`
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  if (m === 0) return `${h} giờ`
+  return `${h} giờ ${m} phút`
+}
+
 // ============================================================
 // Vietnamese-specific formatters
 // ============================================================

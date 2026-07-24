@@ -119,9 +119,10 @@ export function JournalsPage() {
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      {/* FR-UX-01: sticky filter bar + compact default */}
+      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-3 p-3 rounded-xl border border-border bg-surface/95 backdrop-blur shadow-sm">
         <select
-          className="border rounded-md px-3 py-2 text-sm"
+          className="border rounded-md px-3 py-1.5 text-sm h-9"
           value={year}
           onChange={(e) => { setYear(Number(e.target.value)); setSelectedPeriodId(null) }}
         >
@@ -149,13 +150,13 @@ export function JournalsPage() {
         <div className="relative flex-1 max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
           <input
-            className="w-full pl-9 pr-3 py-2 border rounded-md text-sm"
+            className="w-full pl-9 pr-3 py-1.5 h-9 border rounded-md text-sm"
             placeholder="Tìm số CT / diễn giải…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button variant="outline" onClick={() => refetch()} className="gap-2" disabled={isFetching}>
+        <Button variant="outline" onClick={() => refetch()} className="gap-2 h-9" disabled={isFetching}>
           <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} /> Refresh
         </Button>
       </div>
@@ -183,38 +184,38 @@ export function JournalsPage() {
           <table className="w-full text-sm">
             <thead className="bg-neutral-50 text-neutral-600">
               <tr>
-                <th className="p-3 text-left font-medium">Số CT</th>
-                <th className="p-3 text-left font-medium">Ngày</th>
-                <th className="p-3 text-left font-medium">Diễn giải</th>
-                <th className="p-3 text-left font-medium">Nguồn</th>
-                <th className="p-3 text-right font-medium">Tổng Nợ</th>
-                <th className="p-3 text-right font-medium">Tổng Có</th>
-                <th className="p-3 text-center font-medium">Trạng thái</th>
-                <th className="p-3 text-right font-medium w-24"></th>
+                <th className="px-3 py-2 h-9 text-left text-xs font-semibold">Số CT</th>
+                <th className="px-3 py-2 h-9 text-left text-xs font-semibold">Ngày</th>
+                <th className="px-3 py-2 h-9 text-left text-xs font-semibold">Diễn giải</th>
+                <th className="px-3 py-2 h-9 text-left text-xs font-semibold">Nguồn</th>
+                <th className="px-3 py-2 h-9 text-right text-xs font-semibold">Tổng Nợ</th>
+                <th className="px-3 py-2 h-9 text-right text-xs font-semibold">Tổng Có</th>
+                <th className="px-3 py-2 h-9 text-center text-xs font-semibold">Trạng thái</th>
+                <th className="px-3 py-2 h-9 text-right text-xs font-semibold w-24"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
               {isLoading && (
                 <tr>
-                  <td colSpan={8} className="p-6 text-center text-neutral-500">
+                  <td colSpan={8} className="px-3 py-4 text-center text-neutral-500">
                     Đang tải…
                   </td>
                 </tr>
               )}
               {filtered.map((e: JournalEntry) => (
                 <tr key={e.id} className="hover:bg-neutral-50">
-                  <td className="p-3 font-mono text-xs text-blue-700">{e.code}</td>
-                  <td className="p-3">{formatDate(e.postingDate)}</td>
-                  <td className="p-3 text-neutral-800">{e.description}</td>
-                  <td className="p-3 text-xs text-neutral-500">{e.sourceType}</td>
-                  <td className="p-3 text-right font-mono">{formatCurrency(e.totalDebit)}</td>
-                  <td className="p-3 text-right font-mono">{formatCurrency(e.totalCredit)}</td>
-                  <td className="p-3 text-center">
+                  <td className="px-3 py-2 font-mono text-xs text-primary-700">{e.code}</td>
+                  <td className="px-3 py-2">{formatDate(e.postingDate)}</td>
+                  <td className="px-3 py-2 text-neutral-800">{e.description}</td>
+                  <td className="px-3 py-2 text-xs text-neutral-500">{e.sourceType}</td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">{formatCurrency(e.totalDebit)}</td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">{formatCurrency(e.totalCredit)}</td>
+                  <td className="px-3 py-2 text-center">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs border ${STATUS_TONE[e.status]}`}>
                       {STATUS_LABEL[e.status]}
                     </span>
                   </td>
-                  <td className="p-3 text-right">
+                  <td className="px-3 py-2 text-right">
                     <button
                       className="p-1.5 rounded hover:bg-neutral-100 text-neutral-700"
                       onClick={() => setDetailId(e.id)}
@@ -250,34 +251,50 @@ export function JournalsPage() {
             </div>
             <div>
               <div className="text-sm font-medium text-neutral-700 mb-2">Các dòng bút toán</div>
-              <table className="w-full text-sm border rounded-md">
-                <thead className="bg-neutral-50 text-neutral-600">
-                  <tr>
-                    <th className="p-2 w-10 text-center">#</th>
-                    <th className="p-2 text-left w-24">TK</th>
-                    <th className="p-2 text-left">Tên TK / Diễn giải</th>
-                    <th className="p-2 text-right w-32">Nợ</th>
-                    <th className="p-2 text-right w-32">Có</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {detail.lines?.map((l) => (
-                    <tr key={l.id ?? l.lineNo}>
-                      <td className="p-2 text-center text-neutral-500">{l.lineNo}</td>
-                      <td className="p-2 font-mono text-blue-700">{l.accountCode}</td>
-                      <td className="p-2">
-                        <div className="text-neutral-900">{l.accountName || '—'}</div>
-                        {l.description && <div className="text-xs text-neutral-500">{l.description}</div>}
-                        {l.partnerName && (
-                          <div className="text-xs text-neutral-500">Đối tượng: {l.partnerName}</div>
-                        )}
-                      </td>
-                      <td className="p-2 text-right font-mono">{l.debit ? formatCurrency(l.debit) : ''}</td>
-                      <td className="p-2 text-right font-mono">{l.credit ? formatCurrency(l.credit) : ''}</td>
+              {Math.abs((detail.totalDebit || 0) - (detail.totalCredit || 0)) > 0.001 && (
+                <div className="mb-2 flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                  <AlertTriangle size={14} className="shrink-0" />
+                  Chứng từ lệch cân — Nợ {formatCurrency(detail.totalDebit)} ≠ Có {formatCurrency(detail.totalCredit)}
+                </div>
+              )}
+              <div className="border rounded-md overflow-hidden max-h-[360px] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-neutral-50 text-neutral-600 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-2 py-1.5 h-9 w-10 text-center text-xs font-semibold">#</th>
+                      <th className="px-2 py-1.5 h-9 text-left w-24 text-xs font-semibold">TK</th>
+                      <th className="px-2 py-1.5 h-9 text-left text-xs font-semibold">Tên TK / Diễn giải</th>
+                      <th className="px-2 py-1.5 h-9 text-right w-32 text-xs font-semibold">Nợ</th>
+                      <th className="px-2 py-1.5 h-9 text-right w-32 text-xs font-semibold">Có</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y">
+                    {detail.lines?.map((l) => (
+                      <tr key={l.id ?? l.lineNo} className="hover:bg-neutral-50">
+                        <td className="px-2 py-1.5 text-center text-neutral-500">{l.lineNo}</td>
+                        <td className="px-2 py-1.5 font-mono text-primary-700">{l.accountCode}</td>
+                        <td className="px-2 py-1.5">
+                          <div className="text-neutral-900">{l.accountName || '—'}</div>
+                          {l.description && <div className="text-xs text-neutral-500">{l.description}</div>}
+                          {l.partnerName && (
+                            <div className="text-xs text-neutral-500">Đối tượng: {l.partnerName}</div>
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 text-right font-mono tabular-nums">{l.debit ? formatCurrency(l.debit) : ''}</td>
+                        <td className="px-2 py-1.5 text-right font-mono tabular-nums">{l.credit ? formatCurrency(l.credit) : ''}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* FR-UX-11 sticky tổng Nợ/Có */}
+              <div className="sticky bottom-0 mt-0 flex items-center justify-between gap-3 border border-t-0 rounded-b-md bg-surface/95 backdrop-blur px-3 py-2 text-sm">
+                <span className="text-xs text-neutral-500">Tổng chứng từ</span>
+                <div className="flex gap-4 tabular-nums font-semibold">
+                  <span>Nợ {formatCurrency(detail.totalDebit)}</span>
+                  <span>Có {formatCurrency(detail.totalCredit)}</span>
+                </div>
+              </div>
             </div>
             {canUpdateJournal && (
               <div className="flex justify-end gap-2">

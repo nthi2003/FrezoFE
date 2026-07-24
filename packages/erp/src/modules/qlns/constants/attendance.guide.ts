@@ -1,58 +1,64 @@
 import type { PageGuideConfig } from '@frezo/ui'
 
+/**
+ * Hướng dẫn in-app — Chấm công nhân viên (giọng EU)
+ * Cấu hình GPS/WiFi (Admin): /docs/guide-attendance-settings
+ */
 export const ATTENDANCE_GUIDE: PageGuideConfig = {
   title: 'Chấm công',
-  subtitle: 'Bắt đầu ngày làm việc chỉ với 1 cú click — theo dõi giờ công, đi muộn và OT theo thời gian thực.',
+  subtitle: 'Check-in khi tới văn phòng, check-out trước khi về — theo dõi giờ công trong ngày.',
+  docHref: '/docs/guide-attendance-settings',
   sections: [
     {
       type: 'steps',
-      heading: 'Quy trình chấm công hằng ngày',
+      heading: 'Chấm công hằng ngày',
       steps: [
         {
           title: 'Check-in đầu giờ',
           description:
-            'Bấm nút CHECK IN màu xanh ở góc phải trên cùng ngay khi bạn tới văn phòng. Hệ thống ghi lại giờ vào + toạ độ GPS (nếu bạn cho phép).',
+            'Bấm CHECK IN góc trên khi tới văn phòng. Cho phép vị trí nếu trình duyệt hỏi — giúp xác nhận bạn đang đúng chỗ.',
         },
         {
-          title: 'Làm việc — hệ thống đếm giờ realtime',
+          title: 'Làm việc trong ngày',
           description:
-            'Sau khi check-in, hero card đổi màu xanh lá và bắt đầu đếm thời gian đã làm. Bạn có thể đóng trang, quay lại vẫn hiển thị đúng.',
+            'Sau check-in, trang hiện bạn đang làm việc và đếm giờ. Đóng trang rồi mở lại vẫn giữ trạng thái đúng.',
         },
         {
           title: 'Check-out cuối giờ',
           description:
-            'Bấm CHECK OUT trước khi rời văn phòng. Backend sẽ tự tính workMinutes, lateMinutes và overtimeMinutes để tính lương cuối tháng.',
+            'Bấm CHECK OUT trước khi rời văn phòng. Hệ thống ghi giờ ra để tính công cuối tháng.',
         },
         {
-          title: 'Xem lịch tháng + KPI cá nhân',
+          title: 'Xem lịch tháng',
           description:
-            'Tab "Tổng quan" hiển thị heatmap 30 ngày và 5 KPI cá nhân (ngày công, đúng giờ, muộn, OT, streak).',
+            'Tab Tổng quan: xem các ngày đã chấm và các chỉ số cá nhân (ngày công, đúng giờ, muộn…).',
         },
       ],
     },
     {
       type: 'tips',
-      heading: 'Mẹo tối ưu',
+      heading: 'Khi bị từ chối check-in',
       tips: [
-        'Bật quyền GPS trong browser để check-in được xác thực vị trí — giúp phòng ban tin tưởng hơn.',
-        'Nếu quên check-out, HR sẽ điều chỉnh thủ công. Tránh lặp lại vì làm rối bảng lương.',
-        'Streak "đúng giờ liên tiếp" reset về 0 khi bạn đi muộn. Giữ streak dài để có KPI cuối quý!',
+        'Bật GPS (và WiFi công ty nếu công ty yêu cầu).',
+        'Đứng trong vùng văn phòng đã cấu hình — nếu vẫn lỗi, báo Admin kiểm tra Cài đặt → Định vị.',
+        'Quên check-out: báo HR điều chỉnh; tránh lặp lại vì ảnh hưởng bảng công.',
       ],
     },
     {
-      type: 'shortcuts',
-      heading: 'Phím tắt',
-      shortcuts: [
-        { keys: ['C'], label: 'Check-in / Check-out nhanh (khi focus vào hero card)' },
-        { keys: ['←', '→'], label: 'Chuyển tháng trong heatmap' },
-        { keys: ['G', 'T'], label: 'Chuyển tab Tổng quan' },
+      type: 'links',
+      heading: 'Liên quan',
+      links: [
+        {
+          label: 'Hướng dẫn cấu hình GPS / WiFi (Admin)',
+          href: '/docs/guide-attendance-settings',
+        },
       ],
     },
     {
       type: 'notes',
-      heading: 'Dành cho Manager',
+      heading: 'Dành cho quản lý',
       notes:
-        'Tab "Danh sách chấm công" cho phép filter theo nhân viên + trạng thái để duyệt bảng công cuối tháng. Đơn nghỉ phép ở tab riêng — bấm ✓/✗ để duyệt/từ chối nhanh.',
+        'Tab danh sách chấm công giúp lọc theo nhân viên và trạng thái khi chốt bảng công. Đơn nghỉ phép xử lý ở mục nghỉ phép / Hộp thư duyệt.',
     },
   ],
 }

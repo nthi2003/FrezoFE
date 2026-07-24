@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { unwrapList } from '@frezo/utils'
-import { ticketApi, tagApi } from '../services/taskApi'
+import { ticketApi, tagApi, ticketCategoryApi } from '../services/taskApi'
 import { toast } from 'sonner'
 
 export function useTickets(params?: any) {
@@ -93,6 +93,56 @@ export function useDeleteTag() {
     onSuccess: () => {
       toast.success('Xóa tag thành công')
       queryClient.invalidateQueries({ queryKey: ['tags'] })
+    },
+  })
+}
+
+export function useTicketCategories() {
+  return useQuery({
+    queryKey: ['ticket-categories'],
+    queryFn: () => ticketCategoryApi.getAll(),
+    select: unwrapList,
+  })
+}
+
+/** Dropdown form ticket — chỉ danh mục đang dùng. */
+export function useActiveTicketCategories() {
+  return useQuery({
+    queryKey: ['ticket-categories', 'active'],
+    queryFn: () => ticketCategoryApi.getActive(),
+    select: unwrapList,
+  })
+}
+
+export function useCreateTicketCategory() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: any) => ticketCategoryApi.create(data),
+    onSuccess: () => {
+      toast.success('Tạo danh mục thành công')
+      queryClient.invalidateQueries({ queryKey: ['ticket-categories'] })
+    },
+  })
+}
+
+export function useUpdateTicketCategory() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => ticketCategoryApi.update(id, data),
+    onSuccess: () => {
+      toast.success('Cập nhật danh mục thành công')
+      queryClient.invalidateQueries({ queryKey: ['ticket-categories'] })
+    },
+  })
+}
+
+export function useDeleteTicketCategory() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => ticketCategoryApi.delete(id),
+    onSuccess: () => {
+      toast.success('Đã ẩn danh mục')
+      queryClient.invalidateQueries({ queryKey: ['ticket-categories'] })
     },
   })
 }

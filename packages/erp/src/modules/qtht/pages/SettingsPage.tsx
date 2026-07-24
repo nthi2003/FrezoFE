@@ -9,10 +9,11 @@ import {
   Sparkles, ChevronRight, Check, Loader2,
   type LucideIcon,
 } from 'lucide-react'
-import { Button, Input, Select, Switch } from '@frezo/ui'
+import { Button, Input, Select, Switch, ConfirmDialog } from '@frezo/ui'
 import {
   useOrganizations, useSettingByOrg, useUpdateOrgSetting, useCreateOrgSetting,
 } from '@/modules/qtht/hooks/useAttendanceSettings'
+import { GeoFenceMapPreview } from '@/modules/qtht/components/GeoFenceMapPreview'
 
 // ============================================================
 // Types
@@ -178,6 +179,7 @@ export function SettingsPage() {
   const [form, setForm] = useState<SettingsForm>(defaultForm)
   const [initialForm, setInitialForm] = useState<SettingsForm>(defaultForm)
   const [selectedOrgId, setSelectedOrgId] = useState('')
+  const [pendingOrgId, setPendingOrgId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('general')
 
   const { data: orgList } = useOrganizations()
@@ -289,7 +291,13 @@ export function SettingsPage() {
               <Select
                 options={orgOptions}
                 value={selectedOrgId}
-                onChange={(v) => setSelectedOrgId(v)}
+                onChange={(v) => {
+                  if (isDirty && v !== selectedOrgId) {
+                    setPendingOrgId(v)
+                    return
+                  }
+                  setSelectedOrgId(v)
+                }}
                 placeholder="Chọn tổ chức..."
                 showSearch
               />
@@ -460,22 +468,30 @@ export function SettingsPage() {
                   </div>
                 </div>
 
-                {/* Preview bán kính + WiFi — giảm ticket Mobile check-in fail */}
-                <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50/80 p-4">
-                  <div className="text-sm font-semibold text-neutral-800 mb-2">Preview rule check-in</div>
-                  <div className="flex flex-col sm:flex-row gap-4 items-start">
-                    <div
-                      className="relative w-36 h-36 rounded-full border-2 border-dashed border-primary-300 bg-primary-50/40 shrink-0 flex items-center justify-center"
-                      title={`Bán kính ${form.details.geo.allowedRadiusMeters || 0}m`}
-                    >
-                      <div className="w-3 h-3 rounded-full bg-primary-600 shadow" />
-                      <span className="absolute bottom-2 text-[10px] font-semibold text-primary-700 tabular-nums">
-                        r = {form.details.geo.allowedRadiusMeters || 0}m
-                      </span>
-                    </div>
-                    <div className="text-xs text-neutral-600 space-y-1.5 flex-1">
+                {/* FR-UX-19 — plan view bản đồ + preview rule (giảm Mobile check-in fail) */}
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <div className="text-sm font-semibold text-neutral-800 mb-2">Bản đồ vùng cho phép</div>
+                    <GeoFenceMapPreview
+                      latitude={form.details.geo.officeLatitude}
+                      longitude={form.details.geo.officeLongitude}
+                      radiusMeters={form.details.geo.allowedRadiusMeters}
+                    />
+                  </div>
+
+                  <div className="rounded-xl border border-neutral-200 bg-neutral-50/80 p-4">
+                    <div className="text-sm font-semibold text-neutral-800 mb-2">Preview rule check-in</div>
+                    <div className="text-xs text-neutral-600 space-y-1.5">
                       <p>
-                        Tâm: <span className="font-mono">{form.details.geo.officeLatitude || '—'}, {form.details.geo.officeLongitude || '—'}</span>
+                        Tâm:{' '}
+                        <span className="font-mono">
+                          {form.details.geo.officeLatitude || '—'}, {form.details.geo.officeLongitude || '—'}
+                        </span>
+                        {' · '}
+                        Bán kính:{' '}
+                        <span className="font-mono tabular-nums">
+                          {form.details.geo.allowedRadiusMeters || 0}m
+                        </span>
                       </p>
                       <p>
                         WiFi SSID:{' '}
@@ -628,6 +644,22 @@ export function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* FR-UX-13 — dirty leave khi đổi org */}
+      <ConfirmDialog
+        isOpen={!!pendingOrgId}
+        onClose={() => setPendingOrgId(null)}
+        onConfirm={() => {
+          if (pendingOrgId != null) {
+            setSelectedOrgId(pendingOrgId)
+            setPendingOrgId(null)
+          }
+        }}
+        title="Bạn có thay đổi chưa lưu"
+        message="Chuyển tổ chức sẽ mất thay đổi geo/settings chưa lưu. Tiếp tục?"
+        confirmText="Bỏ thay đổi & chuyển"
+        variant="warning"
+      />
     </div>
   )
 }

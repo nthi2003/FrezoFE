@@ -63,12 +63,15 @@ export type {
   BreadcrumbItem,
   ObjectPageKpi,
 } from './ObjectPageHeader'
+export { FlexibleColumnLayout } from './FlexibleColumnLayout'
+export type { FlexibleColumnLayoutProps } from './FlexibleColumnLayout'
 
 // ---- Page Guide (mỗi page nên có 1 hướng dẫn nhanh) ----
-export { PageGuideButton } from './PageGuide'
+export { PageGuideButton, registerPageGuideCmsResolver } from './PageGuide'
 export type {
   PageGuideButtonProps,
   PageGuideConfig,
+  PageGuideCmsResolver,
   GuideSection,
   GuideStep,
   GuideShortcut,

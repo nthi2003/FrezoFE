@@ -60,16 +60,16 @@ const CATEGORY_OPTIONS = [
 // Utilities
 // ============================================================
 
-/** Auto-suggest CODE từ tên: uppercase, bỏ dấu, cắt còn 12 ký tự, thay space → underscore. */
+/** Auto-suggest slug từ tên: lowercase, bỏ dấu, kebab-case (vd: quan-trong). */
 function suggestCodeFromName(name: string): string {
   if (!name) return ''
   return name
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')  // remove diacritics
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, 12)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32)
 }
 
 /**
@@ -113,7 +113,7 @@ function TagChip({ name, code, color, size = 'sm' }: {
         className="w-1.5 h-1.5 rounded-full opacity-70"
         style={{ backgroundColor: dotColor }}
       />
-      {name || code || 'Tag'}
+      {name || code || 'Thẻ'}
     </span>
   )
 }
@@ -235,7 +235,7 @@ export function TagsPage() {
   // ---- Table columns ----
   const columns = useMemo(() => [
     {
-      title: 'Preview',
+      title: 'Xem trước',
       dataIndex: 'name',
       width: 220,
       render: (_: unknown, row: TagRow) => (
@@ -767,7 +767,7 @@ function TagFormModal({
             <Label>Tên tag <span className="text-rose-500">*</span></Label>
             <Input
               {...register('name')}
-              placeholder="VD: Ưu tiên cao, Hỗ trợ kỹ thuật..."
+              placeholder="VD: Gấp, Quan trọng, Theo dõi..."
               autoFocus
             />
             {errors.name && <p className="text-xs text-rose-600">{errors.name.message as string}</p>}
@@ -779,18 +779,18 @@ function TagFormModal({
                 {...register('code', {
                   onChange: () => setCodeTouched(true),
                 })}
-                placeholder="VD: HIGH, TECH_SUPPORT"
-                className="font-mono uppercase"
+                placeholder="VD: gap, quan-trong, theo-doi"
+                className="font-mono lowercase"
               />
               {!item && !codeTouched && nameValue && (
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-neutral-400 pointer-events-none">
-                  auto
+                  tự sinh
                 </span>
               )}
             </div>
             {errors.code && <p className="text-xs text-rose-600">{errors.code.message as string}</p>}
             {!item && !codeTouched && (
-              <p className="text-[11px] text-neutral-500">Tự sinh từ tên — bấm để chỉnh tay.</p>
+              <p className="text-[11px] text-neutral-500">Slug không dấu từ tên — bấm để chỉnh tay.</p>
             )}
           </div>
         </div>

@@ -5,8 +5,8 @@
 // hiện có — không cần BE endpoint by-customer.
 // ============================================================
 
-import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useMemo } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft, Phone, Mail, MapPin, Building2, User, Pencil,
@@ -14,7 +14,7 @@ import {
   TrendingUp, AlertTriangle, Clock, FolderOpen,
   Calendar, DollarSign, CheckCircle2,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, ErrorState } from '@frezo/ui'
+import { Button, ObjectPageHeader, StatusBadge, EmptyState, ErrorState } from '@frezo/ui'
 import { formatCurrency, formatDate, formatDateTime } from '@frezo/utils'
 import { useAnyPermission } from '@/lib/hooks/usePermission'
 import { customerApi } from '../services/customerApi'
@@ -143,10 +143,24 @@ function InvoiceStatusPill({ status }: { status: InvoiceStatus }) {
 // Main page
 // ============================================================
 
+const TAB_KEYS: TabKey[] = ['overview', 'deals', 'invoices', 'activities', 'documents', 'notes']
+
+function parseTab(raw: string | null): TabKey {
+  if (raw && (TAB_KEYS as string[]).includes(raw)) return raw as TabKey
+  return 'overview'
+}
+
 export function Customer360Page() {
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
-  const [tab, setTab] = useState<TabKey>('overview')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = parseTab(searchParams.get('tab'))
+  const setTab = (next: TabKey) => {
+    const sp = new URLSearchParams(searchParams)
+    if (next === 'overview') sp.delete('tab')
+    else sp.set('tab', next)
+    setSearchParams(sp, { replace: true })
+  }
   const canEditCustomer = useAnyPermission(['CUSTOMER.UPDATE', 'CUSTOMER_CUSTOMER_UPDATE', 'CUSTOMER.EXPORT'])
   const canCreateDeal = useAnyPermission(['CRM.DEAL.CREATE', 'CRM_DEAL_CREATE', 'CRM.DEALS.VIEW', 'CRM.LEAD.VIEW'])
   const canCreateInvoice = useAnyPermission(['CRM.INVOICE.CREATE', 'CRM_INVOICE_CREATE', 'CRM.INVOICE.VIEW'])
@@ -252,85 +266,65 @@ export function Customer360Page() {
   const isCompany = customer.type === 'COMPANY' || !!customer.taxCode
 
   return (
-    <div className="p-6 space-y-5 animate-fade-in bg-neutral-50/50 min-h-[calc(100vh-64px)]">
-      <PageHeader
-        title={
-          <span className="flex items-center gap-2.5">
-            <button
-              onClick={() => nav('/customer')}
-              className="p-1.5 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition"
-              title="Quay lại danh sách khách hàng"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <span>{customer.name || 'Chưa đặt tên'}</span>
-            <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded ${
-                isCompany
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-              }`}
-            >
-              {isCompany ? <><Building2 size={10} /> Doanh nghiệp</> : <><User size={10} /> Cá nhân</>}
-            </span>
-          </span>
+    <div className="animate-fade-in bg-neutral-50/50 min-h-[calc(100vh-64px)]">
+      {/* FR-UX-02 Object Page — sticky header + KPI + 1 primary CTA */}
+      <ObjectPageHeader
+        breadcrumb={[
+          { label: 'Khách hàng', onClick: () => nav('/customer') },
+          { label: customer.name || id || '360' },
+        ]}
+        title={customer.name || 'Chưa đặt tên'}
+        subtitle={customer.address || 'Chưa có địa chỉ đăng ký'}
+        statusBadge={
+          <StatusBadge
+            label={isCompany ? 'Doanh nghiệp' : 'Cá nhân'}
+            color={isCompany ? 'info' : 'success'}
+            icon={isCompany ? Building2 : User}
+          />
         }
-        description={customer.address || 'Chưa có địa chỉ đăng ký'}
+        kpi={[
+          { label: 'Doanh thu YTD', value: formatCurrency(revenueYTD) },
+          { label: 'Deal đang mở', value: String(openDealsCount) },
+          {
+            label: 'HĐ quá hạn',
+            value: String(overdueInvoices.length),
+          },
+          {
+            label: 'Hoạt động gần nhất',
+            value: lastActivity?.happenedAt
+              ? formatDate(lastActivity.happenedAt)
+              : lastActivity?.createdDate
+                ? formatDate(lastActivity.createdDate)
+                : '—',
+          },
+        ]}
         actions={
           <>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => nav('/customer')}>
+              <ArrowLeft size={14} /> Danh sách
+            </Button>
             {canEditCustomer && (
-              <Button variant="outline" className="gap-2" onClick={() => nav('/customer')}>
-                <Pencil size={15} /> Sửa thông tin
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => nav('/customer')}>
+                <Pencil size={14} /> Sửa
               </Button>
             )}
             {canCreateDeal && (
-              <Button variant="outline" className="gap-2" onClick={() => nav('/crm/deals')}>
-                <Plus size={15} /> Deal mới
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => nav('/crm/deals')}>
+                <Plus size={14} /> Deal
               </Button>
             )}
             {canCreateInvoice && (
-              <Button className="gap-2 bg-primary-700 hover:bg-primary-800 text-white" onClick={() => nav('/crm/invoices')}>
-                <Plus size={15} /> Hoá đơn mới
+              <Button size="sm" className="gap-1.5" onClick={() => nav('/crm/invoices')}>
+                <Plus size={14} /> Hoá đơn mới
               </Button>
             )}
           </>
         }
       />
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Customer360Kpi
-          label="Doanh thu YTD"
-          value={formatCurrency(revenueYTD)}
-          icon={TrendingUp}
-          tone="emerald"
-          hint={`${invoices.length} hoá đơn`}
-        />
-        <Customer360Kpi
-          label="Deal đang mở"
-          value={String(openDealsCount)}
-          icon={ShoppingBag}
-          tone="blue"
-          hint={`Trong ${deals.length} deal`}
-        />
-        <Customer360Kpi
-          label="HĐ quá hạn"
-          value={String(overdueInvoices.length)}
-          icon={AlertTriangle}
-          tone={overdueInvoices.length > 0 ? 'rose' : 'violet'}
-          hint={overdueInvoices.length > 0 ? 'Cần thu hồi công nợ' : 'Tình trạng tốt'}
-        />
-        <Customer360Kpi
-          label="Hoạt động gần nhất"
-          value={lastActivity?.happenedAt ? formatDate(lastActivity.happenedAt) : lastActivity?.createdDate ? formatDate(lastActivity.createdDate) : '—'}
-          icon={Clock}
-          tone="amber"
-          hint={lastActivity?.subject || 'Chưa có tương tác'}
-        />
-      </div>
-
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-1 border-b border-neutral-200">
+      <div className="p-4 md:p-6 space-y-4">
+      {/* Tabs — URL sync ?tab= */}
+      <div className="sticky top-[var(--object-header-offset,0)] z-10 flex flex-wrap gap-1 border-b border-neutral-200 bg-neutral-50/95 backdrop-blur -mx-4 md:-mx-6 px-4 md:px-6">
         {([
           ['overview', 'Tổng quan', Activity],
           ['deals', 'Deals', ShoppingBag],
@@ -341,6 +335,7 @@ export function Customer360Page() {
         ] as [TabKey, string, typeof Activity][]).map(([key, label, Icon]) => (
           <button
             key={key}
+            type="button"
             onClick={() => setTab(key)}
             className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition ${
               tab === key
@@ -392,6 +387,7 @@ export function Customer360Page() {
           )}
         </div>
       )}
+      </div>
     </div>
   )
 }

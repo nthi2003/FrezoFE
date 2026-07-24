@@ -6,12 +6,14 @@ import { AppForm } from '@/components/shared/AppForm'
 import { Button } from '@frezo/ui'
 import { usePermissions, useCreatePermission, useDeletePermission } from '../hooks/useQtht'
 import { orgSchema } from '../constants/schema'
+import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 
 export function PermissionsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const { data: rawData, isLoading, refetch } = usePermissions()
   const createReq = useCreatePermission()
   const deleteReq = useDeletePermission()
+  const { askConfirm, confirmDialog } = useConfirmDialog()
 
   const dataList = rawData || []
 
@@ -27,7 +29,18 @@ export function PermissionsPage() {
       dataIndex: 'id',
       render: (_: any, row: any) => (
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => { if(confirm('Xóa?')) deleteReq.mutate(row.id) }}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() =>
+              askConfirm({
+                title: 'Xóa quyền này?',
+                message: `Quyền "${row.name || row.code}" sẽ bị xóa.`,
+                confirmText: 'Xóa',
+                onConfirm: () => deleteReq.mutate(row.id),
+              })
+            }
+          >
             <Trash2 className="w-4 h-4 text-red-600" />
           </Button>
         </div>
@@ -47,7 +60,7 @@ export function PermissionsPage() {
       <AppModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Thêm Quyền">
         <AppForm schema={orgSchema} defaultValues={{ code: '', name: '' }} onSubmit={handleSubmit} fields={[{ name: 'code', label: 'Mã Quyền (e.g. CREATE, VIEW)' }, { name: 'name', label: 'Tên Quyền' }]} submitText="Lưu" isLoading={createReq.isPending} />
       </AppModal>
+      {confirmDialog}
     </div>
   )
 }
-

@@ -32,6 +32,14 @@ const MODULE_META: Record<string, { icon: LucideIcon; label: string; color: stri
   DEFAULT:  { icon: Building2,     label: 'Khác',            color: 'text-neutral-600 bg-neutral-50 border-neutral-200' },
 }
 
+/** Module có runtime Approval Engine — gallery/visual không tự gắn đơn. */
+const RUNTIME_VIA_APPROVAL_FLOWS: Record<string, string> = {
+  LEAVE: 'Nghỉ phép',
+  PAYROLL: 'Bảng lương',
+  PURCHASE: 'Yêu cầu mua',
+  PURCHASE_REQUEST: 'Yêu cầu mua',
+}
+
 type LocationEditState = { editWorkflowId?: string }
 
 export function WorkflowsPage() {
@@ -377,12 +385,13 @@ function DefinitionCard({
     <div className="bg-white rounded-xl border border-neutral-200 hover:border-primary-200 hover:shadow-md transition p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <div className={`w-1.5 h-1.5 rounded-full ${def.active ? 'bg-success' : 'bg-neutral-300'}`} />
             <span className="text-[10px] font-mono text-neutral-500 tracking-tight">{def.code}</span>
             {!def.active && (
               <span className="text-[10px] text-neutral-500 bg-neutral-100 px-1 rounded">TẮT</span>
             )}
+            <ApplyBadge moduleCode={def.moduleCode} active={def.active} />
           </div>
           <div className="font-semibold text-neutral-900 truncate">{def.name}</div>
           {def.description && (
@@ -478,6 +487,33 @@ function describeActor(type: string, value?: string | null): string {
   if (type === 'MANAGER') return 'Quản lý'
   if (type === 'ADMIN') return 'Admin'
   return type
+}
+
+function ApplyBadge({ moduleCode, active }: { moduleCode: string; active: boolean }) {
+  const runtimeLabel = RUNTIME_VIA_APPROVAL_FLOWS[moduleCode]
+  if (runtimeLabel) {
+    return (
+      <Link
+        to="/approval/flows"
+        className="text-[10px] font-medium text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded hover:bg-amber-100"
+        title="Runtime duyệt đơn dùng /approval/flows"
+      >
+        Áp dụng: Chưa gắn runtime · {runtimeLabel} → /approval/flows
+      </Link>
+    )
+  }
+  if (!active) {
+    return (
+      <span className="text-[10px] font-medium text-neutral-500 bg-neutral-50 border border-neutral-200 px-1.5 py-0.5 rounded">
+        Chưa gắn — không tự chạy
+      </span>
+    )
+  }
+  return (
+    <span className="text-[10px] font-medium text-neutral-600 bg-neutral-50 border border-neutral-200 px-1.5 py-0.5 rounded">
+      Áp dụng: Template thiết kế
+    </span>
+  )
 }
 
 // ============================================================

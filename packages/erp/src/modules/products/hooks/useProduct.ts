@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { unwrapList } from '@frezo/utils'
 import { productApi } from '../services/productApi'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 export function useProducts() {
   return useQuery({
@@ -27,7 +27,7 @@ export function useCreateProduct() {
       toast.success('Thêm sản phẩm thành công')
       qc.invalidateQueries({ queryKey: ['products'] })
     },
-    onError: () => toast.error('Lỗi khi thêm sản phẩm'),
+    onError: (err) => toast.apiError(err, 'Lỗi khi thêm sản phẩm'),
   })
 }
 
@@ -39,7 +39,7 @@ export function useUpdateProduct() {
       toast.success('Cập nhật sản phẩm thành công')
       qc.invalidateQueries({ queryKey: ['products'] })
     },
-    onError: () => toast.error('Lỗi khi cập nhật sản phẩm'),
+    onError: (err) => toast.apiError(err, 'Lỗi khi cập nhật sản phẩm'),
   })
 }
 
@@ -51,6 +51,6 @@ export function useDeleteProduct() {
       toast.success('Xóa sản phẩm thành công')
       qc.invalidateQueries({ queryKey: ['products'] })
     },
-    onError: () => toast.error('Lỗi khi xóa sản phẩm'),
+    onError: (err) => toast.apiError(err, 'Lỗi khi xóa sản phẩm'),
   })
 }

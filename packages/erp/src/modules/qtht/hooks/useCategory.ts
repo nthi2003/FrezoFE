@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { categoryApi } from '../services/categoryApi'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 export function useCategories(groupCode?: string) {
   return useQuery({
@@ -21,7 +21,8 @@ export function useCreateCategory() {
       toast.success('Thêm danh mục thành công')
       queryClient.invalidateQueries({ queryKey: ['categories'] })
     },
-    onError: () => toast.error('Lỗi khi thêm danh mục'),
+    // code.exist / name.exist: hiện nguyên message từ BE, không toast generic
+    onError: (err) => toast.apiError(err, 'Lỗi khi thêm danh mục'),
   })
 }
 
@@ -33,7 +34,7 @@ export function useUpdateCategory() {
       toast.success('Cập nhật danh mục thành công')
       queryClient.invalidateQueries({ queryKey: ['categories'] })
     },
-    onError: () => toast.error('Lỗi khi cập nhật danh mục'),
+    onError: (err) => toast.apiError(err, 'Lỗi khi cập nhật danh mục'),
   })
 }
 
@@ -45,6 +46,6 @@ export function useDeleteCategory() {
       toast.success('Xóa danh mục thành công')
       queryClient.invalidateQueries({ queryKey: ['categories'] })
     },
-    onError: () => toast.error('Lỗi khi xóa danh mục'),
+    onError: (err) => toast.apiError(err, 'Lỗi khi xóa danh mục'),
   })
 }

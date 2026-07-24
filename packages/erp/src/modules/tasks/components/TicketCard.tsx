@@ -40,6 +40,8 @@ interface Props {
   assigneeAvatarUrl?: string
   /** Current user's personId — dùng để đánh dấu "Của tôi". */
   currentPersonId?: string
+  /** FR-UX-16: tối đa 3 dòng nội dung (title + meta), ẩn checklist/progress */
+  compact?: boolean
 }
 
 const TAG_TONE_CLASS: Record<TagTone, string> = {
@@ -67,18 +69,21 @@ export function TicketCard({
   assigneeName,
   assigneeAvatarUrl,
   currentPersonId,
+  compact = true,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const isMine = currentPersonId && ticket.assigneeId === currentPersonId
   const initials = getInitials(assigneeName || ticket.assigneeId || '?')
   const tone = resolveTone(ticket)
-  const progress = resolveProgress(ticket)
-  const checklist: TicketChecklistItem[] = Array.isArray(ticket.checklist)
-    ? ticket.checklist
-    : Array.isArray(ticket.checklistItems)
-      ? ticket.checklistItems
-      : []
+  const progress = compact ? null : resolveProgress(ticket)
+  const checklist: TicketChecklistItem[] = compact
+    ? []
+    : Array.isArray(ticket.checklist)
+      ? ticket.checklist
+      : Array.isArray(ticket.checklistItems)
+        ? ticket.checklistItems
+        : []
   // BE aggregate (user comments only). Fallback 0 khi chưa có field — không nhầm với checklist.
   const commentCount =
     typeof ticket.commentCount === 'number' ? ticket.commentCount : 0
@@ -86,6 +91,13 @@ export function TicketCard({
     typeof ticket.attachmentCount === 'number' ? ticket.attachmentCount : null
   const checklistDone = checklist.filter((i) => !!i.done).length
   const tags = buildTags(ticket, priorityMeta)
+  const titleFull = ticket.title || ''
+  const descFull = ticket.resolutionNote
+    ? `Ghi chú: ${ticket.resolutionNote}`
+    : ticket.description || ''
+  const tooltip = [titleFull, descFull, assigneeName ? `Giao: ${assigneeName}` : '']
+    .filter(Boolean)
+    .join('\n')
 
   useEffect(() => {
     if (!menuOpen) return
@@ -104,17 +116,18 @@ export function TicketCard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
-      className={`kanban-card-tone kanban-card-tone-${tone} relative rounded-xl border border-border/80 p-3 cursor-grab active:cursor-grabbing shadow-card hover:shadow-card-md transition-all duration-200 group ${
-        isDragging ? 'opacity-30 border-dashed scale-95 border-primary-400' : ''
-      }`}
+      title={tooltip}
+      className={`kanban-card-tone kanban-card-tone-${tone} relative rounded-xl border border-border/80 cursor-grab active:cursor-grabbing shadow-card hover:shadow-card-md transition-all duration-200 group ${
+        compact ? 'p-2.5' : 'p-3'
+      } ${isDragging ? 'opacity-30 border-dashed scale-95 border-primary-400' : ''}`}
     >
-      {/* Header: tags + more */}
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-          {tags.map((tag) => (
+      {/* Header: tags + more — dòng 1 */}
+      <div className={`flex items-start justify-between gap-2 ${compact ? 'mb-1' : 'mb-2'}`}>
+        <div className="flex flex-wrap items-center gap-1 min-w-0">
+          {(compact ? tags.slice(0, 2) : tags).map((tag) => (
             <span
               key={tag.key}
-              className={`inline-flex items-center max-w-full truncate text-[10px] font-semibold tracking-wide px-2 py-0.5 rounded-md border ${TAG_TONE_CLASS[tag.tone]} ${
+              className={`inline-flex items-center max-w-full truncate text-[10px] font-semibold tracking-wide px-1.5 py-0.5 rounded-md border ${TAG_TONE_CLASS[tag.tone]} ${
                 tag.mono ? 'font-mono' : ''
               }`}
             >
@@ -183,17 +196,23 @@ export function TicketCard({
         )}
       </div>
 
-      {/* Title */}
-      <h4 className="text-sm font-semibold text-neutral-900 leading-snug mb-1.5 line-clamp-2">
+      {/* Title — dòng 2 */}
+      <h4
+        className={`text-sm font-semibold text-neutral-900 leading-snug ${
+          compact ? 'mb-1 line-clamp-1' : 'mb-1.5 line-clamp-2'
+        }`}
+      >
         {ticket.title}
       </h4>
 
-      {/* Note / description preview */}
-      {(ticket.resolutionNote || ticket.description) && (
-        <p className="text-[11px] leading-relaxed mb-2 line-clamp-2 text-neutral-600">
-          {ticket.resolutionNote
-            ? `Ghi chú: ${ticket.resolutionNote}`
-            : ticket.description}
+      {/* Note / description — dòng 3 (compact: 1 dòng) */}
+      {descFull && (
+        <p
+          className={`text-[11px] leading-relaxed text-neutral-600 ${
+            compact ? 'mb-1.5 line-clamp-1' : 'mb-2 line-clamp-2'
+          }`}
+        >
+          {descFull}
         </p>
       )}
 
@@ -343,11 +362,11 @@ function MenuItem({
 
 /** Soft tone by category (fallback priority) — controlled token set only. */
 function resolveTone(ticket: any): KanbanTone {
-  const cat = ticket.category as string | undefined
-  if (cat === 'BUG') return 'danger'
-  if (cat === 'FEATURE_REQUEST') return 'info'
-  if (cat === 'SUPPORT') return 'primary'
-  if (cat === 'OTHER') return 'warning'
+  const cat = (ticket.category as string | undefined)?.toUpperCase()
+  if (cat === 'BUG' || cat === 'LOI') return 'danger'
+  if (cat === 'FEATURE_REQUEST' || cat === 'TINH-NANG') return 'info'
+  if (cat === 'SUPPORT' || cat === 'HO-TRO') return 'primary'
+  if (cat === 'OTHER' || cat === 'KHAC') return 'warning'
 
   const p = ticket.priority as string | undefined
   if (p === 'URGENT') return 'danger'
@@ -384,7 +403,7 @@ function buildTags(
   if (ticket.code) {
     tags.push({ key: 'code', label: ticket.code, tone: 'neutral', mono: true })
   }
-  const cat = getCategoryMeta(ticket.category)
+  const cat = getCategoryMeta(ticket.category, ticket.categoryName)
   if (cat) tags.push({ key: 'cat', label: cat.label, tone: cat.tone })
   const pName = priorityMeta?.name || getPriorityLabel(ticket.priority)
   if (pName) {
@@ -399,15 +418,26 @@ function buildTags(
 
 function getCategoryMeta(
   category: string | undefined,
+  categoryName?: string | undefined,
 ): { label: string; tone: TagTone } | null {
-  if (!category) return null
-  const map: Record<string, { label: string; tone: TagTone }> = {
-    BUG: { label: 'Bug', tone: 'danger' },
-    FEATURE_REQUEST: { label: 'Feature', tone: 'info' },
-    SUPPORT: { label: 'Hỗ trợ', tone: 'primary' },
-    OTHER: { label: 'Khác', tone: 'warning' },
+  if (!category && !categoryName) return null
+  const toneByCode: Record<string, TagTone> = {
+    BUG: 'danger',
+    FEATURE_REQUEST: 'info',
+    SUPPORT: 'primary',
+    OTHER: 'warning',
   }
-  return map[category] || { label: category, tone: 'neutral' }
+  const fallbackVi: Record<string, string> = {
+    BUG: 'Lỗi',
+    FEATURE_REQUEST: 'Tính năng',
+    SUPPORT: 'Hỗ trợ',
+    OTHER: 'Khác',
+  }
+  const code = category || ''
+  return {
+    label: categoryName || fallbackVi[code] || code,
+    tone: toneByCode[code] || 'neutral',
+  }
 }
 
 function getPriorityLabel(priority: string | undefined): string | null {

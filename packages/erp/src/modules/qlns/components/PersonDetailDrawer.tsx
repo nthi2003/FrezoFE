@@ -3,7 +3,7 @@
 // Đọc-nhanh, không edit inline. Sửa → chuyển sang modal edit riêng.
 // ============================================================
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Mail, Phone, MapPin, CreditCard, Cake, User as UserIcon, Building2,
@@ -21,13 +21,25 @@ interface Props {
   onClose: () => void
   onEdit?: (person: any) => void
   onToggleActive?: (person: any) => void
+  /** drawer = overlay (mobile); panel = nội dung Flexible Column (FR-UX-06) */
+  variant?: 'drawer' | 'panel'
 }
 
 // ============================================================
 // Component
 // ============================================================
 
-export function PersonDetailDrawer({ isOpen, person, onClose, onEdit, onToggleActive }: Props) {
+type PersonTab = 'info' | 'contract'
+
+export function PersonDetailDrawer({
+  isOpen,
+  person,
+  onClose,
+  onEdit,
+  onToggleActive,
+  variant = 'drawer',
+}: Props) {
+  const [tab, setTab] = useState<PersonTab>('info')
   const { data: contractsData, isLoading: loadingContracts } = useQuery({
     queryKey: ['contracts', 'by-person', person?.id],
     queryFn: () => contractApi.getAll({ personId: person.id }),
@@ -48,6 +60,7 @@ export function PersonDetailDrawer({ isOpen, person, onClose, onEdit, onToggleAc
   const activeContract = contracts.find((c) => c.status === 'ACTIVE')
 
   if (!person) {
+    if (variant === 'panel') return null
     return (
       <Drawer isOpen={isOpen} onClose={onClose} size="md" title="Chi tiết nhân viên" />
     )
@@ -57,60 +70,50 @@ export function PersonDetailDrawer({ isOpen, person, onClose, onEdit, onToggleAc
   const age = person.birthDate ? calcAge(person.birthDate) : null
   const seniority = calcSeniority(activeContract?.startDate)
 
-  return (
-    <Drawer
-      isOpen={isOpen}
-      onClose={onClose}
-      size="md"
-      title={<span className="flex items-center gap-2">Hồ sơ nhân viên · <span className="font-mono text-sm text-neutral-500">{person.code}</span></span>}
-      footer={
-        <>
-          <Button variant="outline" onClick={onClose}>Đóng</Button>
-          {onToggleActive && (
-            <Button
-              variant="outline"
-              onClick={() => onToggleActive(person)}
-              className={person.activated ? 'text-rose-600 border-rose-200 hover:bg-rose-50' : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'}
-            >
-              <Power size={13} className="mr-1" />
-              {person.activated ? 'Ngưng hoạt động' : 'Kích hoạt lại'}
-            </Button>
-          )}
-          {onEdit && (
-            <Button
-              onClick={() => onEdit(person)}
-              className="bg-primary-600 hover:bg-primary-700 text-white"
-            >
-              <Pencil size={13} className="mr-1" /> Chỉnh sửa
-            </Button>
-          )}
-        </>
-      }
-    >
-      {/* Hero header */}
-      <div className="px-5 py-5 border-b border-neutral-100 bg-gradient-to-b from-primary-50/50 to-white">
-        <div className="flex items-start gap-4">
+  const footer = (
+    <>
+      <Button variant="outline" onClick={onClose}>Đóng</Button>
+      {onToggleActive && (
+        <Button
+          variant="outline"
+          onClick={() => onToggleActive(person)}
+          className={person.activated ? 'text-rose-600 border-rose-200 hover:bg-rose-50' : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'}
+        >
+          <Power size={13} className="mr-1" />
+          {person.activated ? 'Ngưng hoạt động' : 'Kích hoạt lại'}
+        </Button>
+      )}
+      {onEdit && (
+        <Button
+          onClick={() => onEdit(person)}
+          className="bg-primary-600 hover:bg-primary-700 text-white"
+        >
+          <Pencil size={13} className="mr-1" /> Chỉnh sửa
+        </Button>
+      )}
+    </>
+  )
+
+  const body = (
+    <>
+      {/* FR-UX-02 Object Page header (sticky trong drawer) — flat, không gradient */}
+      <div className="sticky top-0 z-10 px-5 py-4 border-b border-neutral-200 bg-surface/95 backdrop-blur">
+        <div className="flex items-start gap-3">
           {person.avatar ? (
             <img
               src={person.avatar}
               alt={person.name}
-              className="w-20 h-20 rounded-2xl object-cover border-2 border-white shadow-md shrink-0"
+              className="w-14 h-14 rounded-xl object-cover border border-neutral-200 shrink-0"
             />
           ) : (
-            <div
-              className={`w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold text-white shrink-0 shadow-md ring-2 ring-white ${
-                person.gender === 'FEMALE'
-                  ? 'bg-gradient-to-br from-pink-500 to-rose-600'
-                  : 'bg-gradient-to-br from-primary-500 to-primary-700'
-              }`}
-            >
+            <div className="w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-primary-700 bg-primary-100 shrink-0">
               {initials}
             </div>
           )}
 
           <div className="min-w-0 flex-1">
             <div className="flex items-start gap-2 flex-wrap">
-              <h3 className="text-xl font-bold text-neutral-900 leading-tight truncate">
+              <h3 className="text-lg font-bold text-neutral-900 leading-tight truncate">
                 {person.name || 'Chưa đặt tên'}
               </h3>
               {person.isAdmin && (
@@ -118,137 +121,199 @@ export function PersonDetailDrawer({ isOpen, person, onClose, onEdit, onToggleAc
                   <Sparkles size={9} /> Admin
                 </span>
               )}
-            </div>
-            {person.jobTitle && (
-              <div className="text-sm text-neutral-600 font-medium mt-0.5 truncate flex items-center gap-1">
-                <Briefcase size={12} className="text-neutral-400" />
-                {person.jobTitle}
-              </div>
-            )}
-            {(person.departmentName || person.orgName) && (
-              <div className="text-xs text-neutral-500 mt-0.5 truncate flex items-center gap-1">
-                <Building2 size={11} className="text-neutral-400" />
-                {person.departmentName || person.orgName}
-                {person.departmentName && person.orgName && (
-                  <span className="text-neutral-300"> · {person.orgName}</span>
-                )}
-              </div>
-            )}
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
               <StatusBadge
                 label={person.activated ? 'Đang hoạt động' : 'Ngưng hoạt động'}
                 color={person.activated ? 'success' : 'neutral'}
                 icon={person.activated ? CheckCircle : Clock}
               />
-              {seniority && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-neutral-500">
-                  <Calendar size={10} /> {seniority}
-                </span>
-              )}
             </div>
+            <p className="text-sm text-neutral-500 mt-0.5 truncate">
+              {[person.jobTitle, person.departmentName || person.orgName].filter(Boolean).join(' · ') || '—'}
+            </p>
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
+              <div>
+                <dt className="text-[10px] uppercase tracking-wider text-neutral-400">Mã NV</dt>
+                <dd className="text-sm font-medium tabular-nums">{person.code || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] uppercase tracking-wider text-neutral-400">Thâm niên</dt>
+                <dd className="text-sm font-medium">{seniority || '—'}</dd>
+              </div>
+            </dl>
           </div>
+        </div>
+
+        <div className="mt-3 flex gap-1 border-b border-neutral-100 -mx-5 px-5">
+          {(
+            [
+              ['info', 'Thông tin'],
+              ['contract', 'Hợp đồng'],
+            ] as [PersonTab, string][]
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={`px-3 py-2 text-sm font-medium border-b-2 transition ${
+                tab === key
+                  ? 'border-primary-600 text-primary-700'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-900'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Contact info */}
-      <Section title="Thông tin liên hệ">
-        <InfoRow icon={Mail} label="Email">
-          {person.email ? (
-            <span className="inline-flex items-center gap-1.5">
-              <a
-                href={`mailto:${person.email}`}
-                className="text-primary-600 hover:underline truncate max-w-[260px]"
-                title={person.email}
-              >
-                {person.email}
-              </a>
-              <CopyButton value={person.email} />
-            </span>
-          ) : (
-            <EmptyValue />
-          )}
-        </InfoRow>
-
-        <InfoRow icon={Phone} label="Số điện thoại">
-          {person.phone ? (
-            <span className="inline-flex items-center gap-1.5 font-mono">
-              <a href={`tel:${person.phone}`} className="text-primary-600 hover:underline">
-                {person.phone}
-              </a>
-              <CopyButton value={person.phone} />
-            </span>
-          ) : (
-            <EmptyValue />
-          )}
-        </InfoRow>
-
-        <InfoRow icon={CreditCard} label="CCCD / CMND">
-          {person.identityNumber ? (
-            <span className="font-mono">{person.identityNumber}</span>
-          ) : (
-            <EmptyValue />
-          )}
-        </InfoRow>
-
-        <InfoRow icon={MapPin} label="Địa chỉ">
-          {person.address ? <span>{person.address}</span> : <EmptyValue />}
-        </InfoRow>
-      </Section>
-
-      {/* Personal info */}
-      <Section title="Thông tin cá nhân">
-        <InfoRow icon={UserIcon} label="Giới tính">
-          {person.gender ? formatGender(person.gender) : <EmptyValue />}
-        </InfoRow>
-        <InfoRow icon={Cake} label="Ngày sinh">
-          {person.birthDate ? (
-            <span>
-              {formatDate(person.birthDate)}
-              {age !== null && (
-                <span className="text-neutral-400 ml-2">· {age} tuổi</span>
+      {tab === 'info' && (
+        <>
+          <Section title="Thông tin liên hệ">
+            <InfoRow icon={Mail} label="Email">
+              {person.email ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <a
+                    href={`mailto:${person.email}`}
+                    className="text-primary-600 hover:underline truncate max-w-[260px]"
+                    title={person.email}
+                  >
+                    {person.email}
+                  </a>
+                  <CopyButton value={person.email} />
+                </span>
+              ) : (
+                <EmptyValue />
               )}
-            </span>
-          ) : (
-            <EmptyValue />
-          )}
-        </InfoRow>
-      </Section>
+            </InfoRow>
 
-      {/* Active contract */}
-      <Section title="Hợp đồng lao động">
-        {loadingContracts ? (
-          <div className="py-4 flex items-center justify-center">
-            <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : contracts.length === 0 ? (
-          <div className="py-3 text-sm text-neutral-400 italic">
-            Chưa có hợp đồng nào
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {contracts.slice(0, 3).map((c) => (
-              <ContractCard key={c.id} contract={c} isActive={c.id === activeContract?.id} />
-            ))}
-            {contracts.length > 3 && (
-              <div className="text-xs text-neutral-400 text-center pt-1">
-                + {contracts.length - 3} hợp đồng cũ hơn
-              </div>
+            <InfoRow icon={Phone} label="Số điện thoại">
+              {person.phone ? (
+                <span className="inline-flex items-center gap-1.5 font-mono">
+                  <a href={`tel:${person.phone}`} className="text-primary-600 hover:underline">
+                    {person.phone}
+                  </a>
+                  <CopyButton value={person.phone} />
+                </span>
+              ) : (
+                <EmptyValue />
+              )}
+            </InfoRow>
+
+            <InfoRow icon={CreditCard} label="CCCD / CMND">
+              {person.identityNumber ? (
+                <span className="font-mono">{person.identityNumber}</span>
+              ) : (
+                <EmptyValue />
+              )}
+            </InfoRow>
+
+            <InfoRow icon={MapPin} label="Địa chỉ">
+              {person.address ? <span>{person.address}</span> : <EmptyValue />}
+            </InfoRow>
+          </Section>
+
+          <Section title="Thông tin cá nhân">
+            <InfoRow icon={UserIcon} label="Giới tính">
+              {person.gender ? formatGender(person.gender) : <EmptyValue />}
+            </InfoRow>
+            <InfoRow icon={Cake} label="Ngày sinh">
+              {person.birthDate ? (
+                <span>
+                  {formatDate(person.birthDate)}
+                  {age !== null && (
+                    <span className="text-neutral-400 ml-2">· {age} tuổi</span>
+                  )}
+                </span>
+              ) : (
+                <EmptyValue />
+              )}
+            </InfoRow>
+            {(person.departmentName || person.orgName) && (
+              <InfoRow icon={Building2} label="Phòng ban">
+                <span>
+                  {person.departmentName || person.orgName}
+                  {person.departmentName && person.orgName ? ` · ${person.orgName}` : ''}
+                </span>
+              </InfoRow>
             )}
-          </div>
-        )}
-      </Section>
+            {person.jobTitle && (
+              <InfoRow icon={Briefcase} label="Chức danh">
+                <span>{person.jobTitle}</span>
+              </InfoRow>
+            )}
+            {seniority && (
+              <InfoRow icon={Calendar} label="Thâm niên">
+                <span>{seniority}</span>
+              </InfoRow>
+            )}
+          </Section>
 
-      {/* Footer meta */}
-      {(person.createdDate || person.updatedDate) && (
-        <div className="px-5 py-3 border-t border-neutral-100 bg-neutral-50/40 text-[11px] text-neutral-400 space-y-0.5">
-          {person.createdDate && (
-            <div>Tạo lúc: {formatDateTime(person.createdDate)}</div>
+          {(person.createdDate || person.updatedDate) && (
+            <div className="px-5 py-3 border-t border-neutral-100 bg-neutral-50/40 text-[11px] text-neutral-400 space-y-0.5">
+              {person.createdDate && (
+                <div>Tạo lúc: {formatDateTime(person.createdDate)}</div>
+              )}
+              {person.updatedDate && (
+                <div>Cập nhật: {formatDateTime(person.updatedDate)}</div>
+              )}
+            </div>
           )}
-          {person.updatedDate && (
-            <div>Cập nhật: {formatDateTime(person.updatedDate)}</div>
-          )}
-        </div>
+        </>
       )}
+
+      {tab === 'contract' && (
+        <Section title="Hợp đồng lao động">
+          {loadingContracts ? (
+            <div className="py-4 flex items-center justify-center">
+              <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : contracts.length === 0 ? (
+            <div className="py-3 text-sm text-neutral-400 italic">
+              Chưa có hợp đồng nào
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {contracts.slice(0, 3).map((c) => (
+                <ContractCard key={c.id} contract={c} isActive={c.id === activeContract?.id} />
+              ))}
+              {contracts.length > 3 && (
+                <div className="text-xs text-neutral-400 text-center pt-1">
+                  + {contracts.length - 3} hợp đồng cũ hơn
+                </div>
+              )}
+            </div>
+          )}
+        </Section>
+      )}
+    </>
+  )
+
+  if (variant === 'panel') {
+    if (!isOpen) return null
+    return (
+      <div className="flex flex-col h-full min-h-[360px]">
+        <div className="flex-1 overflow-y-auto">{body}</div>
+        <div className="shrink-0 flex flex-wrap justify-end gap-2 px-4 py-3 border-t border-border bg-surface">
+          {footer}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      size="md"
+      title={
+        <span className="flex items-center gap-2">
+          Hồ sơ nhân viên ·{' '}
+          <span className="font-mono text-sm text-neutral-500">{person.code}</span>
+        </span>
+      }
+      footer={footer}
+    >
+      {body}
     </Drawer>
   )
 }

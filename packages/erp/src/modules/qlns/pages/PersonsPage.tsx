@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Edit, Trash2, Eye, AlertTriangle, RefreshCw } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
@@ -9,6 +10,7 @@ import {
   Switch,
   PageHeader,
   PageGuideButton,
+  FlexibleColumnLayout,
   type PageGuideConfig,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
@@ -85,6 +87,9 @@ const defaultFormValues = {
 }
 
 export function PersonsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const selectedId = searchParams.get('selected') || ''
+
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedPerson, setSelectedPerson] = useState<any | null>(null)
   const [detailPerson, setDetailPerson] = useState<any | null>(null)
@@ -98,6 +103,25 @@ export function PersonsPage() {
   const [filters, setFilters] = useState<Record<string, any>>({})
 
   const queryClient = useQueryClient()
+
+  const openDetail = useCallback(
+    (person: any) => {
+      if (!person?.id) return
+      setDetailPerson(person)
+      const next = new URLSearchParams(searchParams)
+      next.set('selected', person.id)
+      setSearchParams(next, { replace: true })
+    },
+    [searchParams, setSearchParams],
+  )
+
+  const closeDetail = useCallback(() => {
+    setDetailPerson(null)
+    if (!searchParams.get('selected')) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('selected')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   // Build filter query params
   const filterParams = {
@@ -152,6 +176,21 @@ export function PersonsPage() {
   
   const dataList = rawData?.items || []
   const totalElements = rawData?.total || 0
+
+  // FR-UX-06: deep-link ?selected= → mở cột detail
+  useEffect(() => {
+    if (!selectedId) {
+      if (detailPerson) setDetailPerson(null)
+      return
+    }
+    const fromList = dataList.find((p: any) => p.id === selectedId)
+    if (fromList) {
+      setDetailPerson(fromList)
+      return
+    }
+    if (detailPerson?.id === selectedId) return
+    // Giữ selection nếu đã có; không gọi API riêng (pilot list page)
+  }, [selectedId, dataList]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePageChange = (newPage: number, newSize: number) => {
     setPage(newPage)
@@ -261,9 +300,13 @@ export function PersonsPage() {
       render: (_: any, row: any) => (
         <div className="flex items-center gap-1">
           <button
-            title="Xem chi tiết (360°)"
-            onClick={() => setDetailPerson(row)}
-            className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+            title="Xem chi tiết (list|detail)"
+            onClick={() => openDetail(row)}
+            className={`p-1.5 rounded-md transition-colors ${
+              selectedId === row.id
+                ? 'text-primary-700 bg-primary-50'
+                : 'text-neutral-400 hover:text-blue-600 hover:bg-blue-50'
+            }`}
           >
             <Eye size={15} />
           </button>
@@ -304,21 +347,56 @@ export function PersonsPage() {
         }
       />
 
-      {/* Table */}
-      <AppTable
-        data={dataList}
-        columns={columns}
-        isLoading={isLoading}
-        pageIndex={page}
-        pageSize={size}
-        totalElements={totalElements}
-        onPageChange={handlePageChange}
-        showSearch={true}
-        searchPlaceholder="Tìm theo tên, mã nhân viên..."
-        onFilterChange={(nextFilters) => {
-          setFilters(nextFilters)
-          setPage(1)
-        }}
+      {/* FR-UX-06 Flexible Column — desktop 40|60; &lt;md 1 cột */}
+      <FlexibleColumnLayout
+        hasSelection={!!detailPerson}
+        onCloseDetail={closeDetail}
+        detailTitle={
+          detailPerson ? (
+            <span className="inline-flex items-center gap-2">
+              {detailPerson.name}
+              <span className="font-mono text-xs text-neutral-500">{detailPerson.code}</span>
+            </span>
+          ) : (
+            'Chi tiết'
+          )
+        }
+        master={
+          <AppTable
+            data={dataList}
+            columns={columns}
+            isLoading={isLoading}
+            pageIndex={page}
+            pageSize={size}
+            totalElements={totalElements}
+            onPageChange={handlePageChange}
+            showSearch={true}
+            searchPlaceholder="Tìm theo tên, mã nhân viên..."
+            onFilterChange={(nextFilters) => {
+              setFilters(nextFilters)
+              setPage(1)
+            }}
+            defaultDensity="compact"
+            showDensityToggle
+          />
+        }
+        detail={
+          detailPerson ? (
+            <PersonDetailDrawer
+              isOpen
+              variant="panel"
+              person={detailPerson}
+              onClose={closeDetail}
+              onEdit={(p) => {
+                closeDetail()
+                handleOpenEdit(p)
+              }}
+              onToggleActive={(p) => {
+                handleToggleActive(p)
+              }}
+            />
+          ) : null
+        }
       />
 
       {/* Modal Tạo / Sửa */}
@@ -391,19 +469,6 @@ export function PersonsPage() {
         cancelText="Hủy"
       />
 
-      <PersonDetailDrawer
-        isOpen={!!detailPerson}
-        person={detailPerson}
-        onClose={() => setDetailPerson(null)}
-        onEdit={(p) => {
-          setDetailPerson(null)
-          handleOpenEdit(p)
-        }}
-        onToggleActive={(p) => {
-          handleToggleActive(p)
-          setDetailPerson(null)
-        }}
-      />
     </div>
   )
 }

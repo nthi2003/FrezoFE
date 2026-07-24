@@ -197,9 +197,9 @@ export function ProductsPage() {
       colSpan: 2,
     },
     {
-      name: 'code', label: 'Mã SP',
-      placeholder: 'VD: SP001 (tự sinh nếu để trống)',
-      description: 'Mã unique dùng cho tra cứu nhanh, in tem, quét mã.',
+      name: 'code', label: 'Mã SP', required: true,
+      placeholder: 'VD: SP001',
+      description: 'Mã unique bắt buộc — dùng cho tra cứu nhanh, in tem, quét mã.',
     },
     {
       name: 'category', label: 'Danh mục', type: 'select', options: categoryOptions, required: true,
@@ -585,6 +585,8 @@ export function ProductsPage() {
             columns={listColumns as any}
             isLoading={isLoading}
             showSearch={false}
+            defaultDensity="compact"
+            showDensityToggle
           />
         </div>
       )}

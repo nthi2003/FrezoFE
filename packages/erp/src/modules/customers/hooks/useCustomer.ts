@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { unwrapList } from '@frezo/utils'
 import { customerApi } from '../services/customerApi'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 export function useCustomers() {
   return useQuery({
@@ -19,7 +19,7 @@ export function useCreateCustomer() {
       toast.success('Thêm khách hàng thành công')
       qc.invalidateQueries({ queryKey: ['customers'] })
     },
-    onError: () => toast.error('Lỗi khi thêm khách hàng'),
+    onError: (err) => toast.apiError(err, 'Lỗi khi thêm khách hàng'),
   })
 }
 
@@ -31,7 +31,7 @@ export function useUpdateCustomer() {
       toast.success('Cập nhật khách hàng thành công')
       qc.invalidateQueries({ queryKey: ['customers'] })
     },
-    onError: () => toast.error('Lỗi khi cập nhật khách hàng'),
+    onError: (err) => toast.apiError(err, 'Lỗi khi cập nhật khách hàng'),
   })
 }
 
@@ -43,6 +43,6 @@ export function useDeleteCustomer() {
       toast.success('Xóa khách hàng thành công')
       qc.invalidateQueries({ queryKey: ['customers'] })
     },
-    onError: () => toast.error('Lỗi khi xóa khách hàng'),
+    onError: (err) => toast.apiError(err, 'Lỗi khi xóa khách hàng'),
   })
 }

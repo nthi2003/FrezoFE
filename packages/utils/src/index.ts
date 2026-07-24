@@ -8,6 +8,7 @@ export {
   formatCurrencyShort,
   formatNumber,
   formatPercent,
+  formatMinutesDuration,
   formatPhoneVN,
   maskPhone,
   formatCCCD,

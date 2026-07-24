@@ -6,6 +6,18 @@ export const articleApi = {
     axiosClient.get<ApiResponse<any>>('/qtbv/articles', { params }).then(res => res.data),
   getById: (id: string) =>
     axiosClient.get<ApiResponse<any>>(`/qtbv/articles/${id}`).then(res => res.data),
+  /** Intranet home feed — any authenticated user (no QTBV.VIEW required). */
+  getHomeFeed: () =>
+    axiosClient.get<ApiResponse<any>>('/qtbv/articles/home-feed').then(res => res.data),
+  getHomeFeedById: (id: string) =>
+    axiosClient.get<ApiResponse<any>>(`/qtbv/articles/home-feed/${id}`).then(res => res.data),
+  /** Public landing articles (fallback if home-feed unavailable). */
+  getPublicList: (page = 0, size = 20) =>
+    axiosClient
+      .get<ApiResponse<any>>('/public/articles', { params: { page, size } })
+      .then(res => res.data),
+  getPublicById: (id: string) =>
+    axiosClient.get<ApiResponse<any>>(`/public/articles/${id}`).then(res => res.data),
   create: (data: any) =>
     axiosClient.post<ApiResponse<any>>('/qtbv/articles', data).then(res => res.data),
   update: (id: string, data: any) =>

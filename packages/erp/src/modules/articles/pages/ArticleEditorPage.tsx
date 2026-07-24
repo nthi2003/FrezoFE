@@ -87,28 +87,26 @@ const EDITOR_GUIDE: PageGuideConfig = {
       steps: [
         {
           title: 'Nhập tiêu đề và nội dung',
-          description: 'Hai trường bắt buộc. Không cần nhập mã bài — hệ thống tự tạo sau khi lưu.',
+          description: 'Hai ô bắt buộc. Không cần nhập mã bài — hệ thống tự tạo sau khi lưu.',
         },
         {
           title: 'Chọn người duyệt (tuỳ chọn)',
-          description: 'Chọn quản lý sẽ nhận bài khi bạn gửi duyệt.',
+          description: 'Chọn quản lý sẽ nhận bài khi bạn bấm Gửi duyệt.',
         },
         {
           title: 'Lưu nháp',
-          description: 'Bấm "Lưu nháp". Mã bài dạng QTBV-ngày-số hiện ở sidebar (chỉ xem).',
+          description: 'Bấm Lưu nháp. Mã bài hiện ở thanh trên / sidebar (chỉ xem hoặc sao chép).',
+        },
+        {
+          title: 'Gửi duyệt khi sẵn sàng',
+          description: 'Bấm Gửi duyệt. Người duyệt sẽ thấy bài ở trạng thái Chờ duyệt.',
         },
       ],
     },
     {
-      heading: 'Phím tắt trong editor',
-      type: 'shortcuts',
-      shortcuts: [
-        { keys: ['Ctrl', 'B'], label: 'In đậm' },
-        { keys: ['Ctrl', 'I'], label: 'In nghiêng' },
-        { keys: ['Ctrl', 'U'], label: 'Gạch chân' },
-        { keys: ['Ctrl', 'Z'], label: 'Hoàn tác' },
-        { keys: ['Ctrl', 'Shift', 'Z'], label: 'Làm lại' },
-      ],
+      heading: 'Liên quan',
+      type: 'links',
+      links: [{ label: 'Hướng dẫn đầy đủ', href: '/docs/guide-articles' }],
     },
   ],
 }

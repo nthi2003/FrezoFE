@@ -11,10 +11,51 @@ export function useArticles() {
   })
 }
 
+/** Published articles for Home portal /bai-viet — prefers home-feed, falls back to /public. */
+export function useHomeFeedArticles() {
+  return useQuery({
+    queryKey: ['articles', 'home-feed'],
+    queryFn: async () => {
+      try {
+        return await articleApi.getHomeFeed()
+      } catch {
+        return articleApi.getPublicList(0, 20)
+      }
+    },
+    select: (res: any) => {
+      const list = unwrapList(res)
+      if (list.length) return list
+      // public page shape: { content: [] } or { items: [] }
+      if (Array.isArray(res?.data?.content)) return res.data.content
+      if (Array.isArray(res?.content)) return res.content
+      if (Array.isArray(res?.data?.items)) return res.data.items
+      return list
+    },
+    staleTime: 60 * 1000,
+  })
+}
+
 export function useArticleById(id: string) {
   return useQuery({
     queryKey: ['article', id],
     queryFn: () => articleApi.getById(id),
+    enabled: !!id,
+  })
+}
+
+/** Detail for reader view /bai-viet/:id — home-feed then public. */
+export function useHomeArticleById(id: string) {
+  return useQuery({
+    queryKey: ['article', 'home', id],
+    queryFn: async () => {
+      try {
+        const res = await articleApi.getHomeFeedById(id)
+        return res?.data ?? res
+      } catch {
+        const res = await articleApi.getPublicById(id)
+        return res?.data ?? res
+      }
+    },
     enabled: !!id,
   })
 }

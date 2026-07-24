@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle, ArrowLeft, CheckCircle, FileText, FileX2, Pencil,
@@ -35,9 +35,19 @@ function sanitizeHtml(html: string): string {
     .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
 }
 
+type ContractTab = 'overview' | 'content'
+
 export function ContractDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab: ContractTab = searchParams.get('tab') === 'content' ? 'content' : 'overview'
+  const setTab = (next: ContractTab) => {
+    const sp = new URLSearchParams(searchParams)
+    if (next === 'overview') sp.delete('tab')
+    else sp.set('tab', next)
+    setSearchParams(sp, { replace: true })
+  }
   const queryClient = useQueryClient()
   const [rejectOpen, setRejectOpen] = useState(false)
 
@@ -220,91 +230,118 @@ export function ContractDetailPage() {
       />
 
       <div className="p-4 md:p-6 space-y-4 max-w-5xl">
-        {/* AC-4 banners */}
-        {isDraft && (
-          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-600" />
-            <div>
-              <div className="font-semibold">Hợp đồng đang ở trạng thái Nháp (DRAFT)</div>
-              <div className="text-amber-800/80 text-xs mt-0.5">
-                Chưa gửi duyệt / chưa có hiệu lực. Kiểm tra nội dung trước khi duyệt.
-              </div>
-            </div>
-          </div>
-        )}
-        {!activated && !isDraft && (
-          <div className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
-            <AlertTriangle size={18} className="shrink-0 mt-0.5 text-orange-600" />
-            <div>
-              <div className="font-semibold">Hợp đồng chưa kích hoạt</div>
-              <div className="text-orange-800/80 text-xs mt-0.5">
-                Trường <code className="text-[11px]">activated</code> = false — phân biệt với trạng thái DRAFT.
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Meta */}
-        <section className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-          <h2 className="text-sm font-semibold text-neutral-800 mb-3">Thông tin chung</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3 text-sm">
-            <Meta label="Nhân sự" value={personName} />
-            <Meta label="Loại HĐ" value={typeLabel} />
-            <Meta label="Hiệu lực từ (effFrom)" value={formatDate(effFrom) || '—'} />
-            <Meta label="Hiệu lực đến (effTo)" value={formatDate(effTo) || '—'} />
-            <Meta
-              label="Giá trị (value)"
-              value={value != null && value !== '' ? formatCurrency(Number(value)) : '—'}
-            />
-            <Meta label="Công ty (Bên A)" value={contract.employerName || '—'} />
-            <Meta label="Địa điểm làm việc" value={contract.workLocation || '—'} />
-            <Meta label="Thử việc (ngày)" value={contract.probationDays ?? '—'} />
-          </div>
-          {contract.rejectReason && (
-            <div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg">
-              <div className="text-xs font-semibold text-rose-700 mb-1 uppercase tracking-wider">
-                Lý do từ chối
-              </div>
-              <div className="text-sm text-rose-900">{contract.rejectReason}</div>
-            </div>
-          )}
-        </section>
-
-        {/* AC-2 htmlContract viewer */}
-        <section className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
-          <div className="px-4 md:px-5 py-3 border-b border-neutral-100 flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-neutral-800 inline-flex items-center gap-2">
-              <FileText size={15} /> Nội dung hợp đồng
-            </h2>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => navigate('/qlns/contract/create')}
+        {/* FR-UX-02 tabs — URL sync ?tab= */}
+        <div className="flex flex-wrap gap-1 border-b border-neutral-200">
+          {(
+            [
+              ['overview', 'Tổng quan'],
+              ['content', 'Nội dung HĐ'],
+            ] as [ContractTab, string][]
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={`px-3 py-2 text-sm font-medium border-b-2 transition ${
+                tab === key
+                  ? 'border-primary-600 text-primary-700'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-900'
+              }`}
             >
-              <Pencil size={13} /> Sửa nội dung
-            </Button>
-          </div>
-          {html ? (
-            <div
-              className="prose prose-sm max-w-none p-4 md:p-6 text-neutral-800 leading-relaxed overflow-x-auto"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
-            />
-          ) : (
-            <div className="p-6">
-              <EmptyState
-                icon={FileText}
-                title="Chưa có nội dung HTML"
-                description="Hợp đồng chưa lưu htmlContract. Soạn nội dung từ màn tạo hợp đồng."
-                action={
-                  <Button onClick={() => navigate('/qlns/contract/create')} className="gap-1.5">
-                    <Pencil size={14} /> Soạn hợp đồng
-                  </Button>
-                }
-              />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'overview' && (
+          <>
+            {/* AC-4 banners */}
+            {isDraft && (
+              <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-600" />
+                <div>
+                  <div className="font-semibold">Hợp đồng đang ở trạng thái Nháp (DRAFT)</div>
+                  <div className="text-amber-800/80 text-xs mt-0.5">
+                    Chưa gửi duyệt / chưa có hiệu lực. Kiểm tra nội dung trước khi duyệt.
+                  </div>
+                </div>
+              </div>
+            )}
+            {!activated && !isDraft && (
+              <div className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
+                <AlertTriangle size={18} className="shrink-0 mt-0.5 text-orange-600" />
+                <div>
+                  <div className="font-semibold">Hợp đồng chưa kích hoạt</div>
+                  <div className="text-orange-800/80 text-xs mt-0.5">
+                    Trường <code className="text-[11px]">activated</code> = false — phân biệt với trạng thái DRAFT.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <section className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
+              <h2 className="text-sm font-semibold text-neutral-800 mb-3">Thông tin chung</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3 text-sm">
+                <Meta label="Nhân sự" value={personName} />
+                <Meta label="Loại HĐ" value={typeLabel} />
+                <Meta label="Hiệu lực từ (effFrom)" value={formatDate(effFrom) || '—'} />
+                <Meta label="Hiệu lực đến (effTo)" value={formatDate(effTo) || '—'} />
+                <Meta
+                  label="Giá trị (value)"
+                  value={value != null && value !== '' ? formatCurrency(Number(value)) : '—'}
+                />
+                <Meta label="Công ty (Bên A)" value={contract.employerName || '—'} />
+                <Meta label="Địa điểm làm việc" value={contract.workLocation || '—'} />
+                <Meta label="Thử việc (ngày)" value={contract.probationDays ?? '—'} />
+              </div>
+              {contract.rejectReason && (
+                <div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg">
+                  <div className="text-xs font-semibold text-rose-700 mb-1 uppercase tracking-wider">
+                    Lý do từ chối
+                  </div>
+                  <div className="text-sm text-rose-900">{contract.rejectReason}</div>
+                </div>
+              )}
+            </section>
+          </>
+        )}
+
+        {tab === 'content' && (
+          <section className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
+            <div className="px-4 md:px-5 py-3 border-b border-neutral-100 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-neutral-800 inline-flex items-center gap-2">
+                <FileText size={15} /> Nội dung hợp đồng
+              </h2>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => navigate('/qlns/contract/create')}
+              >
+                <Pencil size={13} /> Sửa nội dung
+              </Button>
             </div>
-          )}
-        </section>
+            {html ? (
+              <div
+                className="prose prose-sm max-w-none p-4 md:p-6 text-neutral-800 leading-relaxed overflow-x-auto"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
+              />
+            ) : (
+              <div className="p-6">
+                <EmptyState
+                  icon={FileText}
+                  title="Chưa có nội dung HTML"
+                  description="Hợp đồng chưa lưu htmlContract. Soạn nội dung từ màn tạo hợp đồng."
+                  action={
+                    <Button onClick={() => navigate('/qlns/contract/create')} className="gap-1.5">
+                      <Pencil size={14} /> Soạn hợp đồng
+                    </Button>
+                  }
+                />
+              </div>
+            )}
+          </section>
+        )}
       </div>
 
       <AppModal

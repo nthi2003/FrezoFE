@@ -24,7 +24,12 @@ import {
   TransferRequestActionModal, type TransferAction,
 } from './TransferRequestActionModal'
 
-export function TransferRequestsPanel() {
+interface TransferRequestsPanelProps {
+  /** Sang tab Tài sản (lọc Sẵn sàng) để bấm Cấp phát — tạo yêu cầu mới. */
+  onGoCreateRequest?: () => void
+}
+
+export function TransferRequestsPanel({ onGoCreateRequest }: TransferRequestsPanelProps) {
   const [status, setStatus] = useState<'all' | TransferStatus>('PENDING')
   const [search, setSearch] = useState('')
 
@@ -51,8 +56,26 @@ export function TransferRequestsPanel() {
   }
   const closeAction = () => { setTarget(null); setAction(null) }
 
+  const emptyIsPendingDefault = status === 'PENDING' && !search
+
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-neutral-200 bg-neutral-50/80 px-4 py-3 text-sm text-neutral-700">
+        <p className="font-semibold text-neutral-900">Tab này để duyệt phiếu — không tạo yêu cầu mới tại đây.</p>
+        <ol className="mt-2 list-decimal list-inside space-y-1 text-neutral-600">
+          <li>Sang tab <strong>Tài sản</strong>.</li>
+          <li>Chọn tài sản <strong>Sẵn sàng</strong> → bấm <strong>Cấp phát</strong>.</li>
+          <li>Chọn nhân viên nhận → gửi. Phiếu sẽ hiện ở đây với trạng thái <strong>Chờ duyệt</strong>.</li>
+        </ol>
+        {onGoCreateRequest && (
+          <div className="mt-3">
+            <Button onClick={onGoCreateRequest} className="gap-1.5">
+              <ArrowRightLeft size={14} /> Sang tab Tài sản để cấp phát
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* Toolbar */}
       <div className="bg-white rounded-xl border border-neutral-200 p-3 flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[220px]">
@@ -97,11 +120,18 @@ export function TransferRequestsPanel() {
         <div className="bg-white rounded-xl border border-neutral-200">
           <EmptyState
             icon={ClipboardCheck}
-            title="Không có yêu cầu"
+            title={emptyIsPendingDefault ? 'Chưa có yêu cầu chờ duyệt' : 'Không có yêu cầu'}
             description={
-              status !== 'all' || search
-                ? 'Không có yêu cầu nào khớp bộ lọc. Thử bỏ lọc hoặc đổi trạng thái.'
-                : 'Chưa có yêu cầu cấp phát nào. Từ tab Tài sản, chọn 1 asset "Sẵn sàng" và bấm Cấp phát.'
+              emptyIsPendingDefault
+                ? 'Chưa ai gửi phiếu cấp phát. Sang tab Tài sản → chọn tài sản Sẵn sàng → bấm Cấp phát.'
+                : status !== 'all' || search
+                  ? 'Không có yêu cầu nào khớp bộ lọc. Thử bỏ lọc hoặc đổi trạng thái.'
+                  : 'Chưa có yêu cầu cấp phát nào. Từ tab Tài sản, chọn tài sản Sẵn sàng và bấm Cấp phát.'
+            }
+            action={
+              onGoCreateRequest
+                ? { label: 'Sang tab Tài sản để cấp phát', onClick: onGoCreateRequest }
+                : undefined
             }
           />
         </div>

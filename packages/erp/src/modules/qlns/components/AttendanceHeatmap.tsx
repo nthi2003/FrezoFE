@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { formatMinutesDuration } from '@frezo/utils'
 
 interface Props {
   records: any[]
@@ -213,7 +214,7 @@ function getCellLabel(iso: string, record: any, isWeekend: boolean, isFuture: bo
   if (record.checkInTime) parts.push(`Vào: ${record.checkInTime.substring(0, 5)}`)
   if (record.checkOutTime) parts.push(`Ra: ${record.checkOutTime.substring(0, 5)}`)
   if (record.workMinutes) parts.push(`Giờ làm: ${Math.round(record.workMinutes / 60)}h`)
-  if (record.lateMinutes > 0) parts.push(`⚠ Muộn ${record.lateMinutes}p`)
+  if (record.lateMinutes > 0) parts.push(`⚠ Muộn ${formatMinutesDuration(record.lateMinutes)}`)
   if (record.note) parts.push(`Ghi chú: ${record.note}`)
   return parts.join('\n')
 }

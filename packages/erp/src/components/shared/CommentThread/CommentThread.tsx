@@ -6,6 +6,7 @@ import { useRef, useState } from 'react'
 import { MessageSquare, Paperclip, Send, Loader2, X } from 'lucide-react'
 import { Button } from '@frezo/ui'
 import { toast } from 'sonner'
+import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 import { useAuthStore } from '@/stores/authStore'
 import { MentionInput } from './MentionInput'
 import { ActivityFeed } from './ActivityFeed'
@@ -48,6 +49,7 @@ export function CommentThread({
   const [replyTo, setReplyTo] = useState<CommentDto | null>(null)
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { askConfirm, confirmDialog } = useConfirmDialog()
 
   const userComments = items.filter((c) => !c.isSystem && !c.deleted)
   const busy = create.isPending || upload.isPending
@@ -113,6 +115,7 @@ export function CommentThread({
   }
 
   return (
+    <>
     <div className={`flex flex-col h-full min-h-[320px] ${className || ''}`}>
       <div className="flex items-center gap-2 px-1 pb-3 border-b border-neutral-100">
         <MessageSquare size={15} className="text-primary-600" />
@@ -144,7 +147,12 @@ export function CommentThread({
                 onReply={setReplyTo}
                 onEdit={(id, content) => update.mutate({ id, content })}
                 onDelete={(id) => {
-                  if (confirm('Xoá bình luận này?')) remove.mutate(id)
+                  askConfirm({
+                    title: 'Xoá bình luận này?',
+                    message: 'Bình luận sẽ bị xoá và không hoàn tác.',
+                    confirmText: 'Xoá',
+                    onConfirm: () => remove.mutate(id),
+                  })
                 }}
               />
             )}
@@ -242,5 +250,7 @@ export function CommentThread({
         </div>
       </div>
     </div>
+    {confirmDialog}
+    </>
   )
 }

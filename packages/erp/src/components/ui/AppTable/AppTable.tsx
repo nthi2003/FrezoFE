@@ -17,7 +17,7 @@ import {
 import { Skeleton } from '@frezo/ui'
 import notDataImg from '@/img/mas-cost-not-data.png'
 import {
-  ChevronLeft, ChevronRight, Search, Filter, RotateCw, X,
+  ChevronLeft, ChevronRight, Search, Filter, RotateCw, X, Rows3, Rows4,
   type LucideIcon,
 } from 'lucide-react'
 import { Input } from '@frezo/ui'
@@ -97,7 +97,21 @@ export interface AppTableProps<T> {
   bulkActions?: BulkAction<T>[]
   /** Offset trái cho sticky bar khi có sidebar cố định (VD "md:left-64"). */
   bulkBarOffsetLeftClass?: string
+
+  /**
+   * Density hàng (FR-UX-01).
+   * - compact: py-2 / h-9 — mặc định cho list master dày
+   * - comfortable: p-4 / h-12 — mặc định legacy
+   * Truyền `density` cố định; `defaultDensity` + `showDensityToggle` cho EU đổi.
+   */
+  density?: TableDensity
+  /** Density khởi tạo khi có toggle (mặc định compact). */
+  defaultDensity?: TableDensity
+  /** Hiện toggle Compact ↔ Comfortable cạnh filter bar. */
+  showDensityToggle?: boolean
 }
+
+export type TableDensity = 'compact' | 'comfortable'
 
 export function AppTable<T>({
   columns,
@@ -119,6 +133,9 @@ export function AppTable<T>({
   getRowId,
   bulkActions,
   bulkBarOffsetLeftClass,
+  density: densityProp,
+  defaultDensity = 'compact',
+  showDensityToggle = false,
 }: AppTableProps<T>) {
   const safeData = Array.isArray(data) ? data : []
   const colKey = (col: AppTableColumn<T>) => col.key ?? (col.dataIndex as string) ?? col.title
@@ -130,6 +147,13 @@ export function AppTable<T>({
   // Internal states for local pagination
   const [internalPageIndex, setInternalPageIndex] = useState(pageIndex)
   const [internalPageSize, setInternalPageSize] = useState(pageSize)
+  const [densityInternal, setDensityInternal] = useState<TableDensity>(defaultDensity)
+  const density: TableDensity = densityProp ?? densityInternal
+  const isCompact = density === 'compact'
+  const headCellClass = isCompact
+    ? 'h-9 px-3 py-1.5 text-xs font-semibold text-neutral-600'
+    : 'h-12 px-4 font-semibold text-neutral-600'
+  const bodyCellClass = isCompact ? 'px-3 py-2 text-sm' : 'p-4'
 
   // Sync internal pagination with props when props change
   useEffect(() => {
@@ -417,19 +441,58 @@ export function AppTable<T>({
     )
   }
 
+  const DensityToggle = showDensityToggle && !densityProp ? (
+    <div
+      className="inline-flex items-center rounded-lg border border-neutral-200 bg-neutral-50 p-0.5"
+      role="group"
+      aria-label="Mật độ bảng"
+    >
+      <button
+        type="button"
+        onClick={() => setDensityInternal('compact')}
+        className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition ${
+          isCompact
+            ? 'bg-white text-neutral-900 shadow-sm'
+            : 'text-neutral-500 hover:text-neutral-800'
+        }`}
+        title="Compact — nhiều dòng hơn"
+      >
+        <Rows4 size={13} /> Compact
+      </button>
+      <button
+        type="button"
+        onClick={() => setDensityInternal('comfortable')}
+        className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition ${
+          !isCompact
+            ? 'bg-white text-neutral-900 shadow-sm'
+            : 'text-neutral-500 hover:text-neutral-800'
+        }`}
+        title="Comfortable — rộng hơn"
+      >
+        <Rows3 size={13} /> Comfortable
+      </button>
+    </div>
+  ) : null
+
   return (
     <div className="space-y-4">
-      {/* Dynamic Filter Toolbar */}
-      {filterItems.length > 0 && (
-        <div className="p-4 rounded-xl border border-border bg-surface shadow-sm">
+      {/* Dynamic Filter Toolbar — sticky khi scroll (FR-UX-01 / SAP Filter Bar) */}
+      {(filterItems.length > 0 || showDensityToggle) && (
+        <div className="sticky top-0 z-20 p-3 md:p-4 rounded-xl border border-border bg-surface/95 backdrop-blur shadow-sm">
           <div className="flex flex-wrap items-end justify-between gap-4">
             {/* Inline filters */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 flex-1">
-              {inlineItems.map((item) => renderFilterItem(item, false))}
-            </div>
+            {filterItems.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 flex-1">
+                {inlineItems.map((item) => renderFilterItem(item, false))}
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
 
             {/* Actions group */}
-            <div className="flex items-center gap-2 self-end h-9">
+            <div className="flex items-center gap-2 self-end h-9 flex-wrap">
+              {DensityToggle}
+
               {showSearch && (
                 <Button onClick={handleSearchClick} className="gap-1.5 bg-primary-600 hover:bg-primary-700 text-white h-9 px-4">
                   <Search size={15} /> Tìm kiếm
@@ -453,15 +516,17 @@ export function AppTable<T>({
                 </Button>
               )}
 
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleReset}
-                className="gap-1.5 text-neutral-500 hover:text-neutral-900 h-9 px-3"
-              >
-                <RotateCw size={15} />
-                Làm mới
-              </Button>
+              {filterItems.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleReset}
+                  className="gap-1.5 text-neutral-500 hover:text-neutral-900 h-9 px-3"
+                >
+                  <RotateCw size={15} />
+                  Làm mới
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -538,7 +603,7 @@ export function AppTable<T>({
                 <TableHead
                   key={colKey(col)}
                   style={{ width: col.width, textAlign: col.align || 'left' }}
-                  className="font-semibold text-neutral-600"
+                  className={headCellClass}
                 >
                   {col.key === '__check' ? (
                     <input
@@ -595,7 +660,7 @@ export function AppTable<T>({
                     {allColumns.map((col) => {
                       if (col.key === '__check') {
                         return (
-                          <TableCell key="__check" style={{ textAlign: 'center' }}>
+                          <TableCell key="__check" style={{ textAlign: 'center' }} className={bodyCellClass}>
                             <input
                               type="checkbox"
                               className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-300 cursor-pointer"
@@ -612,7 +677,7 @@ export function AppTable<T>({
                       }
                       if (col.key === '__stt') {
                         return (
-                          <TableCell key="__stt" style={{ textAlign: 'center' }}>
+                          <TableCell key="__stt" style={{ textAlign: 'center' }} className={bodyCellClass}>
                             {(displayPageIndex - 1) * displayPageSize + rowIndex + 1}
                           </TableCell>
                         )
@@ -622,6 +687,7 @@ export function AppTable<T>({
                         <TableCell
                           key={colKey(col)}
                           style={{ textAlign: col.align || 'left' }}
+                          className={bodyCellClass}
                         >
                           {col.render
                             ? col.render(value, row, rowIndex)

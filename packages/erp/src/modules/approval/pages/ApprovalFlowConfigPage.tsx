@@ -3,11 +3,12 @@
 // Drag-sort bước đơn giản bằng ▲▼ (không cần dnd lib).
 // ============================================================
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
-  Plus, Pencil, GripVertical, ChevronUp, ChevronDown, Trash2, Workflow,
+  Plus, Pencil, GripVertical, ChevronUp, ChevronDown, Trash2, Workflow, Info,
 } from 'lucide-react'
-import { Button, PageHeader, AppModal, EmptyState } from '@frezo/ui'
+import { Button, PageHeader, AppModal, EmptyState, PageGuideButton } from '@frezo/ui'
 import {
   useApprovalFlows, useCreateApprovalFlow, useUpdateApprovalFlow,
 } from '../hooks/useApprovalFlows'
@@ -20,6 +21,7 @@ import {
   type ApprovalFlowStepTemplate,
 } from '../types'
 import { usePermission } from '@/lib/hooks/usePermission'
+import { APPROVAL_FLOWS_GUIDE } from '../constants/approvals.guide'
 
 const SUBJECT_OPTIONS = Object.values(SubjectType).map((v) => ({
   value: v,
@@ -36,6 +38,15 @@ export function ApprovalFlowConfigPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ApprovalFlowDto | null>(null)
   const [form, setForm] = useState<ApprovalFlowRequest>(emptyForm())
+
+  /** subjectType → flow đang active (runtime gắn đơn). */
+  const activeBySubject = useMemo(() => {
+    const map = new Map<string, ApprovalFlowDto>()
+    for (const f of flows) {
+      if (f.active && f.subjectType) map.set(f.subjectType, f)
+    }
+    return map
+  }, [flows])
 
   const openCreate = () => {
     setEditing(null)
@@ -77,13 +88,33 @@ export function ApprovalFlowConfigPage() {
         title="Cấu hình luồng duyệt"
         description="Gắn luồng duyệt theo loại đơn — đơn chờ sẽ vào Hộp thư duyệt."
         actions={
-          canCreate ? (
-            <Button className="gap-2" onClick={openCreate}>
-              <Plus size={15} /> Tạo luồng mới
-            </Button>
-          ) : undefined
+          <>
+            <PageGuideButton guide={APPROVAL_FLOWS_GUIDE} />
+            {canCreate ? (
+              <Button className="gap-2" onClick={openCreate}>
+                <Plus size={15} /> Tạo luồng mới
+              </Button>
+            ) : null}
+          </>
         }
       />
+
+      <div className="flex gap-2.5 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-2.5 text-sm text-sky-950">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
+        <p className="leading-snug">
+          Đây là chỗ <b>gắn</b> luồng vào loại đơn: chọn <b>Loại đối tượng</b> → sửa bước → tick{' '}
+          <b>Đang kích hoạt</b> → lưu. Badge <b>Áp dụng: Nghỉ phép</b> (hoặc Mua hàng / Lương) = đơn mới đi theo draft đó.
+          Hướng dẫn từng bước:{' '}
+          <Link to="/docs/guide-approval-attach" className="font-semibold underline underline-offset-2 hover:text-sky-800">
+            Gắn luồng duyệt vào nghỉ phép
+          </Link>
+          . Template ở{' '}
+          <Link to="/qtht/workflows" className="font-semibold underline underline-offset-2 hover:text-sky-800">
+            Thiết kế quy trình
+          </Link>
+          {' '}không tự gắn Leave.
+        </p>
+      </div>
 
       {isLoading ? (
         <div className="p-8 text-center text-neutral-500 border rounded-xl bg-white">
@@ -104,6 +135,7 @@ export function ApprovalFlowConfigPage() {
             <FlowCard
               key={f.id}
               flow={f}
+              isRuntimeActive={activeBySubject.get(f.subjectType)?.id === f.id}
               onEdit={canUpdate ? () => openEdit(f) : undefined}
             />
           ))}
@@ -136,11 +168,14 @@ export function ApprovalFlowConfigPage() {
 
 function FlowCard({
   flow,
+  isRuntimeActive,
   onEdit,
 }: {
   flow: ApprovalFlowDto
+  isRuntimeActive: boolean
   onEdit?: () => void
 }) {
+  const subjectLabel = SUBJECT_TYPE_LABEL[flow.subjectType] || flow.subjectType
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-4 flex items-start gap-3 shadow-sm">
       <div className="w-10 h-10 rounded-lg bg-violet-50 text-violet-700 flex items-center justify-center shrink-0">
@@ -156,15 +191,22 @@ function FlowCard({
                 : 'bg-neutral-100 text-neutral-500 border-neutral-200'
             }`}
           >
-            {flow.active ? 'Active' : 'Inactive'}
+            {flow.active ? 'Đang kích hoạt' : 'Tắt'}
           </span>
-          <span className="text-[10px] font-medium text-neutral-500 bg-neutral-50 border border-neutral-200 px-1.5 py-0.5 rounded">
-            {SUBJECT_TYPE_LABEL[flow.subjectType] || flow.subjectType}
-          </span>
+          {isRuntimeActive ? (
+            <span className="text-[10px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+              Áp dụng: {subjectLabel}
+            </span>
+          ) : (
+            <span className="text-[10px] font-medium text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+              Chưa gắn — không tự chạy
+            </span>
+          )}
         </div>
-        {flow.description && (
-          <p className="text-xs text-neutral-500 mt-0.5">{flow.description}</p>
-        )}
+        <p className="text-xs text-neutral-500 mt-0.5">
+          Loại đối tượng: <b className="text-neutral-700">{subjectLabel}</b>
+          {flow.description ? ` · ${flow.description}` : ''}
+        </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {flow.steps
             .slice()
@@ -262,7 +304,7 @@ function FlowForm({
               checked={form.active !== false}
               onChange={(e) => setForm({ ...form, active: e.target.checked })}
             />
-            Đang kích hoạt
+            Đang kích hoạt (áp vào đơn mới cùng loại; tắt các luồng khác cùng loại)
           </label>
         </Field>
       </div>

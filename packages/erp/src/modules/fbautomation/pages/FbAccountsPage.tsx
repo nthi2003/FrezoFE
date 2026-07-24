@@ -3,8 +3,10 @@ import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react'
 import { AppModal, Button, Input } from '@frezo/ui'
 import { FacebookIcon } from '@/components/shared/FacebookIcon'
 import { useFbAccounts, useCreateFbAccount, useUpdateFbAccount, useDeleteFbAccount } from '../hooks/useFbAutomation'
+import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 
 export function FbAccountsPage() {
+  const { askConfirm, confirmDialog } = useConfirmDialog()
   const [modalOpen, setModalOpen] = useState(false)
   const [cookieModalOpen, setCookieModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any | null>(null)
@@ -87,7 +89,18 @@ export function FbAccountsPage() {
                       <Button variant="ghost" size="icon" onClick={() => { setSelectedItem(acc); setModalOpen(true) }}>
                         <Pencil className="w-4 h-4 text-blue-600" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => { if (confirm('Xóa tài khoản này?')) deleteReq.mutate(acc.id) }}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          askConfirm({
+                            title: 'Xóa tài khoản này?',
+                            message: `Tài khoản "${acc.username}" sẽ bị xóa.`,
+                            confirmText: 'Xóa',
+                            onConfirm: () => deleteReq.mutate(acc.id),
+                          })
+                        }
+                      >
                         <Trash2 className="w-4 h-4 text-red-600" />
                       </Button>
                     </div>
@@ -134,6 +147,7 @@ export function FbAccountsPage() {
           </div>
         </form>
       </AppModal>
+      {confirmDialog}
     </div>
   )
 }

@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Plus, ShieldX, ShieldCheck, Server } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
-import { Button } from '@frezo/ui'
+import { Button, ErrorState } from '@frezo/ui'
 import { AppModal } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import * as z from 'zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ipBlacklistApi, ipWhitelistApi, ipTrustApi } from '../services/securityApi'
 import { toast } from 'sonner'
+import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 
 const ipSchema = z.object({
   ipAddress: z.string().min(7, 'IP không hợp lệ'),
@@ -23,11 +24,12 @@ export function SecurityPage() {
   const [tab, setTab] = useState<'blacklist' | 'whitelist' | 'trust'>('blacklist')
   const [modalOpen, setModalOpen] = useState(false)
   const queryClient = useQueryClient()
+  const { askConfirm, confirmDialog } = useConfirmDialog()
   
   // Queries
-  const { data: rawBlacklist, isLoading: loadingB } = useQuery({ queryKey: ['ip_blacklist'], queryFn: () => ipBlacklistApi.getAll(), select: (res: any) => res?.data })
-  const { data: rawWhitelist, isLoading: loadingW } = useQuery({ queryKey: ['ip_whitelist'], queryFn: () => ipWhitelistApi.getAll(), select: (res: any) => res?.data })
-  const { data: rawTrust, isLoading: loadingT } = useQuery({ queryKey: ['ip_trust'], queryFn: () => ipTrustApi.getAll(), select: (res: any) => res?.data })
+  const { data: rawBlacklist, isLoading: loadingB, isError: errB, refetch: refetchB, isFetching: fetchB } = useQuery({ queryKey: ['ip_blacklist'], queryFn: () => ipBlacklistApi.getAll(), select: (res: any) => res?.data })
+  const { data: rawWhitelist, isLoading: loadingW, isError: errW, refetch: refetchW, isFetching: fetchW } = useQuery({ queryKey: ['ip_whitelist'], queryFn: () => ipWhitelistApi.getAll(), select: (res: any) => res?.data })
+  const { data: rawTrust, isLoading: loadingT, isError: errT, refetch: refetchT, isFetching: fetchT } = useQuery({ queryKey: ['ip_trust'], queryFn: () => ipTrustApi.getAll(), select: (res: any) => res?.data })
 
   // Mutations - Blacklist
   const banMutation = useMutation({
@@ -70,12 +72,17 @@ export function SecurityPage() {
       dataIndex: 'id',
       render: (_: any, row: any) => (
         <Button variant="ghost" size="sm" className={tab === 'blacklist' ? "text-green-600" : "text-red-600"} 
-          onClick={() => { 
-            if(confirm('Xóa IP này?')) {
-              if (tab === 'blacklist') unbanMutation.mutate(row.id)
-              if (tab === 'whitelist') unwhiteMutation.mutate(row.id)
-              if (tab === 'trust') untrustMutation.mutate(row.id)
-            }
+          onClick={() => {
+            askConfirm({
+              title: tab === 'blacklist' ? 'Gỡ chặn IP này?' : 'Xóa IP này?',
+              message: `IP ${row.ipAddress || ''} sẽ bị ${tab === 'blacklist' ? 'gỡ chặn' : 'xóa'} khỏi danh sách.`,
+              confirmText: tab === 'blacklist' ? 'Gỡ chặn' : 'Xóa',
+              onConfirm: () => {
+                if (tab === 'blacklist') unbanMutation.mutate(row.id)
+                if (tab === 'whitelist') unwhiteMutation.mutate(row.id)
+                if (tab === 'trust') untrustMutation.mutate(row.id)
+              },
+            })
           }}>
           {tab === 'blacklist' ? 'Gỡ chặn' : 'Xóa'}
         </Button>
@@ -95,6 +102,13 @@ export function SecurityPage() {
              : (rawTrust?.items || rawTrust || [])
 
   const isLoading = tab === 'blacklist' ? loadingB : tab === 'whitelist' ? loadingW : loadingT
+  const isError = tab === 'blacklist' ? errB : tab === 'whitelist' ? errW : errT
+  const isFetching = tab === 'blacklist' ? fetchB : tab === 'whitelist' ? fetchW : fetchT
+  const refetchTab = () => {
+    if (tab === 'blacklist') void refetchB()
+    else if (tab === 'whitelist') void refetchW()
+    else void refetchT()
+  }
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
@@ -123,7 +137,18 @@ export function SecurityPage() {
         </button>
       </div>
 
-      <AppTable data={data} columns={getColumns()} isLoading={isLoading} showSearch searchPlaceholder="Tìm kiếm IP..." onRefresh={handleRefresh} />
+      {isError ? (
+        <div className="border rounded-xl bg-white overflow-hidden">
+          <ErrorState
+            title="Không tải được danh sách IP"
+            message="Kiểm tra kết nối / quyền QTHT rồi thử lại."
+            onRetry={refetchTab}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : (
+        <AppTable data={data} columns={getColumns()} isLoading={isLoading} showSearch searchPlaceholder="Tìm kiếm IP..." onRefresh={handleRefresh} />
+      )}
 
       <AppModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={`Thêm IP vào ${tab}`}>
         <AppForm 
@@ -142,6 +167,7 @@ export function SecurityPage() {
           isLoading={banMutation.isPending || whiteMutation.isPending || trustMutation.isPending} 
         />
       </AppModal>
+      {confirmDialog}
     </div>
   )
 }

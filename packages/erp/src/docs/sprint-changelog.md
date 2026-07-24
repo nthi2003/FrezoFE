@@ -27,6 +27,10 @@ Tóm tắt các sprint FE gần đây (Docs Hub MVP — cập nhật tay khi shi
 - Approval inbox, warehouse reorder/stock alerts.
 - OKR, Performance, Onboarding, Stock Take, Meetings, Email Sequences.
 
+## Notes Plan / FR-UX
+
+- **FR-UX-19** Settings · Định vị chấm công: Leaflet + OpenStreetMap plan view (marker tâm + circle bán kính), live khi đổi lat/lng/radius; EmptyState khi tọa độ trống/invalid. Docs Hub GPS/WiFi giữ nguyên. Không API key.
+
 ## Next steps
 
 - BE seed menu parent/children đầy đủ → bỏ fallback group client.

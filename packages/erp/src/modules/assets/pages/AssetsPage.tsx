@@ -18,6 +18,7 @@ import { useTransferRequests } from '../hooks/useTransferRequest'
 import type { AssetItem, AssetStatus } from '../services/assetApi'
 import { STATUS_META, getCategoryIcon, fmtMoney, fmtDate, daysUntil } from '../constants/assetMeta'
 import { ASSETS_GUIDE } from '../constants/assets.guide'
+import { ASSETS_ASSIGN_GUIDE } from '../constants/assets-assign.guide'
 import { AssetFormModal } from '../components/AssetFormModal'
 import { AssetDetailDrawer } from '../components/AssetDetailDrawer'
 import { AssetAssignModal } from '../components/AssetAssignModal'
@@ -78,6 +79,13 @@ export function AssetsPage() {
   }
   const openAssign = (a: AssetItem) => setAssignAsset(a)
 
+  /** Từ tab Yêu cầu → sang tab Tài sản, sẵn sàng lọc Sẵn sàng để bấm Cấp phát. */
+  const goCreateAssignRequest = () => {
+    setTab('assets')
+    setStatusFilter('AVAILABLE')
+    setSearch('')
+  }
+
   return (
     <div className="p-6 space-y-5 animate-fade-in">
       <PageHeader
@@ -92,11 +100,16 @@ export function AssetsPage() {
         description="Kiểm kê, cấp phát, bảo trì và thanh lý tài sản của doanh nghiệp"
         actions={
           <>
-            <PageGuideButton guide={ASSETS_GUIDE} />
+            <PageGuideButton guide={tab === 'requests' ? ASSETS_ASSIGN_GUIDE : ASSETS_GUIDE} />
             {tab === 'assets' && (
               <Button variant="outline" onClick={() => refetch()} disabled={isFetching} className="gap-1.5">
                 <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
                 Làm mới
+              </Button>
+            )}
+            {tab === 'requests' && (
+              <Button variant="outline" onClick={goCreateAssignRequest} className="gap-1.5">
+                <ArrowRight size={14} /> Gửi yêu cầu cấp phát
               </Button>
             )}
             <Button onClick={openCreate} className="gap-1.5">
@@ -119,9 +132,19 @@ export function AssetsPage() {
       </div>
 
       {tab === 'requests' ? (
-        <TransferRequestsPanel />
+        <TransferRequestsPanel onGoCreateRequest={goCreateAssignRequest} />
       ) : (
         <>
+
+      {statusFilter === 'AVAILABLE' && (
+        <div className="rounded-xl border border-primary-200 bg-primary-50/70 px-4 py-3 text-sm text-primary-900">
+          <p className="font-semibold">Gửi yêu cầu cấp phát</p>
+          <p className="mt-1 text-primary-800/90">
+            Chọn một tài sản <strong>Sẵn sàng</strong> bên dưới → bấm <strong>Cấp phát</strong> trên thẻ
+            (hoặc mở chi tiết → <strong>Cấp phát</strong>) → chọn nhân viên nhận và gửi.
+          </p>
+        </div>
+      )}
 
       {/* KPI strip */}
       {stats && (

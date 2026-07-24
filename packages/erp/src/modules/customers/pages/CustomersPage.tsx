@@ -517,6 +517,8 @@ export function CustomersPage() {
           selectable
           getRowId={(row: any) => String(row.id)}
           bulkActions={bulkActions}
+          defaultDensity="compact"
+          showDensityToggle
         />
       </div>
       ) : null}

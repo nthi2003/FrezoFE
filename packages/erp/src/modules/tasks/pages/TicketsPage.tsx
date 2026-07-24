@@ -27,6 +27,8 @@ import {
   useUpdateTicket,
   useUpdateTicketStatus,
   useDeleteTicket,
+  useActiveTicketCategories,
+  useTicketCategories,
 } from '../hooks/useTicketTag'
 import { ticketSchema } from '../constants/schema'
 import { TICKETS_GUIDE } from '../constants/tickets.guide'
@@ -81,14 +83,6 @@ const STATUS_FORM_OPTIONS = [
   { value: 'CLOSED', label: 'Đã đóng' },
 ]
 
-const CATEGORY_OPTIONS = [
-  { value: '', label: '-- Chọn --' },
-  { value: 'BUG', label: 'Bug' },
-  { value: 'FEATURE_REQUEST', label: 'Feature' },
-  { value: 'SUPPORT', label: 'Hỗ trợ' },
-  { value: 'OTHER', label: 'Khác' },
-]
-
 /** Map BE Ticket.TicketPriority — dùng chung filter + form create/edit */
 const PRIORITY_FORM_OPTIONS = [
   { value: '', label: '-- Chọn --' },
@@ -127,7 +121,15 @@ export function TicketsPage() {
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [priorityFilters, setPriorityFilters] = useState<string[]>([])
+  const [assigneeFilter, setAssigneeFilter] = useState('')
   const [mineOnly, setMineOnly] = useState(false)
+
+  /** FR-UX-16 WIP hint theo cột (soft limit) */
+  const WIP_LIMIT: Record<string, number> = {
+    OPEN: 12,
+    IN_PROGRESS: 6,
+    RESOLVED: 20,
+  }
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'kanban' | 'calendar'>('kanban')
@@ -170,6 +172,36 @@ export function TicketsPage() {
     return m
   }, [personOptions])
 
+  // ---- Danh mục từ master (không hardcode Bug/Feature) ----
+  const { data: activeCategories } = useActiveTicketCategories()
+  const { data: allCategories } = useTicketCategories()
+  const categoryOptions = useMemo(() => {
+    const active = (Array.isArray(activeCategories) ? activeCategories : []) as Array<{
+      code?: string
+      name?: string
+    }>
+    const opts = [
+      { value: '', label: '-- Chọn --' },
+      ...active
+        .filter((c) => c.code)
+        .map((c) => ({ value: c.code as string, label: c.name || c.code || '' })),
+    ]
+    // Ticket cũ có category đã ẩn → vẫn hiện option để không mất giá trị khi sửa
+    const current = selectedItem?.category as string | undefined
+    if (current && !opts.some((o) => o.value === current)) {
+      const all = (Array.isArray(allCategories) ? allCategories : []) as Array<{
+        code?: string
+        name?: string
+      }>
+      const found = all.find((c) => c.code === current)
+      opts.push({
+        value: current,
+        label: found?.name || selectedItem?.categoryName || current,
+      })
+    }
+    return opts
+  }, [activeCategories, allCategories, selectedItem])
+
   // ---- Form ----
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, dirtyFields } } = useForm({
     resolver: zodResolver(ticketSchema),
@@ -199,17 +231,20 @@ export function TicketsPage() {
     [reset],
   )
 
-  // ---- Filter client-side (backend chưa hỗ trợ priority/mine filter) ----
+  // ---- Filter client-side (backend chưa hỗ trợ priority/mine/assignee filter) ----
   const filteredList = useMemo(() => {
     let list: any[] = rawData || []
     if (mineOnly && currentPersonId) {
       list = list.filter((t) => t.assigneeId === currentPersonId)
     }
+    if (assigneeFilter) {
+      list = list.filter((t) => t.assigneeId === assigneeFilter)
+    }
     if (priorityFilters.length > 0) {
       list = list.filter((t) => priorityFilters.includes(t.priority))
     }
     return list
-  }, [rawData, mineOnly, currentPersonId, priorityFilters])
+  }, [rawData, mineOnly, currentPersonId, assigneeFilter, priorityFilters])
 
   const columns = STATUSES.map((s) => ({
     ...s,
@@ -351,13 +386,20 @@ export function TicketsPage() {
     setSearchText('')
     setStatusFilter('')
     setPriorityFilters([])
+    setAssigneeFilter('')
     setMineOnly(false)
     setFromDate('')
     setToDate('')
   }
 
   const hasActiveFilter =
-    !!searchText || !!statusFilter || priorityFilters.length > 0 || mineOnly || !!fromDate || !!toDate
+    !!searchText ||
+    !!statusFilter ||
+    priorityFilters.length > 0 ||
+    !!assigneeFilter ||
+    mineOnly ||
+    !!fromDate ||
+    !!toDate
 
   // ============================================================
   // Render
@@ -468,6 +510,17 @@ export function TicketsPage() {
           >
             <Users size={12} /> Của tôi
           </button>
+          <div className="w-44">
+            <Select
+              options={[
+                { value: '', label: 'Assignee: tất cả' },
+                ...(personOptions || []),
+              ]}
+              value={assigneeFilter}
+              onChange={(val) => setAssigneeFilter(val || '')}
+              placeholder="Assignee"
+            />
+          </div>
           {PRIORITY_FILTER.map((p) => {
             const active = priorityFilters.includes(p.value)
             const Icon = p.icon
@@ -554,19 +607,31 @@ export function TicketsPage() {
                     : 'bg-surface-secondary border-border'
               }`}
             >
-              {/* Column header */}
+              {/* Column header + WIP hint (FR-UX-16) */}
               <div
-                className={`px-4 py-3 border-b font-semibold text-sm flex items-center justify-between rounded-t-xl ${
+                className={`px-3 py-2.5 border-b font-semibold text-sm flex items-center justify-between rounded-t-xl ${
                   dragOverCol === col.key
                     ? 'bg-primary-50 border-primary-200'
                     : `${col.headerBg} border-border`
                 }`}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <div className={`w-2.5 h-2.5 rounded-full ring-2 ring-white shadow-sm ${col.dotColor}`} />
                   <span className={dragOverCol === col.key ? 'text-primary-700' : col.headerText}>
                     {col.label}
                   </span>
+                  {WIP_LIMIT[col.key] != null && (
+                    <span
+                      className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
+                        col.items.length > WIP_LIMIT[col.key]
+                          ? 'bg-warning-light text-warning-dark border-warning/40'
+                          : 'bg-white/70 text-neutral-500 border-neutral-200'
+                      }`}
+                      title={`Gợi ý WIP ≤ ${WIP_LIMIT[col.key]} thẻ`}
+                    >
+                      WIP {col.items.length}/{WIP_LIMIT[col.key]}
+                    </span>
+                  )}
                 </div>
                 <span
                   className={`text-xs font-bold px-2 py-0.5 rounded-md tabular-nums ${
@@ -580,19 +645,24 @@ export function TicketsPage() {
               </div>
 
               {/* Cards */}
-              <div className="flex-1 p-3 space-y-3 overflow-y-auto max-h-[calc(100vh-380px)] custom-scrollbar">
+              <div className="flex-1 p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-380px)] custom-scrollbar">
                 {col.items.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-32 opacity-60">
-                    <LayoutGrid className="w-8 h-8 text-neutral-300 mb-2" strokeWidth={1.5} />
-                    <p className="text-xs text-neutral-400 text-center font-medium">
-                      {dragOverCol === col.key ? 'Thả vào đây' : 'Không có công việc'}
-                    </p>
-                  </div>
+                  <EmptyState
+                    icon={LayoutGrid}
+                    title={dragOverCol === col.key ? 'Thả ticket vào đây' : `Cột «${col.label}» trống`}
+                    description={
+                      dragOverCol === col.key
+                        ? 'Kéo thẻ từ cột khác để đổi trạng thái.'
+                        : 'Không có ticket ở trạng thái này (hoặc đã bị lọc).'
+                    }
+                    className="py-8 border-0 shadow-none bg-transparent"
+                  />
                 ) : (
                   col.items.map((ticket: any) => (
                     <TicketCard
                       key={ticket.id}
                       ticket={ticket}
+                      compact
                       isDragging={draggedId === ticket.id}
                       onClick={() => handleOpenEdit(ticket)}
                       onDragStart={() => onDragStart(ticket.id)}
@@ -668,7 +738,7 @@ export function TicketsPage() {
             <div className="space-y-2">
               <Label>Danh mục</Label>
               <Select
-                options={CATEGORY_OPTIONS}
+                options={categoryOptions}
                 value={formCategory || ''}
                 onChange={(v) => setValue('category', v || '', { shouldDirty: true })}
                 placeholder="Chọn danh mục"

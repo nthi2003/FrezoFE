@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Calculator, CheckCircle, HandCoins, PlusCircle, Plus, Eye,
   Search, X, ChevronLeft, ChevronRight, CalendarDays, FileSpreadsheet,
-  RefreshCw, AlertTriangle, FileText,
+  RefreshCw, AlertTriangle, FileText, Download,
 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import {
@@ -47,6 +47,28 @@ const YEAR_OPTIONS = [CURRENT_YEAR - 2, CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_
   label: `Năm ${y}`,
 }))
 
+function exportSkipCsv(items: CalculateSkippedItem[], periodLabel: string) {
+  const header = ['personName', 'personCode', 'personId', 'reason']
+  const lines = [
+    header.join(','),
+    ...items.map((it) =>
+      [
+        `"${(it.personName || '').replace(/"/g, '""')}"`,
+        `"${(it.personCode || '').replace(/"/g, '""')}"`,
+        `"${(it.personId || '').replace(/"/g, '""')}"`,
+        `"${(it.reason || '').replace(/"/g, '""')}"`,
+      ].join(','),
+    ),
+  ]
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `payroll-skip-${periodLabel.replace(/\s+/g, '_')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 const STATUS_TABS = [
   { key: 'all',       label: 'Tất cả',        toneActive: 'bg-neutral-900 text-white border-neutral-900' },
   { key: 'DRAFT',     label: 'Bản nháp',      toneActive: 'bg-amber-500 text-white border-amber-500' },
@@ -68,6 +90,8 @@ export function PayrollsPage() {
   const [periodMonth, setPeriodMonth] = useState<number>(CURRENT_MONTH)
   const [periodYear, setPeriodYear] = useState<number>(CURRENT_YEAR)
   const [statusTab, setStatusTab] = useState<(typeof STATUS_TABS)[number]['key']>('all')
+  /** FR-UX-08: lọc list «Đã tính» vs «Bị skip» (client từ skipBanner). */
+  const [calcFilter, setCalcFilter] = useState<'calculated' | 'skipped'>('calculated')
   const [searchText, setSearchText] = useState('')
 
   /** Banner sau calculate-all khi có NV skip thiếu HĐ — không im lặng. */
@@ -447,7 +471,25 @@ export function PayrollsPage() {
                 : ' — kích hoạt HĐ rồi tính lại.'}
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {skipBanner.items.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 border-amber-300 text-amber-900 hover:bg-amber-100"
+                onClick={() => exportSkipCsv(skipBanner.items, skipBanner.periodLabel)}
+              >
+                <Download size={13} /> Xuất CSV
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 border-amber-300 text-amber-900 hover:bg-amber-100"
+              onClick={() => setCalcFilter('skipped')}
+            >
+              Xem bị skip
+            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -465,6 +507,66 @@ export function PayrollsPage() {
               <X size={14} />
             </button>
           </div>
+        </div>
+      )}
+
+      {/* FR-UX-08 skip panel khi filter «Bị skip» */}
+      {skipBanner && calcFilter === 'skipped' && (
+        <div className="rounded-xl border border-amber-200 bg-white overflow-hidden">
+          <div className="px-4 py-3 border-b border-amber-100 flex flex-wrap items-center justify-between gap-2 bg-amber-50/60">
+            <div className="text-sm font-semibold text-amber-950">
+              NV bị bỏ qua kỳ {skipBanner.periodLabel} ({skipBanner.items.length})
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                disabled={skipBanner.items.length === 0}
+                onClick={() => exportSkipCsv(skipBanner.items, skipBanner.periodLabel)}
+              >
+                <Download size={13} /> CSV
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setCalcFilter('calculated')}>
+                Về list đã tính
+              </Button>
+            </div>
+          </div>
+          {skipBanner.items.length === 0 ? (
+            <div className="p-4 text-sm text-neutral-500">Không có chi tiết skip từ BE.</div>
+          ) : (
+            <div className="max-h-72 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-neutral-50 text-xs text-neutral-600 sticky top-0">
+                  <tr>
+                    <th className="text-left px-3 py-2 font-semibold">Nhân viên</th>
+                    <th className="text-left px-3 py-2 font-semibold">Mã</th>
+                    <th className="text-left px-3 py-2 font-semibold">Lý do</th>
+                    <th className="text-right px-3 py-2 font-semibold w-28"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {skipBanner.items.map((it, i) => (
+                    <tr key={it.personId || i} className="hover:bg-neutral-50">
+                      <td className="px-3 py-2 font-medium">{it.personName || '—'}</td>
+                      <td className="px-3 py-2 font-mono text-xs text-neutral-500">{it.personCode || '—'}</td>
+                      <td className="px-3 py-2 text-amber-900 text-xs">{it.reason || 'Thiếu HĐ hiệu lực'}</td>
+                      <td className="px-3 py-2 text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-primary-700"
+                          onClick={() => navigate('/qlns/contract')}
+                        >
+                          HĐLĐ
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -622,8 +724,8 @@ export function PayrollsPage() {
         </div>
       )}
 
-      {/* ── Error / Empty / Table ── */}
-      {!isLoading && isError ? (
+      {/* ── Error / Empty / Table (ẩn khi đang xem panel skip) ── */}
+      {calcFilter === 'skipped' && skipBanner ? null : !isLoading && isError ? (
         <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
           <ErrorState
             title="Không tải được bảng lương"

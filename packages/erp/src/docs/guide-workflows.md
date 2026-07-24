@@ -1,45 +1,69 @@
-# Hướng dẫn quy trình duyệt (Workflow)
+# Quy trình duyệt — chọn đúng chỗ
 
-Trang **Thiết kế quy trình** (menu Quản trị hệ thống) dùng để cấu hình **bước duyệt**.  
-User hàng ngày duyệt đơn ở **Hộp thư duyệt**, không phải trang thiết kế.
+Bạn cần **duyệt đơn hôm nay** hay **gắn ai duyệt loại đơn nào**? Hai việc nằm ở hai chỗ khác nhau — đừng nhầm.
 
-## Hai lớp duyệt — chọn đúng chỗ
+## Chọn đúng màn hình
 
-| Lớp | Mục đích | Ai dùng |
-|-----|----------|---------|
-| **Hộp thư duyệt + Luồng duyệt** | Duyệt đơn thật; gắn luồng theo loại đơn | User duyệt + Admin cấu hình |
-| **Thiết kế quy trình** | Vẽ / cấu hình bước duyệt theo module | Admin / HR |
+| Bạn muốn… | Vào đâu |
+|-----------|---------|
+| Duyệt / từ chối đơn đang chờ | Menu **Phê duyệt** → **Hộp thư duyệt** |
+| Gắn luồng duyệt vào Nghỉ phép / Mua hàng / Lương | **Phê duyệt** → **Cấu hình luồng duyệt** |
+| Vẽ / copy template thiết kế (Admin) | **Quản trị hệ thống** → **Thiết kế quy trình** |
 
-**Lưu ý:** Đừng tạo quy trình duyệt thứ hai cho cùng loại nghiệp vụ nếu module đã gắn luồng duyệt. Hỏi BA trước khi nhân đôi luồng.
+**Lưu ý:** Chỉ tài khoản Admin (hoặc vai trò được cấp quyền cấu hình) mới thấy **Cấu hình luồng duyệt** và **Thiết kế quy trình**.
 
-## Cách tạo flow an toàn
+**Quan trọng:** Đơn nghỉ phép / yêu cầu mua / khoá kỳ lương chạy theo luồng **Đang kích hoạt** ở **Cấu hình luồng duyệt**. Trang **Thiết kế quy trình** là thư viện mẫu — **không** tự gắn vào đơn nghỉ.
 
-1. Đọc PageGuide trên trang (nút **Hướng dẫn**) hoặc checklist dưới đây.
-2. Ưu tiên **Copy** quy trình gần giống → đổi mã + tên + chỉnh bước.
-3. Mã `CODE`: chỉ `A-Z`, `0-9`, `_` — ví dụ `LEAVE_MANAGER_THEN_HR`.
-4. Mỗi bước có tên rõ + người duyệt hợp lệ (ROLE/USER phải chọn giá trị).
-5. Bật **Active** chỉ khi đã review xong.
-6. Test bằng 1 đơn thật trên staging trước production.
+## Duyệt đơn hàng ngày (mọi người)
 
-## Checklist trước khi Lưu
+1. Vào menu **Phê duyệt** → **Hộp thư duyệt**.
+2. Mở tab **Chờ duyệt**.
+3. Bấm vào đơn cần xử lý.
+4. Bấm **Duyệt** (có thể thêm ghi chú) hoặc **Từ chối** (nhập lý do rõ ràng).
 
-- [ ] Mã không trùng quy trình khác cùng module
-- [ ] Ít nhất 1 bước; thứ tự đúng nghiệp vụ
-- [ ] USER/ROLE đã chọn người/role tồn tại
-- [ ] Không nhầm với Luồng duyệt nếu module đã dùng Hộp thư duyệt
-- [ ] Đã đọc cảnh báo “cấu hình sai ảnh hưởng duyệt đơn thật”
+**Kết quả:** Đơn biến khỏi danh sách chờ của bạn; người gửi thấy trạng thái mới.
 
-## Screenshot text (layout)
+## Gắn luồng vào Nghỉ phép (Admin)
 
-```
-[PageHeader] Thiết kế quy trình     [Hướng dẫn] [Làm mới] [Thêm quy trình]
-[Toolbar] Tìm kiếm · filter module
-[Cards] nhóm theo module · Sửa / Copy / Xoá
-[Drawer] metadata + steps + Lưu
-```
+Chi tiết từng nút: [Gắn luồng duyệt vào nghỉ phép](/docs/guide-approval-attach).
 
-## Next steps
+Tóm tắt:
 
-- Xem [Bắt đầu](/docs/getting-started) nếu mới vào Frezo.
-- Duyệt đơn: mở **Hộp thư duyệt** trên menu.
-- Gắn luồng theo loại đơn: **Cấu hình luồng duyệt**.
+1. Vào **Phê duyệt** → **Cấu hình luồng duyệt**.
+2. Mở hoặc **Tạo luồng mới** với **Loại đối tượng** = **Nghỉ phép**.
+3. Thêm bước, chọn vai trò duyệt, tick **Đang kích hoạt**, bấm **Cập nhật** / **Tạo mới**.
+4. Trên thẻ luồng: badge **Áp dụng: Nghỉ phép** = đơn nghỉ mới sẽ theo draft này.
+5. Kiểm chứng: tạo đơn nghỉ → mở **Hộp thư duyệt** → đúng số bước đã cấu hình.
+
+## Thiết kế quy trình (Admin — template)
+
+Khi chỉ muốn vẽ / copy mẫu bước duyệt (không phải chỗ gắn Leave):
+
+1. Vào **Quản trị hệ thống** → **Thiết kế quy trình**.
+2. Ưu tiên **Copy** một mẫu gần giống → đổi tên → chỉnh bước.
+3. Bật trạng thái đang dùng trên template nếu cần lưu nháp thiết kế.
+4. Muốn đơn nghỉ thật đi theo bước mới → quay lại **Cấu hình luồng duyệt** và kích hoạt luồng **Nghỉ phép** tương ứng.
+
+## Checklist trước khi kích hoạt Leave
+
+- [ ] Đúng **Loại đối tượng** = Nghỉ phép
+- [ ] Có ít nhất 1 bước; thứ tự đúng thực tế công ty
+- [ ] Mỗi bước đã chọn vai trò có User thật (Quản lý / HR…)
+- [ ] Thẻ hiện badge **Áp dụng: Nghỉ phép**
+- [ ] Đã thử tạo 1 đơn nghỉ và thấy đúng ở Hộp thư duyệt
+
+## Lỗi thường gặp
+
+| Bạn thấy trên màn | Cách xử lý |
+|-------------------|------------|
+| Hộp thư trống nhưng biết có đơn | Kiểm tra bạn có phải bước hiện tại; nhờ Admin xem luồng Leave đang áp dụng |
+| Không thấy nút **Duyệt** | Đơn không chờ bạn, hoặc bạn không phải người duyệt bước này |
+| Sửa Designer nhưng Leave không đổi | Sửa và kích hoạt tại **Cấu hình luồng duyệt** |
+| Báo không có người duyệt khi gửi đơn | Gán User + Role cho bước; xem [Gắn luồng duyệt](/docs/guide-approval-attach) |
+
+## Liên quan
+
+- [Gắn luồng duyệt vào nghỉ phép](/docs/guide-approval-attach)
+- [Hộp thư duyệt](/docs/guide-approval-inbox)
+- [Xin nghỉ phép](/docs/guide-leave)
+- [Bắt đầu](/docs/getting-started)

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Button, PageHeader, EmptyState, AppModal, Input, Label } from '@frezo/ui'
 import { toast } from 'sonner'
+import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 import {
   useAffiliateLinks, useAffiliateDashboard, useCreateAffiliateLink,
   useDeleteAffiliateLink,
@@ -53,6 +54,8 @@ const formatPercent = (v: number | undefined) =>
   v == null ? '—' : (v * 100).toFixed(1) + '%'
 
 export function AffiliatePage() {
+  const { askConfirm, confirmDialog } = useConfirmDialog()
+  const deleteLink = useDeleteAffiliateLink()
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
 
@@ -208,7 +211,19 @@ export function AffiliatePage() {
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
                   {filtered.map((l) => (
-                    <LinkRow key={l.id} link={l} onCopy={copy} />
+                    <LinkRow
+                      key={l.id}
+                      link={l}
+                      onCopy={copy}
+                      onDelete={(link) =>
+                        askConfirm({
+                          title: 'Xoá link này?',
+                          message: `Link ${link.code} sẽ bị xoá.`,
+                          confirmText: 'Xoá',
+                          onConfirm: () => deleteLink.mutate(link.id),
+                        })
+                      }
+                    />
                   ))}
                 </tbody>
               </table>
@@ -221,6 +236,7 @@ export function AffiliatePage() {
       {showCreate && (
         <CreateLinkModal open={showCreate} onClose={() => setShowCreate(false)} />
       )}
+      {confirmDialog}
     </div>
   )
 }
@@ -282,8 +298,15 @@ function TopList({
   )
 }
 
-function LinkRow({ link, onCopy }: { link: AffiliateLink; onCopy: (s: string, hint?: string) => void }) {
-  const del = useDeleteAffiliateLink()
+function LinkRow({
+  link,
+  onCopy,
+  onDelete,
+}: {
+  link: AffiliateLink
+  onCopy: (s: string, hint?: string) => void
+  onDelete: (link: AffiliateLink) => void
+}) {
   return (
     <tr className="hover:bg-neutral-50/50">
       <td className="px-4 py-3">
@@ -342,9 +365,7 @@ function LinkRow({ link, onCopy }: { link: AffiliateLink; onCopy: (s: string, hi
             <Copy size={14} className="text-neutral-600" />
           </button>
           <button
-            onClick={() => {
-              if (confirm(`Xoá link ${link.code}?`)) del.mutate(link.id)
-            }}
+            onClick={() => onDelete(link)}
             className="p-1.5 hover:bg-rose-50 hover:text-rose-600 rounded text-neutral-600"
             title="Xoá"
           >

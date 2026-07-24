@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Button, PageHeader, EmptyState } from '@frezo/ui'
 import { toast } from 'sonner'
+import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 import {
   useFbLeads, useDeleteFbLead, useImportLead, useImportBatchLeads, useAssignFbLead,
 } from '../hooks/useFbAutomation'
@@ -57,6 +58,7 @@ const STATUS_META: Record<
 }
 
 export function FbLeadsPage() {
+  const { askConfirm, confirmDialog } = useConfirmDialog()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   // Deep-link support: khi vào từ notification bell → URL có `?highlight={leadId}`
@@ -442,9 +444,14 @@ export function FbLeadsPage() {
                           )}
                           <button
                             type="button"
-                            onClick={() => {
-                              if (confirm(`Xoá lead "${lead.name}"?`)) deleteReq.mutate(lead.id)
-                            }}
+                            onClick={() =>
+                              askConfirm({
+                                title: 'Xoá lead này?',
+                                message: `Lead "${lead.name}" sẽ bị xoá.`,
+                                confirmText: 'Xoá',
+                                onConfirm: () => deleteReq.mutate(lead.id),
+                              })
+                            }
                             className="p-1.5 rounded-lg text-neutral-500 hover:bg-rose-50 hover:text-rose-600"
                             title="Xoá"
                           >
@@ -479,6 +486,7 @@ export function FbLeadsPage() {
           })}
         />
       )}
+      {confirmDialog}
     </div>
   )
 }

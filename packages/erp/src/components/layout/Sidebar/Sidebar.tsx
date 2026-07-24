@@ -10,117 +10,20 @@ import logoSrc from '@/img/logo.png'
 import {
   ChevronDown,
   ChevronRight,
-  LayoutDashboard,
-  Users,
-  Shield,
-  Menu,
-  Building2,
-  Network,
-  FileText,
-  CheckSquare,
-  Ticket,
-  ShoppingCart,
-  Package,
-  UserCheck,
-  FolderOpen,
-  Settings,
-  Tag,
-  Layers,
-  Warehouse,
-  ClipboardList,
-  Calendar,
-  DollarSign,
   ChevronLeft,
   LogOut,
   User,
   Bell,
-  Mail,
-  Bot,
-  Newspaper,
-  BookOpen,
 } from 'lucide-react'
-import { FacebookIcon } from '@/components/shared/FacebookIcon'
 import { useMenus } from '@/modules/menus/hooks/useMenus'
 import { useAppStore } from '@/stores/appStore'
 import { useAuthStore } from '@/stores/authStore'
 import { resolveAvatarUrl } from '@/modules/auth/utils/resolveAvatarUrl'
+import { getMenuIcon } from '@/modules/menus/utils/menuIcons'
 import type { MenuTreeNode } from '@/modules/menus/types/menu.types'
 
-import type { LucideIcon } from 'lucide-react'
-
-const ICON_MAP: Record<string, LucideIcon> = {
-  dashboard: LayoutDashboard,
-  users: Users,
-  user: User,
-  usercheck: UserCheck,
-  shield: Shield,
-  menu: Menu,
-  building: Building2,
-  network: Network,
-  filetext: FileText,
-  task: CheckSquare,
-  listchecks: CheckSquare,
-  ticket: Ticket,
-  cart: ShoppingCart,
-  shoppingcart: ShoppingCart,
-  package: Package,
-  customer: UserCheck,
-  folder: FolderOpen,
-  settings: Settings,
-  tag: Tag,
-  layers: Layers,
-  warehouse: Warehouse,
-  clipboard: ClipboardList,
-  clipboardlist: ClipboardList,
-  calendar: Calendar,
-  dollar: DollarSign,
-  dollarsign: DollarSign,
-  bot: Bot,
-  // Domain parents (menu_tree_v3) — Lucide PascalCase → lowercase key
-  MENU_HRM: Users,
-  MENU_CRM: UserCheck,
-  MENU_PRODUCT: Package,
-  MENU_WAREHOUSE: Warehouse,
-  MENU_ACCOUNTING: DollarSign,
-  MENU_APPROVAL: ClipboardList,
-  MENU_TASK: CheckSquare,
-  MENU_GROWTH: Bot,
-  MENU_QTHT: Settings,
-  // legacy v2 codes (soft-deleted parents may still appear in cache briefly)
-  MENU_TOOL: CheckSquare,
-  MENU_SALE: ShoppingCart,
-  QTHT: Settings,
-  QLNS: ClipboardList,
-  HRM: Users,
-  CRM: UserCheck,
-  TOOL: CheckSquare,
-  SALE: ShoppingCart,
-  PRODUCT: Package,
-  GROWTH: Bot,
-  APPROVAL: ClipboardList,
-  ACCOUNTING: DollarSign,
-  DMDC: Layers,
-  CUSTOMER: UserCheck,
-  PRODUCT: Package,
-  EMAIL: Mail,
-  QLHT_EMAIL: Mail,
-  EMAIL_GROUP: Users,
-  TASK: CheckSquare,
-  FB: FacebookIcon,
-  FACEBOOK: FacebookIcon,
-  fb: FacebookIcon,
-  automation: Bot,
-  layouttemplate: LayoutDashboard,
-  newspaper: Newspaper,
-  globe: LayoutDashboard,
-  book: BookOpen,
-  bookopen: BookOpen,
-  DEFAULT: FolderOpen,
-}
-
 function getIcon(node: MenuTreeNode) {
-  const iconKey = node.icon?.toLowerCase() || node.code.split('_')[0]
-  return ICON_MAP[iconKey] || ICON_MAP[node.code] || ICON_MAP.DEFAULT
+  return getMenuIcon(node)
 }
 
 /** Normalize path for menu URL matching. */
@@ -184,22 +87,29 @@ function SidebarMenuItem({ node, depth = 0, collapsed }: MenuItemProps) {
     e.currentTarget.blur()
   }
 
-  const indentStyle = depth > 0 ? { paddingLeft: `${12 + depth * 16}px` } : {}
+  const indentStyle =
+    !collapsed && depth > 0 ? { paddingLeft: `${12 + depth * 16}px` } : undefined
 
   const itemClass = selfActive
     ? 'bg-sidebar-active text-sidebar-text-active'
     : 'text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active'
 
+  // Collapsed rail: fixed 40×40 hit-area, icon centered — title tooltip is overlay-only.
+  const railBtnClass = collapsed
+    ? 'w-10 h-10 justify-center p-0 gap-0 shrink-0'
+    : 'w-full gap-3 py-2.5 px-3 text-left'
+
   return (
-    <div>
+    <div className={collapsed ? 'flex justify-center' : undefined}>
       <button
         type="button"
         onClick={handleClick}
         title={collapsed ? node.name : undefined}
         className={`
-          w-full flex items-center gap-3 py-2.5 rounded-lg text-sm font-medium
-          cursor-pointer select-none text-left px-3
+          flex items-center rounded-lg text-sm font-medium
+          cursor-pointer select-none
           focus:outline-none focus-visible:ring-1 focus-visible:ring-sidebar-text-active/40
+          ${railBtnClass}
           ${itemClass}
         `}
         style={indentStyle}
@@ -226,10 +136,6 @@ function SidebarMenuItem({ node, depth = 0, collapsed }: MenuItemProps) {
               </span>
             )}
           </>
-        )}
-
-        {collapsed && selfActive && (
-          <span className="absolute right-2 w-1.5 h-1.5 bg-sidebar-text-active rounded-full" />
         )}
       </button>
 
@@ -316,13 +222,32 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 scrollbar-thin">
+      <nav
+        className={`
+          flex-1 overflow-y-auto scrollbar-thin
+          ${
+            sidebarCollapsed
+              ? 'flex flex-col items-center gap-1.5 py-3 px-0'
+              : 'py-3 px-2 space-y-0.5'
+          }
+        `}
+      >
         {isLoading ? (
-          <div className="space-y-2 px-2 py-4">
+          <div
+            className={
+              sidebarCollapsed
+                ? 'flex flex-col items-center gap-1.5 py-1'
+                : 'space-y-2 px-2 py-4'
+            }
+          >
             {[1, 2, 3, 4].map((i) => (
               <div
                 key={i}
-                className="h-9 bg-sidebar-hover rounded-lg animate-pulse"
+                className={
+                  sidebarCollapsed
+                    ? 'w-10 h-10 bg-sidebar-hover rounded-lg animate-pulse'
+                    : 'h-9 bg-sidebar-hover rounded-lg animate-pulse'
+                }
               />
             ))}
           </div>
@@ -338,7 +263,13 @@ export function Sidebar() {
         )}
       </nav>
 
-      <div className="px-2 pb-1 space-y-0.5">
+      <div
+        className={
+          sidebarCollapsed
+            ? 'flex flex-col items-center gap-1.5 px-0 py-3'
+            : 'px-2 pb-1 space-y-0.5'
+        }
+      >
         <button
           type="button"
           title={sidebarCollapsed ? 'Tài liệu' : undefined}
@@ -346,13 +277,20 @@ export function Sidebar() {
             navigate('/docs')
             e.currentTarget.blur()
           }}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+          className={`
+            flex items-center rounded-lg text-sm font-medium
             focus:outline-none focus-visible:ring-1 focus-visible:ring-sidebar-text-active/40
+            ${
+              sidebarCollapsed
+                ? 'w-10 h-10 justify-center p-0 gap-0 shrink-0'
+                : 'w-full gap-3 px-3 py-2.5 text-left'
+            }
             ${
               docsActive
                 ? 'bg-sidebar-active text-sidebar-text-active'
                 : 'text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active'
-            }`}
+            }
+          `}
         >
           <BookOpen size={16} className="shrink-0" />
           {!sidebarCollapsed && <span className="flex-1 truncate">Tài liệu</span>}
@@ -364,9 +302,16 @@ export function Sidebar() {
             navigate('/notifications')
             e.currentTarget.blur()
           }}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+          className={`
+            flex items-center rounded-lg text-sm font-medium
             text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active
-            focus:outline-none focus-visible:ring-1 focus-visible:ring-sidebar-text-active/40"
+            focus:outline-none focus-visible:ring-1 focus-visible:ring-sidebar-text-active/40
+            ${
+              sidebarCollapsed
+                ? 'w-10 h-10 justify-center p-0 gap-0 shrink-0'
+                : 'w-full gap-3 px-3 py-2.5 text-left'
+            }
+          `}
         >
           <Bell size={16} className="shrink-0" />
           {!sidebarCollapsed && (

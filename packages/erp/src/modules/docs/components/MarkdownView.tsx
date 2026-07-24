@@ -24,7 +24,7 @@ function CodeChip({ text }: { text: string }) {
 function inline(text: string, keyPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = []
   const re =
-    /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g
+    /(`[^`]+`|!\[[^\]]*\]\([^)]+\)|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g
   let last = 0
   let m: RegExpExecArray | null
   let i = 0
@@ -35,6 +35,19 @@ function inline(text: string, keyPrefix: string): ReactNode[] {
     const token = m[0]
     if (token.startsWith('`')) {
       nodes.push(<CodeChip key={`${keyPrefix}-c-${i++}`} text={token.slice(1, -1)} />)
+    } else if (token.startsWith('![')) {
+      const im = /^!\[([^\]]*)\]\(([^)]+)\)$/.exec(token)
+      if (im) {
+        nodes.push(
+          <img
+            key={`${keyPrefix}-img-${i++}`}
+            src={im[2]}
+            alt={im[1] || 'Hình minh họa'}
+            className="my-3 max-w-full rounded-lg border border-neutral-200 shadow-sm"
+            loading="lazy"
+          />,
+        )
+      }
     } else if (token.startsWith('**')) {
       nodes.push(
         <strong key={`${keyPrefix}-b-${i++}`}>{token.slice(2, -2)}</strong>,
@@ -154,6 +167,27 @@ export function MarkdownView({
 
     if (/^---+$/.test(line.trim())) {
       blocks.push(<hr key={key++} className="my-8 border-neutral-200" />)
+      i++
+      continue
+    }
+
+    const imgBlock = /^!\[([^\]]*)\]\(([^)]+)\)$/.exec(line.trim())
+    if (imgBlock) {
+      blocks.push(
+        <figure key={key++} className="my-5">
+          <img
+            src={imgBlock[2]}
+            alt={imgBlock[1] || 'Hình minh họa'}
+            className="max-w-full rounded-xl border border-neutral-200 shadow-sm"
+            loading="lazy"
+          />
+          {imgBlock[1] ? (
+            <figcaption className="mt-2 text-xs text-neutral-500 text-center">
+              {imgBlock[1]}
+            </figcaption>
+          ) : null}
+        </figure>,
+      )
       i++
       continue
     }

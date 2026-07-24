@@ -67,6 +67,27 @@ export interface PageGuideConfig {
   docHref?: string
   /** Video demo (optional) — link youtube/loom. */
   videoHref?: string
+  /**
+   * FR-DOC-04: Markdown body từ BE CMS. Khi có → ưu tiên hiển thị thay steps local.
+   * Thường do {@link registerPageGuideCmsResolver} inject khi mở drawer.
+   */
+  bodyMarkdown?: string
+}
+
+/** Resolve published guide body by slug (vd. guide-qlts). ERP đăng ký ở bootstrap. */
+export type PageGuideCmsResolver = (slug: string) => Promise<string | null>
+
+let pageGuideCmsResolver: PageGuideCmsResolver | null = null
+
+/** ERP gọi 1 lần khi app start để PageGuide ưu tiên body BE theo slug. */
+export function registerPageGuideCmsResolver(resolver: PageGuideCmsResolver | null) {
+  pageGuideCmsResolver = resolver
+}
+
+function slugFromDocHref(docHref?: string): string | null {
+  if (!docHref) return null
+  const m = docHref.match(/\/docs\/([^/?#]+)/)
+  return m?.[1] ? decodeURIComponent(m[1]) : null
 }
 
 // ============================================================
@@ -132,6 +153,8 @@ interface PageGuideDrawerProps {
 }
 
 function PageGuideDrawer({ open, onClose, guide }: PageGuideDrawerProps) {
+  const [cmsBody, setCmsBody] = React.useState<string | null>(guide.bodyMarkdown ?? null)
+
   // ESC to close
   React.useEffect(() => {
     if (!open) return
@@ -159,6 +182,33 @@ function PageGuideDrawer({ open, onClose, guide }: PageGuideDrawerProps) {
       body.style.paddingRight = prevPadding
     }
   }, [open])
+
+  // FR-DOC-04: ưu tiên body BE theo slug từ docHref
+  React.useEffect(() => {
+    if (!open) return
+    if (guide.bodyMarkdown) {
+      setCmsBody(guide.bodyMarkdown)
+      return
+    }
+    const slug = slugFromDocHref(guide.docHref)
+    if (!slug || !pageGuideCmsResolver) {
+      setCmsBody(null)
+      return
+    }
+    let cancelled = false
+    pageGuideCmsResolver(slug)
+      .then((body) => {
+        if (!cancelled) setCmsBody(body)
+      })
+      .catch(() => {
+        if (!cancelled) setCmsBody(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, guide.bodyMarkdown, guide.docHref])
+
+  const preferCms = Boolean(cmsBody && cmsBody.trim())
 
   return (
     <>
@@ -213,9 +263,18 @@ function PageGuideDrawer({ open, onClose, guide }: PageGuideDrawerProps) {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-          {guide.sections.map((section, idx) => (
-            <SectionRenderer key={idx} section={section} />
-          ))}
+          {preferCms ? (
+            <section>
+              <SectionHeading heading="Nội dung hướng dẫn" type="notes" />
+              <div className="mt-3 text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed">
+                {cmsBody}
+              </div>
+            </section>
+          ) : (
+            guide.sections.map((section, idx) => (
+              <SectionRenderer key={idx} section={section} />
+            ))
+          )}
         </div>
 
         {/* Footer */}

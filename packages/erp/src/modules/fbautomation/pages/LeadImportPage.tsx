@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Button, PageHeader, EmptyState, Input, Label } from '@frezo/ui'
 import { toast } from 'sonner'
+import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 import {
   useLeadImportHistory, usePreviewLeadImport, useUploadLeadImport, useRollbackLeadImport,
 } from '../hooks/useMkt'
@@ -42,6 +43,7 @@ Trần Thị B,0912345678,b@example.com,HCM,Báo giá,Cần bảng giá gói doa
 `
 
 export function LeadImportPage() {
+  const { askConfirm, confirmDialog } = useConfirmDialog()
   const navigate = useNavigate()
   const [file, setFile] = useState<File | null>(null)
   const [source, setSource] = useState('MANUAL_IMPORT')
@@ -341,9 +343,13 @@ export function LeadImportPage() {
                       key={b.id}
                       batch={b}
                       onRollback={() => {
-                        if (confirm(`Rollback batch "${b.filename}"? Toàn bộ lead trong batch sẽ bị xoá mềm.`)) {
-                          rollbackMut.mutate(b.id)
-                        }
+                        askConfirm({
+                          title: 'Rollback batch?',
+                          message: `Batch "${b.filename}" — toàn bộ lead trong batch sẽ bị xoá mềm.`,
+                          confirmText: 'Rollback',
+                          variant: 'warning',
+                          onConfirm: () => rollbackMut.mutate(b.id),
+                        })
                       }}
                     />
                   ))}
@@ -353,6 +359,7 @@ export function LeadImportPage() {
           </div>
         </div>
       </div>
+      {confirmDialog}
     </div>
   )
 }

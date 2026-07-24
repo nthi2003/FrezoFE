@@ -40,6 +40,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import axiosClient from '@/lib/axios/axiosClient'
+import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 import {
   Button,
   Input,
@@ -840,6 +841,7 @@ function PreviewTab() {
 
 function ArticlesTab() {
   const navigate = useNavigate()
+  const { askConfirm, confirmDialog } = useConfirmDialog()
   const { data: rawData, isLoading } = useArticles()
   const updateReq = useUpdateArticle()
   const deleteReq = useDeleteArticle()
@@ -975,9 +977,14 @@ function ArticlesTab() {
             variant="ghost"
             size="icon"
             title="Xoá"
-            onClick={() => {
-              if (confirm(`Xoá bài viết "${row.title}"?`)) deleteReq.mutate(row.id)
-            }}
+            onClick={() =>
+              askConfirm({
+                title: 'Xoá bài viết?',
+                message: `Bài viết "${row.title}" sẽ bị xoá.`,
+                confirmText: 'Xoá',
+                onConfirm: () => deleteReq.mutate(row.id),
+              })
+            }
           >
             <Trash2 size={16} className="text-red-500" />
           </Button>
@@ -1070,6 +1077,7 @@ function ArticlesTab() {
           />
         </div>
       )}
+      {confirmDialog}
     </div>
   )
 }
@@ -1079,6 +1087,7 @@ function ArticlesTab() {
 // ============================================================
 
 function BannersTab() {
+  const { askConfirm, confirmDialog } = useConfirmDialog()
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any | null>(null)
   const [defaultPosition, setDefaultPosition] = useState<string>('hero')
@@ -1311,10 +1320,14 @@ function BannersTab() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
-                                if (confirm(`Xoá banner "${banner.title}"?`))
-                                  deleteReq.mutate(banner.id)
-                              }}
+                              onClick={() =>
+                                askConfirm({
+                                  title: 'Xoá banner?',
+                                  message: `Banner "${banner.title}" sẽ bị xoá.`,
+                                  confirmText: 'Xoá',
+                                  onConfirm: () => deleteReq.mutate(banner.id),
+                                })
+                              }
                               className="w-7 h-7 rounded-md bg-white/95 text-red-600 hover:bg-white flex items-center justify-center"
                               title="Xoá"
                             >
@@ -1390,6 +1403,7 @@ function BannersTab() {
           submitText={selectedItem ? 'Cập nhật' : 'Thêm mới'}
         />
       </AppModal>
+      {confirmDialog}
     </>
   )
 }
@@ -1430,6 +1444,7 @@ const MENU_SEED_ITEMS = [
 // ============================================================
 
 export function WebsiteManagementPage() {
+  const { askConfirm, confirmDialog } = useConfirmDialog()
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['key']>('config')
   const [seeding, setSeeding] = useState(false)
 
@@ -1455,9 +1470,8 @@ export function WebsiteManagementPage() {
     }
   }, [articles, banners, config])
 
-  const handleSeedMenu = useCallback(async () => {
+  const runSeedMenu = useCallback(async () => {
     if (seeding) return
-    if (!confirm('Seed lại menu website vào hệ thống?')) return
     setSeeding(true)
     let ok = 0
     let fail = 0
@@ -1473,6 +1487,17 @@ export function WebsiteManagementPage() {
     setSeeding(false)
     toast.success(`Đã seed ${ok} menu, ${fail} lỗi (có thể do trùng code — bỏ qua nếu đã tồn tại).`)
   }, [seeding])
+
+  const handleSeedMenu = useCallback(() => {
+    if (seeding) return
+    askConfirm({
+      title: 'Seed lại menu website?',
+      message: 'Thao tác sẽ ghi menu website vào hệ thống (trùng code sẽ bỏ qua).',
+      confirmText: 'Seed menu',
+      variant: 'warning',
+      onConfirm: () => runSeedMenu(),
+    })
+  }, [askConfirm, runSeedMenu, seeding])
 
   const openLanding = () => window.open(LANDING_URL, '_blank', 'noopener,noreferrer')
 
@@ -1578,6 +1603,7 @@ export function WebsiteManagementPage() {
         {activeTab === 'articles' && <ArticlesTab />}
         {activeTab === 'banners'  && <BannersTab />}
       </div>
+      {confirmDialog}
     </div>
   )
 }

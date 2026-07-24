@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Clock, LogIn, LogOut, MapPin, Wifi, AlertTriangle, CheckCircle2, Sparkles } from 'lucide-react'
 import { Button } from '@frezo/ui'
+import { formatMinutesDuration } from '@frezo/utils'
 import { useCheckIn, useCheckOut, useMyTodayAttendance } from '../hooks/useAttendance'
 
 interface Props {
@@ -186,7 +187,7 @@ export function AttendanceTodayCard({
             {lateMinutes > 0 && (
               <InfoChip
                 icon={<AlertTriangle size={12} />}
-                label={`Muộn ${lateMinutes} phút so với giờ chuẩn`}
+                label={`Muộn ${formatMinutesDuration(lateMinutes)} so với giờ chuẩn`}
                 tone="danger"
               />
             )}

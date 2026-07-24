@@ -3,11 +3,12 @@ import { unwrapList } from '@frezo/utils'
 import { taskApi, ticketApi, tagApi } from '../services/taskApi'
 import { toast } from 'sonner'
 
-export function useTasks(params?: any) {
+export function useTasks(params?: any, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['tasks', params],
     queryFn: () => taskApi.getAll(params),
     select: unwrapList,
+    enabled: options?.enabled ?? true,
   })
 }
 

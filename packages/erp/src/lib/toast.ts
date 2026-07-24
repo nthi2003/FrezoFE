@@ -12,7 +12,10 @@ type ApiErrorLike =
       response?: {
         data?: {
           message?: string
+          /** Legacy / alias field một số API cũ. */
+          mess?: string
           errorKey?: string
+          messageCode?: string
           error?: string
         }
       }
@@ -21,9 +24,17 @@ type ApiErrorLike =
   | Error
   | unknown
 
+/** Key i18n dạng `a.b.c` — không dùng làm copy UI khi thiếu message đã resolve. */
+function looksLikeI18nKey(value: string): boolean {
+  const v = value.trim()
+  if (!v || /\s/.test(v)) return false
+  return /^[a-zA-Z][\w.-]*\.[a-zA-Z][\w.-]*$/.test(v)
+}
+
 /**
  * Extract message từ lỗi API (AppException, Axios, generic Error).
- * Ưu tiên: response.data.message → response.data.error → err.message → fallback.
+ * Ưu tiên message đã resolve từ BE (`message` / `mess`) — không lookup i18n lại từ messageCode.
+ * Đặc biệt với `*.code.exist*` / `*.code.exists*`: trả nguyên `mess`/`message` từ API.
  */
 export function extractApiErrorMessage(
   err: ApiErrorLike,
@@ -33,16 +44,44 @@ export function extractApiErrorMessage(
   if (typeof err === 'string') return err
 
   const anyErr = err as any
-  const fromResponse =
-    anyErr?.response?.data?.message ??
-    anyErr?.response?.data?.error ??
-    anyErr?.response?.data?.errorKey
-  if (typeof fromResponse === 'string' && fromResponse.trim()) {
-    return fromResponse
+  const data = anyErr?.response?.data as
+    | {
+        message?: string
+        mess?: string
+        error?: string
+        errorKey?: string
+        messageCode?: string
+      }
+    | undefined
+
+  const messageCode = typeof data?.messageCode === 'string' ? data.messageCode.trim() : ''
+  const errorKey = typeof data?.errorKey === 'string' ? data.errorKey.trim() : ''
+
+  // Ưu tiên message/mess đã resolve. Nếu BE trả nhầm key vào message (== messageCode) thì bỏ qua.
+  const candidates = [data?.message, data?.mess, data?.error]
+  for (const raw of candidates) {
+    if (typeof raw !== 'string' || !raw.trim()) continue
+    const text = raw.trim()
+    const isUnresolvedKey =
+      looksLikeI18nKey(text) &&
+      (text === messageCode || text === errorKey || /\.code\.exists?$/i.test(text))
+    if (isUnresolvedKey) continue
+    return text
+  }
+
+  // Không toast messageCode/errorKey thô (vd. validate.code.exist) — dùng fallback
+  for (const raw of [errorKey, messageCode]) {
+    if (raw && !looksLikeI18nKey(raw)) {
+      return raw
+    }
   }
 
   if (typeof anyErr?.message === 'string' && anyErr.message.trim()) {
-    return anyErr.message
+    const m = anyErr.message.trim()
+    // Axios default "Request failed with status code 400" → fallback
+    if (!/^Request failed with status code \d+$/i.test(m) && !looksLikeI18nKey(m)) {
+      return m
+    }
   }
 
   return fallback

@@ -3,11 +3,14 @@
 // QueryClient, Router, Toast notifications
 // ============================================================
 
+import { useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'sonner'
+import { registerPageGuideCmsResolver } from '@frezo/ui'
 import { router } from './router'
 import { AuthProfileSync } from '@/modules/auth/components/AuthProfileSync'
+import { resolvePublishedGuideBody } from '@/modules/docs/services/docsRegistry'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,9 +25,18 @@ const queryClient = new QueryClient({
   },
 })
 
+function PageGuideCmsBootstrap() {
+  useEffect(() => {
+    registerPageGuideCmsResolver(resolvePublishedGuideBody)
+    return () => registerPageGuideCmsResolver(null)
+  }, [])
+  return null
+}
+
 export function AppProviders() {
   return (
     <QueryClientProvider client={queryClient}>
+      <PageGuideCmsBootstrap />
       <AuthProfileSync />
       <RouterProvider router={router} />
       <Toaster

@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Plus, Trash2, Pencil, Send, Users, Mail, X, Copy } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
-import { AppModal } from '@frezo/ui'
-import { Button } from '@frezo/ui'
+import { AppModal, Button, ErrorState } from '@frezo/ui'
 import { Input } from '@frezo/ui'
 import { Label } from '@frezo/ui'
 import { useForm } from 'react-hook-form'
@@ -15,6 +14,7 @@ import {
   useDeleteEmailGroup,
   useSendTestEmail,
 } from '../hooks/useEmail'
+import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 
 const groupSchema = z.object({
   name: z.string().min(1, 'Tên nhóm không được để trống'),
@@ -22,6 +22,7 @@ const groupSchema = z.object({
 })
 
 export function EmailGroupsPage() {
+  const { askConfirm, confirmDialog } = useConfirmDialog()
   const [modalOpen, setModalOpen] = useState(false)
   const [sendModalOpen, setSendModalOpen] = useState(false)
   const [sendGroupId, setSendGroupId] = useState<string | null>(null)
@@ -32,7 +33,7 @@ export function EmailGroupsPage() {
   const [newEmail, setNewEmail] = useState('')
   const [emailError, setEmailError] = useState('')
 
-  const { data, isLoading, refetch } = useEmailGroups()
+  const { data, isLoading, isError, refetch, isFetching } = useEmailGroups()
   const createReq = useCreateEmailGroup()
   const updateReq = useUpdateEmailGroup()
   const deleteReq = useDeleteEmailGroup()
@@ -139,7 +140,19 @@ export function EmailGroupsPage() {
           <Button variant="ghost" size="sm" onClick={() => openSend(row)} title="Gửi email cho nhóm">
             <Send className="w-3.5 h-3.5 text-primary-600" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => { if (confirm('Xóa nhóm này?')) deleteReq.mutate(row.id) }} title="Xóa">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              askConfirm({
+                title: 'Xóa nhóm này?',
+                message: `Nhóm "${row.name || ''}" sẽ bị xóa.`,
+                confirmText: 'Xóa',
+                onConfirm: () => deleteReq.mutate(row.id),
+              })
+            }
+            title="Xóa"
+          >
             <Trash2 className="w-3.5 h-3.5 text-red-500" />
           </Button>
         </div>
@@ -162,14 +175,24 @@ export function EmailGroupsPage() {
         </Button>
       </div>
 
-      <AppTable
-        columns={columns}
-        data={dataList}
-        isLoading={isLoading}
-        showSearch
-        searchPlaceholder="Tìm kiếm nhóm email..."
-        onRefresh={refetch}
-      />
+      {isError ? (
+        <div className="border rounded-xl bg-white overflow-hidden">
+          <ErrorState
+            title="Không tải được nhóm email"
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : (
+        <AppTable
+          columns={columns}
+          data={dataList}
+          isLoading={isLoading}
+          showSearch
+          searchPlaceholder="Tìm kiếm nhóm email..."
+          onRefresh={refetch}
+        />
+      )}
 
       {/* Create/Edit Modal */}
       <AppModal
@@ -262,6 +285,7 @@ export function EmailGroupsPage() {
           </div>
         </div>
       </AppModal>
+      {confirmDialog}
     </div>
   )
 }

@@ -36,3 +36,17 @@ export const tagApi = {
   delete: (id: string) => axiosClient.delete<ApiResponse<any>>(`/task/tag/${id}`).then(res => res.data),
   getAll: (params?: any) => axiosClient.get<ApiResponse<any>>('/task/tag', { params }).then(res => res.data),
 }
+
+/** Master danh mục Ticket (FR-TASK-CAT) — thay hardcode Bug/Feature. */
+export const ticketCategoryApi = {
+  create: (data: any) =>
+    axiosClient.post<ApiResponse<any>>('/task/ticket-category', data).then((res) => res.data),
+  update: (id: string, data: any) =>
+    axiosClient.put<ApiResponse<any>>(`/task/ticket-category/${id}`, data).then((res) => res.data),
+  delete: (id: string) =>
+    axiosClient.delete<ApiResponse<any>>(`/task/ticket-category/${id}`).then((res) => res.data),
+  getAll: () =>
+    axiosClient.get<ApiResponse<any>>('/task/ticket-category').then((res) => res.data),
+  getActive: () =>
+    axiosClient.get<ApiResponse<any>>('/task/ticket-category/active').then((res) => res.data),
+}

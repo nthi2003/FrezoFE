@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import {
   AppModal, Button, Input, Label, PageHeader, PageGuideButton,
-  StatusBadge, type PageGuideConfig,
+  StatusBadge, ConfirmDialog, type PageGuideConfig,
 } from '@frezo/ui'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -98,6 +98,7 @@ export function RolesPage() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<RoleDTO | null>(null)
   const [cloneTarget, setCloneTarget] = useState<RoleDTO | null>(null)
+  const [pendingRoleSwitch, setPendingRoleSwitch] = useState<RoleDTO | null>(null)
 
   // ---- Permission matrix state ----
   const [selectedMenus, setSelectedMenus] = useState<Set<string>>(new Set())
@@ -540,7 +541,10 @@ export function RolesPage() {
                     selected={selectedRole?.code === role.code && selectedRole?.appCode === role.appCode}
                     dirty={dirty && selectedRole?.code === role.code}
                     onSelect={() => {
-                      if (dirty && !confirm('Bạn có thay đổi chưa lưu. Chuyển sang role khác sẽ mất thay đổi. Tiếp tục?')) return
+                      if (dirty) {
+                        setPendingRoleSwitch(role)
+                        return
+                      }
                       setSelectedRole(role)
                     }}
                     onEdit={() => handleOpenEdit(role)}
@@ -822,6 +826,20 @@ export function RolesPage() {
           </div>
         </div>
       </AppModal>
+
+      <ConfirmDialog
+        isOpen={!!pendingRoleSwitch}
+        onClose={() => setPendingRoleSwitch(null)}
+        onConfirm={() => {
+          if (pendingRoleSwitch) setSelectedRole(pendingRoleSwitch)
+          setPendingRoleSwitch(null)
+          setDirty(false)
+        }}
+        title="Bạn có thay đổi chưa lưu"
+        message="Chuyển sang role khác sẽ mất thay đổi chưa lưu. Tiếp tục?"
+        confirmText="Bỏ thay đổi & chuyển"
+        variant="warning"
+      />
 
       {/* ==================== Delete Confirm ==================== */}
       <AppModal

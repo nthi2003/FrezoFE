@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { Button } from '@frezo/ui'
+import { toast } from 'sonner'
 import { FacebookIcon } from '@/components/shared/FacebookIcon'
 import { useFbGroups, useDeleteFbGroup, useJoinFbGroup, useFbAccounts } from '../hooks/useFbAutomation'
 
@@ -24,7 +25,7 @@ export function FbGroupsPage() {
   const accList = accounts || []
 
   const handleJoin = (groupId: string) => {
-    if (!accountId) { alert('Vui lòng chọn tài khoản trước'); return }
+    if (!accountId) { toast.error('Vui lòng chọn tài khoản trước'); return }
     joinReq.mutate({ accountId, groupId })
   }
 

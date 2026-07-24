@@ -13,6 +13,11 @@ import {
 import { useCreatePoFromPr } from '../hooks/usePurchaseOrder'
 import { ApprovalTimeline } from '@/modules/approval/components/ApprovalTimeline'
 import { SubjectType } from '@/modules/approval/types'
+import {
+  StatusPipelineStepper,
+  PR_PIPELINE,
+  prStepIndex,
+} from '../components/StatusPipelineStepper'
 
 const STATUS_TONE: Record<string, string> = {
   DRAFT: 'bg-neutral-100 text-neutral-700 border-neutral-200',
@@ -153,6 +158,40 @@ export function PurchaseRequestDetailPage() {
               </Link>
             )}
           </div>
+        }
+      />
+
+      {/* FR-UX-15 pipeline */}
+      <StatusPipelineStepper
+        steps={PR_PIPELINE}
+        currentIndex={prStepIndex(status)}
+        showInboxLink={pending}
+        nextCta={
+          isDraft
+            ? {
+                label: 'Bước kế: Gửi duyệt',
+                onClick: () => setSubmitConfirmOpen(true),
+                disabled: submit.isPending,
+                loading: submit.isPending,
+              }
+            : isApproved
+              ? {
+                  label: 'Bước kế: Tạo PO',
+                  onClick: () =>
+                    createPo.mutate(pr.id, {
+                      onSuccess: (po) =>
+                        nav(
+                          po?.id
+                            ? `/warehouse/purchase-orders/${po.id}`
+                            : '/warehouse/purchase-orders',
+                        ),
+                    }),
+                  disabled: createPo.isPending,
+                  loading: createPo.isPending,
+                }
+              : pending
+                ? { label: 'Mở Hộp thư duyệt', href: '/approval/inbox' }
+                : null
         }
       />
 

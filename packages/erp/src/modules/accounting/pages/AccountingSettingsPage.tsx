@@ -1,12 +1,22 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Sparkles, Save, RotateCw, CalendarRange } from 'lucide-react'
-import { Button, PageHeader } from '@frezo/ui'
+import { Button, PageHeader, Select, Label } from '@frezo/ui'
 import {
   useAccountingSetting, useUpdateSetting, useSeedCoa, useEnsureYear,
 } from '../hooks/useAccounting'
 import type { AccountingStandard } from '../services/accountingApi'
 import { usePermission } from '@/lib/hooks/usePermission'
+
+const STANDARD_OPTIONS = [
+  { value: 'TT133', label: 'TT 133/2016 — Doanh nghiệp nhỏ và vừa' },
+  { value: 'TT99', label: 'TT 99/2025 — Áp dụng chung (thay thế TT 200)' },
+]
+
+const CURRENCY_OPTIONS = [
+  { value: 'VND', label: 'VND' },
+  { value: 'USD', label: 'USD' },
+]
 
 const STRATEGY_OPTIONS = [
   { value: 'AGGREGATE_PERIOD', label: '1 bút toán tổng hợp / kỳ (Recommended)' },
@@ -71,43 +81,47 @@ export function AccountingSettingsPage() {
       <section className="rounded-xl border border-neutral-200 bg-white p-6 space-y-4">
         <h3 className="text-base font-semibold text-neutral-900">Chuẩn kế toán</h3>
         <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="text-sm font-medium text-neutral-700 mb-1 block">
-              Thông tư áp dụng
-            </label>
-            <select
-              className="w-full border rounded-md px-3 py-2 text-sm"
+          <div className="space-y-1.5">
+            <Label htmlFor="acc-setting-standard">Thông tư áp dụng</Label>
+            <Select
+              id="acc-setting-standard"
+              options={STANDARD_OPTIONS}
               value={form.standard}
-              onChange={(e) => setForm({ ...form, standard: e.target.value as AccountingStandard })}
-            >
-              <option value="TT133">TT 133/2016 — Doanh nghiệp nhỏ và vừa</option>
-              <option value="TT99">TT 99/2025 — Áp dụng chung (thay thế TT 200)</option>
-            </select>
+              onChange={(v) =>
+                setForm({ ...form, standard: (v as AccountingStandard) || 'TT133' })
+              }
+              placeholder="Chọn thông tư…"
+              showSearch={false}
+              aria-label="Thông tư áp dụng"
+            />
           </div>
-          <div>
-            <label className="text-sm font-medium text-neutral-700 mb-1 block">Tiền tệ</label>
-            <select
-              className="w-full border rounded-md px-3 py-2 text-sm"
+          <div className="space-y-1.5">
+            <Label htmlFor="acc-setting-currency">Tiền tệ</Label>
+            <Select
+              id="acc-setting-currency"
+              options={CURRENCY_OPTIONS}
               value={form.baseCurrency}
-              onChange={(e) => setForm({ ...form, baseCurrency: e.target.value })}
-            >
-              <option value="VND">VND</option>
-              <option value="USD">USD</option>
-            </select>
+              onChange={(v) => setForm({ ...form, baseCurrency: v || 'VND' })}
+              placeholder="Chọn tiền tệ…"
+              showSearch={false}
+              aria-label="Tiền tệ"
+            />
           </div>
-          <div className="md:col-span-2">
-            <label className="text-sm font-medium text-neutral-700 mb-1 block">
+          <div className="md:col-span-2 space-y-1.5">
+            <Label htmlFor="acc-setting-payroll-strategy">
               Chiến lược hạch toán bảng lương
-            </label>
-            <select
-              className="w-full border rounded-md px-3 py-2 text-sm"
+            </Label>
+            <Select
+              id="acc-setting-payroll-strategy"
+              options={STRATEGY_OPTIONS}
               value={form.payrollPostingStrategy}
-              onChange={(e) => setForm({ ...form, payrollPostingStrategy: e.target.value })}
-            >
-              {STRATEGY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+              onChange={(v) =>
+                setForm({ ...form, payrollPostingStrategy: v || 'AGGREGATE_PERIOD' })
+              }
+              placeholder="Chọn chiến lược…"
+              showSearch={false}
+              aria-label="Chiến lược hạch toán bảng lương"
+            />
           </div>
         </div>
       </section>
@@ -195,4 +209,3 @@ export function AccountingSettingsPage() {
     </div>
   )
 }
-

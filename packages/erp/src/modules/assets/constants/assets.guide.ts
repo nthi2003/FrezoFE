@@ -1,38 +1,37 @@
 import type { PageGuideConfig } from '@frezo/ui'
 
 /**
- * Hướng dẫn in-app cho /admin/qlts (Quản lý tài sản)
- * Docs Hub: /docs/guide-qlts
+ * Hướng dẫn in-app — Quản lý tài sản (giọng EU, khớp /docs/guide-qlts)
  */
 export const ASSETS_GUIDE: PageGuideConfig = {
-  title: 'Quản lý tài sản (QLTS)',
+  title: 'Quản lý tài sản',
   subtitle:
-    'Kiểm kê inventory, tạo yêu cầu cấp phát qua workflow, duyệt từng bước rồi xác nhận bàn giao — tài sản mới chuyển IN_USE.',
+    'Thêm tài sản, gửi yêu cầu cấp phát, duyệt từng bước rồi bàn giao — tài sản chuyển Đang dùng.',
   docHref: '/docs/guide-qlts',
   sections: [
     {
       type: 'steps',
-      heading: 'Quy trình chuẩn',
+      heading: 'Cấp phát tài sản',
       steps: [
         {
-          title: 'Tạo tài sản',
+          title: 'Thêm tài sản',
           description:
-            'Bấm "Thêm tài sản" — nhập mã, tên, loại (danh mục LoaiTaiSan), giá trị và bảo hành. Asset ở trạng thái Sẵn sàng mới cấp phát được.',
+            'Bấm Thêm tài sản — nhập mã, tên, loại, giá trị. Chỉ tài sản Sẵn sàng mới cấp phát được.',
         },
         {
-          title: 'Cấp phát — chọn Person',
+          title: 'Cấp phát cho nhân viên',
           description:
-            'Trên card/drawer asset Sẵn sàng, bấm Cấp phát. Chọn nhân viên nhận, ngày dự kiến và lý do. Hệ thống tạo ticket PENDING — không assign trực tiếp.',
+            'Mở tài sản Sẵn sàng → bấm Cấp phát → chọn nhân viên nhận, ngày và lý do → gửi. Yêu cầu ở trạng thái Chờ duyệt.',
         },
         {
-          title: 'Duyệt theo workflow',
+          title: 'Duyệt yêu cầu',
           description:
-            'Tab "Yêu cầu cấp phát": từng bước duyệt lấy từ Workflow Definition (module ASSET / code ASSET_TRANSFER*). Người duyệt hiển thị theo role/user trên stepper.',
+            'Tab Yêu cầu cấp phát: người được phân duyệt bấm Duyệt hoặc Từ chối theo từng bước trên phiếu.',
         },
         {
-          title: 'Bàn giao → IN_USE',
+          title: 'Bàn giao → Đang dùng',
           description:
-            'Sau khi đủ bước duyệt, xác nhận bàn giao. Chỉ lúc này tài sản chuyển Đang dùng và gắn người giữ.',
+            'Khi đủ bước duyệt, bấm xác nhận Bàn giao. Tài sản chuyển Đang dùng và gắn người giữ.',
         },
       ],
     },
@@ -40,26 +39,27 @@ export const ASSETS_GUIDE: PageGuideConfig = {
       type: 'tips',
       heading: 'Mẹo dùng nhanh',
       tips: [
-        'Cấu hình ai duyệt ở Thiết kế quy trình — lọc module ASSET (thường code ASSET_TRANSFER_DEFAULT). Đổi bước/role ở đó, QLTS tự theo khi tạo ticket mới.',
-        'Tab "Yêu cầu cấp phát" có badge số PENDING — ưu tiên xử lý ticket chờ trước khi tạo thêm.',
-        'Trong lúc ticket chờ duyệt, asset vẫn Sẵn sàng và không tạo được ticket cấp phát trùng cho cùng tài sản.',
+        'Ai duyệt được cấu hình ở Thiết kế quy trình (phần Tài sản) — chỉ Admin/vai trò cấu hình.',
+        'Tab Yêu cầu cấp phát ưu tiên xử lý phiếu Chờ duyệt trước khi tạo thêm.',
+        'Đang có yêu cầu chưa xong thì không tạo thêm yêu cầu cấp phát cho cùng tài sản.',
       ],
     },
     {
       type: 'links',
       heading: 'Liên quan',
       links: [
-        { label: 'Tài liệu đầy đủ (Docs Hub)', href: '/docs/guide-qlts' },
+        { label: 'Hướng dẫn đầy đủ', href: '/docs/guide-qlts' },
+        { label: 'Yêu cầu cấp phát', href: '/docs/guide-asset-assign' },
         { label: 'Khấu hao định kỳ', href: '/assets/depreciation' },
         { label: 'Hướng dẫn khấu hao', href: '/docs/guide-depreciation' },
-        { label: 'Cấu hình Workflow (module ASSET)', href: '/qtht/workflows' },
+        { label: 'Thiết kế quy trình', href: '/qtht/workflows' },
       ],
     },
     {
       type: 'notes',
       heading: 'Phạm vi hiện tại',
       notes:
-        'Luồng cấp phát (ASSIGN) đã gắn Workflow Engine. Thu hồi (RETURN) qua /unassign có thể vẫn bypass WF — chờ Product chốt trước khi FE đổi. Permission seed mới (nếu có) do SA/BE — FE chỉ ẩn nút khi key đã tồn tại trong codebase.',
+        'Luồng cấp phát đã gắn duyệt theo bước. Thu hồi tài sản về kho đang chờ Product chốt — hỏi quản lý kho / Admin nếu cần thu hồi tạm thời.',
     },
   ],
 }

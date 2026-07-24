@@ -1,33 +1,23 @@
-# Cấu hình chấm công GPS / WiFi (Admin)
+# Cấu hình chấm công GPS / WiFi
 
-Trang **QTHT → Cài đặt → Định vị chấm công** chỉ dành cho **Admin**. Nhân viên Mobile check-in theo rule đã lưu — cấu hình sai sẽ bị từ chối điểm danh.
+Để nhân viên điểm danh đúng văn phòng (theo vị trí hoặc WiFi công ty), Admin thiết lập một lần tại **Cài đặt**. Cấu hình sai sẽ khiến app Mobile từ chối check-in.
 
-## Ai được cấu hình
+**Lưu ý:** Chỉ tài khoản Admin (hoặc vai trò được cấp quyền cấu hình) mới thấy / thao tác được bước này.
 
-| Vai trò | Được làm |
-|---------|----------|
-| Admin / QTHT settings | Sửa toạ độ văn phòng, bán kính, SSID/BSSID |
-| HR / Manager thường | Chỉ xem báo cáo chấm công — **không** sửa geo |
-| Nhân viên Mobile | Check-in trong bán kính **hoặc** khớp WiFi |
+## Làm việc chính
 
-## Các bước Admin
+1. Vào menu **Quản trị hệ thống** → **Cài đặt**.
+2. Mở phần / tab **Định vị**.
+3. Nhập **vĩ độ** và **kinh độ** của văn phòng (tâm vùng cho phép).
+4. Đặt **bán kính (m)** — thường 100–500m tuỳ diện tích.
+5. (Tuỳ chọn) Điền **WiFi** công ty; thêm địa chỉ thiết bị phát sóng nếu cần chắc chắn hơn.
+6. Xem **bản đồ vùng cho phép** (tâm + vòng bán kính) cập nhật khi đổi tọa độ/bán kính; đọc thêm khung **xem trước quy tắc** — kiểm tra bán kính và tên mạng.
+7. Bấm **Lưu** → nhờ một máy Mobile thử check-in trong và ngoài bán kính.
 
-1. Mở **Quản trị hệ thống → Cài đặt** → tab / section **Định vị**.
-2. Nhập **vĩ độ / kinh độ** văn phòng (tâm geofence).
-3. Đặt **bán kính (m)** — khuyến nghị 100–500m tuỳ diện tích.
-4. (Tuỳ chọn) Thêm **WiFi SSID** công ty, cách nhau dấu phẩy; BSSID nếu cần chống giả mạo.
-5. Xem **Preview rule check-in** ngay dưới form — xác nhận r/SSID trước khi Lưu.
-6. Lưu → nhờ 1 máy Mobile test check-in trong/ngoài bán kính.
-
-## Checklist trước khi Lưu
-
-- [ ] Toạ độ đúng văn phòng (không để 0,0)
-- [ ] Bán kính không quá hẹp (tránh từ chối ngoài cửa) cũng không quá rộng
-- [ ] Nếu bắt buộc WiFi: SSID khớp đúng tên mạng công ty trên điện thoại
-- [ ] Đã test Mobile 1 lần trong và ngoài bán kính
+**Kết quả:** Nhân viên đứng đúng chỗ / đúng WiFi sẽ check-in được; đứng ngoài vùng sẽ bị từ chối rõ ràng trên app.
 
 ## Khi Mobile bị từ chối
 
-1. Admin mở lại Preview — kiểm tra bán kính / SSID.
-2. Nhân viên bật GPS (và WiFi nếu rule yêu cầu).
-3. Không nhờ nhân viên «đoán» — chỉnh config Admin trước.
+1. Admin mở lại **Định vị** — kiểm tra bán kính và tên WiFi trên khung xem trước.
+2. Nhân viên bật định vị (và WiFi nếu công ty yêu cầu).
+3. Chỉnh cấu hình Admin trước — không bảo nhân viên “đoán” vị trí.

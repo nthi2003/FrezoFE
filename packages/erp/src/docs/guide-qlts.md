@@ -1,48 +1,51 @@
-# Hướng dẫn Quản lý tài sản (QLTS)
+# Quản lý tài sản
 
-Trang **Quản lý tài sản** — kiểm kê, cấp phát và theo dõi trạng thái tài sản doanh nghiệp.
-
-## Luồng cấp phát (happy path)
-
-1. **Tạo tài sản** — nút **Thêm tài sản** trên PageHeader. Loại lấy từ danh mục `LoaiTaiSan`.
-2. **Cấp phát** — asset **Sẵn sàng** → Cấp phát → chọn **Person** + lý do → gửi yêu cầu (ticket `PENDING`).
-3. **Duyệt workflow** — tab **Yêu cầu cấp phát**. Các bước / người duyệt lấy từ Workflow Definition module **ASSET** (thường `ASSET_TRANSFER_DEFAULT`).
-4. **Bàn giao** — sau khi đủ bước duyệt, xác nhận bàn giao → asset **IN_USE**.
-
-## Ai duyệt?
-
-Không hardcode Admin/HR trên màn QLTS. Cấu hình tại **Thiết kế quy trình** → lọc module **ASSET**.
-
-Code thường gặp: `ASSET_TRANSFER_DEFAULT` (loại yêu cầu: cấp phát / điều chuyển).
-
-Stepper trên ticket đọc bước duyệt khi ticket đã gắn quy trình.
+Để thêm tài sản vào sổ, cấp phát cho nhân viên và theo dõi trạng thái — làm theo các bước dưới đây.
 
 ## Hai tab trên trang
 
 | Tab | Việc làm |
-|--|--|
-| **Tài sản** | Grid/Bảng, KPI, tạo/sửa, mở cấp phát |
-| **Yêu cầu cấp phát** | Filter status, duyệt / từ chối / bàn giao, theo dõi stepper |
+|-----|----------|
+| **Tài sản** | Xem danh sách, thêm / sửa, bấm **Cấp phát** |
+| **Yêu cầu cấp phát** | Duyệt, từ chối, xác nhận **Bàn giao** |
 
-## Khấu hao định kỳ
+## Cấp phát tài sản (việc chính)
 
-Sau khi tài sản có giá mua, mở drawer tài sản → tab **Khấu hao** → **Sinh lịch**.
+> Chi tiết từng bước gửi / duyệt: [Yêu cầu cấp phát tài sản](/docs/guide-asset-assign).
 
-Ghi sổ theo tháng tại **Khấu hao định kỳ**: chọn kỳ → **Xem trước** → **Ghi sổ**.
+1. Vào menu **Tài sản** → **Quản lý tài sản**.
+2. Bấm **Thêm tài sản** — điền mã, tên, loại, giá trị (và bảo hành nếu có) → lưu.
+3. Ở tab **Tài sản** (không phải tab **Yêu cầu cấp phát**): chỉ tài sản **Sẵn sàng** mới cấp phát được → bấm **Cấp phát**.
+4. Chọn **nhân viên nhận**, ngày dự kiến và lý do → gửi yêu cầu.
+5. Mở tab **Yêu cầu cấp phát** (hoặc **Hộp thư duyệt**) — người được phân duyệt bấm **Duyệt** (hoặc **Từ chối**) từng bước.
+6. Khi đủ bước duyệt, bấm xác nhận **Bàn giao**.
 
-Chi tiết luồng: [Khấu hao tài sản](/docs/guide-depreciation).
+**Kết quả:** Tài sản chuyển sang **Đang dùng** và gắn người đang giữ.
 
-## Screenshot text (layout)
+## Ai được duyệt cấp phát?
 
-```
-[PageHeader] Quản lý tài sản     [Hướng dẫn] [Làm mới] [Thêm tài sản]
-[Tabs] Tài sản | Yêu cầu cấp phát (badge PENDING)
-[KPI] Tổng · Đang dùng · Sẵn sàng · Bảo trì · BH · Giá trị
-[Toolbar] Search · loại · status chips · Grid/Bảng
-[Content] cards / table  hoặc  list ticket + WorkflowStepper
-```
+Không cố định một chức danh trên màn này.
 
-## Next steps / ngoài scope FE
+**Lưu ý:** Chỉ tài khoản Admin (hoặc vai trò được cấp quyền cấu hình) mới sửa được bước duyệt tại **Quản trị hệ thống** → **Thiết kế quy trình** (lọc phần liên quan **Tài sản**).
 
-- Thu hồi qua WF RETURN (đổi `/unassign`) — chờ Product.
-- Permission seed mới — SA/BE; FE chỉ `usePermission` với key đã có trong codebase.
+## Sinh lịch khấu hao trên từng tài sản
+
+1. Mở tài sản đã có **giá mua**.
+2. Vào tab **Khấu hao**.
+3. Bấm **Sinh lịch** → chọn số tháng.
+
+Sau đó ghi sổ theo tháng tại **Khấu hao TSCĐ** — xem [Khấu hao tài sản](/docs/guide-depreciation).
+
+## Lỗi thường gặp
+
+| Bạn thấy trên màn | Cách xử lý |
+|-------------------|------------|
+| Không bấm được **Cấp phát** | Tài sản chưa **Sẵn sàng**, hoặc đang có yêu cầu cấp phát chưa xong |
+| Yêu cầu ở **Chờ duyệt** lâu | Nhắc đúng người duyệt bước hiện tại (xem thanh bước trên phiếu) |
+| Không thấy nút **Bàn giao** | Chưa đủ bước duyệt — hoàn tất duyệt trước |
+| Không thấy nút **Thêm tài sản** | Chưa có quyền — nhờ Admin cấp quyền |
+
+## Câu hỏi thường gặp
+
+**Thu hồi tài sản về kho?**  
+Luồng thu hồi chuẩn đang được Product chốt. Tạm thời hỏi quản lý kho / Admin cách xử lý nội bộ công ty.

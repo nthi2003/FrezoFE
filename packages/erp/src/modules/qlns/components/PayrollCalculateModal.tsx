@@ -18,7 +18,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Calculator, Loader2, CheckCircle2, AlertTriangle, Users, Wallet,
-  ArrowRight, X, Sparkles, Clock, FileText,
+  ArrowRight, X, Sparkles, Clock, FileText, Download,
 } from 'lucide-react'
 import { Button, AppModal } from '@frezo/ui'
 
@@ -489,14 +489,48 @@ function ResultStage({
                 Cần kích hoạt / tạo hợp đồng ACTIVE trước khi tính lại cho các NV này.
               </div>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5 shrink-0 border-amber-300 text-amber-900 hover:bg-amber-100"
-              onClick={goContracts}
-            >
-              <FileText size={13} /> Quản lý HĐLĐ
-            </Button>
+            <div className="flex gap-1.5 shrink-0">
+              {displaySkips.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 border-amber-300 text-amber-900 hover:bg-amber-100"
+                  onClick={() => {
+                    const header = ['personName', 'personCode', 'personId', 'reason']
+                    const lines = [
+                      header.join(','),
+                      ...displaySkips.map((it) =>
+                        [
+                          `"${(it.personName || '').replace(/"/g, '""')}"`,
+                          `"${(it.personCode || '').replace(/"/g, '""')}"`,
+                          `"${(it.personId || '').replace(/"/g, '""')}"`,
+                          `"${(it.reason || '').replace(/"/g, '""')}"`,
+                        ].join(','),
+                      ),
+                    ]
+                    const blob = new Blob(['\uFEFF' + lines.join('\n')], {
+                      type: 'text/csv;charset=utf-8',
+                    })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `payroll-skip-${periodLabel.replace(/\s+/g, '_')}.csv`
+                    a.click()
+                    URL.revokeObjectURL(url)
+                  }}
+                >
+                  <Download size={13} /> CSV
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 shrink-0 border-amber-300 text-amber-900 hover:bg-amber-100"
+                onClick={goContracts}
+              >
+                <FileText size={13} /> Quản lý HĐLĐ
+              </Button>
+            </div>
           </div>
           {displaySkips.length > 0 ? (
             <div className="max-h-48 overflow-y-auto bg-white/60">

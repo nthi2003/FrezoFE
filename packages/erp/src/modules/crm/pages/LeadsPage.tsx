@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Plus, Search, ArrowRight, Trash2, Users } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Plus, Search, ArrowRight, Trash2, Users, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button, PageHeader, AppModal, BulkSelectionBar, ConfirmDialog,
@@ -24,7 +24,10 @@ const STATUS_TABS: Array<{ key: LeadStatus | 'ALL'; label: string; tone: string 
   { key: 'CONVERTED', label: 'Đã convert', tone: 'bg-emerald-600' },
 ]
 
+const LEAD_PATH: LeadStatus[] = ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED']
+
 export function LeadsPage() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const statusFromUrl = searchParams.get('status')?.toUpperCase() as LeadStatus | undefined
   const initialStatus: LeadStatus | 'ALL' =
@@ -32,6 +35,7 @@ export function LeadsPage() {
       ? statusFromUrl
       : 'ALL'
   const [status, setStatus] = useState<LeadStatus | 'ALL'>(initialStatus)
+  const [pathLead, setPathLead] = useState<Lead | null>(null)
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [confirmBulk, setConfirmBulk] = useState<Lead[] | null>(null)
@@ -87,6 +91,42 @@ export function LeadsPage() {
         title="Leads"
         description="Khách hàng tiềm năng — theo dõi và convert thành cơ hội bán hàng (Deal)."
       />
+
+      {/* FR-UX-12 Lead→Deal path */}
+      <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
+        <div className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">
+          Path Lead → Deal
+        </div>
+        <div className="flex flex-wrap items-center gap-1">
+          {LEAD_PATH.map((step, idx) => {
+            const active =
+              pathLead?.status === step ||
+              (status !== 'ALL' && status === step) ||
+              (!pathLead && status === 'ALL' && idx === 0)
+            const label = STATUS_TABS.find((t) => t.key === step)?.label || step
+            return (
+              <div key={step} className="flex items-center gap-1">
+                {idx > 0 && <ArrowRight size={12} className="text-neutral-300 mx-0.5" />}
+                <button
+                  type="button"
+                  onClick={() => setStatus(step)}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold border transition ${
+                    active
+                      ? 'bg-primary-600 text-white border-primary-600'
+                      : 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100'
+                  }`}
+                >
+                  {step === 'CONVERTED' && active ? <Check size={12} /> : null}
+                  {label}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+        <p className="text-xs text-neutral-500 mt-2">
+          Chọn lead còn mở → Convert để tạo Deal (prefill) rồi mở Pipeline Kanban.
+        </p>
+      </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[260px] max-w-md">
@@ -181,7 +221,12 @@ export function LeadsPage() {
                       aria-label={`Chọn lead ${l.fullName}`}
                     />
                   </td>
-                  <td className="p-3 font-medium">{l.fullName}</td>
+                  <td
+                    className="p-3 font-medium cursor-pointer hover:text-primary-700"
+                    onClick={() => setPathLead(l)}
+                  >
+                    {l.fullName}
+                  </td>
                   <td className="p-3 text-neutral-700">{l.companyName || '—'}</td>
                   <td className="p-3 text-neutral-600">
                     {l.phone && <div>📞 {l.phone}</div>}
@@ -256,12 +301,19 @@ export function LeadsPage() {
           if (!convertTarget) return
           convert.mutate(
             { id: convertTarget.id },
-            { onSuccess: () => setConvertTarget(null) },
+            {
+              onSuccess: (deal: any) => {
+                setConvertTarget(null)
+                setPathLead(null)
+                const dealId = deal?.id || deal?.data?.id
+                navigate(dealId ? `/crm/deals?dealId=${dealId}` : '/crm/deals')
+              },
+            },
           )
         }}
-        title="Convert lead thành Deal?"
-        message={`Lead "${convertTarget?.fullName || ''}" sẽ chuyển thành Deal.`}
-        confirmText="Convert"
+        title="Tạo Deal từ Lead?"
+        message={`Lead "${convertTarget?.fullName || ''}" sẽ convert thành Deal (prefill) và mở Pipeline.`}
+        confirmText="Tạo Deal"
         cancelText="Huỷ"
         variant="default"
         isLoading={convert.isPending}

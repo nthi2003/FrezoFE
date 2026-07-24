@@ -65,8 +65,7 @@ const TYPE_LABEL: Record<string, string> = Object.fromEntries(
 
 const ARTICLES_GUIDE: PageGuideConfig = {
   title: 'Quản lý Bài viết',
-  subtitle:
-    'Đăng, chỉnh sửa và phân phối tin tức nội bộ, thông báo hay bài blog cho toàn hệ thống.',
+  subtitle: 'Tạo nháp, gửi duyệt rồi xuất bản tin nội bộ. Hệ thống tự cấp mã bài.',
   docHref: '/docs/guide-articles',
   sections: [
     {
@@ -74,19 +73,19 @@ const ARTICLES_GUIDE: PageGuideConfig = {
       type: 'steps',
       steps: [
         {
-          title: 'Nhấn "Thêm mới" để tạo bài viết',
+          title: 'Bấm Thêm mới',
           description:
-            'Điền tiêu đề bắt buộc, tóm tắt hiển thị ngoài trang danh sách, và nội dung chi tiết. Chọn loại bài + trạng thái (Bản nháp / Xuất bản / Lưu trữ).',
+            'Nhập tiêu đề và nội dung (bắt buộc). Có thể thêm tóm tắt, ảnh đại diện, người duyệt.',
         },
         {
-          title: 'Đính kèm ảnh đại diện',
+          title: 'Lưu nháp',
           description:
-            'Dán URL ảnh vào ô "URL Ảnh đại diện" — hệ thống sẽ hiển thị preview trong card. Nên dùng ảnh 16:9 (tỉ lệ 1200×675) để hiển thị đẹp.',
+            'Bấm Lưu nháp — hệ thống tự cấp mã bài. Bạn không cần (và không sửa được) mã.',
         },
         {
-          title: 'Xuất bản khi sẵn sàng',
+          title: 'Gửi duyệt → Duyệt → Xuất bản',
           description:
-            'Đổi trạng thái sang "Đã xuất bản" và lưu — bài sẽ xuất hiện trên landing công khai và inbox nội bộ.',
+            'Người viết bấm Gửi duyệt. Người duyệt bấm Duyệt (hoặc Từ chối), rồi Xuất bản khi bài Đã duyệt.',
         },
       ],
     },
@@ -94,28 +93,15 @@ const ARTICLES_GUIDE: PageGuideConfig = {
       heading: 'Mẹo sử dụng',
       type: 'tips',
       tips: [
-        'Dùng bộ lọc trạng thái ở đầu trang để tách nháp / đã xuất bản, tránh xóa nhầm bài đang chạy.',
-        'Chuyển "Chế độ Card" khi cần preview hình ảnh; "Chế độ Bảng" khi cần bulk edit.',
-        'Nhấn Enter trong ô tìm kiếm để tìm theo tiêu đề, tóm tắt, tác giả.',
+        'Lọc theo trạng thái để tách nháp / chờ duyệt / đã xuất bản.',
+        'Không thấy nút Duyệt hoặc Xuất bản → bạn không phải người duyệt của bài đó.',
+        'Soát chính tả và ảnh trước khi Xuất bản.',
       ],
     },
     {
-      heading: 'Phím tắt',
-      type: 'shortcuts',
-      shortcuts: [
-        { keys: ['N'], label: 'Thêm bài mới' },
-        { keys: ['/'], label: 'Focus vào ô tìm kiếm' },
-        { keys: ['Esc'], label: 'Đóng modal / drawer' },
-      ],
-    },
-    {
-      heading: 'Lưu ý quan trọng',
-      type: 'notes',
-      notes: (
-        <>
-          Bài viết ở trạng thái <strong>Đã xuất bản</strong> sẽ được index trên trang public — hãy soát chính tả và bản quyền ảnh trước khi đổi trạng thái. Sau khi lưu trữ, bài không hiện ngoài landing nhưng vẫn giữ trong hệ thống.
-        </>
-      ),
+      heading: 'Liên quan',
+      type: 'links',
+      links: [{ label: 'Hướng dẫn đầy đủ', href: '/docs/guide-articles' }],
     },
   ],
 }
