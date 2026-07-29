@@ -1,5 +1,6 @@
 export { ReorderRulesPage } from './pages/ReorderRulesPage'
 export { StockAlertsPage } from './pages/StockAlertsPage'
+export { WarehouseDashboardPage } from './pages/WarehouseDashboardPage'
 export { GoodsReceiptNotesPage } from './pages/GoodsReceiptNotesPage'
 export { GoodsReceiptNoteDetailPage } from './pages/GoodsReceiptNoteDetailPage'
 export { GoodsIssueNotesPage } from './pages/GoodsIssueNotesPage'

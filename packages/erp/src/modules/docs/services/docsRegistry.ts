@@ -1,10 +1,9 @@
 // ============================================================
-// Docs Hub registry — API + cache + fallback markdown local
-// FR-DOC-04
+// Docs Hub registry — BE Guide API + localStorage cache
+// FR-DOC-04 (không còn fallback markdown /src/docs)
 // ============================================================
 
 import { unwrapList, unwrapOne } from '@frezo/utils'
-import { DOCS, EU_DOCS, getDocBySlug, type DocMeta } from '@/docs'
 import { guideApi, type GuideDetail, type GuideSummary } from './guideApi'
 import {
   getCachedGuideBody,
@@ -14,13 +13,19 @@ import {
   setCachedPublishedList,
 } from './guideCache'
 
-export type DocsSource = 'api' | 'cache' | 'local'
+export type DocsSource = 'api' | 'cache'
 
-export interface ResolvedDoc extends DocMeta {
+export interface ResolvedDoc {
+  slug: string
+  title: string
+  description: string
+  order: number
+  body: string
+  audience?: 'eu' | 'it'
   source: DocsSource
 }
 
-function summaryToDoc(s: GuideSummary, body = ''): ResolvedDoc {
+function summaryToDoc(s: GuideSummary, source: DocsSource, body = ''): ResolvedDoc {
   return {
     slug: s.slug,
     title: s.title,
@@ -28,39 +33,21 @@ function summaryToDoc(s: GuideSummary, body = ''): ResolvedDoc {
     order: s.sortOrder ?? 99,
     body,
     audience: 'eu',
-    source: 'api',
+    source,
   }
 }
 
-function localAsResolved(d: DocMeta): ResolvedDoc {
-  return { ...d, source: 'local' }
+export function mapPublishedList(remote: GuideSummary[], source: DocsSource): ResolvedDoc[] {
+  return remote
+    .map((s) => summaryToDoc(s, source))
+    .sort((a, b) => a.order - b.order)
 }
 
-/** Merge API list với local fallback theo slug; ưu tiên API order/title/summary. */
-export function mergeDocsWithLocal(
-  remote: GuideSummary[],
-  source: DocsSource,
-): ResolvedDoc[] {
-  const bySlug = new Map<string, ResolvedDoc>()
-
-  for (const local of EU_DOCS) {
-    bySlug.set(local.slug, localAsResolved(local))
-  }
-
-  for (const s of remote) {
-    const local = getDocBySlug(s.slug)
-    bySlug.set(s.slug, {
-      slug: s.slug,
-      title: s.title || local?.title || s.slug,
-      description: s.summary || local?.description || '',
-      order: s.sortOrder ?? local?.order ?? 99,
-      body: local?.body ?? '',
-      audience: 'eu',
-      source,
-    })
-  }
-
-  return [...bySlug.values()].sort((a, b) => a.order - b.order)
+/** Breadcrumb / label từ cache CMS (sau khi Hub đã load). */
+export function getDocTitleBySlug(slug: string): string | undefined {
+  const body = getCachedGuideBody(slug)
+  if (body?.title) return body.title
+  return getCachedPublishedList()?.find((g) => g.slug === slug)?.title
 }
 
 export async function fetchHubDocs(): Promise<{
@@ -74,20 +61,17 @@ export async function fetchHubDocs(): Promise<{
     const res = await guideApi.listPublished()
     const list = unwrapList<GuideSummary>(res)
     setCachedPublishedList(list)
-    return { docs: mergeDocsWithLocal(list, 'api'), source: 'api' }
+    return { docs: mapPublishedList(list, 'api'), source: 'api' }
   } catch (err: any) {
+    const message = err?.response?.data?.message || err?.message
     if (cached && cached.length > 0) {
       return {
-        docs: mergeDocsWithLocal(cached, 'cache'),
+        docs: mapPublishedList(cached, 'cache'),
         source: 'cache',
-        error: err?.response?.data?.message || err?.message,
+        error: message,
       }
     }
-    return {
-      docs: EU_DOCS.map(localAsResolved),
-      source: 'local',
-      error: err?.response?.data?.message || err?.message,
-    }
+    throw err
   }
 }
 
@@ -103,8 +87,6 @@ export async function revalidateHubDocsIfStale() {
 }
 
 export async function resolveDocBySlug(slug: string): Promise<ResolvedDoc | null> {
-  const local = getDocBySlug(slug)
-
   try {
     const res = await guideApi.getPublishedBySlug(slug)
     const detail = unwrapOne<GuideDetail>(res)
@@ -112,9 +94,9 @@ export async function resolveDocBySlug(slug: string): Promise<ResolvedDoc | null
       setCachedGuideBody(detail)
       return {
         slug: detail.slug,
-        title: detail.title || local?.title || slug,
-        description: detail.summary || local?.description || '',
-        order: detail.sortOrder ?? local?.order ?? 99,
+        title: detail.title || slug,
+        description: detail.summary || '',
+        order: detail.sortOrder ?? 99,
         body: detail.body,
         audience: 'eu',
         source: 'api',
@@ -125,9 +107,9 @@ export async function resolveDocBySlug(slug: string): Promise<ResolvedDoc | null
     if (cached?.body) {
       return {
         slug: cached.slug,
-        title: cached.title || local?.title || slug,
-        description: cached.summary || local?.description || '',
-        order: cached.sortOrder ?? local?.order ?? 99,
+        title: cached.title || slug,
+        description: cached.summary || '',
+        order: cached.sortOrder ?? 99,
         body: cached.body,
         audience: 'eu',
         source: 'cache',
@@ -135,15 +117,13 @@ export async function resolveDocBySlug(slug: string): Promise<ResolvedDoc | null
     }
   }
 
-  if (local) return localAsResolved(local)
   return null
 }
 
-/** PageGuide CMS resolver — body BE hoặc null → giữ steps local. */
+/** PageGuide CMS resolver — body BE hoặc null → giữ steps local trên PageGuideConfig. */
 export async function resolvePublishedGuideBody(slug: string): Promise<string | null> {
   const cached = getCachedGuideBody(slug)
   if (cached?.body) {
-    // background refresh
     void guideApi
       .getPublishedBySlug(slug)
       .then((res) => {
@@ -165,9 +145,5 @@ export async function resolvePublishedGuideBody(slug: string): Promise<string | 
     // fall through
   }
 
-  // local markdown fallback for PageGuide
-  const local = getDocBySlug(slug)
-  return local?.body ?? null
+  return null
 }
-
-export { DOCS, EU_DOCS, getDocBySlug }

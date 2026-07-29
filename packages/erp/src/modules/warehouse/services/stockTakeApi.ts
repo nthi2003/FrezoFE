@@ -21,6 +21,8 @@ export interface StockTakeDto {
   id: string
   code?: string
   warehouseId: string
+  warehouseName?: string
+  warehouseCode?: string
   takeDate?: string
   status: string
   note?: string

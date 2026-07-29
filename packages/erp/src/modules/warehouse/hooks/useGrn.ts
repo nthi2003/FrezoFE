@@ -4,6 +4,7 @@ import {
   grnApi,
   type GrnConfirmRequest,
   type GrnCreateRequest,
+  type GrnUpdateRequest,
 } from '../services/grnApi'
 
 export function useGrns(params?: { status?: string; keyword?: string }) {
@@ -30,6 +31,43 @@ export function useCreateGrn() {
       qc.invalidateQueries({ queryKey: ['warehouse', 'grn'] })
     },
     onError: () => toast.error('Tạo phiếu nhập kho thất bại'),
+  })
+}
+
+export function useUpdateGrn() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: GrnUpdateRequest }) =>
+      grnApi.update(id, body),
+    onSuccess: () => {
+      toast.success('Đã lưu thông tin phiếu nhập')
+      qc.invalidateQueries({ queryKey: ['warehouse', 'grn'] })
+    },
+    onError: () => toast.error('Lưu phiếu nhập kho thất bại'),
+  })
+}
+
+export function useSubmitGrn() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => grnApi.submit(id),
+    onSuccess: () => {
+      toast.success('Đã gửi duyệt phiếu nhập kho')
+      qc.invalidateQueries({ queryKey: ['warehouse', 'grn'] })
+    },
+    onError: () => toast.error('Gửi duyệt thất bại'),
+  })
+}
+
+export function useApproveGrn() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => grnApi.approve(id),
+    onSuccess: () => {
+      toast.success('Đã duyệt phiếu nhập kho')
+      qc.invalidateQueries({ queryKey: ['warehouse', 'grn'] })
+    },
+    onError: () => toast.error('Duyệt phiếu thất bại'),
   })
 }
 

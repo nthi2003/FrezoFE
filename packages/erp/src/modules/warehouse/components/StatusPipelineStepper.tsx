@@ -154,16 +154,56 @@ export const PO_PIPELINE: PipelineStep[] = [
   { key: 'received', label: 'Đã nhận đủ' },
 ]
 
-/** GRN: Draft → Confirmed */
+/** GRN: Nháp → Chờ duyệt → Đã duyệt → Nhập kho */
 export function grnStepIndex(status: string): number {
   const s = (status || '').toUpperCase()
   if (s === 'DRAFT') return 0
-  if (['CONFIRMED', 'POSTED', 'DONE'].includes(s)) return 1
+  if (s === 'PENDING_APPROVAL') return 1
+  if (s === 'APPROVED') return 2
+  if (['CONFIRMED', 'POSTED', 'DONE'].includes(s)) return 3
   if (s === 'CANCELLED') return 0
   return 0
 }
 
 export const GRN_PIPELINE: PipelineStep[] = [
   { key: 'draft', label: 'Nháp PNK' },
+  { key: 'pending', label: 'Chờ duyệt' },
+  { key: 'approved', label: 'Đã duyệt' },
   { key: 'confirmed', label: 'Đã nhập kho' },
+]
+
+/** GIN: Nháp → Chờ duyệt → Đã duyệt → Xuất kho */
+export function ginStepIndex(status: string): number {
+  const s = (status || '').toUpperCase()
+  if (s === 'DRAFT') return 0
+  if (s === 'PENDING_APPROVAL') return 1
+  if (s === 'APPROVED') return 2
+  if (['CONFIRMED', 'POSTED', 'DONE'].includes(s)) return 3
+  if (s === 'CANCELLED') return 0
+  return 0
+}
+
+export const GIN_PIPELINE: PipelineStep[] = [
+  { key: 'draft', label: 'Nháp PXK' },
+  { key: 'pending', label: 'Chờ duyệt' },
+  { key: 'approved', label: 'Đã duyệt' },
+  { key: 'confirmed', label: 'Đã xuất kho' },
+]
+
+/** Stock take: Draft → Counting → Submitted → Posted */
+export function stockTakeStepIndex(status: string): number {
+  const s = (status || '').toUpperCase()
+  if (s === 'DRAFT') return 0
+  if (s === 'IN_PROGRESS') return 1
+  if (s === 'SUBMITTED') return 2
+  if (['POSTED', 'DONE'].includes(s)) return 3
+  if (s === 'CANCELLED') return 0
+  return 0
+}
+
+export const STOCK_TAKE_PIPELINE: PipelineStep[] = [
+  { key: 'draft', label: 'Nháp' },
+  { key: 'count', label: 'Đang đếm' },
+  { key: 'submitted', label: 'Đã gửi' },
+  { key: 'posted', label: 'Điều chỉnh tồn' },
 ]

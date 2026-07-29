@@ -12,7 +12,7 @@ import { useMenus } from '@/modules/menus/hooks/useMenus'
 import type { MenuTreeNode } from '@/modules/menus/types/menu.types'
 import { useCommandPaletteContext } from '@/components/shared/CommandPalette/context'
 import { NotificationBell } from '@/components/shared/NotificationBell'
-import { DOCS, getDocBySlug } from '@/docs'
+import { getDocTitleBySlug } from '@/modules/docs/services/docsRegistry'
 
 // Fallback tĩnh cho các route không có trong menu BE
 const FALLBACK_LABELS: Record<string, string> = {
@@ -58,11 +58,6 @@ const FALLBACK_LABELS: Record<string, string> = {
   '/notifications': 'Thông báo',
 }
 
-// Preload slug titles from docs registry (DOC-04)
-for (const d of DOCS) {
-  FALLBACK_LABELS[`/docs/${d.slug}`] = d.title
-}
-
 // Flatten menuTree thành map feUrl → name (tiếng Việt từ BE)
 function flattenMenuTree(nodes: MenuTreeNode[], map: Map<string, string> = new Map()) {
   for (const node of nodes) {
@@ -83,8 +78,7 @@ function buildBreadcrumbs(pathname: string, labelMap: Map<string, string>) {
     cumPath += '/' + part
     let label = labelMap.get(cumPath) || FALLBACK_LABELS[cumPath]
     if (!label && cumPath.startsWith('/docs/')) {
-      const doc = getDocBySlug(cumPath.slice('/docs/'.length))
-      label = doc?.title
+      label = getDocTitleBySlug(cumPath.slice('/docs/'.length))
     }
     // /bai-viet/:id — tránh hiện raw id trên breadcrumb; tiêu đề bài nằm trong page
     if (!label && cumPath.startsWith('/bai-viet/')) {

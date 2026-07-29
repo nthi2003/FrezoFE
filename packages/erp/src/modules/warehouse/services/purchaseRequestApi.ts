@@ -31,6 +31,8 @@ export interface PurchaseRequestDto {
   supplierId?: string
   supplierName?: string
   warehouseId?: string
+  warehouseName?: string
+  warehouseCode?: string
   status: PurchaseRequestStatus | string
   note?: string
   lines: PurchaseRequestLineDto[]

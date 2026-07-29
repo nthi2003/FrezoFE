@@ -6,7 +6,12 @@ import axiosClient from '@/lib/axios/axiosClient'
 import { unwrapList } from '@frezo/utils'
 import type { ApiResponse } from '@frezo/types'
 
-export type GinStatus = 'DRAFT' | 'CONFIRMED' | 'CANCELLED'
+export type GinStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'CONFIRMED'
+  | 'CANCELLED'
 
 export interface GinItemDto {
   id?: string
@@ -23,10 +28,19 @@ export interface GinDto {
   id: string
   ginCode?: string
   warehouseId: string
+  warehouseName?: string
+  warehouseCode?: string
   customerId?: string
+  customerName?: string
   orderId?: string
   issueType?: string
   status: GinStatus | string
+  documentNo?: string
+  documentDate?: string
+  transferWarehouseId?: string
+  transferWarehouseName?: string
+  approvedBy?: string
+  approvedAt?: string
   totalValue?: number
   issuedBy?: string
   issuedAt?: string
@@ -40,6 +54,9 @@ export interface GinCreateRequest {
   customerId?: string
   orderId?: string
   issueType?: string
+  documentNo?: string
+  documentDate?: string
+  transferWarehouseId?: string
   note?: string
   items: Array<{
     productId: string
@@ -73,6 +90,16 @@ export const ginApi = {
   create: (body: GinCreateRequest) =>
     axiosClient
       .post<ApiResponse<GinDto>>('/warehouse/gin', body)
+      .then((r) => r.data.data),
+
+  submit: (id: string) =>
+    axiosClient
+      .post<ApiResponse<GinDto>>(`/warehouse/gin/${id}/submit`)
+      .then((r) => r.data.data),
+
+  approve: (id: string) =>
+    axiosClient
+      .post<ApiResponse<GinDto>>(`/warehouse/gin/${id}/approve`)
       .then((r) => r.data.data),
 
   confirm: (id: string, body: GinConfirmRequest = {}) =>

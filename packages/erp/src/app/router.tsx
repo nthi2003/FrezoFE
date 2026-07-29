@@ -114,6 +114,7 @@ const ApprovalFlowConfigPage = lazy(() => import('@/modules/approval/pages/Appro
 const ReorderRulesPage = lazy(() => import('@/modules/warehouse/pages/ReorderRulesPage').then(m => ({ default: m.ReorderRulesPage })))
 const StockAlertsPage = lazy(() => import('@/modules/warehouse/pages/StockAlertsPage').then(m => ({ default: m.StockAlertsPage })))
 const StockTakePage = lazy(() => import('@/modules/warehouse/pages/StockTakePage').then(m => ({ default: m.StockTakePage })))
+const StockTakeDetailPage = lazy(() => import('@/modules/warehouse/pages/StockTakeDetailPage').then(m => ({ default: m.StockTakeDetailPage })))
 const PurchaseRequestsPage = lazy(() => import('@/modules/warehouse/pages/PurchaseRequestsPage').then(m => ({ default: m.PurchaseRequestsPage })))
 const PurchaseRequestDetailPage = lazy(() => import('@/modules/warehouse/pages/PurchaseRequestDetailPage').then(m => ({ default: m.PurchaseRequestDetailPage })))
 const PurchaseOrdersPage = lazy(() => import('@/modules/warehouse/pages/PurchaseOrdersPage').then(m => ({ default: m.PurchaseOrdersPage })))
@@ -122,6 +123,7 @@ const GoodsReceiptNotesPage = lazy(() => import('@/modules/warehouse/pages/Goods
 const GoodsReceiptNoteDetailPage = lazy(() => import('@/modules/warehouse/pages/GoodsReceiptNoteDetailPage').then(m => ({ default: m.GoodsReceiptNoteDetailPage })))
 const GoodsIssueNotesPage = lazy(() => import('@/modules/warehouse/pages/GoodsIssueNotesPage').then(m => ({ default: m.GoodsIssueNotesPage })))
 const GoodsIssueNoteDetailPage = lazy(() => import('@/modules/warehouse/pages/GoodsIssueNoteDetailPage').then(m => ({ default: m.GoodsIssueNoteDetailPage })))
+const WarehouseDashboardPage = lazy(() => import('@/modules/warehouse/pages/WarehouseDashboardPage').then(m => ({ default: m.WarehouseDashboardPage })))
 
 // Accounting
 const AccountsPage            = lazy(() => import('@/modules/accounting/pages/AccountsPage').then(m => ({ default: m.AccountsPage })))
@@ -359,9 +361,11 @@ export const router = createBrowserRouter([
       { path: 'approval/flows',   element: <Suspense fallback={<PageLoader />}><ApprovalFlowConfigPage /></Suspense> },
 
       // Warehouse (FZ-010 / FE-3)
+      { path: 'warehouse', element: <Suspense fallback={<PageLoader />}><WarehouseDashboardPage /></Suspense> },
       { path: 'warehouse/reorder-rules', element: <Suspense fallback={<PageLoader />}><ReorderRulesPage /></Suspense> },
       { path: 'warehouse/stock-alerts',  element: <Suspense fallback={<PageLoader />}><StockAlertsPage /></Suspense> },
       { path: 'warehouse/stock-takes',   element: <Suspense fallback={<PageLoader />}><StockTakePage /></Suspense> },
+      { path: 'warehouse/stock-takes/:id', element: <Suspense fallback={<PageLoader />}><StockTakeDetailPage /></Suspense> },
       { path: 'warehouse/purchase-requests', element: <Suspense fallback={<PageLoader />}><PurchaseRequestsPage /></Suspense> },
       { path: 'warehouse/purchase-requests/:id', element: <Suspense fallback={<PageLoader />}><PurchaseRequestDetailPage /></Suspense> },
       { path: 'warehouse/purchase-orders', element: <Suspense fallback={<PageLoader />}><PurchaseOrdersPage /></Suspense> },

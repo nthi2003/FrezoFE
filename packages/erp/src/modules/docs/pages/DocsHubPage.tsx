@@ -25,9 +25,7 @@ export function DocsHubPage() {
   const sourceNote =
     data?.source === 'cache'
       ? 'Đang dùng bản đã lưu (mạng lỗi) — bấm Thử lại để lấy mới.'
-      : data?.source === 'local'
-        ? 'Đang dùng hướng dẫn có sẵn trên app (máy chủ chưa có bài / lỗi mạng).'
-        : null
+      : null
 
   return (
     <div className="p-6 animate-fade-in max-w-6xl mx-auto w-full">
@@ -68,7 +66,7 @@ export function DocsHubPage() {
           ) : isError && docs.length === 0 ? (
             <ErrorState
               title="Không tải được tài liệu"
-              message="Kiểm tra mạng rồi thử lại. Nếu vẫn lỗi, app sẽ dùng hướng dẫn có sẵn."
+              message="Kiểm tra mạng / BE Guide API rồi thử lại."
               onRetry={() => refetch()}
               isRetrying={isFetching}
             />

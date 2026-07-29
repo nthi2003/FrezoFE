@@ -13,6 +13,14 @@ export function useStockTakes(warehouseId?: string) {
   })
 }
 
+export function useStockTake(id?: string) {
+  return useQuery({
+    queryKey: ['warehouse', 'stock-takes', id],
+    queryFn: () => stockTakeApi.get(id!),
+    enabled: !!id,
+  })
+}
+
 export function useCreateStockTake() {
   const qc = useQueryClient()
   return useMutation({

@@ -6,7 +6,12 @@ import axiosClient from '@/lib/axios/axiosClient'
 import { unwrapList } from '@frezo/utils'
 import type { ApiResponse } from '@frezo/types'
 
-export type GrnStatus = 'DRAFT' | 'CONFIRMED' | 'CANCELLED'
+export type GrnStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'CONFIRMED'
+  | 'CANCELLED'
 
 export interface GrnItemDto {
   id?: string
@@ -23,9 +28,17 @@ export interface GrnDto {
   id: string
   grnCode?: string
   purchaseOrderId?: string
+  purchaseOrderCode?: string
   warehouseId: string
+  warehouseName?: string
+  warehouseCode?: string
   supplierId?: string
+  supplierName?: string
   status: GrnStatus | string
+  invoiceNo?: string
+  invoiceDate?: string
+  approvedBy?: string
+  approvedAt?: string
   totalValue?: number
   receivedBy?: string
   receivedAt?: string
@@ -38,6 +51,8 @@ export interface GrnCreateRequest {
   purchaseOrderId?: string
   warehouseId: string
   supplierId?: string
+  invoiceNo?: string
+  invoiceDate?: string
   note?: string
   items: Array<{
     productId: string
@@ -58,6 +73,12 @@ export interface GrnConfirmRequest {
   }>
 }
 
+export interface GrnUpdateRequest {
+  invoiceNo?: string
+  invoiceDate?: string
+  note?: string
+}
+
 export const grnApi = {
   list: (params?: { status?: string; keyword?: string; page?: number; size?: number }) =>
     axiosClient
@@ -72,6 +93,21 @@ export const grnApi = {
   create: (body: GrnCreateRequest) =>
     axiosClient
       .post<ApiResponse<GrnDto>>('/warehouse/grn', body)
+      .then((r) => r.data.data),
+
+  update: (id: string, body: GrnUpdateRequest) =>
+    axiosClient
+      .put<ApiResponse<GrnDto>>(`/warehouse/grn/${id}`, body)
+      .then((r) => r.data.data),
+
+  submit: (id: string) =>
+    axiosClient
+      .post<ApiResponse<GrnDto>>(`/warehouse/grn/${id}/submit`)
+      .then((r) => r.data.data),
+
+  approve: (id: string) =>
+    axiosClient
+      .post<ApiResponse<GrnDto>>(`/warehouse/grn/${id}/approve`)
       .then((r) => r.data.data),
 
   confirm: (id: string, body: GrnConfirmRequest = {}) =>

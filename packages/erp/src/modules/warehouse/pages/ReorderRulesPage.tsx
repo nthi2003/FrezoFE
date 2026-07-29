@@ -2,25 +2,27 @@
 // ReorderRulesPage — quy tắc tái nhập kho (FZ-010 / FE-3)
 // ============================================================
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Plus, Upload, Download, Trash2, FileDown, Package, Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  Button, PageHeader, AppModal, EmptyState, ConfirmDialog,
+  Button, PageHeader, AppModal, EmptyState, ConfirmDialog, PageGuideButton, ErrorState,
 } from '@frezo/ui'
 import { downloadCsv } from '@/lib/export/toCsv'
 import {
   useReorderRules, useCreateReorderRule, useUpdateReorderRule,
   useDeleteReorderRule, useImportReorderRules, useWarehouses,
 } from '../hooks/useReorderRules'
+import { REORDER_RULES_GUIDE } from '../constants/reorder-rules.guide'
 import type { ReorderRuleDto, ReorderRuleRequest } from '../types'
 
 export function ReorderRulesPage() {
   const [warehouseId, setWarehouseId] = useState('')
+  const [category, setCategory] = useState('')
   const { data: warehouses = [] } = useWarehouses()
-  const { data: rows = [], isLoading } = useReorderRules(warehouseId || undefined)
+  const { data: rows = [], isLoading, isError, error, refetch } = useReorderRules(warehouseId || undefined)
   const create = useCreateReorderRule()
   const update = useUpdateReorderRule()
   const remove = useDeleteReorderRule()
@@ -41,6 +43,17 @@ export function ReorderRulesPage() {
 
   const selectedRows = rows.filter((r) => selected.has(r.id))
 
+  const categories = useMemo(() => {
+    const set = new Set<string>()
+    rows.forEach((r) => r.categoryName && set.add(r.categoryName))
+    return Array.from(set).sort()
+  }, [rows])
+
+  const filteredRows = useMemo(() => {
+    if (!category) return rows
+    return rows.filter((r) => r.categoryName === category)
+  }, [rows, category])
+
   const toggle = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev)
@@ -51,8 +64,8 @@ export function ReorderRulesPage() {
   }
 
   const toggleAll = () => {
-    if (selected.size === rows.length) setSelected(new Set())
-    else setSelected(new Set(rows.map((r) => r.id)))
+    if (selected.size === filteredRows.length) setSelected(new Set())
+    else setSelected(new Set(filteredRows.map((r) => r.id)))
   }
 
   const exportCsv = (items: ReorderRuleDto[]) => {
@@ -114,12 +127,14 @@ export function ReorderRulesPage() {
         description="Đặt ngưỡng min/max tồn kho — hệ thống cảnh báo khi dưới min."
         actions={
           <div className="flex flex-wrap gap-2 items-center">
+            <PageGuideButton guide={REORDER_RULES_GUIDE} />
             <select
               className="h-9 border rounded-md px-3 text-sm bg-white"
               value={warehouseId}
               onChange={(e) => {
                 setWarehouseId(e.target.value)
                 setSelected(new Set())
+                setCategory('')
               }}
             >
               <option value="">Tất cả kho</option>
@@ -129,6 +144,23 @@ export function ReorderRulesPage() {
                 </option>
               ))}
             </select>
+            {categories.length > 0 && (
+              <select
+                className="h-9 border rounded-md px-3 text-sm bg-white"
+                value={category}
+                onChange={(e) => {
+                  setCategory(e.target.value)
+                  setSelected(new Set())
+                }}
+              >
+                <option value="">Tất cả danh mục</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            )}
             {selected.size > 0 && (
               <>
                 <Button
@@ -170,24 +202,40 @@ export function ReorderRulesPage() {
         <div className="p-12 text-center">
           <Loader2 className="w-6 h-6 animate-spin mx-auto text-neutral-400" />
         </div>
-      ) : rows.length === 0 ? (
+      ) : isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được quy tắc"
+            message={(error as Error)?.message || 'Kiểm tra kết nối hoặc thử lại.'}
+            onRetry={() => refetch()}
+          />
+        </div>
+      ) : filteredRows.length === 0 ? (
         <div className="border rounded-xl bg-white">
           <EmptyState
             icon={Package}
-            title="Chưa có quy tắc tái nhập"
-            description="Thêm thủ công hoặc Import Excel từ template."
+            title={rows.length === 0 ? 'Chưa có quy tắc tái nhập' : 'Không có quy tắc phù hợp bộ lọc'}
+            description={
+              rows.length === 0
+                ? 'Thêm thủ công hoặc Import Excel từ template.'
+                : 'Thử chọn kho / danh mục khác hoặc bấm Thêm quy tắc.'
+            }
             action={{ label: 'Thêm quy tắc', onClick: () => setModalOpen(true) }}
           />
         </div>
       ) : (
         <div className="overflow-x-auto border rounded-xl bg-white">
+          <div className="px-4 py-2 text-xs text-neutral-500 border-b bg-neutral-50/80">
+            {filteredRows.length} quy tắc
+            {warehouseId || category ? ' (đã lọc)' : ''}
+          </div>
           <table className="w-full text-sm">
             <thead className="bg-neutral-50 text-neutral-600 text-left">
               <tr>
                 <th className="p-3 w-10">
                   <input
                     type="checkbox"
-                    checked={selected.size === rows.length && rows.length > 0}
+                    checked={selected.size === filteredRows.length && filteredRows.length > 0}
                     onChange={toggleAll}
                     aria-label="Chọn tất cả"
                   />
@@ -202,7 +250,7 @@ export function ReorderRulesPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {rows.map((row) => (
+              {filteredRows.map((row) => (
                 <tr key={row.id} className="hover:bg-neutral-50">
                   <td className="p-3">
                     <input
@@ -337,7 +385,7 @@ export function ReorderRulesPage() {
         isOpen={importOpen}
         onClose={() => setImportOpen(false)}
         title="Import Excel quy tắc"
-        description="Upload file .xlsx / .csv theo template. BE chưa sẵn → mock 0 dòng."
+        description="Upload file .xlsx / .csv theo template đã tải."
       >
         <ImportPanel
           onUpload={(file) => {

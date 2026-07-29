@@ -59,7 +59,7 @@ export function useImportReorderRules() {
   return useMutation({
     mutationFn: (file: File) => warehouseApi.importReorderRules(file),
     onSuccess: (res) => {
-      toast.success(`Import xong — ${res?.imported ?? 0} dòng (mock)`)
+      toast.success(`Import xong — ${res?.imported ?? 0} dòng`)
       qc.invalidateQueries({ queryKey: ['warehouse', 'reorder-rules'] })
     },
     onError: () => toast.error('Import thất bại'),

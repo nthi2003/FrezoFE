@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Send, Loader2, Inbox, Package } from 'lucide-react'
-import { Button, PageHeader, EmptyState, ErrorState, ConfirmDialog } from '@frezo/ui'
+import { Button, ConfirmDialog, StatusBadge } from '@frezo/ui'
 import {
   usePurchaseRequest,
   useSubmitPurchaseRequest,
@@ -18,30 +18,11 @@ import {
   PR_PIPELINE,
   prStepIndex,
 } from '../components/StatusPipelineStepper'
-
-const STATUS_TONE: Record<string, string> = {
-  DRAFT: 'bg-neutral-100 text-neutral-700 border-neutral-200',
-  PENDING: 'bg-amber-50 text-amber-800 border-amber-200',
-  SUBMITTED: 'bg-amber-50 text-amber-800 border-amber-200',
-  IN_APPROVAL: 'bg-amber-50 text-amber-800 border-amber-200',
-  APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
-  CANCELLED: 'bg-neutral-100 text-neutral-500 border-neutral-200',
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: 'Nháp',
-  PENDING: 'Chờ duyệt',
-  SUBMITTED: 'Chờ duyệt',
-  IN_APPROVAL: 'Đang duyệt',
-  APPROVED: 'Đã duyệt',
-  REJECTED: 'Từ chối',
-  CANCELLED: 'Đã huỷ',
-}
-
-function isPendingApproval(status: string): boolean {
-  return ['PENDING', 'SUBMITTED', 'IN_APPROVAL', 'WAITING_APPROVAL'].includes(status)
-}
+import {
+  isPendingApprovalStatus,
+  resolveWarehouseStatus,
+} from '../constants/warehouseStatus'
+import { formatSupplierLabel, formatWarehouseLabel } from '../utils/displayUtils'
 
 export function PurchaseRequestDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -90,9 +71,8 @@ export function PurchaseRequestDetailPage() {
   const status = (pr.status || '').toUpperCase()
   const isDraft = status === 'DRAFT'
   const isApproved = status === 'APPROVED'
-  const pending = isPendingApproval(status)
-  const tone = STATUS_TONE[status] || 'bg-neutral-100 text-neutral-700 border-neutral-200'
-  const label = STATUS_LABEL[status] || pr.status || '—'
+  const pending = isPendingApprovalStatus(status)
+  const statusCfg = resolveWarehouseStatus(status, 'pr')
 
   return (
     <div className="p-6 space-y-4 animate-fade-in max-w-3xl">
@@ -100,12 +80,8 @@ export function PurchaseRequestDetailPage() {
         title={pr.code || pr.id}
         description={
           <span className="inline-flex flex-wrap items-center gap-2">
-            <span>Supplier: {pr.supplierName || pr.supplierId || '—'}</span>
-            <span
-              className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium border ${tone}`}
-            >
-              {label}
-            </span>
+            <span>Kho: {formatWarehouseLabel(pr)} · NCC: {formatSupplierLabel(pr)}</span>
+            <StatusBadge label={statusCfg.label} color={statusCfg.color} />
           </span>
         }
         actions={
@@ -123,7 +99,7 @@ export function PurchaseRequestDetailPage() {
                 disabled={submit.isPending}
                 onClick={() => setSubmitConfirmOpen(true)}
               >
-                <Send size={14} /> Submit → Approval
+                <Send size={14} /> Gửi duyệt
               </Button>
             )}
             {isApproved && (

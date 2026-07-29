@@ -4,9 +4,8 @@
 
 import { NavLink } from 'react-router-dom'
 import { BookOpen } from 'lucide-react'
-import { EU_DOCS, type DocMeta } from '@/docs'
 
-type NavDoc = Pick<DocMeta, 'slug' | 'title' | 'description'>
+type NavDoc = { slug: string; title: string; description?: string }
 
 export function DocsSideNav({
   activeSlug,
@@ -15,7 +14,7 @@ export function DocsSideNav({
   activeSlug?: string
   docs?: NavDoc[]
 }) {
-  const items = docs && docs.length > 0 ? docs : EU_DOCS
+  const items = docs ?? []
 
   return (
     <aside className="lg:sticky lg:top-6 lg:self-start">

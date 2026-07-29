@@ -33,6 +33,30 @@ export function useCreateGin() {
   })
 }
 
+export function useSubmitGin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => ginApi.submit(id),
+    onSuccess: () => {
+      toast.success('Đã gửi duyệt phiếu xuất kho')
+      qc.invalidateQueries({ queryKey: ['warehouse', 'gin'] })
+    },
+    onError: () => toast.error('Gửi duyệt thất bại'),
+  })
+}
+
+export function useApproveGin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => ginApi.approve(id),
+    onSuccess: () => {
+      toast.success('Đã duyệt phiếu xuất kho')
+      qc.invalidateQueries({ queryKey: ['warehouse', 'gin'] })
+    },
+    onError: () => toast.error('Duyệt phiếu thất bại'),
+  })
+}
+
 export function useConfirmGin() {
   const qc = useQueryClient()
   return useMutation({
