@@ -16,7 +16,8 @@ interface PathGroup {
 }
 
 const PATH_GROUPS: PathGroup[] = [
-  { code: 'GRP_DASHBOARD', name: 'Tổng quan', icon: 'dashboard', prefixes: ['/'], order: 10 },
+  { code: 'GRP_HOME', name: 'Trang chủ', icon: 'home', prefixes: ['/'], order: 5 },
+  { code: 'GRP_DASHBOARD', name: 'Tổng quan', icon: 'dashboard', prefixes: ['/dashboard'], order: 10 },
   { code: 'GRP_QLNS', name: 'Nhân sự', icon: 'QLNS', prefixes: ['/qlns'], order: 20 },
   { code: 'GRP_ACCOUNTING', name: 'Kế toán', icon: 'dollar', prefixes: ['/accounting'], order: 30 },
   { code: 'GRP_WAREHOUSE', name: 'Kho vận', icon: 'warehouse', prefixes: ['/warehouse'], order: 40 },
@@ -45,8 +46,11 @@ function matchGroup(feUrl: string): PathGroup | null {
   const path = normalizeUrl(feUrl)
   if (!path) return null
 
-  // Exact dashboard home
-  if (path === '/' || path === '/dashboard') {
+  // Exact home / dashboard leaves
+  if (path === '/' || path === '/home') {
+    return PATH_GROUPS.find((g) => g.code === 'GRP_HOME') || null
+  }
+  if (path === '/dashboard') {
     return PATH_GROUPS.find((g) => g.code === 'GRP_DASHBOARD') || null
   }
 
@@ -55,6 +59,7 @@ function matchGroup(feUrl: string): PathGroup | null {
   let bestLen = -1
   for (const g of PATH_GROUPS) {
     if (g.code === 'GRP_DASHBOARD') continue
+    if (g.code === 'GRP_HOME') continue
     for (const p of g.prefixes) {
       if (path === p || path.startsWith(p + '/')) {
         if (p.length > bestLen) {
@@ -125,8 +130,8 @@ export function applyMenuGroupingFallback(roots: MenuTreeNode[]): MenuTreeNode[]
       orphan.push(leaf)
       continue
     }
-    // Dashboard single leaf — keep as root leaf (không bọc group 1 item nếu muốn)
-    if (g.code === 'GRP_DASHBOARD') {
+    // Home / Dashboard single leaves — keep as root (không bọc group 1 item)
+    if (g.code === 'GRP_HOME' || g.code === 'GRP_DASHBOARD') {
       orphan.push(leaf) // will re-sort as top
       continue
     }
@@ -137,14 +142,22 @@ export function applyMenuGroupingFallback(roots: MenuTreeNode[]): MenuTreeNode[]
 
   const grouped: MenuTreeNode[] = []
 
-  // Dashboard-like roots first (exact / or /dashboard)
+  // Home + Dashboard roots first (exact /, /home, /dashboard)
   const dashLeaves = orphan.filter((n) => {
     const u = normalizeUrl(n.feUrl)
-    return u === '/' || u === '/dashboard'
+    return u === '/' || u === '/home' || u === '/dashboard'
   })
   const otherOrphans = orphan.filter((n) => {
     const u = normalizeUrl(n.feUrl)
-    return u !== '/' && u !== '/dashboard'
+    return u !== '/' && u !== '/home' && u !== '/dashboard'
+  })
+
+  // Prefer Home before Dashboard when both present
+  dashLeaves.sort((a, b) => {
+    const ua = normalizeUrl(a.feUrl)
+    const ub = normalizeUrl(b.feUrl)
+    const rank = (u: string) => (u === '/' || u === '/home' ? 0 : 1)
+    return rank(ua) - rank(ub) || (a.orderIndex || 0) - (b.orderIndex || 0)
   })
 
   for (const d of dashLeaves) grouped.push(d)

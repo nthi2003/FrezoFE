@@ -39,7 +39,7 @@ export function MeetingsPage() {
     <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
         title="Lịch họp"
-        description="Cuộc họp CRM liên kết deal / khách hàng."
+        description="Cuộc họp CRM liên kết cơ hội bán / khách hàng."
         actions={
           <Button className="gap-1.5" onClick={() => setOpen(true)}>
             <Plus size={14} /> Tạo họp
@@ -56,7 +56,7 @@ export function MeetingsPage() {
           <EmptyState
             icon={Calendar}
             title="Chưa có cuộc họp"
-            description="Tạo cuộc họp gắn với deal hoặc khách hàng."
+            description="Tạo cuộc họp gắn với cơ hội bán hoặc khách hàng."
             action={{ label: 'Tạo họp', onClick: () => setOpen(true) }}
           />
         </div>
@@ -133,7 +133,7 @@ export function MeetingsPage() {
           />
           <input
             className="w-full border rounded-md px-3 py-2 text-sm font-mono"
-            placeholder="Deal ID (tuỳ chọn)"
+            placeholder="ID cơ hội bán (tuỳ chọn)"
             value={form.dealId}
             onChange={(e) => setForm({ ...form, dealId: e.target.value })}
           />

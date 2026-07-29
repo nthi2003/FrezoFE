@@ -4,10 +4,9 @@
 // ============================================================
 
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import {
   Inbox, CheckCircle2, XCircle, ChevronDown, ChevronRight,
-  Loader2, ClipboardCheck, Info,
+  Loader2, ClipboardCheck,
 } from 'lucide-react'
 import { Button, PageHeader, EmptyState, ErrorState, PageGuideButton, ConfirmDialog, BulkSelectionBar } from '@frezo/ui'
 import { toast } from 'sonner'
@@ -164,17 +163,6 @@ export function ApprovalInboxPage() {
         description="Duyệt đơn nghiệp vụ đang chờ bạn — nghỉ phép, lương, PR…"
         actions={<PageGuideButton guide={APPROVAL_INBOX_GUIDE} />}
       />
-
-      <div className="flex gap-2.5 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-2.5 text-sm text-sky-900">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
-        <p className="leading-snug">
-          Đây là <b>hộp thư duyệt hàng ngày</b>. Thiết kế template quy trình nằm ở{' '}
-          <Link to="/qtht/workflows" className="font-semibold underline underline-offset-2 hover:text-sky-700">
-            /qtht/workflows
-          </Link>
-          {' '}— không mở designer khi chỉ cần duyệt đơn.
-        </p>
-      </div>
 
       <div className="flex items-center gap-2 flex-wrap">
         {(

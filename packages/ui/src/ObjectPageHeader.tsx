@@ -20,6 +20,8 @@ export interface ObjectPageHeaderProps {
   title: string
   /** Subtitle mô tả (VD "Hợp đồng bán hàng — Công ty ABC") */
   subtitle?: string
+  /** Avatar / icon bên trái title (VD ảnh khách hàng) */
+  leading?: React.ReactNode
   /** Status badge nổi bật (dùng <StatusBadge />) */
   statusBadge?: React.ReactNode
   /** KPI grid dưới title — 3-5 field key-value */
@@ -67,6 +69,7 @@ export function ObjectPageHeader({
   breadcrumb,
   title,
   subtitle,
+  leading,
   statusBadge,
   kpi,
   actions,
@@ -86,14 +89,17 @@ export function ObjectPageHeader({
       )}
 
       <div className="mt-2 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl font-bold text-neutral-900 truncate">{title}</h1>
-            {statusBadge}
+        <div className="min-w-0 flex-1 flex items-start gap-3">
+          {leading}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-xl font-bold text-neutral-900 truncate">{title}</h1>
+              {statusBadge}
+            </div>
+            {subtitle && (
+              <p className="text-sm text-neutral-500 mt-1 truncate">{subtitle}</p>
+            )}
           </div>
-          {subtitle && (
-            <p className="text-sm text-neutral-500 mt-1 truncate">{subtitle}</p>
-          )}
         </div>
 
         {actions && (
@@ -119,9 +125,14 @@ export function ObjectPageHeader({
   )
 }
 
-function Breadcrumb({ items }: { items: BreadcrumbItem[] }) {
+/**
+ * Breadcrumb chuẩn — STANDARD section 6 (Navigation).
+ * Level cuối là trang hiện tại, không click được.
+ * Dùng `onClick` thay `href` khi điều hướng trong SPA (tránh full reload).
+ */
+export function Breadcrumb({ items, className }: { items: BreadcrumbItem[]; className?: string }) {
   return (
-    <nav aria-label="Breadcrumb">
+    <nav aria-label="Breadcrumb" className={className}>
       <ol className="flex items-center gap-1 text-xs text-neutral-500 flex-wrap">
         {items.map((item, idx) => {
           const isLast = idx === items.length - 1

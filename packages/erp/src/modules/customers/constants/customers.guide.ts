@@ -12,7 +12,7 @@ export const CUSTOMERS_GUIDE: PageGuideConfig = {
         {
           title: 'Nhập thủ công',
           description:
-            'Bấm "Thêm mới" → điền tên, SĐT, email, mã số thuế. Tối thiểu chỉ cần tên; các trường khác có thể bổ sung sau.',
+            'Bấm "Thêm khách hàng" → upload avatar (tuỳ chọn), điền tên, SĐT, email, mã số thuế. Tối thiểu chỉ cần tên; các trường khác có thể bổ sung sau.',
         },
         {
           title: 'Import CSV',
@@ -24,6 +24,11 @@ export const CUSTOMERS_GUIDE: PageGuideConfig = {
           description:
             'Bấm "AI Sync" — hệ thống quét inbox Facebook, trích xuất tên/SĐT/địa chỉ, tự tạo record khách hàng và merge trùng lặp.',
         },
+        {
+          title: 'Đổi avatar',
+          description:
+            'Trong form Thêm/Sửa: kéo-thả ảnh vào field Avatar. Hoặc mở Xem nhanh / hồ sơ 360° → bấm icon máy ảnh trên avatar để upload ngay.',
+        },
       ],
     },
     {
@@ -33,6 +38,7 @@ export const CUSTOMERS_GUIDE: PageGuideConfig = {
         'SĐT khách hiển thị mờ (mask) mặc định — bấm biểu tượng mắt để reveal (backend ghi log ai xem, khi nào).',
         'Dùng cột "Ghi chú" để log lịch sử tương tác quan trọng: cuộc gọi, khiếu nại, ưu đãi đặc biệt...',
         'Export CSV để backup định kỳ hoặc gửi cho team marketing chạy chiến dịch.',
+        'Mẫu demo KH001–KH010 đều có sẵn avatar (pravatar) — danh sách không còn ô trống.',
       ],
     },
     {

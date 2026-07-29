@@ -51,7 +51,8 @@ export const WORKFLOWS_GUIDE: PageGuideConfig = {
       heading: 'Tài liệu & liên quan',
       links: [
         { label: 'Xem hướng dẫn đầy đủ', href: '/docs/guide-workflows' },
-        { label: 'Gắn luồng vào nghỉ phép', href: '/docs/guide-approval-attach' },
+        { label: 'Cấu hình luồng duyệt (Docs)', href: '/docs/guide-approval-flows' },
+        { label: 'Gắn 3 luồng FTECH', href: '/docs/guide-approval-attach' },
         { label: 'Hộp thư duyệt', href: '/approval/inbox' },
         { label: 'Cấu hình luồng duyệt', href: '/approval/flows' },
       ],

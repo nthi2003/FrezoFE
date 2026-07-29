@@ -69,6 +69,14 @@ function exportSkipCsv(items: CalculateSkippedItem[], periodLabel: string) {
   URL.revokeObjectURL(url)
 }
 
+/** Tài khoản hệ thống — ẩn khỏi banner/list skip payroll (BE chưa lọc). */
+function isSystemPayrollPerson(it: CalculateSkippedItem): boolean {
+  const code = (it.personCode || '').trim().toUpperCase().replace(/\s+/g, '')
+  const name = (it.personName || '').trim().toUpperCase().replace(/\s+/g, '')
+  const SYSTEM = new Set(['ADMIN', 'SUPERADMIN', 'SUPERADMINISTRATOR', 'SYSTEM'])
+  return SYSTEM.has(code) || SYSTEM.has(name)
+}
+
 const STATUS_TABS = [
   { key: 'all',       label: 'Tất cả',        toneActive: 'bg-neutral-900 text-white border-neutral-900' },
   { key: 'DRAFT',     label: 'Bản nháp',      toneActive: 'bg-amber-500 text-white border-amber-500' },
@@ -260,13 +268,16 @@ export function PayrollsPage() {
       }
     }
     const skippedItems = rawErrors.map(enrich)
+      .filter((it) => !isSystemPayrollPerson(it))
 
-    // Sample skip reason → copy CTA Contracts khi toàn skip
-    if (successCount === 0 && skippedCount > 0) {
-      warnings.unshift(
-        'Không tạo được bảng lương — nhân viên thiếu hợp đồng đang hiệu lực (activated/ACTIVE). Kiểm tra QLNS → Hợp đồng.',
-      )
-    }
+    // Không unshift warning trùng NO_ACTIVE_CONTRACT — modal đã có 1 section skip.
+    // Chỉ giữ warning BE không phải skip HĐ (vd. thiếu config năm).
+    const filteredWarnings = warnings.filter(
+      (w) =>
+        !/NO_ACTIVE_CONTRACT|thiếu hợp đồng|thieu hop dong|bỏ qua.*hợp đồng|hop dong|thiếu HĐ|thieu HD|Không tạo được bảng lương/i.test(
+          w,
+        ),
+    )
 
     const periodLabelNow = `${String(periodMonth).padStart(2, '0')}/${periodYear}`
     if (skippedCount > 0) {
@@ -274,11 +285,17 @@ export function PayrollsPage() {
       const skipOnly = skippedItems.filter((it) =>
         /SKIPPED|NO_ACTIVE_CONTRACT|hợp đồng|hop dong|thiếu HĐ|thieu HD/i.test(it.reason || ''),
       )
-      setSkipBanner({
-        periodLabel: periodLabelNow,
-        skippedCount,
-        items: skipOnly.length > 0 ? skipOnly : skippedItems.slice(0, skippedCount),
-      })
+      const bannerItems = skipOnly.length > 0 ? skipOnly : skippedItems.slice(0, skippedCount)
+      // Ẩn tài khoản hệ thống; nếu sau filter còn item → hiện banner
+      if (bannerItems.length > 0) {
+        setSkipBanner({
+          periodLabel: periodLabelNow,
+          skippedCount: bannerItems.length,
+          items: bannerItems,
+        })
+      } else {
+        setSkipBanner(null)
+      }
     } else {
       setSkipBanner(null)
     }
@@ -289,9 +306,10 @@ export function PayrollsPage() {
       totalCount: newList.length,
       skippedCount,
       errorCount,
-      totalPayout: newTotal,
-      warnings,
-      skippedItems,
+      // Chỉ hiện tổng chi trả khi có bảng mới — tránh “ăn mừng” số tiền kỳ cũ
+      totalPayout: successCount > 0 ? newTotal : 0,
+      warnings: filteredWarnings,
+      skippedItems: rawErrors.map(enrich),
     }
   }, [calcModal, periodMonth, periodYear, calculateAll, calculatePerson, refetch, personOptions])
 
@@ -455,19 +473,19 @@ export function PayrollsPage() {
 
       <PayrollApprovalBar month={periodMonth} year={periodYear} />
 
-      {/* LNK-02 — banner skip thiếu HĐ sau calculate-all */}
+      {/* LNK-02 — banner skip thiếu HĐ sau calculate-all (đã ẩn tài khoản hệ thống) */}
       {skipBanner && skipBanner.skippedCount > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-wrap items-start gap-3">
-          <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex flex-wrap items-start gap-3" role="status">
+          <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0 text-sm text-amber-950">
-            <div className="font-semibold">
-              Kỳ {skipBanner.periodLabel}: đã bỏ qua {skipBanner.skippedCount} nhân viên thiếu HĐ đang hiệu lực
+            <div className="font-medium">
+              Kỳ {skipBanner.periodLabel}: {skipBanner.skippedCount} nhân viên thiếu HĐ hiệu lực
             </div>
             <div className="text-xs text-amber-800 mt-1 leading-relaxed">
               {skipBanner.items.slice(0, 5).map((it) => it.personName || it.personCode || it.personId).filter(Boolean).join(', ')}
               {skipBanner.items.length > 5 ? ` … +${skipBanner.items.length - 5}` : ''}
               {skipBanner.items.length === 0
-                ? ' Vào HĐLĐ kích hoạt hợp đồng rồi bấm Tính lương lại.'
+                ? ' — vào HĐLĐ kích hoạt rồi tính lại.'
                 : ' — kích hoạt HĐ rồi tính lại.'}
             </div>
           </div>

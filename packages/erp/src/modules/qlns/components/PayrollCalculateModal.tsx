@@ -17,8 +17,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Calculator, Loader2, CheckCircle2, AlertTriangle, Users, Wallet,
-  ArrowRight, X, Sparkles, Clock, FileText, Download,
+  Calculator, Loader2, CheckCircle2, AlertTriangle, Wallet,
+  ArrowRight, X, Clock, FileText, Download, ChevronDown, ChevronUp, Info,
 } from 'lucide-react'
 import { Button, AppModal } from '@frezo/ui'
 
@@ -134,17 +134,19 @@ export function PayrollCalculateModal({
     onClose()
   }
 
-  // Title động theo stage — không nói “Hoàn tất” khi toàn skip
+  // Title động theo stage — calm, không “Hoàn tất” khi chưa tạo bảng
   const title = useMemo(() => {
     if (stage === 'loading') return isSinglePerson ? 'Đang tính lương…' : `Đang tính lương kỳ ${periodLabel}…`
     if (stage === 'result') {
-      const allSkipped =
-        !isSinglePerson &&
-        (summary?.createdCount ?? 0) === 0 &&
-        (summary?.skippedCount ?? 0) > 0
-      if (allSkipped) return 'Không tạo được bảng lương'
-      if ((summary?.skippedCount ?? 0) > 0 || (summary?.errorCount ?? 0) > 0) {
-        return 'Kết quả tính lương (có cảnh báo)'
+      const created = summary?.createdCount ?? 0
+      const updated = summary?.updatedCount ?? 0
+      const skipped = summary?.skippedCount ?? 0
+      const errors = summary?.errorCount ?? 0
+      if (!isSinglePerson && created + updated === 0 && (skipped > 0 || errors > 0)) {
+        return 'Kết quả tính lương'
+      }
+      if ((skipped > 0 || errors > 0) && !isSinglePerson) {
+        return 'Kết quả tính lương'
       }
       return 'Hoàn tất tính lương'
     }
@@ -201,9 +203,46 @@ function isSkipReason(reason?: string): boolean {
 function formatSkipReason(reason?: string): string {
   if (!reason) return 'Thiếu hợp đồng đang hiệu lực'
   if (/NO_ACTIVE_CONTRACT|SKIPPED/i.test(reason) || /hợp đồng|hop dong/i.test(reason)) {
-    return 'Thiếu HĐ đang hiệu lực (activated/ACTIVE)'
+    return 'Thiếu hợp đồng đang hiệu lực'
   }
   return reason
+}
+
+/** Tài khoản hệ thống — không nên hiện như NV lương (BE chưa lọc). */
+function isSystemPayrollPerson(it: CalculateSkippedItem): boolean {
+  const code = (it.personCode || '').trim().toUpperCase().replace(/\s+/g, '')
+  const name = (it.personName || '').trim().toUpperCase().replace(/\s+/g, '')
+  const SYSTEM = new Set(['ADMIN', 'SUPERADMIN', 'SUPERADMINISTRATOR', 'SYSTEM'])
+  return SYSTEM.has(code) || SYSTEM.has(name)
+}
+
+/** Warning BE/FE lặp lại skip HĐ — gộp vào section skip, không hiện wall thứ 2. */
+function isContractSkipWarning(w: string): boolean {
+  return /NO_ACTIVE_CONTRACT|thiếu hợp đồng|thieu hop dong|bỏ qua.*hợp đồng|hop dong|thiếu HĐ|thieu HD|Không tạo được bảng lương|Không tạo bảng lương/i.test(
+    w,
+  )
+}
+
+function exportSkipCsv(items: CalculateSkippedItem[], periodLabel: string) {
+  const header = ['personName', 'personCode', 'personId', 'reason']
+  const lines = [
+    header.join(','),
+    ...items.map((it) =>
+      [
+        `"${(it.personName || '').replace(/"/g, '""')}"`,
+        `"${(it.personCode || '').replace(/"/g, '""')}"`,
+        `"${(it.personId || '').replace(/"/g, '""')}"`,
+        `"${formatSkipReason(it.reason).replace(/"/g, '""')}"`,
+      ].join(','),
+    ),
+  ]
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `payroll-skip-${periodLabel.replace(/\s+/g, '_')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 // ============================================================
@@ -377,7 +416,7 @@ function LoadingStage({
 }
 
 // ============================================================
-// Stage 3 — RESULT
+// Stage 3 — RESULT (1 status + metrics hữu ích + 1 section skip)
 // ============================================================
 function ResultStage({
   summary, period, isSinglePerson, contractsHref, onClose, onGotoResult,
@@ -390,219 +429,303 @@ function ResultStage({
   onGotoResult?: () => void
 }) {
   const navigate = useNavigate()
+  const [errorsOpen, setErrorsOpen] = useState(false)
   const periodLabel = `${String(period.month).padStart(2, '0')}/${period.year}`
   const created = summary.createdCount ?? 0
   const updated = summary.updatedCount ?? 0
-  const total = summary.totalCount ?? (created + updated) ?? 1
   const skipped = summary.skippedCount ?? 0
   const errors = summary.errorCount ?? 0
   const warnings = summary.warnings ?? []
-  const skipItems = (summary.skippedItems ?? []).filter(
-    (it) => isSkipReason(it.reason) || skipped > 0,
-  )
-  // Ưu tiên item có reason skip; nếu BE chưa gắn prefix thì lấy toàn bộ skippedItems
-  const displaySkips =
-    skipItems.length > 0
-      ? skipItems.filter((it) => isSkipReason(it.reason)).length > 0
-        ? skipItems.filter((it) => isSkipReason(it.reason))
-        : skipItems
-      : []
-  const allSkipped = !isSinglePerson && created === 0 && skipped > 0
-  const hasWarn = allSkipped || skipped > 0 || errors > 0
-  const heroTone = hasWarn
-    ? 'from-amber-50 to-orange-50 border-amber-200'
-    : 'from-primary-50 to-emerald-50 border-primary-100'
-  const heroIconTone = hasWarn ? 'bg-amber-600' : 'bg-primary-600'
+  const allItems = summary.skippedItems ?? []
+
+  const withSkipReason = allItems.filter((it) => isSkipReason(it.reason))
+  const skipItemsRaw =
+    withSkipReason.length > 0 ? withSkipReason : skipped > 0 ? allItems : []
+
+  const systemSkips = skipItemsRaw.filter(isSystemPayrollPerson)
+  const realSkips = skipItemsRaw.filter((it) => !isSystemPayrollPerson(it))
+  const errorItems = allItems.filter((it) => it.reason && !isSkipReason(it.reason))
+  const otherWarnings = warnings.filter((w) => !isContractSkipWarning(w))
+
+  /** Số NV skip “thật” (ẩn tài khoản hệ thống khỏi đếm UX). */
+  const displaySkipped =
+    skipItemsRaw.length > 0
+      ? realSkips.length
+      : Math.max(0, skipped - systemSkips.length)
+
+  const sheetCreated = created + updated > 0
+  const outcome: 'success' | 'partial' | 'failed' = !isSinglePerson
+    ? !sheetCreated && (displaySkipped > 0 || errors > 0 || skipped > 0)
+      ? 'failed'
+      : displaySkipped > 0 || errors > 0
+        ? 'partial'
+        : 'success'
+    : 'success'
+
+  const statusCopy = (() => {
+    if (isSinglePerson) {
+      return {
+        title: `Đã tính lương cho ${summary.personName || 'nhân viên'}`,
+        detail: 'Bảng ở trạng thái Bản nháp — chốt và thanh toán ở bước sau.',
+      }
+    }
+    if (outcome === 'failed') {
+      if (displaySkipped > 0 && errors === 0) {
+        return {
+          title: `Chưa tạo bảng lương kỳ ${periodLabel}`,
+          detail: `${displaySkipped} nhân viên thiếu hợp đồng đang hiệu lực. Kích hoạt HĐLĐ rồi tính lại.`,
+        }
+      }
+      if (displaySkipped === 0 && errors > 0) {
+        return {
+          title: `Chưa tạo bảng lương kỳ ${periodLabel}`,
+          detail: `${errors} nhân viên gặp lỗi khi tính. Xem chi tiết bên dưới.`,
+        }
+      }
+      if (displaySkipped === 0 && systemSkips.length > 0 && errors === 0) {
+        return {
+          title: `Chưa tạo bảng lương kỳ ${periodLabel}`,
+          detail: 'Không có nhân viên đủ điều kiện (có HĐ hiệu lực) trong kỳ này.',
+        }
+      }
+      return {
+        title: `Chưa tạo bảng lương kỳ ${periodLabel}`,
+        detail: [
+          displaySkipped > 0 ? `${displaySkipped} bỏ qua (thiếu HĐ)` : null,
+          errors > 0 ? `${errors} lỗi` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ') || 'Không có bảng lương mới được tạo.',
+      }
+    }
+    if (outcome === 'partial') {
+      return {
+        title: `Đã tính kỳ ${periodLabel} — một phần`,
+        detail: [
+          `Thành công ${created}`,
+          displaySkipped > 0 ? `bỏ qua ${displaySkipped}` : null,
+          errors > 0 ? `lỗi ${errors}` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ') + '.',
+      }
+    }
+    return {
+      title: `Đã tính xong kỳ ${periodLabel}`,
+      detail: updated > 0
+        ? `Tạo mới ${created}, cập nhật ${updated}.`
+        : `Tạo ${created} bảng lương Bản nháp.`,
+    }
+  })()
 
   const goContracts = () => {
     onClose()
     navigate(contractsHref)
   }
 
+  const statusTone =
+    outcome === 'failed'
+      ? { box: 'border-amber-200 bg-amber-50', icon: 'bg-amber-100 text-amber-700', Icon: AlertTriangle }
+      : outcome === 'partial'
+        ? { box: 'border-amber-200 bg-amber-50', icon: 'bg-amber-100 text-amber-700', Icon: AlertTriangle }
+        : { box: 'border-primary-100 bg-primary-50', icon: 'bg-primary-100 text-primary-700', Icon: CheckCircle2 }
+
+  const StatusIcon = statusTone.Icon
+  const showPayout = sheetCreated && summary.totalPayout != null && Number(summary.totalPayout) > 0
+  const showSkipSection = !isSinglePerson && displaySkipped > 0
+
   return (
     <div className="space-y-4">
-      {/* Hero — success hoặc skip/error rõ ràng (không báo “đã tính xong” giả) */}
-      <div className={`rounded-xl bg-gradient-to-br ${heroTone} border p-5`}>
-        <div className="flex items-start gap-4">
-          <div className={`w-12 h-12 rounded-full ${heroIconTone} text-white flex items-center justify-center flex-shrink-0 shadow-md`}>
-            {hasWarn ? <AlertTriangle size={24} /> : <CheckCircle2 size={24} />}
+      {/* Một status duy nhất — không gradient, không lặp message */}
+      <div className={`rounded-lg border ${statusTone.box} p-4`} role="status">
+        <div className="flex items-start gap-3">
+          <div className={`w-9 h-9 rounded-lg ${statusTone.icon} flex items-center justify-center flex-shrink-0`}>
+            <StatusIcon size={18} />
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-base font-bold text-neutral-900">
-              {isSinglePerson
-                ? `Đã tính lương cho ${summary.personName || 'nhân viên'}`
-                : allSkipped
-                  ? `Không tạo bảng lương kỳ ${periodLabel}`
-                  : skipped > 0
-                    ? `Đã tính kỳ ${periodLabel} — có ${skipped} NV bị bỏ qua`
-                    : `Đã tính xong bảng lương kỳ ${periodLabel}`}
-            </div>
-            <div className="text-sm text-neutral-600 mt-1">
-              {isSinglePerson ? (
-                <>Bảng lương đã tạo ở trạng thái <strong>BẢN NHÁP</strong> — cần chốt & thanh toán riêng.</>
-              ) : allSkipped ? (
-                <>Đã bỏ qua <strong>{skipped}</strong> nhân viên vì thiếu hợp đồng đang hiệu lực. Kích hoạt HĐLĐ rồi tính lại.</>
-              ) : (
-                <>Thành công <strong>{created}</strong>
-                  {updated > 0 ? <>, cập nhật {updated}</> : null}
-                  {skipped > 0 ? <>, bỏ qua {skipped}</> : null}
-                  {errors > 0 ? <>, lỗi {errors}</> : null}
-                  . Kỳ này có <strong>{total}</strong> bảng trên danh sách.</>
-              )}
-            </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-neutral-900">{statusCopy.title}</div>
+            <div className="text-xs text-neutral-600 mt-1 leading-relaxed">{statusCopy.detail}</div>
           </div>
         </div>
       </div>
 
-      {/* Stat tiles */}
-      {!isSinglePerson && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <ResultTile icon={Sparkles} label="Thành công" value={String(created)} tone="primary" />
-          <ResultTile icon={AlertTriangle} label="Đã bỏ qua" value={String(skipped)} tone={skipped > 0 ? 'amber' : 'neutral'} />
-          <ResultTile icon={Users} label="Lỗi" value={String(errors)} tone={errors > 0 ? 'amber' : 'neutral'} />
-          <ResultTile icon={Wallet} label="Tổng chi trả" value={formatVND(summary.totalPayout)} tone="emerald" />
+      {/* Metrics gọn — chỉ số có nghĩa; không “ăn mừng” Tổng chi trả khi chưa tạo bảng */}
+      {!isSinglePerson && sheetCreated && (
+        <div className={`grid gap-2 ${showPayout ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2'}`}>
+          <ResultTile label="Thành công" value={String(created)} tone="primary" />
+          {displaySkipped > 0 && (
+            <ResultTile label="Bỏ qua" value={String(displaySkipped)} tone="amber" />
+          )}
+          {errors > 0 && (
+            <ResultTile label="Lỗi" value={String(errors)} tone="danger" />
+          )}
+          {showPayout && (
+            <ResultTile label="Tổng chi trả kỳ" value={formatVND(summary.totalPayout)} tone="neutral" />
+          )}
+        </div>
+      )}
+
+      {!isSinglePerson && !sheetCreated && (displaySkipped > 0 || errors > 0) && (
+        <div className="flex flex-wrap gap-2 text-xs text-neutral-600">
+          {displaySkipped > 0 && (
+            <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 tabular-nums">
+              Bỏ qua <strong className="ml-1 text-amber-900">{displaySkipped}</strong>
+            </span>
+          )}
+          {errors > 0 && (
+            <span className="inline-flex items-center rounded-md border border-danger/20 bg-danger-light px-2.5 py-1 tabular-nums">
+              Lỗi <strong className="ml-1 text-danger-dark">{errors}</strong>
+            </span>
+          )}
         </div>
       )}
 
       {isSinglePerson && summary.totalPayout != null && (
-        <div className="rounded-lg border border-neutral-200 bg-white p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Wallet size={16} className="text-emerald-600" />
-            <span className="text-sm text-neutral-700">Thực nhận tháng này</span>
+        <div className="rounded-lg border border-neutral-200 bg-white px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-neutral-700">
+            <Wallet size={16} className="text-neutral-500" />
+            Thực nhận
           </div>
-          <span className="text-lg font-bold text-emerald-700 tabular-nums">
+          <span className="text-base font-semibold text-neutral-900 tabular-nums">
             {formatVND(summary.totalPayout)}
           </span>
         </div>
       )}
 
-      {/* Bảng NV bị bỏ qua — không im lặng */}
-      {!isSinglePerson && skipped > 0 && (
-        <div className="rounded-lg bg-amber-50 border border-amber-200 overflow-hidden">
-          <div className="flex items-start gap-2 px-3 py-2.5 border-b border-amber-200/80">
-            <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+      {/* Một section skip + CTA — không wall “cảnh báo” lặp NO_ACTIVE_CONTRACT */}
+      {showSkipSection && (
+        <div className="rounded-lg border border-neutral-200 overflow-hidden">
+          <div className="flex flex-wrap items-start gap-2 px-3 py-2.5 bg-neutral-50 border-b border-neutral-200">
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-amber-900">
-                {skipped} nhân viên bị bỏ qua — thiếu HĐ đang hiệu lực
+              <div className="text-sm font-semibold text-neutral-900">
+                {displaySkipped} nhân viên cần kích hoạt HĐLĐ
               </div>
-              <div className="text-xs text-amber-800 mt-0.5">
-                Cần kích hoạt / tạo hợp đồng ACTIVE trước khi tính lại cho các NV này.
+              <div className="text-xs text-neutral-500 mt-0.5">
+                Thiếu hợp đồng đang hiệu lực — tạo/kích hoạt rồi tính lại.
               </div>
             </div>
             <div className="flex gap-1.5 shrink-0">
-              {displaySkips.length > 0 && (
+              {realSkips.length > 0 && (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1.5 border-amber-300 text-amber-900 hover:bg-amber-100"
-                  onClick={() => {
-                    const header = ['personName', 'personCode', 'personId', 'reason']
-                    const lines = [
-                      header.join(','),
-                      ...displaySkips.map((it) =>
-                        [
-                          `"${(it.personName || '').replace(/"/g, '""')}"`,
-                          `"${(it.personCode || '').replace(/"/g, '""')}"`,
-                          `"${(it.personId || '').replace(/"/g, '""')}"`,
-                          `"${(it.reason || '').replace(/"/g, '""')}"`,
-                        ].join(','),
-                      ),
-                    ]
-                    const blob = new Blob(['\uFEFF' + lines.join('\n')], {
-                      type: 'text/csv;charset=utf-8',
-                    })
-                    const url = URL.createObjectURL(blob)
-                    const a = document.createElement('a')
-                    a.href = url
-                    a.download = `payroll-skip-${periodLabel.replace(/\s+/g, '_')}.csv`
-                    a.click()
-                    URL.revokeObjectURL(url)
-                  }}
+                  className="gap-1.5"
+                  onClick={() => exportSkipCsv(realSkips, periodLabel)}
                 >
                   <Download size={13} /> CSV
                 </Button>
               )}
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 shrink-0 border-amber-300 text-amber-900 hover:bg-amber-100"
-                onClick={goContracts}
-              >
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={goContracts}>
                 <FileText size={13} /> Quản lý HĐLĐ
               </Button>
             </div>
           </div>
-          {displaySkips.length > 0 ? (
-            <div className="max-h-48 overflow-y-auto bg-white/60">
+          {realSkips.length > 0 ? (
+            <div className="max-h-44 overflow-y-auto">
               <table className="w-full text-xs">
-                <thead className="bg-amber-100/60 text-amber-900 sticky top-0">
+                <thead className="bg-white text-neutral-500 sticky top-0 border-b border-neutral-100">
                   <tr>
-                    <th className="text-left font-semibold px-3 py-2">Nhân viên</th>
-                    <th className="text-left font-semibold px-3 py-2 w-28">Mã</th>
-                    <th className="text-left font-semibold px-3 py-2">Lý do</th>
+                    <th className="text-left font-medium px-3 py-2">Nhân viên</th>
+                    <th className="text-left font-medium px-3 py-2 w-28">Mã</th>
+                    <th className="text-left font-medium px-3 py-2">Lý do</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {displaySkips.slice(0, 30).map((it, i) => (
-                    <tr key={it.personId || i} className="border-t border-amber-100">
+                  {realSkips.slice(0, 30).map((it, i) => (
+                    <tr key={it.personId || i} className="border-t border-neutral-100">
                       <td className="px-3 py-1.5 text-neutral-800 font-medium">
                         {it.personName || it.personId || '—'}
                       </td>
                       <td className="px-3 py-1.5 font-mono text-neutral-500">
                         {it.personCode || '—'}
                       </td>
-                      <td className="px-3 py-1.5 text-amber-900">
+                      <td className="px-3 py-1.5 text-neutral-600">
                         {formatSkipReason(it.reason)}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {displaySkips.length > 30 && (
-                <div className="px-3 py-2 text-[11px] text-amber-700 italic border-t border-amber-100">
-                  … và {displaySkips.length - 30} nhân viên khác
+              {realSkips.length > 30 && (
+                <div className="px-3 py-2 text-[11px] text-neutral-500 border-t border-neutral-100">
+                  … và {realSkips.length - 30} nhân viên khác
                 </div>
               )}
             </div>
           ) : (
-            <div className="px-3 py-2 text-xs text-amber-800 bg-white/40">
-              BE báo {skipped} NV bị bỏ qua (chi tiết danh sách chưa kèm trong response).
+            <div className="px-3 py-2.5 text-xs text-neutral-500">
+              BE báo {displaySkipped} NV bị bỏ qua (chi tiết chưa kèm response).
             </div>
           )}
         </div>
       )}
 
-      {/* Warnings text (config năm, v.v.) */}
-      {warnings.length > 0 && (
-        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
-          <div className="flex items-start gap-2 mb-2">
-            <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm font-semibold text-amber-900">
-              {warnings.length} cảnh báo cần lưu ý
-            </div>
-          </div>
-          <ul className="space-y-1 pl-6">
-            {warnings.slice(0, 5).map((w) => (
-              <li key={w} className="text-xs text-amber-900 list-disc">{w}</li>
-            ))}
-            {warnings.length > 5 && (
-              <li className="text-xs text-amber-700 italic list-none">
-                ... và {warnings.length - 5} cảnh báo khác
+      {systemSkips.length > 0 && (
+        <div className="flex items-start gap-2 text-xs text-neutral-500 px-0.5">
+          <Info size={14} className="shrink-0 mt-0.5" />
+          <span>
+            Đã ẩn {systemSkips.length} tài khoản hệ thống (ADMIN / SUPERADMIN…) khỏi danh sách tính lương.
+          </span>
+        </div>
+      )}
+
+      {/* Lỗi kỹ thuật — thu gọn, không cạnh tranh với skip HĐ */}
+      {!isSinglePerson && errors > 0 && (
+        <div className="rounded-lg border border-neutral-200 overflow-hidden">
+          <button
+            type="button"
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-neutral-50"
+            onClick={() => setErrorsOpen((v) => !v)}
+          >
+            <AlertTriangle size={14} className="text-danger-dark shrink-0" />
+            <span className="flex-1 text-sm font-medium text-neutral-800">
+              {errors} lỗi khi tính
+            </span>
+            {errorsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          {errorsOpen && (
+            <ul className="border-t border-neutral-100 max-h-36 overflow-y-auto px-3 py-2 space-y-1.5">
+              {(errorItems.length > 0 ? errorItems : []).slice(0, 20).map((it, i) => (
+                <li key={it.personId || i} className="text-xs text-neutral-600">
+                  <span className="font-medium text-neutral-800">
+                    {it.personName || it.personCode || it.personId || '—'}
+                  </span>
+                  {it.reason ? ` — ${it.reason}` : ''}
+                </li>
+              ))}
+              {errorItems.length === 0 && (
+                <li className="text-xs text-neutral-500">Không có chi tiết lỗi từ BE.</li>
+              )}
+              {errorItems.length > 20 && (
+                <li className="text-xs text-neutral-400">… và {errorItems.length - 20} dòng khác</li>
+              )}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* Warning khác (config năm…) — đã lọc trùng skip HĐ */}
+      {otherWarnings.length > 0 && (
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5">
+          <div className="text-xs font-medium text-neutral-700 mb-1">Lưu ý thêm</div>
+          <ul className="space-y-1">
+            {otherWarnings.slice(0, 5).map((w) => (
+              <li key={w} className="text-xs text-neutral-600 leading-relaxed">
+                {w}
               </li>
-            )}
+            ))}
           </ul>
         </div>
       )}
 
-      {/* Action bar */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
-        {skipped > 0 && (
+        {showSkipSection && (
           <Button variant="outline" className="gap-1.5 mr-auto" onClick={goContracts}>
             <FileText size={14} /> Mở HĐLĐ
           </Button>
         )}
         <Button variant="outline" onClick={onClose}>Đóng</Button>
-        {onGotoResult && !allSkipped && (
+        {onGotoResult && sheetCreated && (
           <Button
             onClick={() => {
               onGotoResult()
@@ -618,31 +741,25 @@ function ResultStage({
   )
 }
 
-// ============================================================
-// Small helpers
-// ============================================================
 function ResultTile({
-  icon: Icon, label, value, tone,
+  label, value, tone,
 }: {
-  icon: typeof Calculator
   label: string
   value: string
-  tone: 'primary' | 'blue' | 'amber' | 'emerald' | 'neutral'
+  tone: 'primary' | 'amber' | 'danger' | 'neutral'
 }) {
   const toneMap: Record<string, string> = {
-    primary: 'bg-primary-50 text-primary-700 border-primary-100',
-    blue:    'bg-blue-50 text-blue-700 border-blue-100',
-    amber:   'bg-amber-50 text-amber-700 border-amber-100',
-    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-    neutral: 'bg-neutral-50 text-neutral-700 border-neutral-200',
+    primary: 'bg-primary-50 text-primary-800 border-primary-100',
+    amber: 'bg-amber-50 text-amber-900 border-amber-200',
+    danger: 'bg-danger-light text-danger-dark border-danger/20',
+    neutral: 'bg-neutral-50 text-neutral-800 border-neutral-200',
   }
   return (
-    <div className={`rounded-lg border px-3 py-3 ${toneMap[tone]}`}>
-      <div className="flex items-center gap-1.5 mb-1">
-        <Icon size={14} />
-        <span className="text-[11px] font-semibold uppercase tracking-wider truncate">{label}</span>
+    <div className={`rounded-lg border px-3 py-2.5 ${toneMap[tone]}`}>
+      <div className="text-[11px] font-medium text-neutral-500 uppercase tracking-wider truncate">
+        {label}
       </div>
-      <div className="text-lg font-bold tabular-nums truncate">{value}</div>
+      <div className="text-base font-semibold tabular-nums truncate mt-0.5">{value}</div>
     </div>
   )
 }

@@ -15,6 +15,15 @@ import {
   Link2, Image as ImageIcon, Undo2, Redo2, Eraser,
 } from 'lucide-react'
 import { cn } from '@frezo/utils'
+import { Button } from './button'
+import { Input } from './input'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from './dialog'
 
 /**
  * RichTextEditor — WYSIWYG editor dùng cho content dài (Article, Description, Announcement…).
@@ -26,8 +35,9 @@ import { cn } from '@frezo/utils'
  * - Nội dung render trong `.prose` (Tailwind Typography) — bắt buộc trang consumer đã có
  *   plugin `@tailwindcss/typography`. Nếu chưa có, styles cơ bản vẫn render OK, chỉ mất
  *   spacing.
- * - Image / Link: dùng prompt gọn thay vì popover phức tạp — enterprise tools thường
- *   upload media qua modal riêng rồi paste URL.
+ * - Image: ưu tiên `onRequestImage` (file picker + upload). Fallback Dialog dán URL
+ *   (không dùng window.prompt).
+ * - Link: Dialog nhập URL (không dùng window.prompt).
  *
  * KHÔNG dùng cho:
  * - Comment ngắn (dùng Textarea).
@@ -42,8 +52,8 @@ export interface RichTextEditorProps {
   editable?: boolean
   className?: string
   /**
-   * Callback khi user muốn insert image từ URL. Nếu không truyền,
-   * mặc định dùng window.prompt() — nên override để bật media picker chuẩn.
+   * Callback khi user muốn insert image (file picker / upload modal).
+   * Nếu không truyền, mở Dialog dán URL — nên override để bật media picker chuẩn.
    */
   onRequestImage?: () => Promise<string | null> | string | null
   autoFocus?: boolean
@@ -91,30 +101,57 @@ function Toolbar({
   editor: Editor
   onRequestImage?: RichTextEditorProps['onRequestImage']
 }) {
-  const insertLink = React.useCallback(() => {
-    const prev = editor.getAttributes('link').href as string | undefined
-    const url = window.prompt('Nhập URL liên kết (để trống để xoá link):', prev ?? 'https://')
-    if (url === null) return
+  const [linkOpen, setLinkOpen] = React.useState(false)
+  const [linkDraft, setLinkDraft] = React.useState('https://')
+  const [imageUrlOpen, setImageUrlOpen] = React.useState(false)
+  const [imageUrlDraft, setImageUrlDraft] = React.useState('https://')
+  const [imageBusy, setImageBusy] = React.useState(false)
+
+  const openLinkDialog = React.useCallback(() => {
+    const prev = (editor.getAttributes('link').href as string | undefined) ?? 'https://'
+    setLinkDraft(prev)
+    setLinkOpen(true)
+  }, [editor])
+
+  const applyLink = React.useCallback(() => {
+    const url = linkDraft.trim()
     if (url === '') {
       editor.chain().focus().extendMarkRange('link').unsetLink().run()
-      return
+    } else {
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url, target: '_blank' }).run()
     }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url, target: '_blank' }).run()
+    setLinkOpen(false)
+  }, [editor, linkDraft])
+
+  const removeLink = React.useCallback(() => {
+    editor.chain().focus().extendMarkRange('link').unsetLink().run()
+    setLinkOpen(false)
   }, [editor])
 
   const insertImage = React.useCallback(async () => {
-    let src: string | null = null
     if (onRequestImage) {
-      const res = await onRequestImage()
-      src = res ?? null
-    } else {
-      src = window.prompt('URL ảnh (jpg/png/webp):', 'https://')
+      setImageBusy(true)
+      try {
+        const res = await onRequestImage()
+        if (res) editor.chain().focus().setImage({ src: res }).run()
+      } finally {
+        setImageBusy(false)
+      }
+      return
     }
-    if (!src) return
-    editor.chain().focus().setImage({ src }).run()
+    setImageUrlDraft('https://')
+    setImageUrlOpen(true)
   }, [editor, onRequestImage])
 
+  const applyImageUrl = React.useCallback(() => {
+    const src = imageUrlDraft.trim()
+    if (!src) return
+    editor.chain().focus().setImage({ src }).run()
+    setImageUrlOpen(false)
+  }, [editor, imageUrlDraft])
+
   return (
+    <>
     <div
       role="toolbar"
       aria-label="Định dạng văn bản"
@@ -254,10 +291,10 @@ function Toolbar({
 
       <ToolbarDivider />
 
-      <ToolbarButton title="Chèn liên kết" active={editor.isActive('link')} onClick={insertLink}>
+      <ToolbarButton title="Chèn liên kết" active={editor.isActive('link')} onClick={openLinkDialog}>
         <Link2 size={16} />
       </ToolbarButton>
-      <ToolbarButton title="Chèn ảnh" onClick={insertImage}>
+      <ToolbarButton title="Chèn ảnh" onClick={insertImage} disabled={imageBusy}>
         <ImageIcon size={16} />
       </ToolbarButton>
 
@@ -270,6 +307,89 @@ function Toolbar({
         <Eraser size={16} />
       </ToolbarButton>
     </div>
+
+    <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Chèn liên kết</DialogTitle>
+          <DialogDescription>Nhập URL. Để trống rồi bấm Xóa liên kết nếu muốn gỡ link.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <Input
+            value={linkDraft}
+            onChange={(e) => setLinkDraft(e.target.value)}
+            placeholder="https://"
+            className="h-10"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                applyLink()
+              }
+            }}
+          />
+          <div className="flex items-center justify-between gap-3">
+            <Button type="button" variant="ghost" onClick={removeLink} className="text-danger">
+              Xóa liên kết
+            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => setLinkOpen(false)}>
+                Hủy
+              </Button>
+              <Button type="button" onClick={applyLink}>
+                Áp dụng
+              </Button>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={imageUrlOpen} onOpenChange={setImageUrlOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Chèn hình ảnh</DialogTitle>
+          <DialogDescription>
+            Dán URL ảnh. Trang soạn bài nên truyền onRequestImage để mở file picker upload.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <Input
+            value={imageUrlDraft}
+            onChange={(e) => setImageUrlDraft(e.target.value)}
+            placeholder="https://cdn.example.com/image.jpg"
+            className="h-10"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                applyImageUrl()
+              }
+            }}
+          />
+          {imageUrlDraft.trim() && (
+            <img
+              src={imageUrlDraft.trim()}
+              alt="preview"
+              className="max-h-40 w-full object-contain rounded-lg border border-neutral-200 bg-neutral-50"
+              onError={(e) => {
+                const img = e.currentTarget as HTMLImageElement
+                img.style.display = 'none'
+              }}
+            />
+          )}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setImageUrlOpen(false)}>
+              Hủy
+            </Button>
+            <Button type="button" onClick={applyImageUrl} disabled={!imageUrlDraft.trim()}>
+              Chèn ảnh
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }
 

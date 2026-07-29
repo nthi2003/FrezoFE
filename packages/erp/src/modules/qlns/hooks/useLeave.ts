@@ -10,11 +10,12 @@ const QK_MY = (cid: string) => ['leave_requests', 'my', cid] as const
 const QK_HISTORY = (id: string) => ['leave_requests', 'history', id] as const
 
 /** Đơn CẦN TÔI DUYỆT — server tự lọc theo role. */
-export function useLeaveRequests(page = 1, size = 10) {
+export function useLeaveRequests(page = 1, size = 10, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: [...QK_PENDING, page, size],
     queryFn: () => leaveRequestApi.getPending(page, size),
     select: unwrapList as unknown as (raw: unknown) => LeaveRequestItem[],
+    enabled: options?.enabled ?? true,
   })
 }
 

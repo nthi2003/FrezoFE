@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Eye, ExternalLink, Plus } from 'lucide-react'
+import { Eye, Pencil, Plus } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import { Button } from '@frezo/ui'
 import { useArticles } from '@/modules/articles/hooks/useArticle'
@@ -59,11 +59,23 @@ export function NewsPage() {
       title: 'Thao tác', dataIndex: 'id',
       render: (_: any, row: any) => (
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => window.open(`/bai-viet/${row.id}`, '_blank')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Xem bài viết"
+            aria-label="Xem bài viết"
+            onClick={() => window.open(`/bai-viet/${row.id}`, '_blank')}
+          >
             <Eye className="w-4 h-4 text-blue-600" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => window.open(`/bai-viet/${row.id}/chinh-sua`, '_blank')}>
-            <ExternalLink className="w-4 h-4 text-neutral-500" />
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Chỉnh sửa bài viết"
+            aria-label="Chỉnh sửa bài viết"
+            onClick={() => navigate(`/admin/article-management/${row.id}/edit`)}
+          >
+            <Pencil className="w-4 h-4 text-neutral-500" />
           </Button>
         </div>
       ),

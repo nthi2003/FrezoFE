@@ -1,5 +1,5 @@
 // ============================================================
-// Financial reports API — BCTC stub
+// Financial reports API — BCĐKT / KQKD
 // GET /accounting/reports/balance-sheet|income-statement?from&to
 // ============================================================
 
@@ -20,27 +20,20 @@ export interface FinancialReportDto {
   total?: number
 }
 
-async function tolerantReport(
-  path: string,
-  from: string,
-  to: string,
-): Promise<FinancialReportDto | null> {
-  try {
-    const r = await axiosClient.get<ApiResponse<FinancialReportDto>>(path, {
-      params: { from, to },
-    })
-    return r.data.data ?? null
-  } catch (err: unknown) {
-    const status = (err as { response?: { status?: number } })?.response?.status
-    if (status === 404 || status === 501) return null
-    throw err
-  }
-}
-
 export const financialReportsApi = {
-  balanceSheet: (from: string, to: string) =>
-    tolerantReport('/accounting/reports/balance-sheet', from, to),
+  balanceSheet: async (from: string, to: string): Promise<FinancialReportDto> => {
+    const r = await axiosClient.get<ApiResponse<FinancialReportDto>>(
+      '/accounting/reports/balance-sheet',
+      { params: { from, to } },
+    )
+    return r.data.data ?? { lines: [] }
+  },
 
-  incomeStatement: (from: string, to: string) =>
-    tolerantReport('/accounting/reports/income-statement', from, to),
+  incomeStatement: async (from: string, to: string): Promise<FinancialReportDto> => {
+    const r = await axiosClient.get<ApiResponse<FinancialReportDto>>(
+      '/accounting/reports/income-statement',
+      { params: { from, to } },
+    )
+    return r.data.data ?? { lines: [] }
+  },
 }

@@ -46,3 +46,17 @@ export function useDeleteCustomer() {
     onError: (err) => toast.apiError(err, 'Lỗi khi xóa khách hàng'),
   })
 }
+
+export function useUploadCustomerAvatar() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) =>
+      customerApi.uploadAvatar(id, file),
+    onSuccess: (_url, { id }) => {
+      toast.success('Đã cập nhật avatar')
+      qc.invalidateQueries({ queryKey: ['customers'] })
+      qc.invalidateQueries({ queryKey: ['customer', id] })
+    },
+    onError: (err) => toast.apiError(err, 'Upload avatar thất bại'),
+  })
+}

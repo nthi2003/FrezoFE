@@ -4,6 +4,7 @@
 
 import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { ZoomableImage } from '@frezo/ui'
 
 /** Inline code: path chip vs neutral chip (DOC-02, DOC-06). */
 function CodeChip({ text }: { text: string }) {
@@ -39,12 +40,13 @@ function inline(text: string, keyPrefix: string): ReactNode[] {
       const im = /^!\[([^\]]*)\]\(([^)]+)\)$/.exec(token)
       if (im) {
         nodes.push(
-          <img
+          <ZoomableImage
             key={`${keyPrefix}-img-${i++}`}
+            inline
             src={im[2]}
             alt={im[1] || 'Hình minh họa'}
-            className="my-3 max-w-full rounded-lg border border-neutral-200 shadow-sm"
-            loading="lazy"
+            caption={im[1] || undefined}
+            className="my-3 rounded-lg"
           />,
         )
       }
@@ -175,15 +177,14 @@ export function MarkdownView({
     if (imgBlock) {
       blocks.push(
         <figure key={key++} className="my-5">
-          <img
+          <ZoomableImage
             src={imgBlock[2]}
             alt={imgBlock[1] || 'Hình minh họa'}
-            className="max-w-full rounded-xl border border-neutral-200 shadow-sm"
-            loading="lazy"
+            caption={imgBlock[1] || undefined}
           />
           {imgBlock[1] ? (
             <figcaption className="mt-2 text-xs text-neutral-500 text-center">
-              {imgBlock[1]}
+              {imgBlock[1]} · Bấm vào ảnh để phóng to
             </figcaption>
           ) : null}
         </figure>,

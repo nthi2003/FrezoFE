@@ -16,8 +16,8 @@ export function PipelineFunnel({ data, isLoading }: { data: FunnelRow[]; isLoadi
     <div className="bg-white p-5 rounded-2xl border border-neutral-200/60 shadow-sm h-full flex flex-col">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h3 className="text-base font-semibold text-neutral-900">Pipeline Funnel</h3>
-          <p className="text-xs text-neutral-500 mt-0.5">Số deal theo giai đoạn</p>
+          <h3 className="text-base font-semibold text-neutral-900">Phễu bán hàng</h3>
+          <p className="text-xs text-neutral-500 mt-0.5">Số cơ hội theo giai đoạn</p>
         </div>
       </div>
 
@@ -26,7 +26,7 @@ export function PipelineFunnel({ data, isLoading }: { data: FunnelRow[]; isLoadi
       ) : data.length === 0 ? (
         <div className="flex-1 min-h-[240px] flex flex-col items-center justify-center text-neutral-400">
           <Filter size={40} className="opacity-30 mb-2" />
-          <p className="text-sm">Chưa có deal trong pipeline</p>
+          <p className="text-sm">Chưa có cơ hội trong phễu bán hàng</p>
         </div>
       ) : (
         <div className="flex-1 flex flex-col justify-center gap-2 py-2">
@@ -43,7 +43,7 @@ export function PipelineFunnel({ data, isLoading }: { data: FunnelRow[]; isLoadi
                     className="absolute inset-y-0 left-1/2 -translate-x-1/2 rounded-md flex items-center justify-center text-xs font-bold text-white transition-all"
                     style={{ width: `${pct}%`, backgroundColor: color, minWidth: 60 }}
                   >
-                    {row.count} deal
+                    {row.count} cơ hội
                   </div>
                 </div>
               </div>

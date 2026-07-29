@@ -103,6 +103,7 @@ export const API = {
     LIST:        '/customer',
     BY_ID:       (id: string) => `/customer/${id}`,
     REVEAL_PHONE:(id: string) => `/customer/${id}/reveal-phone`,
+    AVATAR:      (id: string) => `/customer/${id}/avatar`,
     IMPORT:      '/customer/import',
     EXPORT:      '/customer/export',
     AI_SYNC:     '/customer/ai/sync',

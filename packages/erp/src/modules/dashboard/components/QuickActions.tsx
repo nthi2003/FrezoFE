@@ -5,9 +5,9 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useMenus } from '@/modules/menus/hooks/useMenus'
+import { collectFeUrls, pathAllowed } from '@/modules/menus/utils/menuUrls'
 import { useAnyPermission } from '@/lib/hooks/usePermission'
 import { usePendingApprovalCount } from '@/modules/approval/hooks/useApprovals'
-import type { MenuTreeNode } from '@/modules/menus/types/menu.types'
 
 interface QuickAction {
   label: string
@@ -72,30 +72,6 @@ const ACTIONS: QuickAction[] = [
     secondary: true,
   },
 ]
-
-function collectFeUrls(nodes: MenuTreeNode[]): Set<string> {
-  const urls = new Set<string>()
-  const walk = (list: MenuTreeNode[]) => {
-    for (const n of list) {
-      if (n.feUrl) {
-        const path = n.feUrl.startsWith('/') ? n.feUrl : `/${n.feUrl}`
-        urls.add(path.replace(/\/+$/, '') || '/')
-      }
-      if (n.children?.length) walk(n.children)
-    }
-  }
-  walk(nodes)
-  return urls
-}
-
-function pathAllowed(menuUrls: Set<string>, to: string): boolean {
-  const norm = to.replace(/\/+$/, '') || '/'
-  if (menuUrls.has(norm)) return true
-  for (const u of menuUrls) {
-    if (norm === u || norm.startsWith(`${u}/`)) return true
-  }
-  return false
-}
 
 function ActionGate({
   action,

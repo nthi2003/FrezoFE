@@ -75,6 +75,21 @@ export function useArticleManagers() {
   })
 }
 
+function articleApiErrorMessage(err: any, fallback: string) {
+  const data = err?.response?.data
+  const msg =
+    data?.errors?.code ||
+    data?.message ||
+    data?.mess ||
+    fallback
+  return typeof msg === 'string' ? msg : fallback
+}
+
+function isConcurrentModification(err: any) {
+  const code = err?.response?.data?.messageCode || err?.response?.data?.errorKey
+  return err?.response?.status === 409 && code === 'error.concurrent.modification'
+}
+
 export function useCreateArticle() {
   const qc = useQueryClient()
   return useMutation({
@@ -84,11 +99,7 @@ export function useCreateArticle() {
       qc.invalidateQueries({ queryKey: ['articles'] })
     },
     onError: (err: any) => {
-      const msg =
-        err?.response?.data?.errors?.code ||
-        err?.response?.data?.message ||
-        'Lỗi khi thêm bài viết'
-      toast.error(typeof msg === 'string' ? msg : 'Lỗi khi thêm bài viết')
+      toast.error(articleApiErrorMessage(err, 'Lỗi khi thêm bài viết'))
     },
   })
 }
@@ -102,7 +113,15 @@ export function useUpdateArticle() {
       qc.invalidateQueries({ queryKey: ['articles'] })
       qc.invalidateQueries({ queryKey: ['article', vars.id] })
     },
-    onError: () => toast.error('Lỗi khi cập nhật bài viết'),
+    onError: (err: any, vars) => {
+      if (isConcurrentModification(err)) {
+        toast.error('Có người khác vừa cập nhật bài viết. Đang tải lại bản mới nhất…')
+        void qc.invalidateQueries({ queryKey: ['article', vars.id] })
+        void qc.invalidateQueries({ queryKey: ['articles'] })
+        return
+      }
+      toast.error(articleApiErrorMessage(err, 'Lỗi khi cập nhật bài viết'))
+    },
   })
 }
 

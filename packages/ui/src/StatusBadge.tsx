@@ -92,16 +92,7 @@ export function StatusBadge({
   )
 }
 
-/**
- * Helper type cho `<Module>_STATUS_CONFIG` map.
- *
- * @example
- * export const CONTRACT_STATUS_CONFIG: Record<ContractStatus, StatusConfig> = {
- *   DRAFT:  { label: 'Nháp',        color: 'neutral', icon: FileText },
- *   ACTIVE: { label: 'Đang hiệu lực', color: 'success', icon: CheckCircle },
- *   ...
- * } as const satisfies Record<ContractStatus, StatusConfig>
- */
+
 export interface StatusConfig {
   label: string
   color: StatusColor

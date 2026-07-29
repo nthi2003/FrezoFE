@@ -255,6 +255,9 @@ export function ArticleEditorPage() {
   }
 
   const onSubmit = (values: FieldValues) => {
+    // Guard double-submit (Strict Mode / double-click) — create must not race code-sequence
+    if (createReq.isPending || updateReq.isPending) return
+
     const formValues = values as ArticleFormValues
     if (isEdit && id) {
       if (!canUpdate) return

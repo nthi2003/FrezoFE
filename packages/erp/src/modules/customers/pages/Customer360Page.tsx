@@ -18,6 +18,8 @@ import { Button, ObjectPageHeader, StatusBadge, EmptyState, ErrorState } from '@
 import { formatCurrency, formatDate, formatDateTime } from '@frezo/utils'
 import { useAnyPermission } from '@/lib/hooks/usePermission'
 import { customerApi } from '../services/customerApi'
+import { CustomerAvatar } from '../components/CustomerAvatar'
+import { useUploadCustomerAvatar } from '../hooks/useCustomer'
 import {
   useInvoices,
   usePipelines,
@@ -41,6 +43,7 @@ interface CustomerDetail {
   taxCode?: string
   type?: 'INDIVIDUAL' | 'COMPANY'
   note?: string
+  avatarUrl?: string
   createdDate?: string
 }
 
@@ -164,6 +167,7 @@ export function Customer360Page() {
   const canEditCustomer = useAnyPermission(['CUSTOMER.UPDATE', 'CUSTOMER_CUSTOMER_UPDATE', 'CUSTOMER.EXPORT'])
   const canCreateDeal = useAnyPermission(['CRM.DEAL.CREATE', 'CRM_DEAL_CREATE', 'CRM.DEALS.VIEW', 'CRM.LEAD.VIEW'])
   const canCreateInvoice = useAnyPermission(['CRM.INVOICE.CREATE', 'CRM_INVOICE_CREATE', 'CRM.INVOICE.VIEW'])
+  const uploadAvatarReq = useUploadCustomerAvatar()
 
   const { data: customer, isLoading: loadingCust, isError: custError, refetch, isFetching } = useCustomerDetail(id)
   const { data: activities } = useCustomerActivities(id)
@@ -275,6 +279,21 @@ export function Customer360Page() {
         ]}
         title={customer.name || 'Chưa đặt tên'}
         subtitle={customer.address || 'Chưa có địa chỉ đăng ký'}
+        leading={
+          <CustomerAvatar
+            name={customer.name}
+            avatarUrl={customer.avatarUrl}
+            type={customer.type}
+            taxCode={customer.taxCode}
+            size="lg"
+            editable={canEditCustomer}
+            uploading={uploadAvatarReq.isPending}
+            onUpload={(file) => {
+              if (!id) return
+              uploadAvatarReq.mutate({ id, file })
+            }}
+          />
+        }
         statusBadge={
           <StatusBadge
             label={isCompany ? 'Doanh nghiệp' : 'Cá nhân'}
@@ -284,7 +303,7 @@ export function Customer360Page() {
         }
         kpi={[
           { label: 'Doanh thu YTD', value: formatCurrency(revenueYTD) },
-          { label: 'Deal đang mở', value: String(openDealsCount) },
+          { label: 'Cơ hội đang mở', value: String(openDealsCount) },
           {
             label: 'HĐ quá hạn',
             value: String(overdueInvoices.length),
@@ -310,7 +329,7 @@ export function Customer360Page() {
             )}
             {canCreateDeal && (
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => nav('/crm/deals')}>
-                <Plus size={14} /> Deal
+                <Plus size={14} /> Cơ hội
               </Button>
             )}
             {canCreateInvoice && (
@@ -327,7 +346,7 @@ export function Customer360Page() {
       <div className="sticky top-[var(--object-header-offset,0)] z-10 flex flex-wrap gap-1 border-b border-neutral-200 bg-neutral-50/95 backdrop-blur -mx-4 md:-mx-6 px-4 md:px-6">
         {([
           ['overview', 'Tổng quan', Activity],
-          ['deals', 'Deals', ShoppingBag],
+          ['deals', 'Cơ hội bán', ShoppingBag],
           ['invoices', 'Hoá đơn', Receipt],
           ['activities', 'Hoạt động', Clock],
           ['documents', 'Tài liệu', FolderOpen],
@@ -460,9 +479,9 @@ function OverviewTab({
 
       {/* RIGHT: deals + invoices */}
       <div className="lg:col-span-2 space-y-4">
-        <SectionCard title="Deals đang mở" icon={ShoppingBag} count={openDeals.length}>
+        <SectionCard title="Cơ hội đang mở" icon={ShoppingBag} count={openDeals.length}>
           {openDeals.length === 0 ? (
-            <p className="text-sm text-neutral-400 text-center py-8">Chưa có deal đang mở</p>
+            <p className="text-sm text-neutral-400 text-center py-8">Chưa có cơ hội đang mở</p>
           ) : (
             <div className="divide-y divide-neutral-100">
               {openDeals.map((d) => (
@@ -630,9 +649,9 @@ function DealsTab({ deals, onGoto }: { deals: Deal[]; onGoto: () => void }) {
       <div className="bg-white rounded-2xl border border-neutral-200/60 p-6">
         <EmptyState
           icon={ShoppingBag}
-          title="Chưa có deal nào cho khách hàng này"
+          title="Chưa có cơ hội nào cho khách hàng này"
           description="Tạo cơ hội bán hàng đầu tiên để theo dõi tiến trình."
-          action={{ label: 'Sang trang Deals', onClick: onGoto }}
+          action={{ label: 'Sang trang Cơ hội bán', onClick: onGoto }}
         />
       </div>
     )

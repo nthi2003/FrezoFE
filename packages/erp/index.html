@@ -4,11 +4,119 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#060d09" />
     <meta name="description" content="Frezo ERP — Hệ thống quản lý doanh nghiệp toàn diện" />
     <title>Frezo ERP</title>
+    <style>
+      /* Boot splash — hiển thị ngay từ first paint, gỡ khi React mount */
+      #frz-boot {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+        background: #060d09;
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+        transition: opacity 0.35s ease;
+      }
+      #frz-boot.frz-boot-hide { opacity: 0; pointer-events: none; }
+      #frz-boot::before,
+      #frz-boot::after {
+        content: '';
+        position: absolute;
+        border-radius: 9999px;
+        filter: blur(110px);
+      }
+      #frz-boot::before {
+        top: -18%;
+        left: -12%;
+        width: 520px;
+        height: 520px;
+        background: rgba(34, 197, 94, 0.18);
+      }
+      #frz-boot::after {
+        bottom: -22%;
+        right: -10%;
+        width: 460px;
+        height: 460px;
+        background: rgba(13, 148, 136, 0.16);
+      }
+      .frz-boot-inner {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 26px;
+      }
+      .frz-boot-ring {
+        width: 88px;
+        height: 88px;
+        border-radius: 9999px;
+        border: 1px solid rgba(74, 222, 128, 0.18);
+        border-top-color: rgba(74, 222, 128, 0.85);
+        animation: frzBootSpin 2.4s linear infinite;
+      }
+      .frz-boot-word {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .frz-boot-word b {
+        color: #fff;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: 0.42em;
+        text-transform: uppercase;
+      }
+      .frz-boot-word span {
+        border: 1px solid rgba(74, 222, 128, 0.25);
+        background: rgba(74, 222, 128, 0.1);
+        border-radius: 6px;
+        color: #86efac;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.2em;
+        padding: 2px 8px;
+        text-transform: uppercase;
+      }
+      .frz-boot-bar {
+        width: 220px;
+        height: 3px;
+        border-radius: 9999px;
+        background: rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+      }
+      .frz-boot-bar i {
+        display: block;
+        width: 34%;
+        height: 100%;
+        border-radius: 9999px;
+        background: linear-gradient(90deg, rgba(74, 222, 128, 0), #4ade80, rgba(134, 239, 172, 0));
+        animation: frzBootBar 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      }
+      @keyframes frzBootSpin { to { transform: rotate(360deg); } }
+      @keyframes frzBootBar {
+        0%   { transform: translateX(-110%); }
+        100% { transform: translateX(320%); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .frz-boot-ring, .frz-boot-bar i { animation: none; }
+        .frz-boot-bar i { width: 100%; }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <div id="frz-boot" role="status" aria-label="Đang mở Frezo ERP">
+      <div class="frz-boot-inner">
+        <div class="frz-boot-ring"></div>
+        <div class="frz-boot-word"><b>Frezo</b><span>ERP</span></div>
+        <div class="frz-boot-bar"><i></i></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

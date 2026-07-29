@@ -2,12 +2,8 @@ import * as React from 'react'
 import { cn } from '@frezo/utils'
 
 export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> { }
 
-/**
- * Textarea — multi-line input đồng bộ style với Input.
- * Mặc định `rows=4`. Chỉnh chiều cao qua prop `rows` hoặc `className="min-h-[...]"`.
- */
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, rows = 4, ...props }, ref) => {
     return (

@@ -34,7 +34,7 @@ export function useLogin() {
         accessToken: response.token,
         refreshToken: response.refreshToken,
       })
-      // Navigate to dashboard
+      // Default after login → Home (portal), không bắt buộc Dashboard KPI
       navigate('/', { replace: true })
     },
   })

@@ -12,6 +12,7 @@ import { menuApi } from '@/modules/menus/services/menuApi'
 
 // ---- Lazy load pages per module ----
 const LoginPage       = lazy(() => import('@/modules/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })))
+const HomePage        = lazy(() => import('@/modules/dashboard/pages/HomePage').then(m => ({ default: m.HomePage })))
 const DashboardPage   = lazy(() => import('@/modules/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
 
 // Modules
@@ -157,29 +158,9 @@ const AffiliatePage       = lazy(() => import('@/modules/fbautomation/pages/Affi
 import { NotFoundPage } from '@/components/shared/NotFoundPage'
 import { PlaceholderPage } from '@/components/shared/PlaceholderPage'
 import { RouteErrorBoundary } from '@/components/shared/RouteErrorBoundary'
-import logoImg from '@/img/logo.png'
-
-// ---- Page loading fallback ----
-function PageLoader() {
-  return (
-    <div className="w-full min-h-[60vh] flex items-center justify-center">
-      <div className="relative flex flex-col items-center gap-5">
-        <div className="relative flex items-center justify-center w-20 h-20">
-          {/* Vòng nền */}
-          <div className="absolute inset-0 border-[3px] border-primary-100 rounded-full" />
-          {/* Vòng quay */}
-          <div className="absolute inset-0 border-[3px] border-primary-500 rounded-full border-t-transparent animate-spin" />
-          {/* Logo ở giữa */}
-          <img src={logoImg} alt="Frezo" className="w-10 h-10 object-contain animate-pulse" />
-        </div>
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-sm font-bold text-primary-700 tracking-widest uppercase">Frezo</span>
-          <span className="text-xs font-medium text-neutral-400">Đang tải dữ liệu...</span>
-        </div>
-      </div>
-    </div>
-  )
-}
+import { hasPermission } from '@/lib/hooks/usePermission'
+// AppSplash = màn brand toàn trang (bootstrap/auth), PageLoader = loader trong MainLayout
+import { AppSplash, PageLoader } from '@/components/shared/AppLoading'
 
 // ---- Protected Route Guard ----
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -198,7 +179,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (isLoading) {
-    return <PageLoader />
+    return <AppSplash />
   }
 
   const isAdmin = user?.isAdmin || user?.username === 'admin' || user?.roles?.includes('ADMIN') || user?.roles?.includes('SUPER_ADMIN')
@@ -207,9 +188,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const path = location.pathname
 
     // Always allowed paths (mọi user đăng nhập đều truy cập được)
+    // Home `/` = portal; `/dashboard` KPI cần menu DASHBOARD / QTHT.DASHBOARD.VIEW
     const publicProtectedPaths = [
       '/',
-      '/dashboard',
+      '/home',
       '/profile',
       '/notifications',
       '/approval/inbox',
@@ -221,6 +203,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       path.startsWith('/docs/') ||
       path.startsWith('/bai-viet/')
     ) {
+      return <>{children}</>
+    }
+
+    // Dashboard KPI: menu DASHBOARD hoặc permission QTHT.DASHBOARD.VIEW
+    if (path === '/dashboard' && hasPermission('QTHT.DASHBOARD.VIEW')) {
       return <>{children}</>
     }
 
@@ -257,7 +244,7 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorBoundary />,
     element: (
       <PublicRoute>
-        <Suspense fallback={<PageLoader />}>
+        <Suspense fallback={<AppSplash label="Đang mở trang đăng nhập" />}>
           <LoginPage />
         </Suspense>
       </PublicRoute>
@@ -276,8 +263,9 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <Suspense fallback={<PageLoader />}><DashboardPage /></Suspense> },
-      { path: 'dashboard', element: <Navigate to="/" replace /> },
+      { index: true, element: <Suspense fallback={<PageLoader />}><HomePage /></Suspense> },
+      { path: 'home', element: <Navigate to="/" replace /> },
+      { path: 'dashboard', element: <Suspense fallback={<PageLoader />}><DashboardPage /></Suspense> },
 
       // Reader — tin / bài viết nội bộ (Home portal)
       { path: 'bai-viet', element: <Suspense fallback={<PageLoader />}><ArticleListPage /></Suspense> },

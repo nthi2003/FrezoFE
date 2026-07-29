@@ -2,16 +2,14 @@
 // ReorderRulesPage — quy tắc tái nhập kho (FZ-010 / FE-3)
 // ============================================================
 
-import { useMemo, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
-  Plus, Upload, Download, Trash2, FileDown, Package,
+  Plus, Upload, Download, Trash2, FileDown, Package, Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button, PageHeader, AppModal, EmptyState, ConfirmDialog,
 } from '@frezo/ui'
-import { AppTable } from '@/components/ui/AppTable'
-import type { BulkAction } from '@/components/ui/AppTable/AppTable'
 import { downloadCsv } from '@/lib/export/toCsv'
 import {
   useReorderRules, useCreateReorderRule, useUpdateReorderRule,
@@ -31,6 +29,7 @@ export function ReorderRulesPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [confirmBulk, setConfirmBulk] = useState<ReorderRuleDto[] | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [form, setForm] = useState<ReorderRuleRequest>({
     warehouseId: '',
     productId: '',
@@ -40,94 +39,24 @@ export function ReorderRulesPage() {
     active: true,
   })
 
-  const columns = useMemo(
-    () => [
-      {
-        title: 'Sản phẩm',
-        dataIndex: 'productName' as const,
-        render: (_: unknown, row: ReorderRuleDto) => (
-          <div>
-            <div className="font-medium text-neutral-800">{row.productName || '—'}</div>
-            <div className="text-[11px] font-mono text-neutral-400">{row.productCode}</div>
-          </div>
-        ),
-      },
-      {
-        title: 'Kho',
-        dataIndex: 'warehouseName' as const,
-        render: (v: string) => <span className="text-sm">{v || '—'}</span>,
-      },
-      {
-        title: 'Danh mục',
-        dataIndex: 'categoryName' as const,
-        render: (v: string) => (
-          <span className="text-xs text-neutral-500">{v || '—'}</span>
-        ),
-      },
-      {
-        title: 'Min',
-        dataIndex: 'minQty' as const,
-        align: 'right' as const,
-        render: (v: number, row: ReorderRuleDto) => (
-          <InlineQty
-            value={v}
-            onCommit={(n) => {
-              if (n > row.maxQty) {
-                toast.error('Min phải ≤ Max')
-                return
-              }
-              update.mutate({ id: row.id, body: { minQty: n } })
-            }}
-          />
-        ),
-      },
-      {
-        title: 'Max',
-        dataIndex: 'maxQty' as const,
-        align: 'right' as const,
-        render: (v: number, row: ReorderRuleDto) => (
-          <InlineQty
-            value={v}
-            onCommit={(n) => {
-              if (n < row.minQty) {
-                toast.error('Max phải ≥ Min')
-                return
-              }
-              update.mutate({ id: row.id, body: { maxQty: n } })
-            }}
-          />
-        ),
-      },
-      {
-        title: 'SL đặt lại',
-        dataIndex: 'reorderQty' as const,
-        align: 'right' as const,
-        render: (v: number) => (
-          <span className="tabular-nums font-medium">{v ?? '—'}</span>
-        ),
-      },
-      {
-        title: 'TT',
-        dataIndex: 'active' as const,
-        align: 'center' as const,
-        render: (v: boolean) => (
-          <span
-            className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${
-              v
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : 'bg-neutral-100 text-neutral-500 border-neutral-200'
-            }`}
-          >
-            {v ? 'ON' : 'OFF'}
-          </span>
-        ),
-      },
-    ],
-    [update],
-  )
+  const selectedRows = rows.filter((r) => selected.has(r.id))
 
-  const exportCsv = (selected: ReorderRuleDto[]) => {
-    downloadCsv(`reorder-rules-${new Date().toISOString().slice(0, 10)}`, selected, [
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleAll = () => {
+    if (selected.size === rows.length) setSelected(new Set())
+    else setSelected(new Set(rows.map((r) => r.id)))
+  }
+
+  const exportCsv = (items: ReorderRuleDto[]) => {
+    downloadCsv(`reorder-rules-${new Date().toISOString().slice(0, 10)}`, items, [
       { header: 'Mã SP', accessor: 'productCode' },
       { header: 'Tên SP', accessor: 'productName' },
       { header: 'Kho', accessor: 'warehouseName' },
@@ -136,24 +65,8 @@ export function ReorderRulesPage() {
       { header: 'Reorder', accessor: 'reorderQty' },
       { header: 'Active', accessor: (r) => (r.active ? 'YES' : 'NO') },
     ])
-    toast.success(`Đã xuất ${selected.length} quy tắc`)
+    toast.success(`Đã xuất ${items.length} quy tắc`)
   }
-
-  const bulkActions: BulkAction<ReorderRuleDto>[] = [
-    {
-      key: 'export',
-      label: 'Export CSV',
-      icon: FileDown,
-      onClick: exportCsv,
-    },
-    {
-      key: 'delete',
-      label: 'Xoá',
-      icon: Trash2,
-      variant: 'destructive',
-      onClick: (rows) => setConfirmBulk(rows),
-    },
-  ]
 
   const onCreate = () => {
     if (!form.warehouseId || !form.productId) return
@@ -200,7 +113,40 @@ export function ReorderRulesPage() {
         title="Quy tắc tái nhập"
         description="Đặt ngưỡng min/max tồn kho — hệ thống cảnh báo khi dưới min."
         actions={
-          <>
+          <div className="flex flex-wrap gap-2 items-center">
+            <select
+              className="h-9 border rounded-md px-3 text-sm bg-white"
+              value={warehouseId}
+              onChange={(e) => {
+                setWarehouseId(e.target.value)
+                setSelected(new Set())
+              }}
+            >
+              <option value="">Tất cả kho</option>
+              {warehouses.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+            {selected.size > 0 && (
+              <>
+                <Button
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => exportCsv(selectedRows)}
+                >
+                  <FileDown size={14} /> Export ({selected.size})
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gap-1.5 text-rose-600 border-rose-200 hover:bg-rose-50"
+                  onClick={() => setConfirmBulk(selectedRows)}
+                >
+                  <Trash2 size={14} /> Xoá ({selected.size})
+                </Button>
+              </>
+            )}
             <Button variant="outline" className="gap-1.5" onClick={downloadTemplate}>
               <Download size={14} /> Tải template
             </Button>
@@ -216,26 +162,15 @@ export function ReorderRulesPage() {
             >
               <Plus size={14} /> Thêm quy tắc
             </Button>
-          </>
+          </div>
         }
       />
 
-      <div className="flex items-center gap-3">
-        <select
-          className="h-9 border rounded-md px-3 text-sm bg-white"
-          value={warehouseId}
-          onChange={(e) => setWarehouseId(e.target.value)}
-        >
-          <option value="">Tất cả kho</option>
-          {warehouses.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {rows.length === 0 && !isLoading ? (
+      {isLoading ? (
+        <div className="p-12 text-center">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto text-neutral-400" />
+        </div>
+      ) : rows.length === 0 ? (
         <div className="border rounded-xl bg-white">
           <EmptyState
             icon={Package}
@@ -245,14 +180,86 @@ export function ReorderRulesPage() {
           />
         </div>
       ) : (
-        <AppTable
-          data={rows}
-          columns={columns as never}
-          isLoading={isLoading}
-          selectable
-          getRowId={(r) => r.id}
-          bulkActions={bulkActions}
-        />
+        <div className="overflow-x-auto border rounded-xl bg-white">
+          <table className="w-full text-sm">
+            <thead className="bg-neutral-50 text-neutral-600 text-left">
+              <tr>
+                <th className="p-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={selected.size === rows.length && rows.length > 0}
+                    onChange={toggleAll}
+                    aria-label="Chọn tất cả"
+                  />
+                </th>
+                <th className="p-3">Sản phẩm</th>
+                <th className="p-3">Kho</th>
+                <th className="p-3">Danh mục</th>
+                <th className="p-3 text-right">Min</th>
+                <th className="p-3 text-right">Max</th>
+                <th className="p-3 text-right">SL đặt lại</th>
+                <th className="p-3 text-center">TT</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {rows.map((row) => (
+                <tr key={row.id} className="hover:bg-neutral-50">
+                  <td className="p-3">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(row.id)}
+                      onChange={() => toggle(row.id)}
+                    />
+                  </td>
+                  <td className="p-3">
+                    <div className="font-medium text-neutral-800">{row.productName || '—'}</div>
+                    <div className="text-[11px] font-mono text-neutral-400">{row.productCode}</div>
+                  </td>
+                  <td className="p-3">{row.warehouseName || '—'}</td>
+                  <td className="p-3 text-xs text-neutral-500">{row.categoryName || '—'}</td>
+                  <td className="p-3 text-right">
+                    <InlineQty
+                      value={row.minQty}
+                      onCommit={(n) => {
+                        if (n > row.maxQty) {
+                          toast.error('Min phải ≤ Max')
+                          return
+                        }
+                        update.mutate({ id: row.id, body: { minQty: n } })
+                      }}
+                    />
+                  </td>
+                  <td className="p-3 text-right">
+                    <InlineQty
+                      value={row.maxQty}
+                      onCommit={(n) => {
+                        if (n < row.minQty) {
+                          toast.error('Max phải ≥ Min')
+                          return
+                        }
+                        update.mutate({ id: row.id, body: { maxQty: n } })
+                      }}
+                    />
+                  </td>
+                  <td className="p-3 text-right tabular-nums font-medium">
+                    {row.reorderQty ?? '—'}
+                  </td>
+                  <td className="p-3 text-center">
+                    <span
+                      className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${
+                        row.active
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-neutral-100 text-neutral-500 border-neutral-200'
+                      }`}
+                    >
+                      {row.active ? 'ON' : 'OFF'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       <AppModal
@@ -347,6 +354,7 @@ export function ReorderRulesPage() {
           if (!confirmBulk) return
           await Promise.allSettled(confirmBulk.map((r) => remove.mutateAsync(r.id)))
           toast.success(`Đã xoá ${confirmBulk.length} quy tắc`)
+          setSelected(new Set())
           setConfirmBulk(null)
         }}
         title={`Xoá ${confirmBulk?.length ?? 0} quy tắc?`}
@@ -367,7 +375,6 @@ function InlineQty({
   onCommit: (n: number) => void
 }) {
   const [draft, setDraft] = useState(String(value))
-  // BUG-12: sync khi prop value đổi từ server
   useEffect(() => {
     setDraft(String(value))
   }, [value])

@@ -1,113 +1,118 @@
-// Module launcher — full leaf menu grid (permissioned via menu API)
+// ============================================================
+// Module launcher — leaf menu (đã permission hoá) gom theo nhóm.
+// Mỗi nhóm chỉ mở COLLAPSED_PER_GROUP ô; phần dư ẩn sau nút "+N nữa"
+// để Home không biến thành bãi link.
+// ============================================================
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LayoutGrid } from 'lucide-react'
+import { LayoutGrid, Plus } from 'lucide-react'
 import { EmptyState, Skeleton } from '@frezo/ui'
 import { useMenus } from '@/modules/menus/hooks/useMenus'
-import { getMenuIcon } from '@/modules/menus/utils/menuIcons'
-import type { MenuTreeNode } from '@/modules/menus/types/menu.types'
+import { collectModuleGroups, type ModuleGroup } from '../utils/moduleGroups'
 
-export interface ModuleTile {
-  key: string
-  label: string
-  to: string
-  icon: ReturnType<typeof getMenuIcon>
-  group?: string
-}
+const COLLAPSED_PER_GROUP = 6
 
-function normalizeFeUrl(feUrl: string): string {
-  const path = feUrl.startsWith('/') ? feUrl : `/${feUrl}`
-  return path.replace(/\/+$/, '') || '/'
-}
+function ModuleGroupSection({
+  group,
+  onNavigate,
+}: {
+  group: ModuleGroup
+  onNavigate: (to: string) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const hidden = group.tiles.length - COLLAPSED_PER_GROUP
+  const visible = expanded ? group.tiles : group.tiles.slice(0, COLLAPSED_PER_GROUP)
 
-/** Collect leaf menu items with navigable feUrl (exclude home itself). */
-export function collectModuleTiles(nodes: MenuTreeNode[]): ModuleTile[] {
-  const tiles: ModuleTile[] = []
-  const seen = new Set<string>()
+  return (
+    <div>
+      <div className="mb-2 flex items-baseline gap-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+          {group.name}
+        </h3>
+        <span className="text-2xs tabular-nums text-neutral-300">{group.tiles.length}</span>
+      </div>
 
-  const walk = (list: MenuTreeNode[], groupName?: string) => {
-    for (const n of list) {
-      const hasChildren = (n.children?.length ?? 0) > 0
-      if (hasChildren) {
-        walk(n.children, n.name || groupName)
-        continue
-      }
-      if (!n.feUrl) continue
-      const to = normalizeFeUrl(n.feUrl)
-      if (to === '/' || to === '/dashboard') continue
-      if (seen.has(to)) continue
-      seen.add(to)
-      tiles.push({
-        key: n.code || to,
-        label: n.name || to,
-        to,
-        icon: getMenuIcon(n),
-        group: groupName,
-      })
-    }
-  }
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
+        {visible.map((tile) => {
+          const Icon = tile.icon
+          return (
+            <button
+              key={tile.key}
+              type="button"
+              onClick={() => onNavigate(tile.to)}
+              title={`${group.name} · ${tile.label}`}
+              className="group flex flex-col items-start gap-2.5 rounded-lg border border-neutral-200 bg-surface p-3.5 text-left transition-colors duration-150 hover:border-primary-300 hover:bg-primary-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-neutral-100 text-neutral-500 group-hover:bg-primary-100 group-hover:text-primary-700">
+                <Icon size={18} strokeWidth={1.5} />
+              </span>
+              <span className="line-clamp-2 text-sm font-medium leading-snug text-neutral-800">
+                {tile.label}
+              </span>
+            </button>
+          )
+        })}
 
-  walk(nodes)
-  return tiles
+        {!expanded && hidden > 0 && (
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="flex flex-col items-start gap-2.5 rounded-lg border border-dashed border-neutral-300 bg-surface-secondary p-3.5 text-left transition-colors duration-150 hover:border-primary-300 hover:bg-primary-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-neutral-100 text-neutral-500">
+              <Plus size={18} strokeWidth={1.5} />
+            </span>
+            <span className="text-sm font-medium leading-snug text-neutral-600">
+              {hidden} mục nữa
+            </span>
+          </button>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export function ModuleLauncher() {
   const nav = useNavigate()
   const { menuTree, isLoading } = useMenus()
-  const tiles = useMemo(() => collectModuleTiles(menuTree), [menuTree])
+  const groups = useMemo(() => collectModuleGroups(menuTree), [menuTree])
+  const total = useMemo(() => groups.reduce((s, g) => s + g.tiles.length, 0), [groups])
 
   return (
-    <section className="bg-white p-5 rounded-2xl border border-neutral-200/60 shadow-sm">
+    <section className="rounded-xl border border-neutral-200 bg-surface p-5 shadow-sm">
       <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-neutral-900 flex items-center gap-2">
-            <LayoutGrid size={18} className="text-primary-600" />
-            Module
+        <div className="min-w-0">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-neutral-900">
+            <LayoutGrid size={18} strokeWidth={1.5} className="text-primary-600" />
+            Chức năng
           </h2>
-          <p className="text-xs text-neutral-500 mt-0.5">
-            Các chức năng bạn có quyền truy cập — cùng nguồn với menu bên trái
+          <p className="mt-0.5 text-xs text-neutral-500">
+            Cùng nguồn với menu bên trái — chỉ hiện phần bạn có quyền
           </p>
         </div>
-        {!isLoading && (
-          <span className="text-xs text-neutral-400 tabular-nums shrink-0">
-            {tiles.length} mục
-          </span>
+        {!isLoading && total > 0 && (
+          <span className="shrink-0 text-xs tabular-nums text-neutral-400">{total} mục</span>
         )}
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
           {Array.from({ length: 12 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 rounded-xl" />
+            <Skeleton key={i} className="h-[86px] rounded-lg" />
           ))}
         </div>
-      ) : tiles.length === 0 ? (
+      ) : total === 0 ? (
         <EmptyState
-          title="Chưa có module"
+          icon={LayoutGrid}
+          title="Chưa có chức năng nào"
           description="Tài khoản chưa được gán menu. Liên hệ Admin để cấp quyền."
         />
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3">
-          {tiles.map((tile) => {
-            const Icon = tile.icon
-            return (
-              <button
-                key={tile.key}
-                type="button"
-                onClick={() => nav(tile.to)}
-                title={tile.group ? `${tile.group} · ${tile.label}` : tile.label}
-                className="group flex flex-col items-start gap-2.5 rounded-xl border border-neutral-200 bg-neutral-50/40 p-3.5 text-left transition hover:border-primary-300 hover:bg-primary-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
-              >
-                <span className="w-9 h-9 rounded-lg bg-white border border-neutral-200 flex items-center justify-center text-primary-700 group-hover:border-primary-200">
-                  <Icon size={18} />
-                </span>
-                <span className="text-sm font-medium text-neutral-800 leading-snug line-clamp-2">
-                  {tile.label}
-                </span>
-              </button>
-            )
-          })}
+        <div className="space-y-5">
+          {groups.map((g) => (
+            <ModuleGroupSection key={g.key} group={g} onNavigate={nav} />
+          ))}
         </div>
       )}
     </section>

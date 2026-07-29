@@ -57,7 +57,7 @@ export type { ErrorStateProps } from './ErrorState'
 // ---- Layout primitives ----
 export { PageHeader } from './PageHeader'
 export type { PageHeaderProps } from './PageHeader'
-export { ObjectPageHeader } from './ObjectPageHeader'
+export { ObjectPageHeader, Breadcrumb } from './ObjectPageHeader'
 export type {
   ObjectPageHeaderProps,
   BreadcrumbItem,
@@ -87,6 +87,8 @@ export { RichTextEditor } from './RichTextEditor'
 export type { RichTextEditorProps } from './RichTextEditor'
 export { ImageUploader } from './ImageUploader'
 export type { ImageUploaderProps } from './ImageUploader'
+export { ImageLightbox, ZoomableImage } from './ImageLightbox'
+export type { ImageLightboxProps, ZoomableImageProps } from './ImageLightbox'
 export { IconPicker, IconPreview, AVAILABLE_ICONS } from './IconPicker'
 export type { IconPickerProps } from './IconPicker'
 

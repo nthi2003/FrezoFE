@@ -16,9 +16,11 @@ import { DOCS, getDocBySlug } from '@/docs'
 
 // Fallback tĩnh cho các route không có trong menu BE
 const FALLBACK_LABELS: Record<string, string> = {
-  '/':             'Dashboard',
-  '/dashboard':    'Dashboard',
+  '/':             'Trang chủ',
+  '/home':         'Trang chủ',
+  '/dashboard':    'Tổng quan',
   '/docs':         'Tài liệu',
+  '/bai-viet':     'Tin & bài viết',
   '/qtht':         'Hệ thống',
   '/qtht/users':   'Người dùng',
   '/qtht/roles':   'Vai trò',
@@ -83,6 +85,10 @@ function buildBreadcrumbs(pathname: string, labelMap: Map<string, string>) {
     if (!label && cumPath.startsWith('/docs/')) {
       const doc = getDocBySlug(cumPath.slice('/docs/'.length))
       label = doc?.title
+    }
+    // /bai-viet/:id — tránh hiện raw id trên breadcrumb; tiêu đề bài nằm trong page
+    if (!label && cumPath.startsWith('/bai-viet/')) {
+      label = 'Bài viết'
     }
     crumbs.push({ label: label || part, path: cumPath })
   })

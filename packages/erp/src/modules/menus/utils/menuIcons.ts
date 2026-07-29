@@ -2,6 +2,7 @@
 
 import {
   LayoutDashboard,
+  Home,
   Users,
   Shield,
   Menu,
@@ -36,6 +37,7 @@ const FbIcon = FacebookIcon as unknown as LucideIcon
 
 export const MENU_ICON_MAP: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
+  home: Home,
   users: Users,
   user: User,
   usercheck: UserCheck,

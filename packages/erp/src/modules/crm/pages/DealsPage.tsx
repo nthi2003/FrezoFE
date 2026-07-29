@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Plus, Trophy, XCircle, User, CalendarDays, MessageSquare, ChevronRight, LayoutGrid,
+  GripVertical,
 } from 'lucide-react'
 import {
   Button, PageHeader, AppModal, ConfirmDialog, EmptyState, ErrorState, Select, Label,
@@ -9,10 +10,13 @@ import { formatCurrency, formatDate } from '@frezo/utils'
 import {
   usePipelines, usePipelineStages, useDealsByPipeline, useCreateDeal,
   useMoveDealStage, useMarkDealWon, useMarkDealLost, useEnsureDefaultPipeline,
+  useReorderPipelineStages,
 } from '../hooks/useCrm'
-import type { Deal, Stage } from '../services/crmApi'
+import type { Deal, Pipeline, Stage } from '../services/crmApi'
 import { CommentDrawer } from '@/components/shared/CommentThread'
 import { SubjectType } from '@/modules/approval/types'
+
+const COLUMN_DRAG_MIME = 'application/x-frezo-kanban-column'
 
 // ============================================================
 // FR-UX-04 — Kanban semantic (không gradient raw) + KPI cột
@@ -92,28 +96,47 @@ function ownerInitials(username?: string): string {
 
 export function DealsPage() {
   const { data: pipelines } = usePipelines()
-  const pipelineList = (pipelines as any[]) ?? []
+  const pipelineList = useMemo(
+    () => ((pipelines as Pipeline[] | undefined) ?? []),
+    [pipelines],
+  )
   const ensureDefault = useEnsureDefaultPipeline()
 
   const [pipelineId, setPipelineId] = useState<string | undefined>()
   useEffect(() => {
     if (pipelineList.length > 0 && !pipelineId) {
-      const def = pipelineList.find((p: any) => p.isDefault) || pipelineList[0]
+      const def = pipelineList.find((p) => p.isDefault) || pipelineList[0]
       setPipelineId(def.id)
     }
   }, [pipelineList, pipelineId])
 
   const { data: stages } = usePipelineStages(pipelineId)
-  const stageList = useMemo(
-    () => (((stages as any[]) ?? []) as Stage[]).map((s) => ({
-      ...s,
-      name: normalizeStageName(s.name),
-    })),
+  const remoteStageList = useMemo(
+    () =>
+      ((stages as Stage[] | undefined) ?? [])
+        .map((s) => ({
+          ...s,
+          name: normalizeStageName(s.name),
+        }))
+        .sort((a, b) => (a.orderNo ?? 0) - (b.orderNo ?? 0)),
     [stages],
   )
 
+  /** Local order so column DnD feels instant; sync when server stages change. */
+  const [stageList, setStageList] = useState<Stage[]>([])
+  const [draggingColumnId, setDraggingColumnId] = useState<string | null>(null)
+  const [columnDropTargetId, setColumnDropTargetId] = useState<string | null>(null)
+  useEffect(() => {
+    setStageList(remoteStageList)
+    setDraggingColumnId(null)
+    setColumnDropTargetId(null)
+  }, [remoteStageList, pipelineId])
+
   const { data: deals, isLoading, isError, refetch, isFetching } = useDealsByPipeline(pipelineId)
-  const dealList = ((deals as any[]) ?? []) as Deal[]
+  const dealList = useMemo(
+    () => ((deals as Deal[] | undefined) ?? []),
+    [deals],
+  )
 
   const dealsByStage = useMemo(() => {
     const m = new Map<string, Deal[]>()
@@ -145,6 +168,7 @@ export function DealsPage() {
   const win = useMarkDealWon()
   const lose = useMarkDealLost()
   const create = useCreateDeal()
+  const reorderStages = useReorderPipelineStages()
 
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
@@ -157,8 +181,8 @@ export function DealsPage() {
     title: '', amount: 0, stageId: '', expectedCloseDate: '', description: '',
   })
 
-  const onDrop = (stageId: string) => {
-    if (!draggingId) return
+  const onDropCard = (stageId: string) => {
+    if (draggingColumnId || !draggingId) return
     const d = dealList.find((x) => x.id === draggingId)
     if (!d || d.stageId === stageId) {
       setDraggingId(null)
@@ -168,6 +192,55 @@ export function DealsPage() {
     move.mutate({ id: draggingId, stageId })
     setDraggingId(null)
     setDropTargetId(null)
+  }
+
+  const persistStageOrder = (next: Stage[], rollback: Stage[]) => {
+    if (!pipelineId) return
+    const pipeline = pipelineList.find((p) => p.id === pipelineId)
+    if (!pipeline?.name) return
+    reorderStages.mutate(
+      {
+        id: pipelineId,
+        data: {
+          name: pipeline.name,
+          description: pipeline.description,
+          isDefault: pipeline.isDefault,
+          active: pipeline.active,
+          stages: next.map((s) => ({
+            id: s.id,
+            name: s.name,
+            orderNo: s.orderNo,
+            probability: s.probability,
+            won: s.won,
+          })),
+        },
+      },
+      { onError: () => setStageList(rollback) },
+    )
+  }
+
+  const onDropColumn = (targetStageId: string) => {
+    if (!draggingColumnId || draggingColumnId === targetStageId) {
+      setDraggingColumnId(null)
+      setColumnDropTargetId(null)
+      return
+    }
+    const prev = stageList
+    const fromIdx = prev.findIndex((s) => s.id === draggingColumnId)
+    const toIdx = prev.findIndex((s) => s.id === targetStageId)
+    if (fromIdx < 0 || toIdx < 0) {
+      setDraggingColumnId(null)
+      setColumnDropTargetId(null)
+      return
+    }
+    const next = [...prev]
+    const [moved] = next.splice(fromIdx, 1)
+    next.splice(toIdx, 0, moved)
+    const ordered = next.map((s, i) => ({ ...s, orderNo: i }))
+    setStageList(ordered)
+    setDraggingColumnId(null)
+    setColumnDropTargetId(null)
+    persistStageOrder(ordered, prev)
   }
 
   const onCreate = () => {
@@ -194,7 +267,7 @@ export function DealsPage() {
   }
 
   const pipelineOptions = useMemo(
-    () => pipelineList.map((p: { id: string; name: string }) => ({ value: p.id, label: p.name })),
+    () => pipelineList.map((p) => ({ value: p.id, label: p.name })),
     [pipelineList],
   )
   const stageOptions = useMemo(
@@ -206,11 +279,11 @@ export function DealsPage() {
     return (
       <div className="p-6">
         <PageHeader
-          title="Pipeline Deals"
-          description="Chưa có pipeline. Bấm bên dưới để tạo pipeline mặc định 5 stage."
+          title="Cơ hội bán"
+          description="Chưa có phễu bán hàng. Bấm bên dưới để tạo phễu mặc định gồm 5 giai đoạn."
         />
         <Button onClick={() => ensureDefault.mutate()} className="gap-2">
-          <Plus size={16} /> Tạo Pipeline mặc định
+          <Plus size={16} /> Tạo phễu mặc định
         </Button>
       </div>
     )
@@ -219,33 +292,33 @@ export function DealsPage() {
   return (
     <div className="p-6 space-y-4">
       <PageHeader
-        title="Pipeline Deals"
-        description={`Kéo-thả để di chuyển deal giữa các giai đoạn. Tổng OPEN: ${formatCurrency(totalValue)} · WON: ${formatCurrency(wonValue)}`}
+        title="Cơ hội bán"
+        description={`Kéo thẻ để đổi giai đoạn; kéo núm trên header cột để sắp xếp cột. Tổng đang mở: ${formatCurrency(totalValue)} · Đã chốt: ${formatCurrency(wonValue)}`}
       />
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-64 space-y-1.5">
-          <Label htmlFor="crm-pipeline-select">Pipeline</Label>
+          <Label htmlFor="crm-pipeline-select">Phễu bán hàng</Label>
           <Select
             id="crm-pipeline-select"
             options={pipelineOptions}
             value={pipelineId || ''}
             onChange={(v) => setPipelineId(v || undefined)}
-            placeholder="Chọn pipeline…"
+            placeholder="Chọn phễu bán hàng…"
             showSearch={pipelineOptions.length > 5}
-            aria-label="Pipeline"
+            aria-label="Phễu bán hàng"
           />
         </div>
         <div className="flex-1" />
         <Button className="gap-2" onClick={openCreate}>
-          <Plus size={16} /> Thêm Deal
+          <Plus size={16} /> Thêm cơ hội
         </Button>
       </div>
 
       {isError && (
         <div className="border border-border rounded-lg bg-surface">
           <ErrorState
-            title="Không tải được deals"
+            title="Không tải được cơ hội bán"
             onRetry={() => refetch()}
             isRetrying={isFetching}
           />
@@ -267,9 +340,9 @@ export function DealsPage() {
         <div className="border border-border rounded-lg bg-surface mb-2">
           <EmptyState
             icon={Trophy}
-            title="Pipeline trống"
-            description="Chưa có deal OPEN — thêm deal mới hoặc chuyển lead thành deal. Kéo-thả để đổi giai đoạn (1 bước)."
-            action={{ label: 'Thêm Deal', onClick: openCreate }}
+            title="Phễu bán hàng trống"
+            description="Chưa có cơ hội đang mở — thêm cơ hội mới hoặc chuyển khách tiềm năng thành cơ hội. Kéo-thả để đổi giai đoạn (1 bước)."
+            action={{ label: 'Thêm cơ hội', onClick: openCreate }}
           />
         </div>
       )}
@@ -281,42 +354,87 @@ export function DealsPage() {
             const totalStage = items.reduce((s, d) => s + (d.amount || 0), 0)
             const tone = stageTone(stage.orderNo)
             const nextStage = stageList[stageIdx + 1]
-            const isDropTarget = dropTargetId === stage.id && draggingId != null
-            const isDraggingAny = draggingId != null
+            const isColumnDragging = draggingColumnId === stage.id
+            const isColumnDropTarget =
+              draggingColumnId != null && columnDropTargetId === stage.id && !isColumnDragging
+            const isCardDropTarget =
+              !draggingColumnId && dropTargetId === stage.id && draggingId != null
+            const isDraggingAnyCard = !draggingColumnId && draggingId != null
 
             return (
               <div
                 key={stage.id}
                 className={`w-72 flex-shrink-0 rounded-xl flex flex-col border transition-all duration-200 ${
-                  isDropTarget
-                    ? 'bg-primary-50 border-primary-400 border-dashed shadow-card'
-                    : isDraggingAny
-                      ? 'bg-surface-secondary border-border border-dashed opacity-80'
-                      : 'bg-surface-secondary border-border'
+                  isColumnDragging
+                    ? 'opacity-40 scale-[0.98] border-primary-300 border-dashed shadow-card'
+                    : isColumnDropTarget
+                      ? 'bg-primary-50 border-primary-400 border-dashed shadow-card ring-2 ring-primary-200'
+                      : isCardDropTarget
+                        ? 'bg-primary-50 border-primary-400 border-dashed shadow-card'
+                        : isDraggingAnyCard
+                          ? 'bg-surface-secondary border-border border-dashed opacity-80'
+                          : 'bg-surface-secondary border-border'
                 }`}
                 onDragOver={(e) => {
                   e.preventDefault()
-                  if (dropTargetId !== stage.id) setDropTargetId(stage.id)
+                  if (draggingColumnId) {
+                    if (columnDropTargetId !== stage.id) setColumnDropTargetId(stage.id)
+                    return
+                  }
+                  if (draggingId && dropTargetId !== stage.id) setDropTargetId(stage.id)
                 }}
                 onDragLeave={() => {
+                  if (draggingColumnId) {
+                    if (columnDropTargetId === stage.id) setColumnDropTargetId(null)
+                    return
+                  }
                   if (dropTargetId === stage.id) setDropTargetId(null)
                 }}
-                onDrop={() => onDrop(stage.id)}
+                onDrop={() => {
+                  if (draggingColumnId) {
+                    onDropColumn(stage.id)
+                    return
+                  }
+                  onDropCard(stage.id)
+                }}
               >
-                {/* Column header: title + count + Σ VND */}
+                {/* Column header: grip + title + count + Σ VND */}
                 <div
                   className={`px-3 py-2.5 border-b rounded-t-xl ${
-                    isDropTarget
+                    isColumnDropTarget || isCardDropTarget
                       ? 'bg-primary-50 border-primary-200'
                       : `${tone.headerBg} border-border`
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        draggable
+                        onDragStart={(e) => {
+                          e.stopPropagation()
+                          setDraggingId(null)
+                          setDropTargetId(null)
+                          setDraggingColumnId(stage.id)
+                          e.dataTransfer.effectAllowed = 'move'
+                          e.dataTransfer.setData(COLUMN_DRAG_MIME, stage.id)
+                          e.dataTransfer.setData('text/plain', stage.id)
+                        }}
+                        onDragEnd={() => {
+                          setDraggingColumnId(null)
+                          setColumnDropTargetId(null)
+                        }}
+                        className="h-7 w-7 inline-flex items-center justify-center rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-900/5 cursor-grab active:cursor-grabbing shrink-0 touch-none"
+                        title="Kéo để đổi thứ tự cột"
+                        aria-label={`Kéo cột ${stage.name}`}
+                      >
+                        <GripVertical size={16} strokeWidth={1.5} aria-hidden />
+                      </span>
                       <span className={`w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-white shadow-sm ${tone.dot}`} />
                       <span
                         className={`text-sm font-semibold truncate ${
-                          isDropTarget ? 'text-primary-700' : tone.headerText
+                          isColumnDropTarget || isCardDropTarget ? 'text-primary-700' : tone.headerText
                         }`}
                         title={stage.name}
                       >
@@ -325,7 +443,9 @@ export function DealsPage() {
                     </div>
                     <span
                       className={`text-xs font-bold px-2 py-0.5 rounded-md tabular-nums shrink-0 ${
-                        isDropTarget ? 'bg-primary-600 text-white' : tone.countClass
+                        isColumnDropTarget || isCardDropTarget
+                          ? 'bg-primary-600 text-white'
+                          : tone.countClass
                       }`}
                     >
                       {items.length}
@@ -348,14 +468,18 @@ export function DealsPage() {
                     <EmptyState
                       icon={LayoutGrid}
                       title={
-                        isDropTarget
-                          ? 'Thả deal vào đây'
-                          : `Cột «${stage.name}» trống`
+                        isColumnDropTarget
+                          ? 'Thả cột vào đây'
+                          : isCardDropTarget
+                            ? 'Thả cơ hội vào đây'
+                            : `Cột «${stage.name}» trống`
                       }
                       description={
-                        isDropTarget
-                          ? 'Kéo thẻ từ cột khác để đổi giai đoạn.'
-                          : 'Chưa có deal ở giai đoạn này. Kéo thẻ vào hoặc thêm deal mới.'
+                        isColumnDropTarget
+                          ? 'Thả để đổi thứ tự giai đoạn phễu bán hàng.'
+                          : isCardDropTarget
+                            ? 'Kéo thẻ từ cột khác để đổi giai đoạn.'
+                            : 'Chưa có cơ hội ở giai đoạn này. Kéo thẻ vào hoặc thêm cơ hội mới.'
                       }
                       className="py-8 border-0 shadow-none bg-transparent"
                     />
@@ -365,8 +489,13 @@ export function DealsPage() {
                       return (
                         <div
                           key={d.id}
-                          draggable
-                          onDragStart={() => setDraggingId(d.id)}
+                          draggable={!draggingColumnId}
+                          onDragStart={() => {
+                            if (draggingColumnId) return
+                            setDraggingColumnId(null)
+                            setColumnDropTargetId(null)
+                            setDraggingId(d.id)
+                          }}
                           onDragEnd={() => {
                             setDraggingId(null)
                             setDropTargetId(null)
@@ -385,8 +514,8 @@ export function DealsPage() {
                             {d.ownerUsername && (
                               <div
                                 className="w-7 h-7 rounded-full text-[10px] font-bold text-primary-700 bg-primary-100 flex items-center justify-center shrink-0"
-                                title={`Owner: ${d.ownerUsername}`}
-                                aria-label={`Owner ${d.ownerUsername}`}
+                                title={`Phụ trách: ${d.ownerUsername}`}
+                                aria-label={`Phụ trách ${d.ownerUsername}`}
                               >
                                 {ownerInitials(d.ownerUsername)}
                               </div>
@@ -420,7 +549,7 @@ export function DealsPage() {
                                 aria-label={`Chuyển sang ${nextStage.name}`}
                                 disabled={move.isPending}
                               >
-                                Next <ChevronRight size={12} aria-hidden />
+                                Tiếp <ChevronRight size={12} aria-hidden />
                               </button>
                             )}
                             <button
@@ -442,8 +571,8 @@ export function DealsPage() {
                                 e.stopPropagation()
                                 setWonTarget(d)
                               }}
-                              title="Đánh dấu WON"
-                              aria-label="Đánh dấu WON"
+                              title="Đánh dấu đã chốt"
+                              aria-label="Đánh dấu đã chốt"
                             >
                               <Trophy size={14} aria-hidden />
                             </button>
@@ -455,8 +584,8 @@ export function DealsPage() {
                                 setLostReason('')
                                 setLostTarget(d)
                               }}
-                              title="Đánh dấu LOST"
-                              aria-label="Đánh dấu LOST"
+                              title="Đánh dấu thất bại"
+                              aria-label="Đánh dấu thất bại"
                             >
                               <XCircle size={14} aria-hidden />
                             </button>
@@ -472,7 +601,7 @@ export function DealsPage() {
         </div>
       )}
 
-      <AppModal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Thêm Deal mới">
+      <AppModal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Thêm cơ hội mới">
         <div className="space-y-3">
           <div>
             <label className="text-sm text-neutral-700 mb-1 block">Tiêu đề *</label>
@@ -540,18 +669,18 @@ export function DealsPage() {
           if (!wonTarget) return
           win.mutate(wonTarget.id, { onSuccess: () => setWonTarget(null) })
         }}
-        title="Xác nhận đánh dấu WON?"
+        title="Xác nhận đánh dấu đã chốt?"
         message={
           <span>
-            Deal <strong>«{wonTarget?.title || ''}»</strong>
+            Cơ hội <strong>«{wonTarget?.title || ''}»</strong>
             {wonTarget?.amount != null ? (
               <> ({formatCurrency(wonTarget.amount)})</>
             ) : null}
-            {' '}sẽ chuyển sang trạng thái <strong>WON</strong> và rời khỏi pipeline OPEN.
+            {' '}sẽ chuyển sang trạng thái <strong>đã chốt</strong> và rời khỏi phễu đang mở.
             Hành động này cập nhật kết quả bán hàng.
           </span>
         }
-        confirmText="Xác nhận WON"
+        confirmText="Xác nhận đã chốt"
         cancelText="Huỷ"
         variant="default"
         isLoading={win.isPending}
@@ -567,16 +696,16 @@ export function DealsPage() {
             { onSuccess: () => { setLostTarget(null); setLostReason('') } },
           )
         }}
-        title="Xác nhận đánh dấu LOST?"
+        title="Xác nhận đánh dấu thất bại?"
         message={(
           <div className="space-y-2">
             <p>
-              Deal <strong>«{lostTarget?.title || ''}»</strong> sẽ chuyển sang trạng thái{' '}
-              <strong>LOST</strong> và rời khỏi pipeline OPEN. Nên ghi rõ lý do để báo cáo.
+              Cơ hội <strong>«{lostTarget?.title || ''}»</strong> sẽ chuyển sang trạng thái{' '}
+              <strong>thất bại</strong> và rời khỏi phễu đang mở. Nên ghi rõ lý do để báo cáo.
             </p>
             <div>
               <Label htmlFor="deal-lost-reason" className="mb-1 block text-neutral-700">
-                Lý do LOST (tuỳ chọn)
+                Lý do thất bại (tuỳ chọn)
               </Label>
               <textarea
                 id="deal-lost-reason"
@@ -589,7 +718,7 @@ export function DealsPage() {
             </div>
           </div>
         )}
-        confirmText="Xác nhận LOST"
+        confirmText="Xác nhận thất bại"
         cancelText="Huỷ"
         variant="danger"
         isLoading={lose.isPending}
@@ -600,7 +729,7 @@ export function DealsPage() {
         onClose={() => setCommentDeal(null)}
         subjectType={SubjectType.DEAL}
         subjectId={commentDeal?.id || ''}
-        title={commentDeal?.title || 'Deal'}
+        title={commentDeal?.title || 'Cơ hội'}
         subtitle={commentDeal?.customerName}
       />
     </div>

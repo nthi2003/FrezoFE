@@ -48,7 +48,7 @@ export function useConvertLead() {
     mutationFn: ({ id, pipelineId }: { id: string; pipelineId?: string }) =>
       leadsApi.convert(id, pipelineId),
     onSuccess: () => {
-      toast.success('Đã convert lead → deal')
+      toast.success('Đã chuyển khách tiềm năng thành cơ hội bán')
       qc.invalidateQueries({ queryKey: ['crm'] })
     },
   })
@@ -66,11 +66,12 @@ export function useDeleteLead() {
 }
 
 // ---- Pipelines ----
-export function usePipelines() {
+export function usePipelines(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['crm', 'pipelines'],
     queryFn: () => pipelinesApi.list(),
     select: list,
+    enabled: options?.enabled ?? true,
   })
 }
 
@@ -88,9 +89,28 @@ export function useEnsureDefaultPipeline() {
   return useMutation({
     mutationFn: () => pipelinesApi.ensureDefault(),
     onSuccess: () => {
-      toast.success('Đã tạo pipeline mặc định')
+      toast.success('Đã tạo phễu bán hàng mặc định')
       qc.invalidateQueries({ queryKey: ['crm', 'pipelines'] })
     },
+  })
+}
+
+export function useReorderPipelineStages() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string
+      data: Parameters<typeof pipelinesApi.update>[1]
+    }) => pipelinesApi.update(id, data),
+    onSuccess: (_res, vars) => {
+      toast.success('Đã đổi thứ tự cột phễu bán hàng')
+      qc.invalidateQueries({ queryKey: ['crm', 'pipelines', vars.id, 'stages'] })
+      qc.invalidateQueries({ queryKey: ['crm', 'pipelines'] })
+    },
+    onError: () => toast.error('Đổi thứ tự cột thất bại'),
   })
 }
 
@@ -118,7 +138,7 @@ export function useCreateDeal() {
   return useMutation({
     mutationFn: (data: DealRequest) => dealsApi.create(data),
     onSuccess: () => {
-      toast.success('Đã tạo deal')
+      toast.success('Đã tạo cơ hội bán')
       qc.invalidateQueries({ queryKey: ['crm', 'deals'] })
     },
   })
@@ -139,7 +159,7 @@ export function useMarkDealWon() {
   return useMutation({
     mutationFn: (id: string) => dealsApi.markWon(id),
     onSuccess: () => {
-      toast.success('Deal WON! 🎉')
+      toast.success('Đã chốt cơ hội bán')
       qc.invalidateQueries({ queryKey: ['crm', 'deals'] })
     },
   })
@@ -150,7 +170,7 @@ export function useMarkDealLost() {
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) => dealsApi.markLost(id, reason),
     onSuccess: () => {
-      toast.success('Đã đánh dấu deal LOST')
+      toast.success('Đã đánh dấu cơ hội thất bại')
       qc.invalidateQueries({ queryKey: ['crm', 'deals'] })
     },
   })

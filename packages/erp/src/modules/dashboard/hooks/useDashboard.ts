@@ -5,11 +5,12 @@ import { dashboardApi, type DashboardSummary } from '../services/dashboardApi'
 // Backend trả ApiResponse<T> — hook select ra data để component xài trực tiếp.
 // unwrapList dùng cho các endpoint trả list/array; endpoint object dùng res?.data.
 
-export function useDashboardSummary() {
+export function useDashboardSummary(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['dashboard_summary'],
     queryFn: dashboardApi.getSummary,
     select: (res: any): DashboardSummary | undefined => res?.data ?? res,
+    enabled: options?.enabled ?? true,
   })
 }
 

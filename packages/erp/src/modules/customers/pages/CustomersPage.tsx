@@ -14,10 +14,12 @@ import { AppForm } from '@/components/shared/AppForm'
 import { Button } from '@frezo/ui'
 import {
   useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer,
+  useUploadCustomerAvatar,
 } from '../hooks/useCustomer'
 import { customerApi } from '../services/customerApi'
 import { customerFormSchema, type CustomerFormValues } from '../constants/schema'
 import { CUSTOMERS_GUIDE } from '../constants/customers.guide'
+import { CustomerAvatar } from '../components/CustomerAvatar'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { downloadCsv } from '@/lib/export/toCsv'
 import { usePermission } from '@/lib/hooks/usePermission'
@@ -47,6 +49,7 @@ export function CustomersPage() {
   const createReq = useCreateCustomer()
   const updateReq = useUpdateCustomer()
   const deleteReq = useDeleteCustomer()
+  const uploadAvatarReq = useUploadCustomerAvatar()
 
   const aiSyncReq = useMutation({
     mutationFn: () => customerApi.aiSync(),
@@ -238,21 +241,18 @@ export function CustomersPage() {
       dataIndex: 'name',
       render: (val: string, row: any) => (
         <div className="flex items-center gap-2.5 min-w-0">
-          <div
-            className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-sm ${
-              row.type === 'COMPANY' || row.taxCode
-                ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
-                : 'bg-gradient-to-br from-emerald-500 to-teal-600'
-            }`}
-            title={row.type === 'COMPANY' || row.taxCode ? 'Doanh nghiệp' : 'Cá nhân'}
-          >
-            {getInitials(val)}
-          </div>
+          <CustomerAvatar
+            name={val}
+            avatarUrl={row.avatarUrl}
+            type={row.type}
+            taxCode={row.taxCode}
+            size="sm"
+          />
           <div className="min-w-0">
             <div className="font-semibold text-neutral-800 truncate flex items-center gap-1.5">
               {val || 'Chưa đặt tên'}
               {(row.type === 'COMPANY' || row.taxCode) && (
-                <Building2 size={12} className="text-blue-500" />
+                <Building2 size={12} className="text-primary-500" />
               )}
             </div>
             {row.address && (
@@ -362,6 +362,16 @@ export function CustomersPage() {
   ]
 
   const formFields = [
+    {
+      name: 'avatarUrl',
+      label: 'Avatar',
+      type: 'image',
+      colSpan: 2,
+      aspectRatio: '1/1',
+      folder: 'customers',
+      maxSizeMB: 5,
+      hint: 'Kéo-thả hoặc chọn ảnh (JPG/PNG/WebP, tối đa 5MB).',
+    },
     { name: 'name', label: 'Tên khách hàng', required: true, placeholder: 'VD: Công ty TNHH Frezo / Nguyễn Văn A' },
     { name: 'phone', label: 'Số điện thoại', placeholder: '0912xxxxxx' },
     { name: 'email', label: 'Email', type: 'email', placeholder: 'name@example.com' },
@@ -503,7 +513,7 @@ export function CustomersPage() {
           <EmptyState
             icon={Users}
             title="Chưa có khách hàng"
-            description="Thêm khách hàng hoặc mở hồ sơ 360 để xem Deal / Invoice liên quan."
+            description="Thêm khách hàng hoặc mở hồ sơ 360 để xem cơ hội bán / hoá đơn liên quan."
             action={{ label: 'Thêm khách hàng', onClick: openCreate }}
           />
         </div>
@@ -533,7 +543,7 @@ export function CustomersPage() {
       >
         <AppForm
           schema={customerFormSchema}
-          defaultValues={selectedItem || { name: '', email: '', phone: '', address: '', taxCode: '', note: '' }}
+          defaultValues={selectedItem || { name: '', email: '', phone: '', address: '', taxCode: '', note: '', avatarUrl: '' }}
           onSubmit={handleSubmit}
           onCancel={() => setModalOpen(false)}
           fields={formFields}
@@ -552,15 +562,27 @@ export function CustomersPage() {
         {selectedItem && (
           <div className="space-y-4">
             <div className="flex items-center gap-4 pb-4 border-b border-neutral-100">
-              <div
-                className={`w-16 h-16 rounded-2xl flex items-center justify-center text-lg font-bold text-white shrink-0 shadow-md ${
-                  selectedItem.type === 'COMPANY' || selectedItem.taxCode
-                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
-                    : 'bg-gradient-to-br from-emerald-500 to-teal-600'
-                }`}
-              >
-                {getInitials(selectedItem.name)}
-              </div>
+              <CustomerAvatar
+                name={selectedItem.name}
+                avatarUrl={selectedItem.avatarUrl}
+                type={selectedItem.type}
+                taxCode={selectedItem.taxCode}
+                size="md"
+                editable
+                uploading={uploadAvatarReq.isPending}
+                onUpload={(file) => {
+                  uploadAvatarReq.mutate(
+                    { id: selectedItem.id, file },
+                    {
+                      onSuccess: (url) => {
+                        setSelectedItem((prev: any) =>
+                          prev ? { ...prev, avatarUrl: url } : prev,
+                        )
+                      },
+                    },
+                  )
+                }}
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-lg font-bold text-neutral-800 truncate">
@@ -569,8 +591,8 @@ export function CustomersPage() {
                   <span
                     className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded ${
                       selectedItem.type === 'COMPANY' || selectedItem.taxCode
-                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        ? 'bg-primary-50 text-primary-700 border border-primary-200'
+                        : 'bg-neutral-50 text-neutral-700 border border-neutral-200'
                     }`}
                   >
                     {selectedItem.type === 'COMPANY' || selectedItem.taxCode ? (
@@ -668,14 +690,6 @@ export function CustomersPage() {
 // ============================================================
 // Helpers
 // ============================================================
-
-function getInitials(name: string): string {
-  if (!name) return '?'
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return '?'
-  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase()
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-}
 
 function maskPhone(phone?: string | null): string {
   if (!phone) return '—'

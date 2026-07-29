@@ -7,6 +7,7 @@ export const customerFormSchema = z.object({
   address: z.string().optional().nullable(),
   taxCode: z.string().optional().nullable(),
   note: z.string().optional().nullable(),
+  avatarUrl: z.string().url('URL avatar không hợp lệ').optional().or(z.literal('')).nullable(),
 })
 
 export type CustomerFormValues = z.infer<typeof customerFormSchema>

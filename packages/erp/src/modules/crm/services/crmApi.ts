@@ -62,6 +62,11 @@ export interface Pipeline {
   stages?: Stage[]
 }
 
+export type PipelineUpsert = Partial<Pipeline> & {
+  name: string
+  stages?: Array<Partial<Stage> & { name: string }>
+}
+
 export const pipelinesApi = {
   list: () =>
     axiosClient.get<ApiResponse<Pipeline[]>>('/crm/pipelines').then((r) => r.data),
@@ -71,8 +76,10 @@ export const pipelinesApi = {
     axiosClient.get<ApiResponse<Stage[]>>(`/crm/pipelines/${id}/stages`).then((r) => r.data),
   ensureDefault: () =>
     axiosClient.post<ApiResponse<Pipeline>>('/crm/pipelines/ensure-default').then((r) => r.data),
-  create: (data: Partial<Pipeline> & { stages?: Partial<Stage>[] }) =>
+  create: (data: PipelineUpsert) =>
     axiosClient.post<ApiResponse<Pipeline>>('/crm/pipelines', data).then((r) => r.data),
+  update: (id: string, data: PipelineUpsert) =>
+    axiosClient.put<ApiResponse<Pipeline>>(`/crm/pipelines/${id}`, data).then((r) => r.data),
 }
 
 // -------- Deals --------

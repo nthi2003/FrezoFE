@@ -12,9 +12,6 @@ import {
 } from 'lucide-react'
 import { cn } from '@frezo/utils'
 
-// ============================================================
-// Types
-// ============================================================
 
 export interface GuideStep {
   /** Icon lucide (optional). Nếu không truyền dùng số thứ tự. */
@@ -90,10 +87,6 @@ function slugFromDocHref(docHref?: string): string | null {
   return m?.[1] ? decodeURIComponent(m[1]) : null
 }
 
-// ============================================================
-// PageGuideButton — nút "?" nhỏ đặt trong PageHeader.actions
-// ============================================================
-
 export interface PageGuideButtonProps {
   guide: PageGuideConfig
   /** Label tooltip cho nút — mặc định "Hướng dẫn". */
@@ -142,9 +135,6 @@ export function PageGuideButton({ guide, label = 'Hướng dẫn', className }: 
   )
 }
 
-// ============================================================
-// PageGuideDrawer — drawer nội dung
-// ============================================================
 
 interface PageGuideDrawerProps {
   open: boolean
@@ -310,10 +300,6 @@ function PageGuideDrawer({ open, onClose, guide }: PageGuideDrawerProps) {
     </>
   )
 }
-
-// ============================================================
-// Section renderer
-// ============================================================
 
 function SectionRenderer({ section }: { section: GuideSection }) {
   const type = section.type || (section.steps ? 'steps' : 'notes')

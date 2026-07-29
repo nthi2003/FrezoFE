@@ -1,7 +1,6 @@
 // ============================================================
 // FinancialStatementsPage — BCĐKT / KQKD
 // Route: /accounting/financial-statements
-// Export CTA ẩn khi stub (QA-FE-014) — không invent *.EXPORT
 // ============================================================
 
 import { useState } from 'react'
@@ -84,11 +83,6 @@ export function FinancialStatementsPage() {
             {t.label}
           </button>
         ))}
-        {report?.source === 'trial-balance' && (
-          <span className="text-[11px] text-amber-700 self-center">
-            Stub từ Trial Balance (report API 404) — Export chưa sẵn sàng
-          </span>
-        )}
       </div>
 
       {active.isFetching && (

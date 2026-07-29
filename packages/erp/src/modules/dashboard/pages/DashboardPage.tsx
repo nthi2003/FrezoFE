@@ -1,18 +1,18 @@
 // ============================================================
-// FREZO ERP — Dashboard Page (redesigned)
-// Header + greeting theo giờ · 8 KPI cards · 4 charts · Feed · Quick actions.
-// Tách các section thành sub-component trong dashboard/components/.
+// FREZO ERP — Dashboard (KPI / Tổng quan)
+// Chỉ Admin hoặc user có QTHT.DASHBOARD.VIEW
 // ============================================================
 
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useMemo } from 'react'
+import { Navigate, useNavigate } from 'react-router-dom'
 import {
   DollarSign, Wallet, ShoppingBag, AlertTriangle, Users,
-  UserCheck, CalendarClock, CheckSquare, LayoutGrid, BarChart3,
+  UserCheck, CalendarClock, CheckSquare,
 } from 'lucide-react'
 import { PageHeader } from '@frezo/ui'
 import { formatCurrency, formatCurrencyShort } from '@frezo/utils'
 import { useAuthStore } from '@/stores/authStore'
+import { usePermission } from '@/lib/hooks/usePermission'
 import { useDashboardSummary } from '../hooks/useDashboard'
 import {
   useInvoices, usePipelines, usePipelineStages, useDealsByPipeline,
@@ -31,13 +31,6 @@ import { PipelineFunnel, type FunnelRow } from '../components/PipelineFunnel'
 import { ActivityFeed, type FeedItem } from '../components/ActivityFeed'
 import { QuickActions } from '../components/QuickActions'
 import { TaskBoardWidget } from '../components/TaskBoardWidget'
-import { CompanyAnnouncements } from '../components/CompanyAnnouncements'
-import { ModuleLauncher } from '../components/ModuleLauncher'
-import { RecentArticles } from '../components/RecentArticles'
-
-// ============================================================
-// Helpers
-// ============================================================
 
 function getGreeting(): string {
   const h = new Date().getHours()
@@ -66,7 +59,6 @@ function startOfYear(d: Date): Date {
   return new Date(d.getFullYear(), 0, 1)
 }
 
-// Sum invoices theo tháng (past 12 months, key = "MM/YY")
 function buildRevenueSeries(invoices: Invoice[], payrolls: PayrollLike[]): RevenueChartPoint[] {
   const now = new Date()
   const months: RevenueChartPoint[] = []
@@ -117,34 +109,27 @@ interface StageLike {
   orderNo: number
 }
 
-// ============================================================
-// Main Dashboard
-// ============================================================
-
-type HomeTab = 'portal' | 'overview'
-
 export function DashboardPage() {
   const nav = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const [homeTab, setHomeTab] = useState<HomeTab>('portal')
+  const canViewDashboard = usePermission('QTHT.DASHBOARD.VIEW')
+
   const now = useMemo(() => new Date(), [])
   const monthStart = useMemo(() => startOfMonth(now), [now])
   const yearStart = useMemo(() => startOfYear(now), [now])
 
-  // ---- Data ----
   const {
     data: summary,
     isLoading: sumLoading,
     isError: sumError,
     refetch: refetchSummary,
     isFetching: sumFetching,
-  } = useDashboardSummary()
+  } = useDashboardSummary({ enabled: canViewDashboard })
   const { data: invoicesRaw, isLoading: invLoading } = useInvoices()
   const { data: payrollsRaw, isLoading: payLoading } = usePayrolls()
   const { data: leavesRaw, isLoading: leaveLoading } = useLeaveRequests(1, 100)
-  // KPI: ưu tiên summary.pendingTasks (BE đếm thật); fallback GET /task/task nếu thiếu
   const hasSummaryPending = !sumLoading && typeof summary?.pendingTasks === 'number'
-  const needTasksFallback = !sumLoading && !hasSummaryPending
+  const needTasksFallback = canViewDashboard && !sumLoading && !hasSummaryPending
   const {
     data: tasksRaw,
     isLoading: taskLoading,
@@ -159,14 +144,12 @@ export function DashboardPage() {
   const { data: stagesRaw } = usePipelineStages(defaultPipelineId)
   const { data: dealsRaw, isLoading: dealsLoading } = useDealsByPipeline(defaultPipelineId)
 
-  // ---- Cast ----
   const invoices = (invoicesRaw as Invoice[] | undefined) ?? []
   const payrolls = (payrollsRaw as PayrollLike[] | undefined) ?? []
   const leaves = (leavesRaw as LeaveRequestItem[] | undefined) ?? []
   const deals = (dealsRaw as Deal[] | undefined) ?? []
   const stages = (stagesRaw as StageLike[] | undefined) ?? []
 
-  // ---- Derived KPIs ----
   const revenueThisMonth = useMemo(
     () =>
       invoices
@@ -218,7 +201,6 @@ export function DashboardPage() {
     [leaves],
   )
 
-  // ---- Charts data ----
   const revenueSeries = useMemo(
     () => buildRevenueSeries(invoices, payrolls),
     [invoices, payrolls],
@@ -247,7 +229,6 @@ export function DashboardPage() {
 
   const costBreakdown: CostSlice[] = useMemo(() => {
     const payroll = payrollCostThisMonth
-    // Estimate ratio — nếu có BE endpoint chi tiết sẽ thay ở tương lai
     const bhxh = payroll * 0.235
     const opex = payroll * 0.4
     const other = payroll * 0.15
@@ -272,7 +253,6 @@ export function DashboardPage() {
     })
   }, [stages, openDeals])
 
-  // ---- Activity feed (merge 3 sources) ----
   const feed: FeedItem[] = useMemo(() => {
     const items: FeedItem[] = []
     leaves.slice(0, 8).forEach((l) => {
@@ -290,7 +270,7 @@ export function DashboardPage() {
       items.push({
         id: `deal-${d.id}`,
         kind: 'deal',
-        title: `Deal ${d.title}`,
+        title: `Cơ hội ${d.title}`,
         subtitle: `${d.customerName || 'Chưa gán KH'} · ${formatCurrencyShort(d.amount)}`,
         timestamp: d.createdDate,
       })
@@ -311,7 +291,16 @@ export function DashboardPage() {
       .slice(0, 10)
   }, [leaves, deals, invoices])
 
-  // ---- Header ----
+  const tasks = (tasksRaw as { status?: string }[] | undefined) ?? []
+  const tasksFallbackIncomplete = useMemo(
+    () => tasks.filter((t) => t.status !== 'DONE').length,
+    [tasks],
+  )
+
+  if (!canViewDashboard) {
+    return <Navigate to="/" replace />
+  }
+
   const greeting = getGreeting()
   const week = getISOWeek(now)
   const dateStr = now.toLocaleDateString('vi-VN', {
@@ -325,11 +314,6 @@ export function DashboardPage() {
     ? Math.round((todayAttendance / totalEmployees) * 100)
     : 0
 
-  const tasks = (tasksRaw as { status?: string }[] | undefined) ?? []
-  const tasksFallbackIncomplete = useMemo(
-    () => tasks.filter((t) => t.status !== 'DONE').length,
-    [tasks],
-  )
   const incompleteTaskCount = hasSummaryPending
     ? Number(summary!.pendingTasks)
     : tasksFallbackIncomplete
@@ -352,56 +336,9 @@ export function DashboardPage() {
             {greeting}, <span className="text-primary-700">{userLabel}</span>
           </span>
         }
-        description={`Hôm nay là ${dateStr[0].toUpperCase() + dateStr.slice(1)} · Tuần ${week}`}
+        description={`Tổng quan · ${dateStr[0].toUpperCase() + dateStr.slice(1)} · Tuần ${week}`}
       />
 
-      {/* Home tabs: Cổng thông tin (default) | Tổng quan KPI */}
-      <div
-        role="tablist"
-        aria-label="Trang chủ"
-        className="inline-flex rounded-xl border border-neutral-200 bg-white p-1 shadow-sm"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={homeTab === 'portal'}
-          onClick={() => setHomeTab('portal')}
-          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition ${
-            homeTab === 'portal'
-              ? 'bg-primary-600 text-white shadow-sm'
-              : 'text-neutral-600 hover:bg-neutral-50'
-          }`}
-        >
-          <LayoutGrid size={15} />
-          Cổng thông tin
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={homeTab === 'overview'}
-          onClick={() => setHomeTab('overview')}
-          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition ${
-            homeTab === 'overview'
-              ? 'bg-primary-600 text-white shadow-sm'
-              : 'text-neutral-600 hover:bg-neutral-50'
-          }`}
-        >
-          <BarChart3 size={15} />
-          Tổng quan
-        </button>
-      </div>
-
-      {homeTab === 'portal' && (
-        <div className="space-y-5" role="tabpanel">
-          <CompanyAnnouncements />
-          <ModuleLauncher />
-          <RecentArticles />
-        </div>
-      )}
-
-      {homeTab === 'overview' && (
-      <div className="space-y-5" role="tabpanel">
-      {/* KPI grid 4x2 */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
         <KpiCard
           title="Doanh thu tháng"
@@ -421,7 +358,7 @@ export function DashboardPage() {
           hint={`${payrolls.filter((p) => (p.month ?? p.periodMonth) === now.getMonth() + 1).length} bảng lương`}
         />
         <KpiCard
-          title="Deal đang mở"
+          title="Cơ hội đang mở"
           value={String(openDeals.length)}
           icon={ShoppingBag}
           tone="violet"
@@ -480,7 +417,6 @@ export function DashboardPage() {
         />
       </div>
 
-      {/* Charts row 1: Revenue (2/3) + Top customers (1/3) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
           <RevenueChart data={revenueSeries} isLoading={chartsLoading} />
@@ -488,7 +424,6 @@ export function DashboardPage() {
         <TopCustomersChart data={topCustomers} isLoading={invLoading} />
       </div>
 
-      {/* Charts row 2: Cost donut + Funnel + Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <CostBreakdown data={costBreakdown} isLoading={payLoading} />
         <PipelineFunnel data={funnel} isLoading={dealsLoading} />
@@ -498,13 +433,8 @@ export function DashboardPage() {
         />
       </div>
 
-      {/* Task board — GET /task/ticket */}
       <TaskBoardWidget mineOnly />
-
-      {/* Quick actions */}
       <QuickActions />
-      </div>
-      )}
     </div>
   )
 }

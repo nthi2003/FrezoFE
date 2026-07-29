@@ -92,7 +92,7 @@ export interface PageResponse<T> {
 export const SUBJECT_TYPE_LABEL: Record<string, string> = {
   [SubjectType.LEAVE]: 'Nghỉ phép',
   [SubjectType.PAYROLL]: 'Bảng lương',
-  [SubjectType.DEAL]: 'Deal',
+  [SubjectType.DEAL]: 'Cơ hội bán',
   [SubjectType.INVOICE]: 'Hoá đơn',
   [SubjectType.TICKET]: 'Ticket',
   [SubjectType.CONTRACT]: 'Hợp đồng',

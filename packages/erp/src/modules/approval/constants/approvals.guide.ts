@@ -7,7 +7,7 @@ export const APPROVAL_FLOWS_GUIDE: PageGuideConfig = {
   title: 'Cấu hình luồng duyệt',
   subtitle:
     'Gắn draft bước duyệt vào Nghỉ phép / Mua hàng / Lương. Thiết kế quy trình (QTHT) không tự chạy thay trang này.',
-  docHref: '/docs/guide-approval-attach',
+  docHref: '/docs/guide-approval-flows',
   sections: [
     {
       type: 'steps',
@@ -31,7 +31,7 @@ export const APPROVAL_FLOWS_GUIDE: PageGuideConfig = {
         {
           title: 'Kiểm chứng',
           description:
-            'Nhân sự → Nghỉ phép → Tạo đơn → Gửi. Mở Hộp thư duyệt: đúng số bước như draft.',
+            'Nhân sự → Nghỉ phép → Tạo đơn → Gửi. Mở Hộp thư duyệt: đúng số bước như draft. Duyệt hết → đơn Đã duyệt.',
         },
       ],
     },
@@ -39,8 +39,9 @@ export const APPROVAL_FLOWS_GUIDE: PageGuideConfig = {
       type: 'tips',
       heading: 'Tránh nhầm',
       tips: [
+        'Trang này bật luồng cho đơn thật — khác hẳn Quy Trình Duyệt (chỉ vẽ mẫu).',
         'Badge “Chưa gắn — không tự chạy” = luồng tắt hoặc không phải bản đang dùng.',
-        'Sửa ở Thiết kế quy trình không đổi duyệt nghỉ — phải kích hoạt tại trang này.',
+        'Duyệt PR xong chưa vào kho; xuất hoá đơn chưa trừ tồn — xem hướng dẫn Đơn hàng & tồn kho.',
         'Thiếu User mang đúng vai trò bước → hệ thống báo lỗi, không tạo phiếu treo.',
       ],
     },
@@ -48,8 +49,10 @@ export const APPROVAL_FLOWS_GUIDE: PageGuideConfig = {
       type: 'links',
       heading: 'Liên quan',
       links: [
-        { label: 'Hướng dẫn gắn Leave (đầy đủ)', href: '/docs/guide-approval-attach' },
-        { label: 'Quy trình duyệt — chọn chỗ', href: '/docs/guide-workflows' },
+        { label: 'Cấu hình luồng duyệt (đầy đủ)', href: '/docs/guide-approval-flows' },
+        { label: 'Gắn 3 luồng FTECH', href: '/docs/guide-approval-attach' },
+        { label: 'Ba chỗ — đừng lẫn', href: '/docs/guide-workflows' },
+        { label: 'Đơn hàng & tồn kho', href: '/docs/guide-warehouse-sales' },
         { label: 'Hộp thư duyệt', href: '/approval/inbox' },
       ],
     },
@@ -95,7 +98,6 @@ export const APPROVAL_INBOX_GUIDE: PageGuideConfig = {
       links: [
         { label: 'Hướng dẫn đầy đủ', href: '/docs/guide-approval-inbox' },
         { label: 'Cấu hình luồng duyệt', href: '/approval/flows' },
-        { label: 'Thiết kế quy trình', href: '/qtht/workflows' },
       ],
     },
   ],

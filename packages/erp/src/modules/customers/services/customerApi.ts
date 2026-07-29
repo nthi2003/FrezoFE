@@ -20,6 +20,19 @@ export const customerApi = {
     axiosClient.get<ApiResponse<any>>('/customer/export').then(res => res.data),
   aiSync: () =>
     axiosClient.post<ApiResponse<any>>('/customer/ai/sync').then(res => res.data),
+  /** Upload avatar — BE lưu MinIO + cập nhật avatarUrl, trả URL trong data. */
+  uploadAvatar: (id: string, file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return axiosClient
+      .post<ApiResponse<string>>(`/customer/${id}/avatar`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((res) => {
+        const data = res.data?.data
+        return typeof data === 'string' ? data : (data as any)?.url ?? ''
+      })
+  },
 }
 
 export const nccApi = {

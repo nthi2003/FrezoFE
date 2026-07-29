@@ -89,13 +89,13 @@ export function LeadsPage() {
     <div className="p-6 space-y-4">
       <PageHeader
         title="Leads"
-        description="Khách hàng tiềm năng — theo dõi và convert thành cơ hội bán hàng (Deal)."
+        description="Khách hàng tiềm năng — theo dõi và chuyển thành cơ hội bán hàng."
       />
 
       {/* FR-UX-12 Lead→Deal path */}
       <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
         <div className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">
-          Path Lead → Deal
+          Lộ trình: Khách tiềm năng → Cơ hội bán
         </div>
         <div className="flex flex-wrap items-center gap-1">
           {LEAD_PATH.map((step, idx) => {
@@ -124,7 +124,7 @@ export function LeadsPage() {
           })}
         </div>
         <p className="text-xs text-neutral-500 mt-2">
-          Chọn lead còn mở → Convert để tạo Deal (prefill) rồi mở Pipeline Kanban.
+          Chọn khách tiềm năng còn mở → Chuyển đổi để tạo cơ hội bán (điền sẵn) rồi mở bảng Kanban.
         </p>
       </div>
 
@@ -247,9 +247,9 @@ export function LeadsPage() {
                       <button
                         className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
                         onClick={() => setConvertTarget(l)}
-                        title="Chuyển thành Deal"
+                        title="Chuyển thành cơ hội bán"
                       >
-                        Convert <ArrowRight size={12} />
+                        Chuyển đổi <ArrowRight size={12} />
                       </button>
                     )}
                   </td>
@@ -311,9 +311,9 @@ export function LeadsPage() {
             },
           )
         }}
-        title="Tạo Deal từ Lead?"
-        message={`Lead "${convertTarget?.fullName || ''}" sẽ convert thành Deal (prefill) và mở Pipeline.`}
-        confirmText="Tạo Deal"
+        title="Tạo cơ hội bán từ khách tiềm năng?"
+        message={`Khách tiềm năng "${convertTarget?.fullName || ''}" sẽ được chuyển thành cơ hội bán (điền sẵn) và mở phễu bán hàng.`}
+        confirmText="Tạo cơ hội"
         cancelText="Huỷ"
         variant="default"
         isLoading={convert.isPending}

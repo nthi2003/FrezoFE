@@ -10,16 +10,7 @@ export interface PageHeaderProps {
   className?: string
 }
 
-/**
- * PageHeader — header chuẩn cho mọi trang.
- * Layout: [breadcrumb] / [title + description] --- [actions]
- * Actions area nên đặt 1 nút Primary bên phải, phụ (Outline) bên trái nó.
- *
- * ⚠️ KHÔNG truyền `breadcrumb` khi trang đã nằm trong Layout chính có Header —
- * `components/layout/Header` tự build breadcrumb từ menu tree theo pathname,
- * truyền thêm sẽ bị double. Chỉ dùng `breadcrumb` cho page standalone (login,
- * embed dashboard, external report…).
- */
+
 export function PageHeader({
   title,
   description,

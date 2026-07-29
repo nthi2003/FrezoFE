@@ -63,7 +63,7 @@ const ENTITY_DEFS: EntityDef[] = [
     kind: 'deal',
     queryKeyPrefix: ['crm', 'deals'],
     icon: Handshake,
-    extractLabel: (r) => str(r.name) || str(r.title) || 'Deal',
+    extractLabel: (r) => str(r.name) || str(r.title) || 'Cơ hội',
     extractHint: (r) => {
       const amt = Number(r.amount ?? r.value ?? 0)
       if (amt) return `${amt.toLocaleString('vi-VN')} ₫`
@@ -213,7 +213,7 @@ function deburr(s: string): string {
 export const ENTITY_SECTION_TITLE: Record<EntitySection, string> = {
   customer: 'Khách hàng',
   lead: 'Lead',
-  deal: 'Deal',
+  deal: 'Cơ hội bán',
   invoice: 'Hoá đơn',
   person: 'Nhân sự',
   payroll: 'Bảng lương',

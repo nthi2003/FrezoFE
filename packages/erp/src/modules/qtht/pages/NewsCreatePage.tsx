@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ChevronRight, ChevronLeft, Send, Loader2, Eye, Upload } from 'lucide-react'
-import { Button, Input, Label, Select } from '@frezo/ui'
+import { ArrowLeft, ChevronRight, ChevronLeft, Send, Loader2, Eye } from 'lucide-react'
+import { Button, Input, Label, Select, ImageUploader } from '@frezo/ui'
 import { TiptapEditor } from '@/components/shared/TiptapEditor'
-import { ImageUploadModal } from '@/components/shared/ImageUploadModal'
 import { useCreateArticle } from '@/modules/articles/hooks/useArticle'
-import { toast } from 'sonner'
+import { makeImageUploader } from '@/lib/upload'
 import { cn } from '@frezo/utils'
 
 const TYPE_OPTIONS = [
@@ -16,6 +15,8 @@ const TYPE_OPTIONS = [
   { value: 'recruitment', label: 'Tuyển dụng' },
 ]
 
+const uploadThumbnail = makeImageUploader({ folder: 'articles', maxSizeMB: 5 })
+
 export function NewsCreatePage() {
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
@@ -25,7 +26,6 @@ export function NewsCreatePage() {
   const [type, setType] = useState('news')
   const [tags, setTags] = useState('')
   const [thumbnailUrl, setThumbnailUrl] = useState('')
-  const [showUploadModal, setShowUploadModal] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const createReq = useCreateArticle()
@@ -52,7 +52,11 @@ export function NewsCreatePage() {
   return (
     <div className="p-6 space-y-6 animate-fade-in">
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/qtht/tin-tuc')} className="p-2 hover:bg-neutral-100 rounded-lg transition-colors text-neutral-500">
+        <button
+          type="button"
+          onClick={() => navigate('/qtht/tin-tuc')}
+          className="p-2 hover:bg-neutral-100 rounded-lg transition-colors text-neutral-500"
+        >
           <ArrowLeft size={20} />
         </button>
         <div>
@@ -73,8 +77,6 @@ export function NewsCreatePage() {
         </div>
       </div>
 
-      <ImageUploadModal isOpen={showUploadModal} onClose={() => setShowUploadModal(false)} onUploaded={(url) => setThumbnailUrl(url)} />
-
       {step === 1 && (
         <div className="flex gap-6 items-start">
           <div className="w-80 shrink-0 space-y-4">
@@ -82,9 +84,16 @@ export function NewsCreatePage() {
               <h3 className="text-sm font-semibold text-neutral-700 pb-2 border-b border-border">Thông tin bài viết</h3>
 
               <div className="space-y-1.5">
-                <Label>Tiêu đề <span className="text-red-500">*</span></Label>
-                <Input placeholder="Nhập tiêu đề..." value={title} onChange={e => { setTitle(e.target.value); setErrors(prev => ({ ...prev, title: '' })) }} />
-                {errors.title && <p className="text-xs text-red-500">{errors.title}</p>}
+                <Label>Tiêu đề <span className="text-danger">*</span></Label>
+                <Input
+                  placeholder="Nhập tiêu đề..."
+                  value={title}
+                  onChange={e => {
+                    setTitle(e.target.value)
+                    setErrors(prev => ({ ...prev, title: '' }))
+                  }}
+                />
+                {errors.title && <p className="text-xs text-danger">{errors.title}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -103,27 +112,26 @@ export function NewsCreatePage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label>Ảnh đại diện</Label>
-                <div className="flex gap-2">
-                  <Input placeholder="https://..." value={thumbnailUrl} onChange={e => setThumbnailUrl(e.target.value)} className="flex-1" />
-                  <Button variant="outline" size="icon" onClick={() => setShowUploadModal(true)} title="Upload ảnh lên MinIO">
-                    <Upload size={16} />
-                  </Button>
-                </div>
-                {thumbnailUrl && (
-                  <img src={thumbnailUrl} alt="preview" className="w-full h-28 object-cover rounded mt-2 border border-border" onError={(e: any) => { e.target.style.display = 'none' }} />
-                )}
+                <Label>Hình đại diện</Label>
+                <ImageUploader
+                  value={thumbnailUrl}
+                  onChange={setThumbnailUrl}
+                  onUpload={uploadThumbnail}
+                  aspectRatio="16/9"
+                  maxSizeMB={5}
+                  hint="Kéo-thả hoặc bấm để chọn ảnh (≤ 5MB). Có thể dán URL nếu ảnh đã có sẵn."
+                />
               </div>
             </div>
           </div>
 
           <div className="flex-1 min-w-0 space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="font-medium">Nội dung <span className="text-red-500">*</span></Label>
+              <Label className="font-medium">Nội dung <span className="text-danger">*</span></Label>
               <span className="text-xs text-neutral-400"><Eye size={14} className="inline mr-1" />Xem trước bên phải</span>
             </div>
             <TiptapEditor value={content} onChange={setContent} placeholder="Nhập nội dung bài viết..." />
-            {errors.content && <p className="text-xs text-red-500">{errors.content}</p>}
+            {errors.content && <p className="text-xs text-danger">{errors.content}</p>}
           </div>
 
           <div className="w-96 shrink-0">
@@ -138,7 +146,15 @@ export function NewsCreatePage() {
                 ) : (
                   <article className="prose prose-sm max-w-none">
                     {thumbnailUrl && (
-                      <img src={thumbnailUrl} alt="" className="w-full h-40 object-cover rounded-lg mb-4" onError={(e: any) => { e.target.style.display = 'none' }} />
+                      <img
+                        src={thumbnailUrl}
+                        alt=""
+                        className="w-full h-40 object-cover rounded-lg mb-4"
+                        onError={(e) => {
+                          const img = e.currentTarget as HTMLImageElement
+                          img.style.display = 'none'
+                        }}
+                      />
                     )}
                     {title && <h1 className="text-xl font-bold text-neutral-900 mb-2">{title}</h1>}
                     {summary && <p className="text-sm text-neutral-500 italic mb-4">{summary}</p>}
@@ -161,7 +177,7 @@ export function NewsCreatePage() {
             <p className="text-sm text-neutral-500 mt-1">Sau khi gửi, bài viết sẽ được chuyển đến người phê duyệt</p>
           </div>
           <div className="w-full max-w-sm space-y-4">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+            <div className="bg-warning-light border border-warning/30 rounded-lg p-3 text-sm text-warning-dark">
               Bài viết sẽ được tạo với trạng thái <strong>Chờ duyệt</strong> và cần được phê duyệt trước khi xuất bản.
             </div>
           </div>
