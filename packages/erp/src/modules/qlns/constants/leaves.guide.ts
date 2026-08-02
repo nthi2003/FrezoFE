@@ -31,7 +31,7 @@ export const LEAVES_GUIDE: PageGuideConfig = {
       heading: 'Admin — gắn luồng duyệt',
       tips: [
         'Muốn đổi ai duyệt nghỉ: Phê duyệt → Cấu hình luồng duyệt → kích hoạt luồng Nghỉ phép.',
-        'Không dùng Thiết kế quy trình để gắn Leave — xem hướng dẫn Gắn luồng duyệt.',
+        'Không dùng tab Mẫu / Designer để gắn Leave — xem hướng dẫn Gắn luồng duyệt (tab Luồng đang chạy).',
       ],
     },
     {

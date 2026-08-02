@@ -6,6 +6,9 @@
 // FE keys: DOMAIN.RESOURCE.ACTION (vd ACCOUNTING.ACCOUNTS.DELETE)
 // BE seed: DOMAIN_RESOURCE_ACTION (vd ACCOUNTING_ACCOUNTS_DELETE)
 // Hook normalize `.` ↔ `_` và resolve alias Batch I2 (LEAVE.APPROVE → QLNS_*).
+//
+// Nguồn: GET /auth/profile → user.permissions (permission.code).
+// UI declarative: import { Can, PermissionButton } from '@/lib/permissions'
 // ============================================================
 
 import { useAuthStore } from '@/stores/authStore'
@@ -60,13 +63,21 @@ export function permissionMatches(
  * @example
  * const canDelete = usePermission('PRODUCT.DELETE')
  * {canDelete && <Button variant="destructive">Xóa</Button>}
+ *
+ * Prefer declarative UI: `<Can permission="…">` / `<PermissionButton permission="…">`
+ * (@/lib/permissions).
  */
 export function usePermission(code: string): boolean {
   const user = useAuthStore((s) => s.user)
   if (!user) return false
   if (user.isAdmin) return true
+  // Empty code = deny (tránh <Can> gọi hook với '' khi dùng anyOf/allOf)
+  if (!code) return false
   return permissionMatches(user.permissions ?? [], code)
 }
+
+/** Alias VBPL-style — cùng `usePermission`. */
+export const useHasPermission = usePermission
 
 /**
  * Check user có ÍT NHẤT 1 trong danh sách permission (OR logic).
@@ -78,6 +89,7 @@ export function useAnyPermission(codes: readonly string[]): boolean {
   const user = useAuthStore((s) => s.user)
   if (!user) return false
   if (user.isAdmin) return true
+  if (!codes.length) return false
   const perms = user.permissions ?? []
   return codes.some((code) => permissionMatches(perms, code))
 }
@@ -89,6 +101,7 @@ export function useAllPermissions(codes: readonly string[]): boolean {
   const user = useAuthStore((s) => s.user)
   if (!user) return false
   if (user.isAdmin) return true
+  if (!codes.length) return false
   const perms = user.permissions ?? []
   return codes.every((code) => permissionMatches(perms, code))
 }

@@ -1,7 +1,21 @@
 // Tiện ích kiểm tra "user có menu này không" — menu do BE trả đã lọc theo quyền,
 // nên dùng làm lớp gate hiển thị cho shortcut / KPI trên Home.
 
-import type { MenuTreeNode } from '../types/menu.types'
+import type { MenuResponseItem, MenuTreeNode } from '../types/menu.types'
+
+function normalizeFeUrl(url: string): string {
+  const path = url.startsWith('/') ? url : `/${url}`
+  return path.replace(/\/+$/, '') || '/'
+}
+
+/** URLs gốc từ BE — dùng cho tab gating hub (trước khi consolidate sidebar). */
+export function collectFlatMenuFeUrls(flatMenus: MenuResponseItem[] | undefined): Set<string> {
+  const urls = new Set<string>()
+  flatMenus?.forEach((m) => {
+    if (m.feUrl) urls.add(normalizeFeUrl(m.feUrl))
+  })
+  return urls
+}
 
 export function collectFeUrls(nodes: MenuTreeNode[]): Set<string> {
   const urls = new Set<string>()

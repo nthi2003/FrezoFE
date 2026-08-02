@@ -5,16 +5,20 @@
 //  - KPI: tổng link, click, conversion, doanh thu, hoa hồng dự kiến
 //  - Top KOL / Top campaign
 //  - CRUD link (tạo, sửa, xoá, sao chép URL)
-// Không cần API bên ngoài — hoạt động độc lập.
 // ============================================================
 
 import { useMemo, useState } from 'react'
 import {
   Link2, Copy, TrendingUp, Users, DollarSign, MousePointerClick,
-  Percent, Trophy, Plus, ExternalLink, Trash2, Loader2, Search, RefreshCw,
+  Percent, Trophy, Plus, ExternalLink, Trash2, Loader2, Search, RefreshCw, HelpCircle,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, AppModal, Input, Label } from '@frezo/ui'
+import {
+  Button, PageHeader, EmptyState, ErrorState, AppModal, Input, Label, Select, IconActionButton, AppTooltip,
+} from '@frezo/ui'
 import { toast } from 'sonner'
+import { AppTable } from '@/components/ui/AppTable'
+import type { AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 import {
   useAffiliateLinks, useAffiliateDashboard, useCreateAffiliateLink,
@@ -43,6 +47,12 @@ interface AffiliateLink {
   conversionRate: number
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  ACTIVE: 'Hoạt động',
+  EXPIRED: 'Hết hạn',
+  PAUSED: 'Tạm dừng',
+}
+
 const formatVND = (v: number | undefined) => {
   if (!v) return '0 ₫'
   if (v >= 1_000_000) return (v / 1_000_000).toFixed(1) + ' M₫'
@@ -57,25 +67,39 @@ export function AffiliatePage() {
   const { askConfirm, confirmDialog } = useConfirmDialog()
   const deleteLink = useDeleteAffiliateLink()
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'EXPIRED' | 'PAUSED'>('ALL')
   const [showCreate, setShowCreate] = useState(false)
 
   const { data: dashboardData, refetch: refetchDashboard } = useAffiliateDashboard()
-  const { data: linksData, isLoading, isFetching, refetch } = useAffiliateLinks()
+  const { data: linksData, isLoading, isFetching, isError, refetch } = useAffiliateLinks()
 
-  const links: AffiliateLink[] = linksData || []
+  const links: AffiliateLink[] = useMemo(
+    () => (Array.isArray(linksData) ? linksData : []),
+    [linksData],
+  )
   const dashboard: any = dashboardData || {}
 
   const filtered = useMemo(() => {
+    let rows = links
+    if (statusFilter !== 'ALL') {
+      rows = rows.filter((l) => (l.status || 'ACTIVE') === statusFilter)
+    }
     const q = search.trim().toLowerCase()
-    if (!q) return links
-    return links.filter(
-      (l) =>
-        l.code.toLowerCase().includes(q) ||
-        (l.kolName || '').toLowerCase().includes(q) ||
-        (l.campaign || '').toLowerCase().includes(q) ||
-        (l.targetUrl || '').toLowerCase().includes(q),
-    )
-  }, [links, search])
+    if (q) {
+      rows = rows.filter(
+        (l) =>
+          l.code.toLowerCase().includes(q) ||
+          (l.kolName || '').toLowerCase().includes(q) ||
+          (l.campaign || '').toLowerCase().includes(q) ||
+          (l.targetUrl || '').toLowerCase().includes(q),
+      )
+    }
+    return rows
+  }, [links, search, statusFilter])
+
+  const hasFilter = !!search.trim() || statusFilter !== 'ALL'
+  const isFullyEmpty = !isLoading && !isError && links.length === 0
+  const isFilteredEmpty = !isLoading && !isError && links.length > 0 && filtered.length === 0
 
   const copy = async (text: string, hint = 'Đã copy link') => {
     try {
@@ -91,148 +115,247 @@ export function AffiliatePage() {
     refetchDashboard()
   }
 
-  return (
-    <div className="min-h-screen bg-neutral-50/50">
-      <div className="max-w-[1400px] mx-auto p-6 space-y-6">
-        <PageHeader
-          title="Affiliate / KOL Tracker"
-          description="Sinh short link có UTM, đo click & conversion cho chương trình đối tác."
-          actions={
-            <>
-              <Button variant="outline" onClick={refreshAll} disabled={isFetching}>
-                <RefreshCw size={16} className={isFetching ? 'animate-spin mr-2' : 'mr-2'} />
-                Làm mới
-              </Button>
-              <Button onClick={() => setShowCreate(true)}>
-                <Plus size={16} className="mr-2" />
-                Tạo link mới
-              </Button>
-            </>
-          }
-        />
-
-        {/* ==== KPI STRIP ==== */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <Kpi icon={Link2} label="Tổng link" value={dashboard.totalLinks ?? links.length} tone="primary" />
-          <Kpi icon={MousePointerClick} label="Click" value={dashboard.totalClicks ?? 0} tone="blue" />
-          <Kpi icon={TrendingUp} label="Conversion" value={dashboard.totalConversions ?? 0} tone="emerald" />
-          <Kpi
-            icon={Percent}
-            label="Tỉ lệ CR"
-            value={formatPercent(dashboard.conversionRate)}
-            tone="amber"
-          />
-          <Kpi icon={DollarSign} label="Doanh thu" value={formatVND(dashboard.totalRevenue)} tone="rose" />
-          <Kpi
-            icon={Trophy}
-            label="Hoa hồng est."
-            value={formatVND(dashboard.estimatedCommission)}
-            tone="violet"
-          />
-        </div>
-
-        {/* ==== TOP KOL + CAMPAIGN ==== */}
-        {(dashboard.topKol?.length || dashboard.topCampaign?.length) ? (
-          <div className="grid md:grid-cols-2 gap-4">
-            <TopList
-              title="Top KOL theo doanh thu"
-              icon={Users}
-              rows={
-                (dashboard.topKol || []).map((k: any, idx: number) => ({
-                  rank: idx + 1,
-                  primary: k.kol,
-                  secondary: formatVND(k.revenue),
-                }))
-              }
-            />
-            <TopList
-              title="Top Campaign theo click"
-              icon={Trophy}
-              rows={
-                (dashboard.topCampaign || []).map((c: any, idx: number) => ({
-                  rank: idx + 1,
-                  primary: c.campaign,
-                  secondary: `${c.clicks} clicks`,
-                }))
-              }
-            />
-          </div>
-        ) : null}
-
-        {/* ==== SEARCH BAR ==== */}
-        <div className="bg-white rounded-lg border border-neutral-200 p-4">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <input
-              className="w-full pl-9 pr-3 py-2 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-400 text-sm"
-              placeholder="Tìm theo mã, KOL, campaign, URL đích..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+  const columns: AppTableColumn<AffiliateLink>[] = [
+    {
+      key: 'link',
+      title: 'Link',
+      render: (_, link) => (
+        <div>
+          <div className="font-mono text-xs text-primary-700 font-semibold">{link.code}</div>
+          <div className="text-xs text-neutral-500 mt-0.5 flex items-center gap-1">
+            <span className="truncate max-w-[220px]" title={link.shortUrl}>{link.shortUrl}</span>
+            <IconActionButton tooltip="Sao chép short URL" size="sm" className="p-1" onClick={() => copy(link.shortUrl)}>
+              <Copy size={12} />
+            </IconActionButton>
           </div>
         </div>
-
-        {/* ==== TABLE ==== */}
-        <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64 text-neutral-500">
-              <Loader2 size={20} className="animate-spin mr-2" /> Đang tải...
-            </div>
-          ) : filtered.length === 0 ? (
-            <EmptyState
-              icon={Link2}
-              title="Chưa có affiliate link"
-              description={
-                search
-                  ? 'Không tìm thấy link nào khớp — thử từ khoá khác.'
-                  : 'Tạo link đầu tiên để bắt đầu chương trình KOL. Link sinh ra sẽ có UTM đầy đủ và tracker click/conversion.'
-              }
-              action={
-                !search
-                  ? { label: 'Tạo link đầu tiên', onClick: () => setShowCreate(true) }
-                  : undefined
-              }
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-neutral-50 border-b border-neutral-200">
-                  <tr className="text-left text-xs uppercase tracking-wider text-neutral-500">
-                    <th className="px-4 py-3 font-semibold">Link</th>
-                    <th className="px-4 py-3 font-semibold">KOL / Campaign</th>
-                    <th className="px-4 py-3 font-semibold text-right">Click</th>
-                    <th className="px-4 py-3 font-semibold text-right">Conv.</th>
-                    <th className="px-4 py-3 font-semibold text-right">CR</th>
-                    <th className="px-4 py-3 font-semibold text-right">Doanh thu</th>
-                    <th className="px-4 py-3 font-semibold text-right">Hoa hồng</th>
-                    <th className="px-4 py-3 font-semibold text-center">Trạng thái</th>
-                    <th className="px-4 py-3 font-semibold text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {filtered.map((l) => (
-                    <LinkRow
-                      key={l.id}
-                      link={l}
-                      onCopy={copy}
-                      onDelete={(link) =>
-                        askConfirm({
-                          title: 'Xoá link này?',
-                          message: `Link ${link.code} sẽ bị xoá.`,
-                          confirmText: 'Xoá',
-                          onConfirm: () => deleteLink.mutate(link.id),
-                        })
-                      }
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      ),
+    },
+    {
+      key: 'kol',
+      title: 'KOL / Chiến dịch',
+      render: (_, link) => (
+        <div>
+          <div className="text-sm font-medium text-neutral-900">{link.kolName || '—'}</div>
+          {link.campaign && (
+            <div className="text-xs text-neutral-500 mt-0.5">Camp: {link.campaign}</div>
           )}
         </div>
+      ),
+    },
+    {
+      key: 'clickCount',
+      title: 'Click',
+      align: 'right',
+      render: (_, link) => <span className="font-mono text-sm tabular-nums">{link.clickCount}</span>,
+    },
+    {
+      key: 'conversionCount',
+      title: 'Chuyển đổi',
+      align: 'right',
+      render: (_, link) => <span className="font-mono text-sm tabular-nums">{link.conversionCount}</span>,
+    },
+    {
+      key: 'conversionRate',
+      title: 'Tỉ lệ CR',
+      align: 'right',
+      render: (_, link) => (
+        <span className="text-sm font-semibold text-amber-600">{formatPercent(link.conversionRate)}</span>
+      ),
+    },
+    {
+      key: 'revenue',
+      title: 'Doanh thu',
+      align: 'right',
+      render: (_, link) => <span className="text-sm font-semibold tabular-nums">{formatVND(link.revenue)}</span>,
+    },
+    {
+      key: 'commission',
+      title: 'Hoa hồng',
+      align: 'right',
+      render: (_, link) => (
+        <span className="text-sm text-violet-600 tabular-nums">{formatVND(link.estimatedCommission)}</span>
+      ),
+    },
+    {
+      key: 'status',
+      title: 'Trạng thái',
+      align: 'center',
+      render: (_, link) => {
+        const st = link.status || 'ACTIVE'
+        return (
+          <span
+            className={`inline-flex text-[10px] px-2 py-0.5 rounded font-bold border ${
+              st === 'ACTIVE'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : st === 'EXPIRED'
+                  ? 'bg-neutral-50 text-neutral-500 border-neutral-200'
+                  : 'bg-amber-50 text-amber-700 border-amber-200'
+            }`}
+          >
+            {STATUS_LABEL[st] || st}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'actions',
+      title: 'Thao tác',
+      align: 'right',
+      width: 120,
+      render: (_, link) => (
+        <div className="flex items-center justify-end gap-1">
+          <IconActionButton tooltip="Mở URL đích" onClick={() => window.open(link.targetUrlWithUtm || link.targetUrl, '_blank')}>
+            <ExternalLink size={14} />
+          </IconActionButton>
+          <IconActionButton tooltip="Sao chép URL đích (kèm UTM)" onClick={() => copy(link.targetUrlWithUtm || link.targetUrl, 'Đã copy URL đích')}>
+            <Copy size={14} />
+          </IconActionButton>
+          <IconActionButton
+            tooltip="Xoá"
+            tone="red"
+            onClick={() =>
+              askConfirm({
+                title: 'Xoá link này?',
+                message: `Link ${link.code} sẽ bị xoá.`,
+                confirmText: 'Xoá',
+                onConfirm: () => deleteLink.mutate(link.id),
+              })
+            }
+          >
+            <Trash2 size={14} />
+          </IconActionButton>
+        </div>
+      ),
+    },
+  ]
+
+  return (
+    <div className="p-6 space-y-4 animate-fade-in">
+      <PageHeader
+        title="Theo dõi Affiliate / KOL"
+        description="Sinh short link có UTM, đo click & chuyển đổi cho chương trình đối tác."
+        actions={
+          <>
+            <Button variant="outline" onClick={refreshAll} disabled={isFetching}>
+              <RefreshCw size={16} className={isFetching ? 'animate-spin mr-2' : 'mr-2'} />
+              Làm mới
+            </Button>
+            <Button onClick={() => setShowCreate(true)}>
+              <Plus size={16} className="mr-2" />
+              Tạo link mới
+            </Button>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <Kpi icon={Link2} label="Tổng link" value={dashboard.totalLinks ?? links.length} tone="primary" />
+        <Kpi icon={MousePointerClick} label="Click" value={dashboard.totalClicks ?? 0} tone="blue" />
+        <Kpi icon={TrendingUp} label="Chuyển đổi" value={dashboard.totalConversions ?? 0} tone="emerald" />
+        <Kpi icon={Percent} label="Tỉ lệ CR" value={formatPercent(dashboard.conversionRate)} tone="amber" />
+        <Kpi icon={DollarSign} label="Doanh thu" value={formatVND(dashboard.totalRevenue)} tone="rose" />
+        <Kpi icon={Trophy} label="Hoa hồng ước tính" value={formatVND(dashboard.estimatedCommission)} tone="violet" />
       </div>
 
-      {/* ==== CREATE MODAL ==== */}
+      {(dashboard.topKol?.length || dashboard.topCampaign?.length) ? (
+        <div className="grid md:grid-cols-2 gap-4">
+          <TopList
+            title="Top KOL theo doanh thu"
+            icon={Users}
+            rows={(dashboard.topKol || []).map((k: any, idx: number) => ({
+              rank: idx + 1,
+              primary: k.kol,
+              secondary: formatVND(k.revenue),
+            }))}
+          />
+          <TopList
+            title="Top chiến dịch theo click"
+            icon={Trophy}
+            rows={(dashboard.topCampaign || []).map((c: any, idx: number) => ({
+              rank: idx + 1,
+              primary: c.campaign,
+              secondary: `${c.clicks} click`,
+            }))}
+          />
+        </div>
+      ) : null}
+
+      <FilterBar
+        hasActiveFilters={hasFilter}
+        onClear={() => { setSearch(''); setStatusFilter('ALL') }}
+        countLabel={`${filtered.length} link${hasFilter ? ' (đã lọc)' : ''}`}
+      >
+        <div className="min-w-[150px]">
+          <Select
+            options={[
+              { value: 'ALL', label: 'Tất cả trạng thái' },
+              { value: 'ACTIVE', label: 'Hoạt động' },
+              { value: 'PAUSED', label: 'Tạm dừng' },
+              { value: 'EXPIRED', label: 'Hết hạn' },
+            ]}
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+            placeholder="Trạng thái"
+            aria-label="Lọc trạng thái"
+            showSearch={false}
+          />
+        </div>
+        <div className="relative flex-1 min-w-[240px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            placeholder="Tìm mã, KOL, chiến dịch, URL đích…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Tìm affiliate link"
+          />
+        </div>
+        <span className="inline-flex items-center text-neutral-400" title="Short link tự kèm UTM khi tạo">
+          <HelpCircle size={14} />
+        </span>
+      </FilterBar>
+
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được affiliate link"
+            message="Kiểm tra kết nối rồi thử lại."
+            onRetry={() => void refreshAll()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={Link2}
+            title={isFilteredEmpty ? 'Không tìm thấy link khớp bộ lọc' : 'Chưa có affiliate link'}
+            description={
+              isFilteredEmpty
+                ? 'Thử từ khoá khác hoặc xoá lọc.'
+                : 'Tạo link đầu tiên để bắt đầu chương trình KOL. Link sinh ra sẽ có UTM và theo dõi click/chuyển đổi.'
+            }
+            action={
+              isFilteredEmpty
+                ? { label: 'Xoá lọc', onClick: () => { setSearch(''); setStatusFilter('ALL') } }
+                : { label: 'Tạo link đầu tiên', onClick: () => setShowCreate(true) }
+            }
+          />
+        </div>
+      ) : (
+        <AppTable
+          columns={columns}
+          data={filtered}
+          isLoading={isLoading}
+          density="compact"
+          showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onRefresh={() => void refreshAll()}
+          getRowId={(r) => r.id}
+        />
+      )}
+
       {showCreate && (
         <CreateLinkModal open={showCreate} onClose={() => setShowCreate(false)} />
       )}
@@ -241,19 +364,16 @@ export function AffiliatePage() {
   )
 }
 
-// ============================================================
-// Sub-components
-// ============================================================
 function Kpi({
   icon: Icon, label, value, tone,
 }: { icon: any; label: string; value: any; tone: string }) {
   const tones: Record<string, string> = {
     primary: 'bg-primary-50 text-primary-700',
-    blue:    'bg-blue-50 text-blue-700',
+    blue: 'bg-blue-50 text-blue-700',
     emerald: 'bg-emerald-50 text-emerald-700',
-    amber:   'bg-amber-50 text-amber-700',
-    rose:    'bg-rose-50 text-rose-700',
-    violet:  'bg-violet-50 text-violet-700',
+    amber: 'bg-amber-50 text-amber-700',
+    rose: 'bg-rose-50 text-rose-700',
+    violet: 'bg-violet-50 text-violet-700',
   }
   return (
     <div className="bg-white rounded-lg border border-neutral-200 p-3">
@@ -298,88 +418,6 @@ function TopList({
   )
 }
 
-function LinkRow({
-  link,
-  onCopy,
-  onDelete,
-}: {
-  link: AffiliateLink
-  onCopy: (s: string, hint?: string) => void
-  onDelete: (link: AffiliateLink) => void
-}) {
-  return (
-    <tr className="hover:bg-neutral-50/50">
-      <td className="px-4 py-3">
-        <div className="font-mono text-xs text-primary-700 font-semibold">{link.code}</div>
-        <div className="text-xs text-neutral-500 mt-0.5 flex items-center gap-1">
-          <span className="truncate max-w-[240px]">{link.shortUrl}</span>
-          <button
-            onClick={() => onCopy(link.shortUrl)}
-            className="p-1 hover:bg-neutral-100 rounded"
-            title="Copy short URL"
-          >
-            <Copy size={12} />
-          </button>
-        </div>
-      </td>
-      <td className="px-4 py-3">
-        <div className="text-sm font-medium text-neutral-900">{link.kolName || '—'}</div>
-        {link.campaign && (
-          <div className="text-xs text-neutral-500 mt-0.5">Camp: {link.campaign}</div>
-        )}
-      </td>
-      <td className="px-4 py-3 text-right font-mono text-sm">{link.clickCount}</td>
-      <td className="px-4 py-3 text-right font-mono text-sm">{link.conversionCount}</td>
-      <td className="px-4 py-3 text-right text-sm font-semibold text-amber-600">
-        {formatPercent(link.conversionRate)}
-      </td>
-      <td className="px-4 py-3 text-right text-sm font-semibold">{formatVND(link.revenue)}</td>
-      <td className="px-4 py-3 text-right text-sm text-violet-600">{formatVND(link.estimatedCommission)}</td>
-      <td className="px-4 py-3 text-center">
-        <span
-          className={`inline-flex text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${
-            link.status === 'ACTIVE'
-              ? 'bg-emerald-100 text-emerald-700'
-              : link.status === 'EXPIRED'
-                ? 'bg-neutral-100 text-neutral-500'
-                : 'bg-amber-100 text-amber-700'
-          }`}
-        >
-          {link.status || 'ACTIVE'}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-right">
-        <div className="flex items-center justify-end gap-1">
-          <button
-            onClick={() => window.open(link.targetUrlWithUtm || link.targetUrl, '_blank')}
-            className="p-1.5 hover:bg-neutral-100 rounded"
-            title="Mở URL đích"
-          >
-            <ExternalLink size={14} className="text-neutral-600" />
-          </button>
-          <button
-            onClick={() => onCopy(link.targetUrlWithUtm || link.targetUrl, 'Đã copy URL đích')}
-            className="p-1.5 hover:bg-neutral-100 rounded"
-            title="Copy URL đích (đã kèm UTM)"
-          >
-            <Copy size={14} className="text-neutral-600" />
-          </button>
-          <button
-            onClick={() => onDelete(link)}
-            className="p-1.5 hover:bg-rose-50 hover:text-rose-600 rounded text-neutral-600"
-            title="Xoá"
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
-      </td>
-    </tr>
-  )
-}
-
-// ============================================================
-// CREATE MODAL
-// ============================================================
 function CreateLinkModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [form, setForm] = useState({
     code: '',
@@ -413,7 +451,7 @@ function CreateLinkModal({ open, onClose }: { open: boolean; onClose: () => void
       isOpen={open}
       onClose={onClose}
       title="Tạo affiliate link mới"
-      description="Slug tự sinh nếu để trống. UTM sẽ tự append vào URL đích."
+      description="Slug tự sinh nếu để trống. UTM sẽ tự gắn vào URL đích."
       maxWidth="3xl"
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -426,7 +464,7 @@ function CreateLinkModal({ open, onClose }: { open: boolean; onClose: () => void
           />
         </div>
         <div>
-          <Label>Mã slug (tùy chọn, để trống = tự sinh)</Label>
+          <Label>Mã slug (tuỳ chọn, để trống = tự sinh)</Label>
           <Input
             placeholder="VD: kolminh01"
             value={form.code}
@@ -434,7 +472,7 @@ function CreateLinkModal({ open, onClose }: { open: boolean; onClose: () => void
           />
         </div>
         <div>
-          <Label>Campaign</Label>
+          <Label>Chiến dịch</Label>
           <Input
             placeholder="VD: Tết 2026"
             value={form.campaign}
@@ -472,7 +510,12 @@ function CreateLinkModal({ open, onClose }: { open: boolean; onClose: () => void
           />
         </div>
         <div>
-          <Label>% hoa hồng (0-1, VD 0.1 = 10%)</Label>
+          <Label className="inline-flex items-center gap-1">
+            % hoa hồng (0–1)
+            <span title="VD: 0.1 = 10%">
+              <HelpCircle size={12} className="text-neutral-400" />
+            </span>
+          </Label>
           <Input
             type="number"
             step="0.01"

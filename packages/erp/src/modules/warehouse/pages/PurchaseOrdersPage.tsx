@@ -1,5 +1,5 @@
 // ============================================================
-// PurchaseOrdersPage — danh sách đơn mua hàng
+// PurchaseOrdersPage — danh sách đơn mua hàng (WarehouseListShell)
 // ============================================================
 
 import { useMemo, useState } from 'react'
@@ -21,10 +21,15 @@ import {
 import { usePermission } from '@/lib/hooks/usePermission'
 import type { PurchaseOrderDto } from '../services/purchaseOrderApi'
 import { toast } from 'sonner'
-import { formatSupplierLabel, formatWarehouseLabel } from '../utils/displayUtils'
+import {
+  formatSupplierLabel,
+  formatWarehouseLabel,
+  warehouseSelectLabel,
+} from '../utils/displayUtils'
 import { WarehouseListShell } from '../components/WarehouseListShell'
 import { WarehouseFilterBar } from '../components/WarehouseFilterBar'
 import { WarehouseStatusBadge } from '../components/WarehouseStatusBadge'
+import { usePurchaseOrderRowPreview } from '../components/PurchaseOrderPreviewPopover'
 
 export function PurchaseOrdersPage() {
   const nav = useNavigate()
@@ -36,11 +41,39 @@ export function PurchaseOrdersPage() {
   const canCreateGrn = usePermission('WAREHOUSE.GRN.CREATE')
   const [confirmTarget, setConfirmTarget] = useState<PurchaseOrderDto | null>(null)
   const [receiveTarget, setReceiveTarget] = useState<PurchaseOrderDto | null>(null)
+  const rowPreview = usePurchaseOrderRowPreview()
 
   const filteredList = useMemo(
     () => applyWarehouseListFilters(list, filters.warehouseId, filters.status),
     [list, filters.warehouseId, filters.status],
   )
+
+  const stats = useMemo(() => {
+    const base = filters.warehouseId
+      ? list.filter((po) => po.warehouseId === filters.warehouseId)
+      : list
+    return [
+      { label: 'Tổng đơn', value: base.length },
+      {
+        label: 'Nháp',
+        value: base.filter((po) => (po.status || '').toUpperCase() === 'DRAFT').length,
+      },
+      {
+        label: 'Đã xác nhận',
+        value: base.filter((po) => (po.status || '').toUpperCase() === 'CONFIRMED').length,
+      },
+      {
+        label: 'Nhận một phần',
+        value: base.filter((po) => (po.status || '').toUpperCase() === 'PARTIAL_RECEIVED').length,
+      },
+      {
+        label: 'Đã nhận đủ',
+        value: base.filter((po) =>
+          ['RECEIVED', 'CLOSED', 'DONE'].includes((po.status || '').toUpperCase()),
+        ).length,
+      },
+    ]
+  }, [list, filters.warehouseId])
 
   const receiveFromPo = (po: PurchaseOrderDto) => {
     if (!po.warehouseId) {
@@ -83,20 +116,19 @@ export function PurchaseOrdersPage() {
   const columns: AppTableColumn<PurchaseOrderDto>[] = [
     {
       key: 'code',
-      title: 'Mã đơn',
+      title: 'Mã đơn mua',
       render: (_, row) => (
-        <button
-          type="button"
-          className="font-mono text-xs text-primary-700 hover:underline text-left"
-          onClick={() => nav(`/warehouse/purchase-orders/${row.id}`)}
+        <span
+          className="font-mono text-xs text-primary-700 hover:underline truncate block text-left"
+          title="Hover để xem nhanh · Double-click mở chi tiết"
         >
           {row.code || row.id}
-        </button>
+        </span>
       ),
     },
     {
       key: 'pr',
-      title: 'Yêu cầu mua',
+      title: 'Yêu cầu mua hàng',
       render: (_, row) =>
         row.purchaseRequestId ? (
           <button
@@ -179,8 +211,8 @@ export function PurchaseOrdersPage() {
 
   return (
     <WarehouseListShell
-      title="Đơn mua hàng (PO)"
-      description="Đặt hàng NCC sau yêu cầu mua duyệt — nhận hàng bằng phiếu nhập kho."
+      title="Đơn mua hàng"
+      description="Đặt hàng NCC sau yêu cầu mua đã duyệt — nhận hàng bằng phiếu nhập kho."
       guide={PURCHASE_ORDERS_GUIDE}
       headerActions={
         <>
@@ -188,10 +220,11 @@ export function PurchaseOrdersPage() {
             Phiếu nhập kho
           </Button>
           <Button variant="outline" onClick={() => nav('/warehouse/purchase-requests')}>
-            Yêu cầu mua
+            Yêu cầu mua hàng
           </Button>
         </>
       }
+      stats={stats}
       filterBar={
         <WarehouseFilterBar
           selects={[
@@ -204,7 +237,7 @@ export function PurchaseOrdersPage() {
                 { value: '', label: 'Tất cả kho' },
                 ...filters.warehouses.map((w) => ({
                   value: w.id,
-                  label: w.name || w.id,
+                  label: warehouseSelectLabel(w),
                 })),
               ],
             },
@@ -230,15 +263,19 @@ export function PurchaseOrdersPage() {
       filteredCount={filteredList.length}
       emptyIcon={Package}
       emptyTitle="Chưa có đơn mua hàng"
-      emptyDescription="Tạo đơn mua từ yêu cầu mua đã duyệt."
+      emptyDescription="Đơn mua hàng tạo từ yêu cầu đã duyệt — mở yêu cầu → Tạo đơn mua hàng."
       emptyAction={{
-        label: 'Danh sách yêu cầu mua',
+        label: 'Danh sách yêu cầu mua hàng',
         onClick: () => nav('/warehouse/purchase-requests'),
       }}
+      filteredEmptyTitle="Không có đơn phù hợp bộ lọc"
+      filteredEmptyDescription="Thử đổi kho hoặc trạng thái."
       columns={columns}
       data={filteredList}
       onRefresh={refetch}
+      getRowProps={rowPreview.getRowProps}
     >
+      {rowPreview.PreviewLayer}
       <ConfirmDialog
         isOpen={!!confirmTarget}
         onClose={() => setConfirmTarget(null)}
@@ -265,7 +302,7 @@ export function PurchaseOrdersPage() {
         }}
         title={`Tạo phiếu nhập từ đơn ${receiveTarget?.code || receiveTarget?.id || ''}?`}
         message="Hệ thống tạo phiếu nhập kho Nháp từ các dòng hàng còn lại của đơn mua."
-        confirmText="Tạo PNK"
+        confirmText="Tạo phiếu nhập"
         cancelText="Huỷ"
         variant="default"
         isLoading={createGrn.isPending}

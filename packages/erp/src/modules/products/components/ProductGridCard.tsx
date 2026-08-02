@@ -1,5 +1,7 @@
-import { Pencil, Trash2, Star, Package, AlertTriangle, Sparkles, MoreHorizontal } from 'lucide-react'
+import { Pencil, Trash2, Package, AlertTriangle, Sparkles, MoreHorizontal, LineChart } from 'lucide-react'
 import { useState } from 'react'
+import { formatCurrency } from '@frezo/utils'
+import { IconActionButton } from '@frezo/ui'
 
 interface Props {
   product: any
@@ -8,6 +10,7 @@ interface Props {
   onSelectToggle?: () => void
   onEdit?: () => void
   onDelete?: () => void
+  onPriceHistory?: () => void
   onClick?: () => void
 }
 
@@ -15,7 +18,6 @@ interface Props {
  * Grid card cho catalog product. Design theo Shopify Admin / Odoo:
  * - Ảnh vuông cover, badge NEW/HOT ở góc
  * - Tên rõ ràng, giá đậm, meta 1 dòng
- * - Rating 5 sao
  * - Cảnh báo tồn kho / hạn dùng nếu có threshold cấu hình
  * - Hover reveal quick actions (edit, delete, more)
  * - Checkbox selection cho bulk actions
@@ -27,6 +29,7 @@ export function ProductGridCard({
   onSelectToggle,
   onEdit,
   onDelete,
+  onPriceHistory,
   onClick,
 }: Props) {
   const [imgError, setImgError] = useState(false)
@@ -95,29 +98,43 @@ export function ProductGridCard({
 
         {/* Hover actions */}
         <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onPriceHistory && (
+            <IconActionButton
+              tooltip="Biến động giá"
+              className="p-1.5 rounded-lg bg-white/95 backdrop-blur text-neutral-600 hover:text-teal-700 shadow-sm border border-neutral-200"
+              onClick={(e) => {
+                e.stopPropagation()
+                onPriceHistory()
+              }}
+            >
+              <LineChart size={13} />
+            </IconActionButton>
+          )}
           {onEdit && (
-            <button
+            <IconActionButton
+              tooltip="Sửa"
+              tone="primary"
+              className="p-1.5 rounded-lg bg-white/95 backdrop-blur shadow-sm border border-neutral-200"
               onClick={(e) => {
                 e.stopPropagation()
                 onEdit()
               }}
-              className="p-1.5 rounded-lg bg-white/95 backdrop-blur text-neutral-600 hover:text-primary-600 shadow-sm border border-neutral-200 transition"
-              title="Sửa"
             >
               <Pencil size={13} />
-            </button>
+            </IconActionButton>
           )}
           {onDelete && (
-            <button
+            <IconActionButton
+              tooltip="Xoá"
+              tone="rose"
+              className="p-1.5 rounded-lg bg-white/95 backdrop-blur shadow-sm border border-neutral-200"
               onClick={(e) => {
                 e.stopPropagation()
                 onDelete()
               }}
-              className="p-1.5 rounded-lg bg-white/95 backdrop-blur text-neutral-600 hover:text-rose-600 shadow-sm border border-neutral-200 transition"
-              title="Xoá"
             >
               <Trash2 size={13} />
-            </button>
+            </IconActionButton>
           )}
         </div>
       </div>
@@ -144,7 +161,7 @@ export function ProductGridCard({
           {product.name}
         </h4>
 
-        {/* Price + Rating */}
+        {/* Price */}
         <div className="flex items-end justify-between mt-1 gap-2">
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] text-neutral-400 uppercase tracking-wider font-medium">
@@ -154,12 +171,6 @@ export function ProductGridCard({
               {formatVND(product.price)}
             </span>
           </div>
-          {product.rating != null && product.rating > 0 && (
-            <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-amber-600 shrink-0">
-              <Star size={12} fill="currentColor" strokeWidth={0} />
-              {Number(product.rating).toFixed(1)}
-            </span>
-          )}
         </div>
 
         {/* Origin / Season chips */}
@@ -201,6 +212,5 @@ export function ProductGridCard({
 }
 
 function formatVND(v: number | null | undefined): string {
-  if (v == null || Number.isNaN(v)) return '—'
-  return Number(v).toLocaleString('vi-VN') + '₫'
+  return formatCurrency(v)
 }

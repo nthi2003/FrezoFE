@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   CheckCircle2, AlertCircle, Info, XCircle, Bell, CheckCheck, MoreHorizontal,
   Ticket as TicketIcon, UserPlus, UserMinus, RefreshCw, Wallet, HandCoins,
-  CalendarClock, CalendarCheck2, FileText, Zap, Inbox, MessageCircle,
+  CalendarClock, CalendarCheck2, FileText, Zap, Inbox, MessageCircle, Package,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -332,10 +332,22 @@ function getTypeConfig(type?: string): { icon: LucideIcon; bg: string; text: str
     LEAD_IMPORTED: { icon: CheckCircle2, bg: 'bg-emerald-50', text: 'text-emerald-600' },
     ZALO_MESSAGE: { icon: MessageCircle, bg: 'bg-sky-50', text: 'text-sky-600' },
 
+    // ---- Warehouse stock alerts ----
+    STOCK_ALERT: { icon: Package, bg: 'bg-amber-50', text: 'text-amber-600' },
+    STOCK_LOW: { icon: Package, bg: 'bg-amber-50', text: 'text-amber-600' },
+    STOCK_EXPIRY: { icon: AlertCircle, bg: 'bg-amber-50', text: 'text-amber-600' },
+    LOW_STOCK: { icon: Package, bg: 'bg-amber-50', text: 'text-amber-600' },
+    EXPIRY_SOON: { icon: AlertCircle, bg: 'bg-amber-50', text: 'text-amber-600' },
+
     // ---- Urgent (any) ----
     URGENT: { icon: Zap, bg: 'bg-rose-100', text: 'text-rose-700' },
   }
-  return map[type || 'INFO'] || map.INFO
+  const t = type || 'INFO'
+  if (map[t]) return map[t]
+  if (t.startsWith('STOCK') || t.includes('STOCK')) {
+    return map.STOCK_ALERT
+  }
+  return map.INFO
 }
 
 function groupByTime(items: NotificationItem[]): {

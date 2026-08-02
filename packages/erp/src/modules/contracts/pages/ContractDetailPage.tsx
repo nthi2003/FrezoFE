@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import {
   Button, EmptyState, ErrorState, ObjectPageHeader, Skeleton, StatusBadge, AppModal,
+  PageGuideButton,
 } from '@frezo/ui'
 import { formatCurrency, formatDate } from '@frezo/utils'
 import { toast } from 'sonner'
@@ -21,6 +22,12 @@ import { AppForm } from '@/components/shared/AppForm'
 import { contractRejectSchema } from '@/modules/qlns/constants/schema'
 import { CONTRACT_STATUS_CONFIG, type ContractStatus } from '../constants/contractStatus'
 import { CONTRACT_TYPES } from '../constants/templates'
+import { DIGITAL_CONTRACT_GUIDE } from '../constants/digitalContract.guide'
+import { StatusPipelineStepper } from '../../warehouse/components/StatusPipelineStepper'
+import {
+  DIGITAL_CONTRACT_PIPELINE,
+  digitalContractStepIndex,
+} from '../../accounting/constants/accountingWorkflow'
 
 function pickHtml(c: any): string {
   return (c?.htmlContract ?? c?.HtmlContract ?? '').toString().trim()
@@ -174,9 +181,13 @@ export function ContractDetailPage() {
   const effFrom = contract.effFrom ?? contract.startDate
   const effTo = contract.effTo ?? contract.endDate
   const value = contract.value ?? contract.basicSalary
+  const pipelineIndex = digitalContractStepIndex(statusRaw, { signed: activated })
 
   return (
     <div className="min-h-full bg-neutral-50/40">
+      <div className="px-6 pt-4">
+        <StatusPipelineStepper steps={DIGITAL_CONTRACT_PIPELINE} currentIndex={pipelineIndex} />
+      </div>
       <ObjectPageHeader
         breadcrumb={[
           { label: 'Hợp đồng', onClick: () => navigate('/qlns/contract') },
@@ -197,6 +208,7 @@ export function ContractDetailPage() {
         ]}
         actions={
           <>
+            <PageGuideButton guide={DIGITAL_CONTRACT_GUIDE} />
             <Button variant="outline" onClick={() => navigate('/qlns/contract')} className="gap-1.5">
               <ArrowLeft size={15} /> Danh sách
             </Button>

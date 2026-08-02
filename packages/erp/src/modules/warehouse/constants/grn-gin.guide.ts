@@ -11,9 +11,9 @@ export const GRN_GUIDE: PageGuideConfig = {
       heading: 'Quy trình 4 bước',
       steps: [
         {
-          title: '1. Tạo PNK (Lưu nháp)',
+          title: '1. Tạo phiếu nhập (Lưu nháp)',
           description:
-            'Chọn kho, NCC, số HĐ GTGT đầu vào, PO (nếu có), dòng SP + SL + đơn giá.',
+            'Chọn kho, NCC, số HĐ GTGT đầu vào, đơn mua hàng (nếu có), dòng SP + SL + đơn giá.',
         },
         {
           title: '2. Gửi duyệt',
@@ -45,7 +45,7 @@ export const GRN_GUIDE: PageGuideConfig = {
       links: [
         { label: 'Hướng dẫn đầy đủ', href: '/docs/guide-warehouse-grn-gin' },
         { label: 'Phiếu xuất kho', href: '/warehouse/gin' },
-        { label: 'Đơn mua (PO)', href: '/warehouse/purchase-orders' },
+        { label: 'Đơn mua hàng', href: '/warehouse/purchase-orders' },
       ],
     },
   ],
@@ -62,7 +62,7 @@ export const GIN_GUIDE: PageGuideConfig = {
       heading: 'Quy trình 4 bước',
       steps: [
         {
-          title: '1. Tạo PXK (Lưu nháp)',
+          title: '1. Tạo phiếu xuất (Lưu nháp)',
           description:
             'Chọn kho, loại xuất (bán/chuyển kho), khách/kho đích, số chứng từ, dòng hàng.',
         },

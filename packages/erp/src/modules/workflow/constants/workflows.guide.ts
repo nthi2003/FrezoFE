@@ -1,12 +1,12 @@
 import type { PageGuideConfig } from '@frezo/ui'
 
 /**
- * Hướng dẫn in-app — Thiết kế quy trình (giọng EU, khớp /docs/guide-workflows)
+ * Hướng dẫn in-app — Mẫu / Designer (tab trong /approval/flows)
  */
 export const WORKFLOWS_GUIDE: PageGuideConfig = {
-  title: 'Thiết kế quy trình',
+  title: 'Mẫu / Designer',
   subtitle:
-    'Cấu hình các bước duyệt. Đơn hàng ngày vẫn duyệt ở Hộp thư duyệt — không mở trang này chỉ để duyệt.',
+    'Thiết kế mẫu sơ đồ nâng cao. Đơn hàng ngày duyệt ở Hộp thư duyệt; nghỉ / mua / lương gắn ở tab Luồng đang chạy.',
   docHref: '/docs/guide-workflows',
   sections: [
     {
@@ -29,9 +29,9 @@ export const WORKFLOWS_GUIDE: PageGuideConfig = {
             'Mỗi bước: tên rõ (ví dụ “Quản lý trực tiếp”) và chọn ai duyệt — theo vai trò hoặc theo người cụ thể.',
         },
         {
-          title: 'Lưu template — rồi gắn Leave ở chỗ khác',
+          title: 'Lưu template — rồi gắn Leave ở tab Luồng đang chạy',
           description:
-            'Trang này lưu mẫu thiết kế. Đơn nghỉ thật chỉ chạy khi Admin kích hoạt luồng tại Cấu hình luồng duyệt.',
+            'Tab này lưu mẫu thiết kế. Đơn nghỉ thật chỉ chạy khi Admin kích hoạt luồng tại tab Luồng đang chạy.',
         },
       ],
     },
@@ -40,7 +40,7 @@ export const WORKFLOWS_GUIDE: PageGuideConfig = {
       heading: 'Tránh nhầm chỗ',
       tips: [
         'Cần duyệt đơn hôm nay → mở Hộp thư duyệt.',
-        'Nghỉ phép / mua hàng / lương: gắn tại Cấu hình luồng duyệt (badge Áp dụng) — không theo gallery ở đây.',
+        'Nghỉ phép / mua hàng / lương: gắn tại tab Luồng đang chạy (badge Áp dụng) — không theo gallery ở đây.',
         'Đừng tạo quy trình thứ hai cho cùng loại đơn nếu đã có luồng đang chạy — hỏi BA trước.',
         'Trước khi Lưu: mỗi bước đã chọn đúng người / vai trò tồn tại.',
         'Copy rồi sửa nhẹ thường an toàn hơn tạo mới hoàn toàn.',
@@ -54,7 +54,7 @@ export const WORKFLOWS_GUIDE: PageGuideConfig = {
         { label: 'Cấu hình luồng duyệt (Docs)', href: '/docs/guide-approval-flows' },
         { label: 'Gắn 3 luồng FTECH', href: '/docs/guide-approval-attach' },
         { label: 'Hộp thư duyệt', href: '/approval/inbox' },
-        { label: 'Cấu hình luồng duyệt', href: '/approval/flows' },
+        { label: 'Luồng đang chạy', href: '/approval/flows' },
       ],
     },
   ],

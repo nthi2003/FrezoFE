@@ -8,7 +8,7 @@ import {
   Inbox, CheckCircle2, XCircle, ChevronDown, ChevronRight,
   Loader2, ClipboardCheck,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, ErrorState, PageGuideButton, ConfirmDialog, BulkSelectionBar } from '@frezo/ui'
+import { PageHeader, EmptyState, ErrorState, PageGuideButton, ConfirmDialog, BulkSelectionBar } from '@frezo/ui'
 import { toast } from 'sonner'
 import {
   useMyApprovals, useApproveRequest, useRejectRequest,
@@ -20,6 +20,7 @@ import {
   type ApprovalStatus,
 } from '../types'
 import { usePermission } from '@/lib/hooks/usePermission'
+import { Can, PermissionButton } from '@/lib/permissions'
 import { APPROVAL_INBOX_GUIDE } from '../constants/approvals.guide'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -257,7 +258,6 @@ export function ApprovalInboxPage() {
                 onApprove={() => onApprove(row.id)}
                 onReject={() => onReject(row.id)}
                 busy={approve.isPending || reject.isPending || bulkRunning}
-                canApprove={canApprove}
               />
             ))}
           </ul>
@@ -271,15 +271,17 @@ export function ApprovalInboxPage() {
           onDeselect={() => setSelectedIds(new Set())}
           actions={
             <>
-              <Button
+              <PermissionButton
+                permission="APPROVALS.APPROVE"
                 size="sm"
                 className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                 disabled={bulkRunning || selectedPending.length < 1}
                 onClick={() => setBulkMode('approve')}
               >
                 <CheckCircle2 size={14} /> Duyệt ({selectedPending.length})
-              </Button>
-              <Button
+              </PermissionButton>
+              <PermissionButton
+                permission="APPROVALS.APPROVE"
                 size="sm"
                 variant="destructive"
                 className="gap-1.5"
@@ -290,7 +292,7 @@ export function ApprovalInboxPage() {
                 }}
               >
                 <XCircle size={14} /> Từ chối ({selectedPending.length})
-              </Button>
+              </PermissionButton>
             </>
           }
         />
@@ -351,7 +353,6 @@ function InboxRow({
   onApprove,
   onReject,
   busy,
-  canApprove,
 }: {
   row: ApprovalRequestDto
   expanded: boolean
@@ -364,7 +365,6 @@ function InboxRow({
   onApprove: () => void
   onReject: () => void
   busy: boolean
-  canApprove: boolean
 }) {
   const isPending = row.status === 'PENDING'
   return (
@@ -430,8 +430,8 @@ function InboxRow({
       {expanded && (
         <div className="px-4 pb-4 pl-[3.75rem] space-y-3 bg-neutral-50/60 border-t border-neutral-100">
           <p className="text-sm text-neutral-700 pt-3">{row.subjectSummary}</p>
-          {isPending && canApprove && (
-            <>
+          {isPending && (
+            <Can permission="APPROVALS.APPROVE">
               <textarea
                 rows={2}
                 className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 bg-white"
@@ -440,15 +440,17 @@ function InboxRow({
                 onChange={(e) => onCommentChange(e.target.value)}
               />
               <div className="flex items-center gap-2">
-                <Button
+                <PermissionButton
+                  permission="APPROVALS.APPROVE"
                   size="sm"
                   className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                   disabled={busy}
                   onClick={onApprove}
                 >
                   <CheckCircle2 size={14} /> Duyệt
-                </Button>
-                <Button
+                </PermissionButton>
+                <PermissionButton
+                  permission="APPROVALS.APPROVE"
                   size="sm"
                   variant="destructive"
                   className="gap-1.5"
@@ -456,9 +458,9 @@ function InboxRow({
                   onClick={onReject}
                 >
                   <XCircle size={14} /> Từ chối
-                </Button>
+                </PermissionButton>
               </div>
-            </>
+            </Can>
           )}
         </div>
       )}

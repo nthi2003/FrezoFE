@@ -9,11 +9,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Trash2, Loader2, Download, CheckCircle, Inbox, Facebook, MessageCircle,
-  Globe, User, Sparkles, Filter, Search, X, RefreshCw, ExternalLink,
-  Phone, Mail, Clock, MapPin,
+  Globe, User, Sparkles, Search, RefreshCw, ExternalLink,
+  Phone, Mail, Clock, MapPin, X, HelpCircle,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, ErrorState, Select, IconActionButton, AppTooltip } from '@frezo/ui'
 import { toast } from 'sonner'
+import { AppTable } from '@/components/ui/AppTable'
+import type { AppTableColumn, BulkAction } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 import {
   useFbLeads, useDeleteFbLead, useImportLead, useImportBatchLeads, useAssignFbLead,
@@ -23,9 +26,6 @@ import { usePersonsCombobox } from '@/modules/qlns/hooks/usePerson'
 type SourceKey = 'all' | 'FACEBOOK' | 'LANDING' | 'ZALO' | 'MANUAL'
 type StatusKey = 'all' | 'NEW' | 'ASSIGNED' | 'IMPORTED'
 
-// ============================================================
-// Meta lookup — icon + màu cho từng nguồn
-// ============================================================
 const SOURCE_META: Record<
   Exclude<SourceKey, 'all'>,
   { label: string; icon: any; color: string; bg: string; border: string }
@@ -61,25 +61,20 @@ export function FbLeadsPage() {
   const { askConfirm, confirmDialog } = useConfirmDialog()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  // Deep-link support: khi vào từ notification bell → URL có `?highlight={leadId}`
-  // → tự động mở drawer chi tiết + highlight row.
   const highlightId = searchParams.get('highlight') || null
 
   const [source, setSource] = useState<SourceKey>('all')
   const [status, setStatus] = useState<StatusKey>('all')
   const [search, setSearch] = useState('')
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [activeLead, setActiveLead] = useState<any | null>(null)
 
   const {
-    data: leads, isLoading, isFetching, refetch,
+    data: leads, isLoading, isFetching, isError, refetch,
   } = useFbLeads(
     status === 'all' ? undefined : status,
     source === 'all' ? undefined : source,
   )
 
-  // Khi data load xong + có highlight query → tự động mở drawer.
-  // Chỉ chạy 1 lần cho mỗi highlightId để user có thể đóng drawer bình thường.
   useEffect(() => {
     if (!highlightId || !leads || activeLead) return
     const target = (leads as any[]).find((l) => l?.id === highlightId)
@@ -94,9 +89,8 @@ export function FbLeadsPage() {
   const importBatchReq = useImportBatchLeads()
   const assignReq = useAssignFbLead()
 
-  const list: any[] = leads || []
+  const list: any[] = useMemo(() => (Array.isArray(leads) ? leads : []), [leads])
 
-  // ---- Client-side search (tên/phone/email/message) ----
   const filtered = useMemo(() => {
     if (!search.trim()) return list
     const q = search.trim().toLowerCase()
@@ -107,7 +101,6 @@ export function FbLeadsPage() {
     })
   }, [list, search])
 
-  // ---- Stats theo nguồn ----
   const stats = useMemo(() => {
     const acc: Record<string, number> = { all: list.length, NEW: 0, ASSIGNED: 0, IMPORTED: 0 }
     list.forEach((l) => {
@@ -126,37 +119,199 @@ export function FbLeadsPage() {
     return acc
   }, [list])
 
-  // ---- Selection ----
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
-  }
-  const selectAllVisible = () => {
-    const allIds = filtered.filter((l) => l.status !== 'IMPORTED').map((l) => l.id)
-    if (selectedIds.size === allIds.length) setSelectedIds(new Set())
-    else setSelectedIds(new Set(allIds))
-  }
-
-  const handleImportBatch = () => {
-    if (selectedIds.size === 0) {
-      toast.warning('Chọn ít nhất 1 lead để import')
-      return
-    }
-    importBatchReq.mutate(Array.from(selectedIds), {
-      onSuccess: () => setSelectedIds(new Set()),
-    })
-  }
-
   const clearFilters = () => {
     setSearch(''); setSource('all'); setStatus('all')
   }
-  const hasFilter = search || source !== 'all' || status !== 'all'
+  const hasFilter = !!search || source !== 'all' || status !== 'all'
+  const isFullyEmpty = !isLoading && !isError && list.length === 0
+  const isFilteredEmpty = !isLoading && !isError && list.length > 0 && filtered.length === 0
+
+  const bulkActions: BulkAction<any>[] = [
+    {
+      key: 'import',
+      label: 'Import vào KH',
+      icon: Download,
+      onClick: async (rows) => {
+        const ids = rows.filter((r) => r.status !== 'IMPORTED').map((r) => r.id)
+        if (ids.length === 0) {
+          toast.warning('Không có lead nào có thể import')
+          return
+        }
+        await importBatchReq.mutateAsync(ids)
+      },
+    },
+  ]
+
+  const columns: AppTableColumn<any>[] = [
+    {
+      key: 'customer',
+      title: 'Khách hàng',
+      render: (_, lead) => {
+        const src = (lead.source || 'FACEBOOK') as keyof typeof SOURCE_META
+        const srcMeta = SOURCE_META[src] ?? SOURCE_META.MANUAL
+        return (
+          <AppTooltip content="Xem chi tiết lead">
+            <button
+              type="button"
+              onClick={() => setActiveLead(lead)}
+              aria-label="Xem chi tiết lead"
+              className="flex items-center gap-2.5 text-left"
+            >
+            <div className={`w-8 h-8 rounded-full ${srcMeta.bg} ${srcMeta.color} flex items-center justify-center font-semibold shrink-0 text-sm`}>
+              {(lead.name || '?').charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div className="font-medium text-neutral-900 truncate max-w-[180px]">
+                {lead.name || 'Khách chưa xác định'}
+              </div>
+              {lead.subject && (
+                <div className="text-[11px] text-neutral-500 truncate max-w-[180px]">
+                  {lead.subject}
+                </div>
+              )}
+            </div>
+          </button>
+          </AppTooltip>
+        )
+      },
+    },
+    {
+      key: 'contact',
+      title: 'Liên hệ',
+      render: (_, lead) => (
+        <div className="flex flex-col gap-0.5 text-xs text-neutral-600">
+          {lead.phone && (
+            <span className="inline-flex items-center gap-1"><Phone size={11} />{lead.phone}</span>
+          )}
+          {lead.email && (
+            <span className="inline-flex items-center gap-1 text-neutral-500"><Mail size={11} />{lead.email}</span>
+          )}
+          {!lead.phone && !lead.email && <span className="text-neutral-400">—</span>}
+        </div>
+      ),
+    },
+    {
+      key: 'source',
+      title: 'Nguồn',
+      render: (_, lead) => {
+        const src = (lead.source || 'FACEBOOK') as keyof typeof SOURCE_META
+        const srcMeta = SOURCE_META[src] ?? SOURCE_META.MANUAL
+        const SrcIcon = srcMeta.icon
+        return (
+          <div>
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${srcMeta.bg} ${srcMeta.color} ${srcMeta.border} text-[11px] font-medium`}>
+              <SrcIcon size={11} /> {srcMeta.label}
+            </span>
+            {lead.sourceGroupName && (
+              <div className="text-[11px] text-neutral-400 truncate max-w-[140px] mt-0.5" title={lead.sourceGroupName}>
+                {lead.sourceGroupName}
+              </div>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      key: 'message',
+      title: 'Nội dung',
+      render: (_, lead) => (
+        <div className="max-w-[220px]">
+          <div className="text-xs text-neutral-600 line-clamp-2" title={lead.message || lead.note || ''}>
+            {lead.message || lead.note || <span className="text-neutral-400">—</span>}
+          </div>
+          {lead.createdDate && (
+            <div className="text-[10px] text-neutral-400 mt-0.5 inline-flex items-center gap-1">
+              <Clock size={9} /> {formatDate(lead.createdDate)}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'assigned',
+      title: 'Xử lý',
+      render: (_, lead) =>
+        lead.assignedTo ? (
+          <span className="inline-flex items-center gap-1 text-xs text-neutral-700">
+            <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-semibold">
+              {lead.assignedTo.charAt(0).toUpperCase()}
+            </div>
+            {lead.assignedTo}
+          </span>
+        ) : (
+          <AssignSelect
+            options={personOptions}
+            onSelect={(username) => assignReq.mutate({ id: lead.id, username })}
+            loading={assignReq.isPending}
+          />
+        ),
+    },
+    {
+      key: 'status',
+      title: 'Trạng thái',
+      align: 'center',
+      render: (_, lead) => {
+        const st = (lead.status || 'NEW') as keyof typeof STATUS_META
+        const stMeta = STATUS_META[st] ?? STATUS_META.NEW
+        return (
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${stMeta.color}`}>
+            {st === 'IMPORTED' && <CheckCircle size={10} />}
+            {stMeta.label}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'actions',
+      title: 'Thao tác',
+      align: 'right',
+      width: 120,
+      render: (_, lead) => {
+        const disabled = lead.status === 'IMPORTED'
+        return (
+          <div className="flex items-center justify-end gap-1">
+            {lead.profileUrl && (
+              <AppTooltip content="Mở profile gốc">
+                <a
+                  href={lead.profileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Mở profile gốc"
+                  className="p-1.5 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-primary-600 inline-flex"
+                >
+                  <ExternalLink size={14} />
+                </a>
+              </AppTooltip>
+            )}
+            {!disabled && (
+              <IconActionButton tooltip="Import vào Khách hàng" tone="emerald" onClick={() => importReq.mutate(lead.id)} disabled={importReq.isPending}>
+                {importReq.isPending
+                  ? <Loader2 size={14} className="animate-spin" />
+                  : <Download size={14} />}
+              </IconActionButton>
+            )}
+            <IconActionButton
+              tooltip="Xoá"
+              tone="red"
+              onClick={() =>
+                askConfirm({
+                  title: 'Xoá lead này?',
+                  message: `Lead "${lead.name}" sẽ bị xoá.`,
+                  confirmText: 'Xoá',
+                  onConfirm: () => deleteReq.mutate(lead.id),
+                })
+              }
+            >
+              <Trash2 size={14} />
+            </IconActionButton>
+          </div>
+        )
+      },
+    },
+  ]
 
   return (
-    <div className="p-6 space-y-5 animate-fade-in">
+    <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
         title={
           <span className="inline-flex items-center gap-2">
@@ -166,14 +321,14 @@ export function FbLeadsPage() {
             Inbox khách hàng
           </span>
         }
-        description="Gộp lead từ Facebook Groups · Landing page · Zalo OA · Nhập tay — xử lý & convert thành khách hàng."
+        description="Gộp lead từ Facebook Groups · Landing page · Zalo OA · Nhập tay — xử lý & chuyển thành khách hàng."
         actions={
           <div className="flex gap-2">
             <Button
               variant="outline"
               onClick={() => navigate('/crm/leads')}
               className="gap-1.5"
-              title="Handoff sang CRM Leads (NEW→follow-up)"
+              title="Chuyển sang CRM Leads (NEW → follow-up)"
             >
               <ExternalLink size={14} />
               CRM Leads
@@ -182,19 +337,10 @@ export function FbLeadsPage() {
               <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
               Làm mới
             </Button>
-            {selectedIds.size > 0 && (
-              <Button onClick={handleImportBatch} disabled={importBatchReq.isPending} className="gap-1.5">
-                {importBatchReq.isPending
-                  ? <Loader2 size={14} className="animate-spin" />
-                  : <Download size={14} />}
-                Import {selectedIds.size} lead
-              </Button>
-            )}
           </div>
         }
       />
 
-      {/* ==================== KPI: theo nguồn ==================== */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KpiTile
           active={source === 'all'}
@@ -220,72 +366,62 @@ export function FbLeadsPage() {
         })}
       </div>
 
-      {/* ==================== Toolbar: search + status pill ==================== */}
-      <div className="bg-white rounded-xl border border-neutral-200 p-3 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[240px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+      <FilterBar
+        hasActiveFilters={hasFilter}
+        onClear={clearFilters}
+        countLabel={`${filtered.length} lead${hasFilter ? ' (đã lọc)' : ''}`}
+      >
+        <div className="min-w-[150px]">
+          <Select
+            options={[
+              { value: 'all', label: `Tất cả trạng thái (${stats.all || 0})` },
+              { value: 'NEW', label: `Mới (${stats.NEW || 0})` },
+              { value: 'ASSIGNED', label: `Đang xử lý (${stats.ASSIGNED || 0})` },
+              { value: 'IMPORTED', label: `Đã import KH (${stats.IMPORTED || 0})` },
+            ]}
+            value={status}
+            onChange={(v) => setStatus(v as StatusKey)}
+            placeholder="Trạng thái"
+            aria-label="Lọc trạng thái"
+            showSearch={false}
+          />
+        </div>
+        <div className="relative flex-1 min-w-[240px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
           <input
-            type="search"
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            placeholder="Tìm theo tên, SĐT, email, nội dung…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm theo tên, SĐT, email, nội dung tin..."
-            className="w-full h-9 pl-9 pr-9 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white focus:border-primary-300 focus:ring-2 focus:ring-primary-100 outline-none text-sm transition"
+            aria-label="Tìm lead"
           />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
-            >
-              <X size={14} />
-            </button>
-          )}
         </div>
+        <span
+          className="inline-flex items-center text-neutral-400"
+          title="Chọn dòng để import hàng loạt vào Khách hàng"
+        >
+          <HelpCircle size={14} />
+        </span>
+      </FilterBar>
 
-        <div className="flex items-center gap-1 bg-neutral-50 rounded-lg p-0.5 border border-neutral-200">
-          {(['all', 'NEW', 'ASSIGNED', 'IMPORTED'] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => { setStatus(s); setSelectedIds(new Set()) }}
-              className={`px-3 h-8 rounded-md text-xs font-medium transition-colors ${
-                status === s
-                  ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200'
-                  : 'text-neutral-500 hover:text-neutral-800'
-              }`}
-            >
-              {s === 'all'
-                ? `Tất cả (${stats.all || 0})`
-                : `${STATUS_META[s].label} (${stats[s] || 0})`}
-            </button>
-          ))}
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được inbox"
+            message="Kiểm tra kết nối hoặc quyền truy cập rồi thử lại."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
         </div>
-
-        {hasFilter && (
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
-          >
-            <Filter size={12} /> Xoá lọc
-          </button>
-        )}
-      </div>
-
-      {/* ==================== Table ==================== */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="p-16 flex flex-col items-center justify-center gap-3 text-neutral-400">
-            <Loader2 size={22} className="animate-spin text-primary-500" />
-            <span className="text-sm">Đang tải inbox...</span>
-          </div>
-        ) : filtered.length === 0 ? (
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
           <EmptyState
             icon={hasFilter ? Search : Inbox}
             title={hasFilter ? 'Không có lead khớp bộ lọc' : 'Inbox trống'}
             description={
               hasFilter
-                ? 'Thử điều chỉnh từ khoá hoặc bỏ bớt filter.'
-                : 'Chưa có lead nào. Khi khách gửi form landing page, chat Zalo OA, hoặc bot crawl FB Groups — chúng sẽ hiện tại đây.'
+                ? 'Thử điều chỉnh từ khoá hoặc bỏ bớt bộ lọc.'
+                : 'Chưa có lead nào. Khi khách gửi form landing, chat Zalo OA, hoặc bot crawl FB Groups — chúng sẽ hiện tại đây.'
             }
             action={
               hasFilter
@@ -293,188 +429,33 @@ export function FbLeadsPage() {
                 : undefined
             }
           />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-neutral-50/70 border-b border-neutral-200">
-                <tr>
-                  <th className="w-10 px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.size > 0 && selectedIds.size === filtered.filter((l) => l.status !== 'IMPORTED').length}
-                      onChange={selectAllVisible}
-                      className="rounded"
-                    />
-                  </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-neutral-600 uppercase tracking-wide">Khách hàng</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-neutral-600 uppercase tracking-wide">Liên hệ</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-neutral-600 uppercase tracking-wide">Nguồn</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-neutral-600 uppercase tracking-wide">Nội dung</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-neutral-600 uppercase tracking-wide">Xử lý</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-neutral-600 uppercase tracking-wide">Trạng thái</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-neutral-600 uppercase tracking-wide">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {filtered.map((lead) => {
-                  const src = (lead.source || 'FACEBOOK') as keyof typeof SOURCE_META
-                  const srcMeta = SOURCE_META[src] ?? SOURCE_META.MANUAL
-                  const SrcIcon = srcMeta.icon
-                  const st = (lead.status || 'NEW') as keyof typeof STATUS_META
-                  const stMeta = STATUS_META[st] ?? STATUS_META.NEW
-                  const disabled = lead.status === 'IMPORTED'
-                  const isHighlighted = highlightId === lead.id
-                  return (
-                    <tr
-                      key={lead.id}
-                      className={`hover:bg-neutral-50/60 group transition-colors ${
-                        isHighlighted ? 'bg-primary-50/60 ring-2 ring-primary-200 ring-inset' : ''
-                      }`}
-                    >
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(lead.id)}
-                          onChange={() => toggleSelect(lead.id)}
-                          disabled={disabled}
-                          className="rounded disabled:opacity-40"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => setActiveLead(lead)}
-                          className="flex items-center gap-2.5 text-left"
-                        >
-                          <div className={`w-9 h-9 rounded-full ${srcMeta.bg} ${srcMeta.color} flex items-center justify-center font-semibold shrink-0`}>
-                            {(lead.name || '?').charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="font-medium text-neutral-900 truncate max-w-[200px]">
-                              {lead.name || 'Khách chưa xác định'}
-                            </div>
-                            {lead.subject && (
-                              <div className="text-[11px] text-neutral-500 truncate max-w-[200px]">
-                                {lead.subject}
-                              </div>
-                            )}
-                          </div>
-                        </button>
-                      </td>
-                      <td className="px-4 py-3 text-neutral-600">
-                        <div className="flex flex-col gap-0.5 text-xs">
-                          {lead.phone && (
-                            <span className="inline-flex items-center gap-1"><Phone size={11} />{lead.phone}</span>
-                          )}
-                          {lead.email && (
-                            <span className="inline-flex items-center gap-1 text-neutral-500"><Mail size={11} />{lead.email}</span>
-                          )}
-                          {!lead.phone && !lead.email && (
-                            <span className="text-neutral-400">—</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${srcMeta.bg} ${srcMeta.color} ${srcMeta.border} text-[11px] font-medium`}>
-                          <SrcIcon size={11} /> {srcMeta.label}
-                        </span>
-                        {lead.sourceGroupName && (
-                          <div className="text-[11px] text-neutral-400 truncate max-w-[160px] mt-0.5">
-                            {lead.sourceGroupName}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 max-w-[240px]">
-                        <div className="text-xs text-neutral-600 line-clamp-2">
-                          {lead.message || lead.note || <span className="text-neutral-400">—</span>}
-                        </div>
-                        {lead.createdDate && (
-                          <div className="text-[10px] text-neutral-400 mt-0.5 inline-flex items-center gap-1">
-                            <Clock size={9} /> {formatDate(lead.createdDate)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {lead.assignedTo ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-neutral-700">
-                            <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-semibold">
-                              {lead.assignedTo.charAt(0).toUpperCase()}
-                            </div>
-                            {lead.assignedTo}
-                          </span>
-                        ) : (
-                          <AssignSelect
-                            options={personOptions}
-                            onSelect={(username) => assignReq.mutate({ id: lead.id, username })}
-                            loading={assignReq.isPending}
-                          />
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${stMeta.color}`}>
-                          {st === 'IMPORTED' && <CheckCircle size={10} />}
-                          {stMeta.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
-                          {lead.profileUrl && (
-                            <a
-                              href={lead.profileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-1.5 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-primary-600"
-                              title="Mở profile gốc"
-                            >
-                              <ExternalLink size={14} />
-                            </a>
-                          )}
-                          {!disabled && (
-                            <button
-                              type="button"
-                              onClick={() => importReq.mutate(lead.id)}
-                              disabled={importReq.isPending}
-                              className="p-1.5 rounded-lg text-neutral-500 hover:bg-emerald-50 hover:text-emerald-600 disabled:opacity-40"
-                              title="Import vào Khách hàng"
-                            >
-                              {importReq.isPending
-                                ? <Loader2 size={14} className="animate-spin" />
-                                : <Download size={14} />}
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              askConfirm({
-                                title: 'Xoá lead này?',
-                                message: `Lead "${lead.name}" sẽ bị xoá.`,
-                                confirmText: 'Xoá',
-                                onConfirm: () => deleteReq.mutate(lead.id),
-                              })
-                            }
-                            className="p-1.5 rounded-lg text-neutral-500 hover:bg-rose-50 hover:text-rose-600"
-                            title="Xoá"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <AppTable
+          columns={columns}
+          data={filtered}
+          isLoading={isLoading}
+          density="compact"
+          showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onRefresh={() => void refetch()}
+          selectable
+          getRowId={(r) => String(r.id)}
+          bulkActions={bulkActions}
+          getRowProps={(lead) =>
+            highlightId === lead.id
+              ? { className: 'bg-primary-50/60 ring-2 ring-primary-200 ring-inset' }
+              : {}
+          }
+        />
+      )}
 
-      {/* ==================== Detail drawer ==================== */}
       {activeLead && (
         <LeadDetailDrawer
           lead={activeLead}
           onClose={() => {
             setActiveLead(null)
-            // Clear query param để không auto-mở lại khi user thao tác khác
             if (highlightId) {
               const next = new URLSearchParams(searchParams)
               next.delete('highlight')
@@ -490,10 +471,6 @@ export function FbLeadsPage() {
     </div>
   )
 }
-
-// ============================================================
-// Sub-components
-// ============================================================
 
 function KpiTile({
   icon: Icon, label, value, tone, active, onClick,
@@ -540,6 +517,7 @@ function AssignSelect({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="text-xs text-primary-600 hover:text-primary-800 font-medium"
+        title="Gán nhân viên CSKH"
       >
         + Gán CSKH
       </button>
@@ -579,7 +557,6 @@ function LeadDetailDrawer({
     <>
       <div className="fixed inset-0 z-40 bg-neutral-900/40 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-white shadow-2xl overflow-y-auto animate-slide-in-right">
-        {/* Header */}
         <div className={`p-5 border-b border-neutral-100 ${srcMeta.bg}`}>
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-3 min-w-0">
@@ -594,13 +571,13 @@ function LeadDetailDrawer({
                 </div>
               </div>
             </div>
-            <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-neutral-500 hover:bg-white/60"><X size={16} /></button>
+            <IconActionButton tooltip="Đóng" onClick={onClose}>
+              <X size={16} />
+            </IconActionButton>
           </div>
         </div>
 
-        {/* Body */}
         <div className="p-5 space-y-4">
-          {/* Contact */}
           <section>
             <SectionTitle>Liên hệ</SectionTitle>
             <InfoRow icon={Phone} label="SĐT" value={lead.phone} />
@@ -608,7 +585,6 @@ function LeadDetailDrawer({
             <InfoRow icon={MapPin} label="Địa chỉ" value={lead.address} />
           </section>
 
-          {/* Message */}
           {(lead.message || lead.note || lead.subject) && (
             <section>
               <SectionTitle>Nội dung</SectionTitle>
@@ -621,7 +597,6 @@ function LeadDetailDrawer({
             </section>
           )}
 
-          {/* Meta */}
           <section>
             <SectionTitle>Kênh & Meta</SectionTitle>
             <InfoRow label="Trạng thái" value={STATUS_META[(lead.status || 'NEW') as keyof typeof STATUS_META]?.label} />
@@ -643,7 +618,6 @@ function LeadDetailDrawer({
           </section>
         </div>
 
-        {/* Footer actions */}
         <div className="sticky bottom-0 bg-white border-t border-neutral-100 p-4 flex gap-2">
           <Button variant="outline" onClick={onClose} className="flex-1">Đóng</Button>
           {!disabled && (

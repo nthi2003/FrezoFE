@@ -25,11 +25,10 @@ export function ArticleReaderBanner({ article }: { article: HomeArticle }) {
         src={cover}
         alt={article.title || ''}
         tone={tone}
-        seed={article.id}
         showLabel={!cover}
         iconSize={44}
         eager
-        className="h-52 w-full rounded-2xl sm:h-64 lg:h-80"
+        className="h-52 w-full rounded-xl sm:h-64 lg:h-80"
       />
       <div
         aria-hidden="true"

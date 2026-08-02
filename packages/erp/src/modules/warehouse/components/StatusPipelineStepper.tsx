@@ -119,7 +119,7 @@ export function StatusPipelineStepper({
   )
 }
 
-/** Map status PR → index bước Draft→Duyệt→PO→Nhận */
+/** Map status yêu cầu mua → index bước Draft→Duyệt→Đơn mua→Nhận */
 export function prStepIndex(status: string): number {
   const s = (status || '').toUpperCase()
   if (s === 'DRAFT') return 0
@@ -132,7 +132,7 @@ export function prStepIndex(status: string): number {
 export const PR_PIPELINE: PipelineStep[] = [
   { key: 'draft', label: 'Nháp' },
   { key: 'approve', label: 'Duyệt' },
-  { key: 'po', label: 'Tạo PO' },
+  { key: 'po', label: 'Tạo đơn mua' },
   { key: 'receive', label: 'Nhận hàng' },
 ]
 
@@ -166,7 +166,7 @@ export function grnStepIndex(status: string): number {
 }
 
 export const GRN_PIPELINE: PipelineStep[] = [
-  { key: 'draft', label: 'Nháp PNK' },
+  { key: 'draft', label: 'Nháp phiếu nhập' },
   { key: 'pending', label: 'Chờ duyệt' },
   { key: 'approved', label: 'Đã duyệt' },
   { key: 'confirmed', label: 'Đã nhập kho' },
@@ -184,7 +184,7 @@ export function ginStepIndex(status: string): number {
 }
 
 export const GIN_PIPELINE: PipelineStep[] = [
-  { key: 'draft', label: 'Nháp PXK' },
+  { key: 'draft', label: 'Nháp phiếu xuất' },
   { key: 'pending', label: 'Chờ duyệt' },
   { key: 'approved', label: 'Đã duyệt' },
   { key: 'confirmed', label: 'Đã xuất kho' },

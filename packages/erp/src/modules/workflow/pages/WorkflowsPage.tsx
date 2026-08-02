@@ -8,15 +8,19 @@
 // ============================================================
 
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Plus, Workflow, Search, X, RefreshCw, Edit3, Trash2,
   Layers, Building2, ClipboardList, Package, FileText, Briefcase,
   type LucideIcon, MoreVertical, Copy, BookOpen, BookTemplate, PencilRuler, Info,
+  ArrowUpDown,
 } from 'lucide-react'
 import {
   Button, PageHeader, EmptyState, PageGuideButton, ErrorState, Skeleton, ConfirmDialog,
+  Select,
 } from '@frezo/ui'
+import { FilterExportDrawer, FilterExportTrigger } from '@/components/shared/FilterExportDrawer'
+import { downloadCsv } from '@/utils/csvExport'
 import { toast } from 'sonner'
 import { useWorkflowDefinitions, useDeleteWorkflowDefinition } from '../hooks/useWorkflow'
 import type { WorkflowDefinition } from '../services/workflowApi'
@@ -24,6 +28,18 @@ import { WorkflowEditorDrawer } from '../components/WorkflowEditorDrawer'
 import { WorkflowStepper } from '@/components/workflow/WorkflowStepper'
 import { WORKFLOWS_GUIDE } from '../constants/workflows.guide'
 import { usePermission } from '@/lib/hooks/usePermission'
+import { pageRootClass } from '@/modules/approval/utils/pageEmbed'
+
+type SortKey = 'name' | 'code' | 'module' | 'steps' | 'active'
+type ActiveFilter = 'all' | 'on' | 'off'
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'name', label: 'Tên A→Z' },
+  { value: 'code', label: 'Mã A→Z' },
+  { value: 'module', label: 'Theo module' },
+  { value: 'steps', label: 'Số bước (nhiều → ít)' },
+  { value: 'active', label: 'Đang bật trước' },
+]
 
 const MODULE_META: Record<string, { icon: LucideIcon; label: string; color: string }> = {
   ASSET:    { icon: Package,       label: 'Quản lý tài sản', color: 'text-warning-dark bg-warning-light border-warning/20' },
@@ -42,13 +58,18 @@ const RUNTIME_VIA_APPROVAL_FLOWS: Record<string, string> = {
 
 type LocationEditState = { editWorkflowId?: string }
 
-export function WorkflowsPage() {
+export function WorkflowsPage({ embedded }: { embedded?: boolean } = {}) {
   const nav = useNavigate()
   const location = useLocation()
+  const [, setSearchParams] = useSearchParams()
   const [moduleFilter, setModuleFilter] = useState<string>('all')
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all')
   const [search, setSearch] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('module')
+  const [toolsOpen, setToolsOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | 'NEW' | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<WorkflowDefinition | null>(null)
+  const [cloneSource, setCloneSource] = useState<WorkflowDefinition | null>(null)
 
   const {
     data: defs = [],
@@ -70,10 +91,28 @@ export function WorkflowsPage() {
     nav(location.pathname, { replace: true, state: {} })
   }, [location.state, location.pathname, nav])
 
-  // Filter
+  const clearFilters = () => {
+    setSearch('')
+    setModuleFilter('all')
+    setActiveFilter('all')
+    setSortKey('module')
+  }
+
+  const hasFilter =
+    !!search.trim() || moduleFilter !== 'all' || activeFilter !== 'all' || sortKey !== 'module'
+
+  const activeFilterCount =
+    (search.trim() ? 1 : 0) +
+    (moduleFilter !== 'all' ? 1 : 0) +
+    (activeFilter !== 'all' ? 1 : 0) +
+    (sortKey !== 'module' ? 1 : 0)
+
+  // Filter + sort
   const filtered = useMemo(() => {
     let list = [...defs]
     if (moduleFilter !== 'all') list = list.filter((d) => d.moduleCode === moduleFilter)
+    if (activeFilter === 'on') list = list.filter((d) => !!d.active)
+    if (activeFilter === 'off') list = list.filter((d) => !d.active)
     if (search.trim()) {
       const s = search.trim().toLowerCase()
       list = list.filter((d) =>
@@ -82,8 +121,27 @@ export function WorkflowsPage() {
         (d.description || '').toLowerCase().includes(s),
       )
     }
+    list.sort((a, b) => {
+      switch (sortKey) {
+        case 'code':
+          return a.code.localeCompare(b.code, 'vi')
+        case 'module': {
+          const mod = a.moduleCode.localeCompare(b.moduleCode, 'vi')
+          return mod !== 0 ? mod : a.name.localeCompare(b.name, 'vi')
+        }
+        case 'steps':
+          return (b.steps?.length || 0) - (a.steps?.length || 0)
+        case 'active': {
+          const av = Number(!!b.active) - Number(!!a.active)
+          return av !== 0 ? av : a.name.localeCompare(b.name, 'vi')
+        }
+        case 'name':
+        default:
+          return a.name.localeCompare(b.name, 'vi')
+      }
+    })
     return list
-  }, [defs, moduleFilter, search])
+  }, [defs, moduleFilter, activeFilter, search, sortKey])
 
   // Group by module for display
   const groups = useMemo(() => {
@@ -121,95 +179,287 @@ export function WorkflowsPage() {
     setEditingId('NEW')
   }
 
-  const [cloneSource, setCloneSource] = useState<WorkflowDefinition | null>(null)
+  const handleExportCsv = () => {
+    if (filtered.length === 0) {
+      toast.error('Không có quy trình để xuất')
+      return
+    }
+    downloadCsv(
+      'quy-trinh-workflow.csv',
+      filtered.map((d) => ({
+        code: d.code,
+        name: d.name,
+        moduleCode: d.moduleCode,
+        moduleLabel: MODULE_META[d.moduleCode]?.label || d.moduleCode,
+        active: d.active ? 'Bật' : 'Tắt',
+        steps: (d.steps || []).length,
+        description: d.description || '',
+        editorMode: d.editorMode || '',
+      })),
+      [
+        { key: 'code', label: 'Mã' },
+        { key: 'name', label: 'Tên' },
+        { key: 'moduleCode', label: 'Mã module' },
+        { key: 'moduleLabel', label: 'Module' },
+        { key: 'active', label: 'Trạng thái' },
+        { key: 'steps', label: 'Số bước' },
+        { key: 'description', label: 'Mô tả' },
+        { key: 'editorMode', label: 'Chế độ' },
+      ],
+    )
+    toast.success(`Đã xuất ${filtered.length} quy trình ra CSV`)
+  }
+
+  const goFlowsTab = () => {
+    if (embedded) {
+      setSearchParams(
+        (prev) => {
+          const sp = new URLSearchParams(prev)
+          sp.delete('tab')
+          return sp
+        },
+        { replace: true },
+      )
+      return
+    }
+    nav('/approval/flows')
+  }
+
+  const headerActions = (
+    <div className="flex flex-wrap gap-2 items-center">
+      <PageGuideButton guide={WORKFLOWS_GUIDE} />
+      <FilterExportTrigger
+        onClick={() => setToolsOpen(true)}
+        activeCount={activeFilterCount}
+      />
+      <Button
+        variant="outline"
+        className="gap-1.5"
+        onClick={() => nav('/qtht/workflows/templates')}
+      >
+        <BookTemplate size={14} /> Thư viện mẫu
+      </Button>
+      <Button variant="outline" onClick={() => refetch()} disabled={isFetching} className="gap-1.5">
+        <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} /> Làm mới
+      </Button>
+      {canCreate && (
+        <Button onClick={() => { setCloneSource(null); setEditingId('NEW') }} className="gap-1.5">
+          <Plus size={14} /> Thêm quy trình
+        </Button>
+      )}
+    </div>
+  )
 
   return (
-    <div className="p-6 space-y-5 animate-fade-in">
-      <PageHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center">
-              <Workflow size={16} />
-            </span>
-            Thiết kế template quy trình
-          </span>
-        }
-        description={
-          <>
-            Cấu hình bước duyệt cho từng module.
-            <span className="text-neutral-400"> · </span>
-            <b className="text-neutral-700">{stats.total}</b> quy trình
+    <div className={pageRootClass(embedded)}>
+      {!embedded && (
+        <PageHeader
+          title="Thiết kế template quy trình"
+          description={
+            <>
+              Cấu hình bước duyệt cho từng module.
+              <span className="text-neutral-400"> · </span>
+              <b className="text-neutral-700">{stats.total}</b> quy trình
+              <span className="text-neutral-400"> · </span>
+              <b className="text-success">{stats.active}</b> đang bật
+              <span className="text-neutral-400"> · </span>
+              <b className="text-neutral-700">{stats.modules}</b> module
+              {hasFilter && (
+                <>
+                  <span className="text-neutral-400"> · </span>
+                  <span className="text-neutral-500 tabular-nums">
+                    {filtered.length} đang hiển thị
+                  </span>
+                </>
+              )}
+            </>
+          }
+          actions={headerActions}
+        />
+      )}
+      {embedded && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-neutral-600">
+            <b className="text-neutral-800">{stats.total}</b> mẫu
             <span className="text-neutral-400"> · </span>
             <b className="text-success">{stats.active}</b> đang bật
             <span className="text-neutral-400"> · </span>
-            <b className="text-neutral-700">{stats.modules}</b> module
-          </>
-        }
-        actions={
-          <>
-            <PageGuideButton guide={WORKFLOWS_GUIDE} />
-            <Button
-              variant="outline"
-              className="gap-1.5"
-              onClick={() => nav('/qtht/workflows/templates')}
-            >
-              <BookTemplate size={14} /> Thư viện mẫu
-            </Button>
-            <Button variant="outline" onClick={() => refetch()} disabled={isFetching} className="gap-1.5">
-              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} /> Làm mới
-            </Button>
-            {canCreate && (
-              <Button onClick={() => { setCloneSource(null); setEditingId('NEW') }} className="gap-1.5">
-                <Plus size={14} /> Thêm quy trình
-              </Button>
+            <b className="text-neutral-800">{stats.modules}</b> module
+            {hasFilter && (
+              <>
+                <span className="text-neutral-400"> · </span>
+                <span className="tabular-nums">{filtered.length} đang hiển thị</span>
+              </>
             )}
-          </>
-        }
-      />
+          </p>
+          {headerActions}
+        </div>
+      )}
 
-      {/* LNK-04 / ANTI-BLOCK: designer ≠ hộp thư duyệt hàng ngày */}
+      {/* Designer ≠ hộp thư duyệt hàng ngày; runtime gắn ở tab Luồng đang chạy */}
       <div className="flex gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-950">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
         <p className="leading-snug">
-          Trang này chỉ <b>thiết kế template</b>. Duyệt đơn hàng ngày ở{' '}
+          Tab này chỉ <b>thiết kế mẫu</b>. Duyệt đơn hàng ngày ở{' '}
           <Link to="/approval/inbox" className="font-semibold underline underline-offset-2 hover:text-amber-800">
             Hộp thư duyệt
           </Link>
-          {' '}· cấu hình flow nghiệp vụ ở{' '}
-          <Link to="/approval/flows" className="font-semibold underline underline-offset-2 hover:text-amber-800">
-            /approval/flows
-          </Link>
+          {' '}· gắn luồng nghiệp vụ (nghỉ / mua / lương) ở tab{' '}
+          <button
+            type="button"
+            onClick={goFlowsTab}
+            className="font-semibold underline underline-offset-2 hover:text-amber-800"
+          >
+            Luồng đang chạy
+          </button>
           .
         </p>
       </div>
 
-      {/* Toolbar */}
-      <div className="bg-white rounded-xl border border-neutral-200 p-3 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm theo tên, mã, mô tả..."
-            className="w-full h-9 pl-9 pr-9 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white focus:border-primary-300 focus:ring-2 focus:ring-primary-100 outline-none text-sm transition"
-          />
-          {search && (
-            <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700">
-              <X size={14} />
-            </button>
+      {/* Active filter chips — progressive disclosure, không chiếm FilterBar */}
+      {hasFilter && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-600">
+          <span className="tabular-nums font-medium text-neutral-700">
+            {filtered.length} quy trình (đã lọc)
+          </span>
+          {search.trim() && (
+            <span className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1">
+              Từ khoá: {search.trim()}
+              <button type="button" onClick={() => setSearch('')} className="text-neutral-400 hover:text-neutral-700" aria-label="Xoá từ khoá">
+                <X size={12} />
+              </button>
+            </span>
           )}
+          {moduleFilter !== 'all' && (
+            <span className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1">
+              Module: {MODULE_META[moduleFilter]?.label || moduleFilter}
+              <button type="button" onClick={() => setModuleFilter('all')} className="text-neutral-400 hover:text-neutral-700" aria-label="Xoá lọc module">
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          {activeFilter !== 'all' && (
+            <span className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1">
+              {activeFilter === 'on' ? 'Đang bật' : 'Đã tắt'}
+              <button type="button" onClick={() => setActiveFilter('all')} className="text-neutral-400 hover:text-neutral-700" aria-label="Xoá lọc trạng thái">
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          {sortKey !== 'module' && (
+            <span className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1">
+              <ArrowUpDown size={11} /> {SORT_OPTIONS.find((o) => o.value === sortKey)?.label}
+              <button type="button" onClick={() => setSortKey('module')} className="text-neutral-400 hover:text-neutral-700" aria-label="Đặt lại sắp xếp">
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-primary-700 hover:underline font-medium"
+          >
+            Xoá tất cả
+          </button>
         </div>
+      )}
 
-        <div className="flex items-center gap-1 flex-wrap">
-          <ModuleChip active={moduleFilter === 'all'} onClick={() => setModuleFilter('all')} label="Tất cả module" />
-          {availableModules.map((m) => (
-            <ModuleChip key={m} active={moduleFilter === m}
-              onClick={() => setModuleFilter(m)}
-              label={MODULE_META[m]?.label || m} />
-          ))}
-        </div>
-      </div>
+      <FilterExportDrawer
+        isOpen={toolsOpen}
+        onClose={() => setToolsOpen(false)}
+        hasActiveFilters={hasFilter}
+        onClear={clearFilters}
+        onExport={handleExportCsv}
+        exportDisabled={filtered.length === 0}
+        description="Lọc, sắp xếp danh sách template hoặc xuất CSV — không tách trang riêng."
+      >
+        <section className="space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Lọc</h3>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-neutral-600" htmlFor="wf-tools-search">Tìm kiếm</label>
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                id="wf-tools-search"
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tên, mã, mô tả…"
+                className="w-full h-9 pl-8 pr-8 rounded-md border border-neutral-200 bg-white focus:border-primary-300 focus:ring-2 focus:ring-primary-100 outline-none text-sm"
+                aria-label="Tìm quy trình"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+                  aria-label="Xoá tìm kiếm"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-neutral-600">Module</label>
+            <Select
+              options={[
+                { value: 'all', label: 'Tất cả module' },
+                ...availableModules.map((m) => ({
+                  value: m,
+                  label: MODULE_META[m]?.label || m,
+                })),
+              ]}
+              value={moduleFilter}
+              onChange={setModuleFilter}
+              placeholder="Module"
+              aria-label="Lọc theo module"
+              showSearch={false}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-neutral-600">Trạng thái</label>
+            <Select
+              options={[
+                { value: 'all', label: 'Tất cả' },
+                { value: 'on', label: 'Đang bật' },
+                { value: 'off', label: 'Đã tắt' },
+              ]}
+              value={activeFilter}
+              onChange={(v) => setActiveFilter(v as ActiveFilter)}
+              placeholder="Trạng thái"
+              aria-label="Lọc trạng thái"
+              showSearch={false}
+            />
+          </div>
+        </section>
+
+        <details className="group rounded-lg border border-neutral-200 bg-neutral-50/60 open:bg-white">
+          <summary className="cursor-pointer list-none px-3 py-2.5 text-sm font-medium text-neutral-800 flex items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex items-center gap-1.5">
+              <ArrowUpDown size={14} className="text-neutral-500" />
+              Sắp xếp
+            </span>
+            <span className="text-xs font-normal text-neutral-500">
+              {SORT_OPTIONS.find((o) => o.value === sortKey)?.label}
+            </span>
+          </summary>
+          <div className="px-3 pb-3 space-y-1.5 border-t border-neutral-100 pt-2">
+            <Select
+              options={SORT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+              value={sortKey}
+              onChange={(v) => setSortKey(v as SortKey)}
+              placeholder="Sắp xếp"
+              aria-label="Sắp xếp danh sách"
+              showSearch={false}
+            />
+          </div>
+        </details>
+
+        <p className="text-[11px] text-neutral-500 leading-snug">
+          Xuất CSV dùng danh sách đang lọc ({filtered.length} dòng). Nút xuất ở cuối panel.
+        </p>
+      </FilterExportDrawer>
 
       {/* Content */}
       {isLoading ? (
@@ -227,20 +477,17 @@ export function WorkflowsPage() {
         <div className="bg-white rounded-xl border border-neutral-200">
           <EmptyState
             icon={Workflow}
-            title={search || moduleFilter !== 'all' ? 'Không có quy trình khớp bộ lọc' : 'Chưa có quy trình nào'}
+            title={hasFilter ? 'Không có bản ghi phù hợp bộ lọc' : 'Chưa có quy trình nào'}
             description={
-              search || moduleFilter !== 'all'
+              hasFilter
                 ? 'Thử xoá bộ lọc hoặc từ khoá.'
                 : 'Đọc hướng dẫn trước khi tạo — cấu hình sai sẽ ảnh hưởng duyệt đơn thật.'
             }
             action={
-              search || moduleFilter !== 'all' ? (
+              hasFilter ? (
                 {
-                  label: 'Xoá bộ lọc',
-                  onClick: () => {
-                    setSearch('')
-                    setModuleFilter('all')
-                  },
+                  label: 'Xoá lọc',
+                  onClick: clearFilters,
                 }
               ) : (
                 <div className="flex flex-wrap items-center justify-center gap-2">
@@ -496,9 +743,9 @@ function ApplyBadge({ moduleCode, active }: { moduleCode: string; active: boolea
       <Link
         to="/approval/flows"
         className="text-[10px] font-medium text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded hover:bg-amber-100"
-        title="Runtime duyệt đơn dùng /approval/flows"
+        title="Runtime duyệt đơn — tab Luồng đang chạy"
       >
-        Áp dụng: Chưa gắn runtime · {runtimeLabel} → /approval/flows
+        Áp dụng: Chưa gắn runtime · {runtimeLabel} → Luồng đang chạy
       </Link>
     )
   }
@@ -516,22 +763,5 @@ function ApplyBadge({ moduleCode, active }: { moduleCode: string; active: boolea
   )
 }
 
-// ============================================================
-// Module filter chip
-// ============================================================
 
-function ModuleChip({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`h-8 px-3 rounded-md text-xs font-medium transition ${
-        active
-          ? 'bg-primary-100 text-primary-700'
-          : 'text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50'
-      }`}
-    >
-      {label}
-    </button>
-  )
-}
+

@@ -1,5 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { ChevronDown, ChevronRight, LayoutGrid, List, Plus, Search, Sparkles, Trash2 } from 'lucide-react'
+import {
+  BookOpen, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown,
+  LayoutGrid, List, Plus, RefreshCw, Search, Sparkles, Trash2, UserCheck, Wallet,
+} from 'lucide-react'
 import {
   Button,
   PageHeader,
@@ -8,18 +11,28 @@ import {
   Label,
   Input,
   Select,
+  EmptyState,
+  ErrorState,
+  PageGuideButton,
+  AppTooltip,
+  StatusBadge,
 } from '@frezo/ui'
+import { AppTable } from '@/components/ui/AppTable'
+import type { AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import {
   useAccounts, useCreateAccount, useDeleteAccount, useSeedCoa,
   useAccountingSetting,
 } from '../hooks/useAccounting'
 import type { Account, AccountType, AccountingStandard } from '../services/accountingApi'
+import { pageRootClass } from '../utils/pageEmbed'
 import { usePermission } from '@/lib/hooks/usePermission'
+import { ACCOUNTS_GUIDE } from '../constants/accounts.guide'
 
 const TYPE_LABEL: Record<AccountType, string> = {
   ASSET: 'Tài sản',
   LIABILITY: 'Nợ phải trả',
-  EQUITY: 'Vốn CSH',
+  EQUITY: 'Vốn chủ sở hữu',
   REVENUE: 'Doanh thu',
   EXPENSE: 'Chi phí',
   CLEARING: 'Trung gian',
@@ -31,8 +44,8 @@ const TYPE_OPTIONS = (Object.keys(TYPE_LABEL) as AccountType[]).map((value) => (
 }))
 
 const STANDARD_OPTIONS = [
-  { value: 'TT133', label: 'TT133' },
-  { value: 'TT99', label: 'TT99' },
+  { value: 'TT133', label: 'Thông tư 133' },
+  { value: 'TT99', label: 'Thông tư 99' },
 ]
 
 const TYPE_TONE: Record<AccountType, string> = {
@@ -43,6 +56,9 @@ const TYPE_TONE: Record<AccountType, string> = {
   EXPENSE: 'bg-danger-light text-danger-dark border-danger/30',
   CLEARING: 'bg-neutral-100 text-neutral-700 border-neutral-200',
 }
+
+type PostableFilter = 'ALL' | 'POSTABLE' | 'NON_POSTABLE'
+type ViewMode = 'tree' | 'flat'
 
 interface AccountFormState {
   code: string
@@ -80,27 +96,77 @@ function emptyForm(standard: AccountingStandard): AccountFormState {
   }
 }
 
-// ============================================================
-// Nhóm TK theo chữ số đầu (chuẩn TT133/TT99)
-// ============================================================
-const GROUP_META: Record<string, { label: string; tone: string }> = {
-  '1': { label: 'Loại 1 · Tài sản ngắn hạn', tone: 'from-emerald-500 to-emerald-600' },
-  '2': { label: 'Loại 2 · Tài sản dài hạn', tone: 'from-teal-500 to-teal-600' },
-  '3': { label: 'Loại 3 · Nợ phải trả', tone: 'from-orange-500 to-orange-600' },
-  '4': { label: 'Loại 4 · Vốn CSH', tone: 'from-blue-500 to-blue-600' },
-  '5': { label: 'Loại 5 · Doanh thu', tone: 'from-purple-500 to-purple-600' },
-  '6': { label: 'Loại 6 · Giá vốn / Chi phí SXKD', tone: 'from-rose-500 to-rose-600' },
-  '7': { label: 'Loại 7 · Thu nhập khác', tone: 'from-fuchsia-500 to-fuchsia-600' },
-  '8': { label: 'Loại 8 · Chi phí khác', tone: 'from-red-500 to-red-600' },
-  '9': { label: 'Loại 9 · Xác định kết quả', tone: 'from-neutral-500 to-neutral-600' },
-  '0': { label: 'Ngoài bảng / Trung gian', tone: 'from-neutral-400 to-neutral-500' },
+const GROUP_META: Record<string, { label: string; accent: string }> = {
+  '1': { label: 'Loại 1 · Tài sản ngắn hạn', accent: 'border-l-success' },
+  '2': { label: 'Loại 2 · Tài sản dài hạn', accent: 'border-l-success' },
+  '3': { label: 'Loại 3 · Nợ phải trả', accent: 'border-l-warning' },
+  '4': { label: 'Loại 4 · Vốn chủ sở hữu', accent: 'border-l-info' },
+  '5': { label: 'Loại 5 · Doanh thu', accent: 'border-l-primary-500' },
+  '6': { label: 'Loại 6 · Giá vốn / Chi phí sản xuất kinh doanh', accent: 'border-l-danger' },
+  '7': { label: 'Loại 7 · Thu nhập khác', accent: 'border-l-primary-500' },
+  '8': { label: 'Loại 8 · Chi phí khác', accent: 'border-l-danger' },
+  '9': { label: 'Loại 9 · Xác định kết quả', accent: 'border-l-neutral-500' },
+  '0': { label: 'Ngoài bảng / Trung gian', accent: 'border-l-neutral-400' },
 }
 
-type ViewMode = 'tree' | 'flat'
+function TypeBadge({ type }: { type: AccountType }) {
+  return (
+    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs border ${TYPE_TONE[type]}`}>
+      {TYPE_LABEL[type]}
+    </span>
+  )
+}
 
-export function AccountsPage() {
+function PostableBadge({ postable }: { postable: boolean }) {
+  if (postable) {
+    return (
+      <StatusBadge label="Ghi sổ được" color="success" icon={BookOpen} />
+    )
+  }
+  return (
+    <StatusBadge label="Tổng hợp" color="neutral" />
+  )
+}
+
+function PartnerBadge({ requiresPartner }: { requiresPartner: boolean }) {
+  if (requiresPartner) {
+    return (
+      <StatusBadge label="Bắt buộc đối tượng" color="info" icon={UserCheck} />
+    )
+  }
+  return <span className="text-xs text-neutral-400">—</span>
+}
+
+function AccountNameCell({ account }: { account: Account }) {
+  return (
+    <div>
+      <div className="text-neutral-900">{account.name}</div>
+      {account.description && (
+        <div className="text-xs text-neutral-500 mt-0.5">{account.description}</div>
+      )}
+    </div>
+  )
+}
+
+function AccountCodeCell({ account, indent = false }: { account: Account; indent?: boolean }) {
+  const pad = indent ? 12 + Math.max(0, (account.level - 1) * 16) : undefined
+  return (
+    <div className="flex items-center gap-1.5 min-w-0" style={pad != null ? { paddingLeft: pad } : undefined}>
+      {indent && account.level > 1 && (
+        <span className="text-neutral-300 shrink-0" aria-hidden="true">
+          └
+        </span>
+      )}
+      <span className="font-mono font-semibold text-primary-700">{account.code}</span>
+    </div>
+  )
+}
+
+export function AccountsPage({ embedded }: { embedded?: boolean } = {}) {
   const { data: setting } = useAccountingSetting()
   const [filter, setFilter] = useState<AccountingStandard | 'ALL'>('ALL')
+  const [typeFilter, setTypeFilter] = useState<AccountType | 'ALL'>('ALL')
+  const [postableFilter, setPostableFilter] = useState<PostableFilter>('ALL')
   const [search, setSearch] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<Account | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('tree')
@@ -112,7 +178,14 @@ export function AccountsPage() {
   const [formError, setFormError] = useState<string | null>(null)
 
   const stdFilter = filter === 'ALL' ? undefined : filter
-  const { data: rows, isLoading } = useAccounts(stdFilter)
+  const {
+    data: rows,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useAccounts(stdFilter)
   const seedCoa = useSeedCoa()
   const del = useDeleteAccount()
   const create = useCreateAccount()
@@ -120,16 +193,47 @@ export function AccountsPage() {
   const canDelete = usePermission('ACCOUNTING.ACCOUNTS.DELETE')
 
   const list = (rows as Account[]) ?? []
+
   const filtered = useMemo(() => {
+    let result = list
+    if (typeFilter !== 'ALL') {
+      result = result.filter((a) => a.type === typeFilter)
+    }
+    if (postableFilter === 'POSTABLE') {
+      result = result.filter((a) => a.postable)
+    } else if (postableFilter === 'NON_POSTABLE') {
+      result = result.filter((a) => !a.postable)
+    }
     const q = search.trim().toLowerCase()
-    if (!q) return list
-    return list.filter((a: Account) =>
+    if (!q) return result
+    return result.filter((a: Account) =>
       a.code.toLowerCase().includes(q) || a.name.toLowerCase().includes(q))
-  }, [list, search])
+  }, [list, search, typeFilter, postableFilter])
+
+  const hasActiveFilters =
+    !!search.trim()
+    || filter !== 'ALL'
+    || typeFilter !== 'ALL'
+    || postableFilter !== 'ALL'
+
+  const clearFilters = () => {
+    setSearch('')
+    setFilter('ALL')
+    setTypeFilter('ALL')
+    setPostableFilter('ALL')
+  }
+
+  const isFilteredEmpty = !isLoading && !isError && list.length > 0 && filtered.length === 0
+  const isFullyEmpty = !isLoading && !isError && list.length === 0
+
+  const errMsg =
+    (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+    || (error as Error)?.message
+    || 'Không tải được danh sách tài khoản.'
 
   const parentOptions = useMemo(
     () => [
-      { value: '', label: '— Không có TK cha —' },
+      { value: '', label: '— Không có tài khoản cha —' },
       ...list
         .slice()
         .sort((a, b) => a.code.localeCompare(b.code))
@@ -138,7 +242,6 @@ export function AccountsPage() {
     [list],
   )
 
-  // Group by first digit + sort by code
   const grouped = useMemo(() => {
     const map = new Map<string, Account[]>()
     filtered.forEach((a) => {
@@ -147,15 +250,21 @@ export function AccountsPage() {
       arr.push(a)
       map.set(key, arr)
     })
-    const groups = Array.from(map.entries())
+    return Array.from(map.entries())
       .map(([key, items]) => ({
         key,
         meta: GROUP_META[key] ?? GROUP_META['0'],
         items: items.sort((a, b) => a.code.localeCompare(b.code)),
       }))
       .sort((a, b) => a.key.localeCompare(b.key))
-    return groups
   }, [filtered])
+
+  const expandAllGroups = () => setCollapsed({})
+  const collapseAllGroups = () => {
+    const next: Record<string, boolean> = {}
+    grouped.forEach((g) => { next[g.key] = true })
+    setCollapsed(next)
+  }
 
   const onSeed = () => {
     const std = setting?.standard || 'TT133'
@@ -172,12 +281,11 @@ export function AccountsPage() {
   const patchForm = (patch: Partial<AccountFormState>) => {
     setForm((prev) => {
       const next = { ...prev, ...patch }
-      // Auto level từ độ dài số hiệu nếu user chưa chọn parent
       if (patch.code != null) {
-        const code = patch.code.trim()
-        next.level = code.length >= 4 ? 2 : 1
-        if (!prev.type && code.length > 0) {
-          next.type = guessTypeFromCode(code)
+        const c = patch.code.trim()
+        next.level = c.length >= 4 ? 2 : 1
+        if (!prev.type && c.length > 0) {
+          next.type = guessTypeFromCode(c)
         }
       }
       if (patch.parentId != null) {
@@ -196,9 +304,9 @@ export function AccountsPage() {
 
   const onSubmitCreate = (e: FormEvent) => {
     e.preventDefault()
-    const code = form.code.trim()
+    const c = form.code.trim()
     const name = form.name.trim()
-    if (!code) {
+    if (!c) {
       setFormError('Nhập số hiệu tài khoản')
       return
     }
@@ -213,7 +321,7 @@ export function AccountsPage() {
     setFormError(null)
     create.mutate(
       {
-        code,
+        code: c,
         name,
         type: form.type,
         standard: form.standard,
@@ -224,88 +332,264 @@ export function AccountsPage() {
         active: true,
         description: form.description.trim() || undefined,
       },
-      {
-        onSuccess: () => setModalOpen(false),
-      },
+      { onSuccess: () => setModalOpen(false) },
     )
   }
 
+  const renderDeleteAction = (account: Account) =>
+    canDelete ? (
+      <AppTooltip content="Xoá tài khoản">
+        <button
+          type="button"
+          className="p-1.5 rounded hover:bg-red-50 text-red-600"
+          onClick={() => setConfirmDelete(account)}
+          aria-label={`Xoá tài khoản ${account.code}`}
+        >
+          <Trash2 size={14} />
+        </button>
+      </AppTooltip>
+    ) : null
+
+  const columns: AppTableColumn<Account>[] = [
+    {
+      key: 'code',
+      title: 'Số hiệu',
+      width: 120,
+      render: (_, a) => <AccountCodeCell account={a} indent />,
+    },
+    {
+      key: 'name',
+      title: 'Tên tài khoản',
+      render: (_, a) => <AccountNameCell account={a} />,
+    },
+    {
+      key: 'type',
+      title: 'Loại',
+      width: 140,
+      render: (_, a) => <TypeBadge type={a.type} />,
+    },
+    {
+      key: 'level',
+      title: 'Cấp',
+      align: 'center',
+      width: 56,
+      render: (_, a) => <span className="tabular-nums">{a.level}</span>,
+    },
+    {
+      key: 'postable',
+      title: 'Ghi sổ',
+      align: 'center',
+      width: 120,
+      render: (_, a) => <PostableBadge postable={a.postable} />,
+    },
+    {
+      key: 'requiresPartner',
+      title: 'Đối tượng',
+      align: 'center',
+      width: 160,
+      render: (_, a) => <PartnerBadge requiresPartner={a.requiresPartner} />,
+    },
+    {
+      key: 'actions',
+      title: '',
+      align: 'right',
+      width: 56,
+      render: (_, a) => renderDeleteAction(a),
+    },
+  ]
+
   return (
-    <div className="p-6 space-y-4">
+    <div className={pageRootClass(embedded)}>
+      {!embedded && (
       <PageHeader
-        title="Hệ thống tài khoản (COA)"
-        description={`Chuẩn hiện tại: ${setting?.standard || '—'} · Tổng số TK: ${list.length}`}
+        title="Hệ thống tài khoản"
+        description={`Chuẩn hiện tại: ${setting?.standard || '—'} · Tổng số: ${list.length} tài khoản`}
+        actions={(
+          <div className="flex flex-wrap items-center gap-2">
+            <PageGuideButton guide={ACCOUNTS_GUIDE} />
+            {canCreate && (
+              <>
+                <Button
+                  onClick={onSeed}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 h-9"
+                  disabled={seedCoa.isPending}
+                >
+                  <Sparkles size={14} />
+                  Nạp danh mục mẫu
+                </Button>
+                <Button onClick={openCreateModal} size="sm" className="gap-2 h-9">
+                  <Plus size={14} />
+                  Thêm tài khoản
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      />
+      )}
+
+      <FilterBar
+        selects={[
+          {
+            id: 'standard',
+            label: 'Chuẩn kế toán',
+            value: filter,
+            onChange: (v) => setFilter(v as AccountingStandard | 'ALL'),
+            options: [
+              { value: 'ALL', label: 'Tất cả chuẩn' },
+              { value: 'TT133', label: 'Thông tư 133' },
+              { value: 'TT99', label: 'Thông tư 99' },
+            ],
+            minWidth: '150px',
+          },
+          {
+            id: 'type',
+            label: 'Loại tài khoản',
+            value: typeFilter,
+            onChange: (v) => setTypeFilter(v as AccountType | 'ALL'),
+            options: [
+              { value: 'ALL', label: 'Tất cả loại' },
+              ...TYPE_OPTIONS,
+            ],
+            minWidth: '160px',
+          },
+          {
+            id: 'postable',
+            label: 'Ghi sổ',
+            value: postableFilter,
+            onChange: (v) => setPostableFilter(v as PostableFilter),
+            options: [
+              { value: 'ALL', label: 'Tất cả' },
+              { value: 'POSTABLE', label: 'Được ghi sổ' },
+              { value: 'NON_POSTABLE', label: 'Tài khoản tổng hợp' },
+            ],
+            minWidth: '170px',
+          },
+        ]}
+        hasActiveFilters={hasActiveFilters}
+        onClear={clearFilters}
+        countLabel={`${filtered.length} tài khoản${hasActiveFilters ? ' (đã lọc)' : ''}`}
+        extra={(
+          <>
+            <div className="relative flex-1 min-w-[180px] max-w-sm">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <input
+                className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+                placeholder="Tìm theo số hiệu hoặc tên…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Tìm tài khoản"
+              />
+            </div>
+            <div className="inline-flex items-center rounded-md border bg-white p-0.5">
+              <AppTooltip content="Xem theo nhóm loại tài khoản">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('tree')}
+                  className={`h-8 px-2.5 rounded text-xs font-medium inline-flex items-center gap-1 ${
+                    viewMode === 'tree'
+                      ? 'bg-neutral-100 text-primary-700'
+                      : 'text-neutral-500 hover:text-neutral-800'
+                  }`}
+                  aria-label="Xem theo nhóm"
+                  aria-pressed={viewMode === 'tree'}
+                >
+                  <LayoutGrid size={13} />
+                  <span className="hidden sm:inline">Nhóm</span>
+                </button>
+              </AppTooltip>
+              <AppTooltip content="Xem bảng phẳng có phân trang">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('flat')}
+                  className={`h-8 px-2.5 rounded text-xs font-medium inline-flex items-center gap-1 ${
+                    viewMode === 'flat'
+                      ? 'bg-neutral-100 text-primary-700'
+                      : 'text-neutral-500 hover:text-neutral-800'
+                  }`}
+                  aria-label="Xem bảng"
+                  aria-pressed={viewMode === 'flat'}
+                >
+                  <List size={13} />
+                  <span className="hidden sm:inline">Bảng</span>
+                </button>
+              </AppTooltip>
+            </div>
+            {viewMode === 'tree' && grouped.length > 0 && (
+              <>
+                <AppTooltip content="Mở rộng tất cả nhóm">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-2"
+                    onClick={expandAllGroups}
+                    aria-label="Mở rộng tất cả nhóm"
+                  >
+                    <ChevronsDownUp size={14} />
+                  </Button>
+                </AppTooltip>
+                <AppTooltip content="Thu gọn tất cả nhóm">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-2"
+                    onClick={collapseAllGroups}
+                    aria-label="Thu gọn tất cả nhóm"
+                  >
+                    <ChevronsUpDown size={14} />
+                  </Button>
+                </AppTooltip>
+              </>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void refetch()}
+              className="gap-2 h-9"
+              disabled={isFetching}
+            >
+              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">Làm mới</span>
+            </Button>
+          </>
+        )}
       />
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[260px] max-w-md">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            className="w-full pl-9 pr-3 py-2 border rounded-md text-sm"
-            placeholder="Tìm theo số hiệu hoặc tên…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+      {isError && (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được danh sách tài khoản"
+            message={errMsg}
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
           />
         </div>
-        <div className="flex gap-1 border rounded-md p-0.5 bg-white">
-          {['ALL', 'TT133', 'TT99'].map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f as any)}
-              className={`px-3 py-1.5 text-sm rounded ${
-                filter === f ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-100'
-              }`}
-            >
-              {f === 'ALL' ? 'Tất cả' : f}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-0.5 border rounded-md p-0.5 bg-white">
-          <button
-            onClick={() => setViewMode('tree')}
-            title="Xem theo nhóm loại TK"
-            className={`px-2.5 py-1.5 rounded ${
-              viewMode === 'tree' ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-100'
-            }`}
-          >
-            <LayoutGrid size={14} />
-          </button>
-          <button
-            onClick={() => setViewMode('flat')}
-            title="Xem bảng phẳng"
-            className={`px-2.5 py-1.5 rounded ${
-              viewMode === 'flat' ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-100'
-            }`}
-          >
-            <List size={14} />
-          </button>
-        </div>
-        <div className="flex-1" />
-        {canCreate && (
-          <Button onClick={onSeed} variant="outline" className="gap-2" disabled={seedCoa.isPending}>
-            <Sparkles size={16} /> Seed COA
-          </Button>
-        )}
-        {canCreate && (
-          <Button onClick={openCreateModal} className="gap-2">
-            <Plus size={16} /> Thêm TK
-          </Button>
-        )}
-      </div>
-
-      {/* Loading / Empty */}
-      {isLoading && (
-        <div className="p-8 border rounded-lg bg-white text-center text-neutral-500">Đang tải…</div>
       )}
-      {!isLoading && filtered.length === 0 && (
-        <div className="p-8 border rounded-lg bg-white text-center text-neutral-500">
-          Chưa có tài khoản nào. Bấm <b>Seed COA</b> để nạp bộ TK theo Thông tư.
+
+      {!isError && (isFullyEmpty || isFilteredEmpty) && (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={Wallet}
+            title={isFilteredEmpty ? 'Không có tài khoản khớp bộ lọc' : 'Chưa có tài khoản nào'}
+            description={
+              isFilteredEmpty
+                ? 'Thử xoá lọc hoặc đổi từ khoá tìm kiếm / loại tài khoản.'
+                : 'Bấm "Nạp danh mục mẫu" để nạp bộ tài khoản theo Thông tư, hoặc thêm tài khoản thủ công.'
+            }
+            action={
+              isFilteredEmpty
+                ? { label: 'Xoá lọc', onClick: clearFilters }
+                : canCreate
+                  ? { label: 'Nạp danh mục mẫu', onClick: onSeed }
+                  : { label: 'Làm mới', onClick: () => void refetch() }
+            }
+          />
         </div>
       )}
 
-      {/* Tree grouped view */}
-      {!isLoading && filtered.length > 0 && viewMode === 'tree' && (
+      {!isError && !isFullyEmpty && !isFilteredEmpty && viewMode === 'tree' && (
         <div className="space-y-3">
           {grouped.map((g) => {
             const isCollapsed = !!collapsed[g.key]
@@ -313,66 +597,59 @@ export function AccountsPage() {
               <div key={g.key} className="border rounded-lg bg-white overflow-hidden">
                 <button
                   type="button"
-                  className={`w-full flex items-center gap-2 px-4 py-2.5 text-white bg-gradient-to-r ${g.meta.tone} hover:opacity-95 transition`}
+                  className={`w-full flex items-center gap-2 px-4 py-2.5 bg-neutral-50 border-l-4 ${g.meta.accent} hover:bg-neutral-100 transition text-left`}
                   onClick={() => setCollapsed((prev) => ({ ...prev, [g.key]: !prev[g.key] }))}
+                  aria-expanded={!isCollapsed}
                 >
-                  {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-                  <span className="font-semibold text-sm">{g.meta.label}</span>
-                  <span className="ml-auto text-[11px] font-medium bg-white/20 px-2 py-0.5 rounded-full">
-                    {g.items.length} TK
+                  {isCollapsed ? (
+                    <ChevronRight size={14} className="text-neutral-500 shrink-0" />
+                  ) : (
+                    <ChevronDown size={14} className="text-neutral-500 shrink-0" />
+                  )}
+                  <span className="font-semibold text-sm text-neutral-900">{g.meta.label}</span>
+                  <span className="ml-auto text-[11px] font-medium text-neutral-500 bg-neutral-200/60 px-2 py-0.5 rounded-full tabular-nums">
+                    {g.items.length} tài khoản
                   </span>
                 </button>
                 {!isCollapsed && (
-                  <table className="w-full text-sm">
-                    <thead className="bg-neutral-50 text-neutral-600">
-                      <tr>
-                        <th className="p-3 text-left font-medium w-24">Số hiệu</th>
-                        <th className="p-3 text-left font-medium">Tên tài khoản</th>
-                        <th className="p-3 text-left font-medium w-32">Loại</th>
-                        <th className="p-3 text-center font-medium w-20">Cấp</th>
-                        <th className="p-3 text-center font-medium w-24">Ghi sổ</th>
-                        <th className="p-3 text-center font-medium w-24">Đối tượng</th>
-                        <th className="p-3 text-right font-medium w-24">Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-neutral-100">
-                      {g.items.map((a) => (
-                        <tr key={a.id} className="hover:bg-neutral-50">
-                          <td
-                            className="p-3 font-mono font-semibold text-neutral-900"
-                            style={{ paddingLeft: 12 + Math.max(0, (a.level - 1) * 14) }}
-                          >
-                            {a.code}
-                          </td>
-                          <td className="p-3">
-                            <div className="text-neutral-900">{a.name}</div>
-                            {a.description && (
-                              <div className="text-xs text-neutral-500 mt-0.5">{a.description}</div>
-                            )}
-                          </td>
-                          <td className="p-3">
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs border ${TYPE_TONE[a.type]}`}>
-                              {TYPE_LABEL[a.type]}
-                            </span>
-                          </td>
-                          <td className="p-3 text-center">{a.level}</td>
-                          <td className="p-3 text-center">{a.postable ? '✓' : '—'}</td>
-                          <td className="p-3 text-center">{a.requiresPartner ? '✓' : '—'}</td>
-                          <td className="p-3 text-right">
-                            {canDelete && (
-                              <button
-                                className="p-1.5 rounded hover:bg-red-50 text-red-600"
-                                onClick={() => setConfirmDelete(a)}
-                                title="Xoá TK"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            )}
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-neutral-50 text-neutral-600 border-t border-neutral-100">
+                        <tr>
+                          <th className="p-2.5 text-left font-medium w-28">Số hiệu</th>
+                          <th className="p-2.5 text-left font-medium">Tên tài khoản</th>
+                          <th className="p-2.5 text-left font-medium w-36 hidden md:table-cell">Loại</th>
+                          <th className="p-2.5 text-center font-medium w-14">Cấp</th>
+                          <th className="p-2.5 text-center font-medium w-28 hidden sm:table-cell">Ghi sổ</th>
+                          <th className="p-2.5 text-center font-medium w-36 hidden lg:table-cell">Đối tượng</th>
+                          <th className="p-2.5 text-right font-medium w-14">Thao tác</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-100">
+                        {g.items.map((a) => (
+                          <tr key={a.id} className="hover:bg-neutral-50">
+                            <td className="p-2.5">
+                              <AccountCodeCell account={a} indent />
+                            </td>
+                            <td className="p-2.5">
+                              <AccountNameCell account={a} />
+                            </td>
+                            <td className="p-2.5 hidden md:table-cell">
+                              <TypeBadge type={a.type} />
+                            </td>
+                            <td className="p-2.5 text-center tabular-nums">{a.level}</td>
+                            <td className="p-2.5 text-center hidden sm:table-cell">
+                              <PostableBadge postable={a.postable} />
+                            </td>
+                            <td className="p-2.5 text-center hidden lg:table-cell">
+                              <PartnerBadge requiresPartner={a.requiresPartner} />
+                            </td>
+                            <td className="p-2.5 text-right">{renderDeleteAction(a)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             )
@@ -380,53 +657,17 @@ export function AccountsPage() {
         </div>
       )}
 
-      {/* Flat table view */}
-      {!isLoading && filtered.length > 0 && viewMode === 'flat' && (
-        <div className="overflow-x-auto border rounded-lg bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-neutral-50 text-neutral-600">
-              <tr>
-                <th className="p-3 text-left font-medium w-24">Số hiệu</th>
-                <th className="p-3 text-left font-medium">Tên tài khoản</th>
-                <th className="p-3 text-left font-medium w-32">Loại</th>
-                <th className="p-3 text-center font-medium w-20">Cấp</th>
-                <th className="p-3 text-center font-medium w-24">Ghi sổ</th>
-                <th className="p-3 text-center font-medium w-24">Đối tượng</th>
-                <th className="p-3 text-right font-medium w-24">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
-              {filtered.map((a: Account) => (
-                <tr key={a.id} className="hover:bg-neutral-50">
-                  <td className="p-3 font-mono font-semibold text-neutral-900">{a.code}</td>
-                  <td className="p-3">
-                    <div className="text-neutral-900">{a.name}</div>
-                    {a.description && <div className="text-xs text-neutral-500 mt-0.5">{a.description}</div>}
-                  </td>
-                  <td className="p-3">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs border ${TYPE_TONE[a.type]}`}>
-                      {TYPE_LABEL[a.type]}
-                    </span>
-                  </td>
-                  <td className="p-3 text-center">{a.level}</td>
-                  <td className="p-3 text-center">{a.postable ? '✓' : '—'}</td>
-                  <td className="p-3 text-center">{a.requiresPartner ? '✓' : '—'}</td>
-                  <td className="p-3 text-right">
-                    {canDelete && (
-                      <button
-                        className="p-1.5 rounded hover:bg-red-50 text-red-600"
-                        onClick={() => setConfirmDelete(a)}
-                        title="Xoá TK"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {!isError && !isFullyEmpty && !isFilteredEmpty && viewMode === 'flat' && (
+        <AppTable
+          columns={columns}
+          data={filtered}
+          isLoading={isLoading}
+          density="compact"
+          showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onRefresh={() => void refetch()}
+        />
       )}
 
       <ConfirmDialog
@@ -435,7 +676,7 @@ export function AccountsPage() {
         title="Xoá tài khoản?"
         message={
           confirmDelete
-            ? `TK ${confirmDelete.code} — ${confirmDelete.name}. TK có phát sinh sẽ không hiển thị nhưng lịch sử vẫn giữ.`
+            ? `${confirmDelete.code} — ${confirmDelete.name}. Tài khoản có phát sinh sẽ không hiển thị nhưng lịch sử vẫn giữ.`
             : ''
         }
         onConfirm={() => {
@@ -450,14 +691,14 @@ export function AccountsPage() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Thêm tài khoản"
-        description="Nhập số hiệu, chọn loại và TK cha (nếu có)."
+        description="Nhập số hiệu, chọn loại và tài khoản cha (nếu có)."
         maxWidth="2xl"
       >
         <form onSubmit={onSubmitCreate} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>
-                Số hiệu TK <span className="text-danger">*</span>
+                Số hiệu tài khoản <span className="text-danger">*</span>
               </Label>
               <Input
                 value={form.code}
@@ -469,7 +710,7 @@ export function AccountsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>
-                Tên TK <span className="text-danger">*</span>
+                Tên tài khoản <span className="text-danger">*</span>
               </Label>
               <Input
                 value={form.name}
@@ -479,7 +720,7 @@ export function AccountsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>
                 Loại tài khoản <span className="text-danger">*</span>
@@ -488,7 +729,7 @@ export function AccountsPage() {
                 options={TYPE_OPTIONS}
                 value={form.type}
                 onChange={(v) => patchForm({ type: (v as AccountType) || '' })}
-                placeholder="Chọn loại TK"
+                placeholder="Chọn loại tài khoản"
                 showSearch={false}
               />
             </div>
@@ -511,16 +752,16 @@ export function AccountsPage() {
               options={parentOptions}
               value={form.parentId}
               onChange={(v) => patchForm({ parentId: v || '' })}
-              placeholder="Chọn TK cha (tuỳ chọn)"
+              placeholder="Chọn tài khoản cha (tuỳ chọn)"
               showSearch
               showClear
             />
             <p className="text-xs text-neutral-500">
-              Chọn TK cha để gắn cấp con. Để trống nếu là TK gốc.
+              Chọn tài khoản cha để gắn cấp con. Để trống nếu là tài khoản gốc.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Cấp</Label>
               <Input

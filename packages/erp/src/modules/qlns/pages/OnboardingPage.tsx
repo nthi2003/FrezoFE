@@ -7,7 +7,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, ClipboardList, Loader2, UserPlus, Info, Check } from 'lucide-react'
-import { Button, PageHeader, AppModal, EmptyState, ErrorState } from '@frezo/ui'
+import { Button, PageHeader, AppModal, EmptyState, ErrorState, PageGuideButton, Select } from '@frezo/ui'
 import {
   useOnboardingTemplates,
   useOnboardingAssignments,
@@ -15,6 +15,12 @@ import {
   useAssignOnboarding,
   useCompleteOnboardingItem,
 } from '../hooks/useOnboarding'
+import { StatusPipelineStepper } from '../../warehouse/components/StatusPipelineStepper'
+import {
+  ONBOARDING_PIPELINE,
+  onboardingStepIndex,
+} from '../constants/hrWorkflow'
+import { ONBOARDING_GUIDE } from '../constants/onboarding.guide'
 
 const LNK06_POLICY: 'A' | 'B' = 'B'
 
@@ -58,21 +64,35 @@ export function OnboardingPage() {
   const [selectedTplId, setSelectedTplId] = useState('')
   const [assignForm, setAssignForm] = useState({ templateId: '', personId: '' })
 
+  const maxAssignmentProgress = assignments.reduce(
+    (max, a) => Math.max(max, Math.round(a.progress || 0)),
+    0,
+  )
+  const pipelineIndex = onboardingStepIndex(step, maxAssignmentProgress)
+
   return (
     <div className="p-6 space-y-6 animate-fade-in">
       <PageHeader
         title="Onboarding"
         description="Wizard chào đón NV mới — template → gán Person → theo dõi tiến độ."
         actions={
-          step === 1 ? (
-            <Button className="gap-1.5" onClick={() => setTplOpen(true)}>
-              <Plus size={14} /> Template mới
-            </Button>
-          ) : null
+          <>
+            <PageGuideButton guide={ONBOARDING_GUIDE} />
+            {step === 1 ? (
+              <Button className="gap-1.5" onClick={() => setTplOpen(true)}>
+                <Plus size={14} /> Template mới
+              </Button>
+            ) : null}
+          </>
         }
       />
 
-      {/* FR-UX-07 stepper */}
+      <StatusPipelineStepper
+        steps={ONBOARDING_PIPELINE}
+        currentIndex={pipelineIndex}
+      />
+
+      {/* FR-UX-07 wizard admin */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-3">
         {STEPS.map((s, idx) => {
           const active = step === s.key
@@ -205,19 +225,20 @@ export function OnboardingPage() {
             </div>
           ) : (
             <div className="bg-white border rounded-xl p-4 space-y-3">
-              <select
-                className="w-full border rounded-md px-3 py-2 text-sm"
+              <Select
+                options={[
+                  { value: '', label: '— Template —' },
+                  ...templates.map((t) => ({ value: t.id, label: t.name })),
+                ]}
                 value={assignForm.templateId || selectedTplId}
-                onChange={(e) => {
-                  setSelectedTplId(e.target.value)
-                  setAssignForm({ ...assignForm, templateId: e.target.value })
+                onChange={(v) => {
+                  setSelectedTplId(v)
+                  setAssignForm({ ...assignForm, templateId: v })
                 }}
-              >
-                <option value="">— Template —</option>
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
+                placeholder="— Template —"
+                aria-label="Chọn template onboarding"
+                showSearch={templates.length > 8}
+              />
               <input
                 className="w-full border rounded-md px-3 py-2 text-sm font-mono"
                 placeholder="Person ID"

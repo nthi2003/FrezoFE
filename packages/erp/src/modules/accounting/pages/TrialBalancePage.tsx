@@ -1,160 +1,429 @@
-import { useMemo, useState } from 'react'
-import { Download, Search } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  AlertTriangle, Download, HelpCircle, Printer, RefreshCw, Scale,
+  Search, TrendingDown, TrendingUp, Wallet,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button, PageHeader } from '@frezo/ui'
+import {
+  Button, EmptyState, ErrorState, PageGuideButton, PageHeader, Select, AppTooltip,
+} from '@frezo/ui'
 import { formatCurrency } from '@frezo/utils'
+import { AppTable } from '@/components/ui/AppTable'
+import type { AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import { downloadCsv } from '@/lib/export/toCsv'
-import { useTrialBalance } from '../hooks/useAccounting'
-import type { TrialBalanceRow } from '../services/accountingApi'
+import { usePeriods, useTrialBalance } from '../hooks/useAccounting'
+import type { FiscalPeriod, TrialBalanceRow } from '../services/accountingApi'
+import { TRIAL_BALANCE_GUIDE } from '../constants/trial-balance.guide'
 
-function firstOfMonth() {
-  const d = new Date()
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
+import { pageRootClass } from '../utils/pageEmbed'
+
+function toDateKey(iso?: string | null) {
+  if (!iso) return ''
+  return iso.slice(0, 10)
 }
-function lastOfMonth() {
-  const d = new Date()
-  return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10)
+
+function amt(n?: number | null) {
+  return n ? formatCurrency(n) : ''
 }
 
-export function TrialBalancePage() {
-  const [from, setFrom] = useState(firstOfMonth())
-  const [to, setTo] = useState(lastOfMonth())
-  const [applied, setApplied] = useState<{ from: string; to: string } | null>({
-    from: firstOfMonth(), to: lastOfMonth(),
-  })
+/** Icon ? với title/aria — repo chưa có Tooltip component riêng. */
+function HintIcon({ label }: { label: string }) {
+  return (
+    <span
+      className="inline-flex items-center text-neutral-400 hover:text-primary-600 cursor-help align-middle"
+      title={label}
+      aria-label={label}
+    >
+      <HelpCircle size={13} strokeWidth={2} />
+    </span>
+  )
+}
 
-  const { data: rows, isFetching } = useTrialBalance(applied?.from, applied?.to)
-  const list = (rows as any[] as TrialBalanceRow[]) ?? []
+export function TrialBalancePage({ embedded }: { embedded?: boolean } = {}) {
+  const [year, setYear] = useState(() => new Date().getFullYear())
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+
+  const { data: periods } = usePeriods(year)
+  const periodList = useMemo(
+    () => (Array.isArray(periods) ? (periods as FiscalPeriod[]) : []),
+    [periods],
+  )
+
+  useEffect(() => {
+    if (periodList.length > 0 && !selectedPeriodId) {
+      const currentMonth = new Date().getMonth() + 1
+      const current = periodList.find((p) => p.month === currentMonth) || periodList[0]
+      setSelectedPeriodId(current.id)
+    }
+  }, [periodList, selectedPeriodId])
+
+  const selectedPeriod = useMemo(
+    () => periodList.find((p) => p.id === selectedPeriodId) ?? null,
+    [periodList, selectedPeriodId],
+  )
+
+  const from = selectedPeriod ? toDateKey(selectedPeriod.startDate) : undefined
+  const to = selectedPeriod ? toDateKey(selectedPeriod.endDate) : undefined
+
+  const {
+    data: rows,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useTrialBalance(from, to)
+
+  const list = useMemo(
+    () => (Array.isArray(rows) ? (rows as TrialBalanceRow[]) : []),
+    [rows],
+  )
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return list
+    return list.filter(
+      (r) =>
+        r.accountCode.toLowerCase().includes(q)
+        || (r.accountName || '').toLowerCase().includes(q),
+    )
+  }, [list, search])
+
+  const hasFilter = !!search.trim()
+  const isFilteredEmpty = !isLoading && !isError && list.length > 0 && filtered.length === 0
+  const isFullyEmpty = !isLoading && !isError && list.length === 0
+
+  const clearFilters = () => setSearch('')
 
   const totals = useMemo(() => {
-    return list.reduce((acc, r) => {
-      acc.oD += r.openingDebit || 0
-      acc.oC += r.openingCredit || 0
-      acc.pD += r.periodDebit || 0
-      acc.pC += r.periodCredit || 0
-      acc.cD += r.closingDebit || 0
-      acc.cC += r.closingCredit || 0
-      return acc
-    }, { oD: 0, oC: 0, pD: 0, pC: 0, cD: 0, cC: 0 })
-  }, [list])
+    return filtered.reduce(
+      (acc, r) => {
+        acc.pD += r.periodDebit || 0
+        acc.pC += r.periodCredit || 0
+        return acc
+      },
+      { pD: 0, pC: 0 },
+    )
+  }, [filtered])
 
-  const balanced = totals.pD === totals.pC
+  const periodDiff = totals.pD - totals.pC
+  const balanced = Math.abs(periodDiff) < 0.01
+
+  const errMsg =
+    (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+    || (error as Error)?.message
+    || 'Không tải được bảng cân đối thử.'
 
   const exportCsv = () => {
-    if (list.length === 0) return
+    if (filtered.length === 0) return
     downloadCsv(
-      `trial-balance-${applied?.from ?? from}_${applied?.to ?? to}`,
-      list,
+      `trial-balance-${from ?? 'from'}_${to ?? 'to'}`,
+      filtered,
       [
         { header: 'TK', accessor: 'accountCode' },
         { header: 'Tên tài khoản', accessor: 'accountName' },
-        { header: 'Đầu Nợ', accessor: 'openingDebit' },
-        { header: 'Đầu Có', accessor: 'openingCredit' },
+        { header: 'Nợ đầu', accessor: 'openingDebit' },
+        { header: 'Có đầu', accessor: 'openingCredit' },
         { header: 'PS Nợ', accessor: 'periodDebit' },
         { header: 'PS Có', accessor: 'periodCredit' },
-        { header: 'Cuối Nợ', accessor: 'closingDebit' },
-        { header: 'Cuối Có', accessor: 'closingCredit' },
+        { header: 'Nợ cuối', accessor: 'closingDebit' },
+        { header: 'Có cuối', accessor: 'closingCredit' },
       ],
     )
-    toast.success(`Đã xuất ${list.length} tài khoản ra CSV`)
+    toast.success(`Đã xuất ${filtered.length} tài khoản ra CSV`)
   }
 
+  const columns: AppTableColumn<TrialBalanceRow>[] = [
+    {
+      key: 'accountCode',
+      title: 'Mã TK',
+      width: 88,
+      render: (_, r) => (
+        <span className="font-mono font-semibold text-primary-700">{r.accountCode}</span>
+      ),
+    },
+    {
+      key: 'accountName',
+      title: 'Tên tài khoản',
+      render: (_, r) => (
+        <span className="text-neutral-800 line-clamp-2">{r.accountName || '—'}</span>
+      ),
+    },
+    {
+      key: 'openingDebit',
+      title: 'Nợ đầu',
+      align: 'right',
+      render: (_, r) => (
+        <span className="font-mono tabular-nums" title="Số dư Nợ đầu kỳ">{amt(r.openingDebit)}</span>
+      ),
+    },
+    {
+      key: 'openingCredit',
+      title: 'Có đầu',
+      align: 'right',
+      render: (_, r) => (
+        <span className="font-mono tabular-nums" title="Số dư Có đầu kỳ">{amt(r.openingCredit)}</span>
+      ),
+    },
+    {
+      key: 'periodDebit',
+      title: 'PS Nợ',
+      align: 'right',
+      render: (_, r) => (
+        <span className="font-mono tabular-nums" title="PS = Phát sinh Nợ trong kỳ">{amt(r.periodDebit)}</span>
+      ),
+    },
+    {
+      key: 'periodCredit',
+      title: 'PS Có',
+      align: 'right',
+      render: (_, r) => (
+        <span className="font-mono tabular-nums" title="PS = Phát sinh Có trong kỳ">{amt(r.periodCredit)}</span>
+      ),
+    },
+    {
+      key: 'closingDebit',
+      title: 'Nợ cuối',
+      align: 'right',
+      render: (_, r) => (
+        <span className="font-mono tabular-nums" title="Số dư Nợ cuối kỳ">{amt(r.closingDebit)}</span>
+      ),
+    },
+    {
+      key: 'closingCredit',
+      title: 'Có cuối',
+      align: 'right',
+      render: (_, r) => (
+        <span className="font-mono tabular-nums" title="Số dư Có cuối kỳ">{amt(r.closingCredit)}</span>
+      ),
+    },
+  ]
+
   return (
-    <div className="p-6 space-y-4">
+    <div className={pageRootClass(embedded)}>
+      {!embedded && (
       <PageHeader
-        title="Bảng cân đối tài khoản (Trial Balance)"
-        description="Tổng hợp số dư đầu — phát sinh — số dư cuối của toàn bộ TK trong kỳ."
+        title="Bảng cân đối thử"
+        description="Số dư đầu — phát sinh — số dư cuối theo từng TK trong kỳ; kiểm tra tổng Nợ = Có."
+        actions={(
+          <div className="flex items-center gap-2">
+            <HintIcon label="Bảng cân đối thử (Trial Balance): tổng hợp số dư & phát sinh toàn bộ tài khoản trong kỳ để kiểm tra sổ có cân. Khác BCĐKT (Bảng cân đối kế toán)." />
+            <PageGuideButton guide={TRIAL_BALANCE_GUIDE} />
+            <AppTooltip content="Xuất CSV theo bộ lọc hiện tại">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 h-9"
+                disabled={filtered.length === 0}
+                onClick={exportCsv}
+                aria-label="Xuất CSV"
+              >
+                <Download size={14} />
+                <span className="hidden sm:inline">Xuất CSV</span>
+              </Button>
+            </AppTooltip>
+            <AppTooltip content="In bảng cân đối thử">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 h-9"
+                onClick={() => window.print()}
+                aria-label="In"
+              >
+                <Printer size={14} />
+                <span className="hidden sm:inline">In</span>
+              </Button>
+            </AppTooltip>
+          </div>
+        )}
       />
-
-      <div className="flex flex-wrap items-end gap-3 bg-white p-4 rounded-lg border">
-        <div>
-          <label className="text-xs text-neutral-500 block mb-1">Từ ngày</label>
-          <input type="date" className="border rounded-md px-3 py-2 text-sm"
-            value={from} onChange={(e) => setFrom(e.target.value)} />
-        </div>
-        <div>
-          <label className="text-xs text-neutral-500 block mb-1">Đến ngày</label>
-          <input type="date" className="border rounded-md px-3 py-2 text-sm"
-            value={to} onChange={(e) => setTo(e.target.value)} />
-        </div>
-        <Button className="gap-2" onClick={() => setApplied({ from, to })}>
-          <Search size={14} /> Tra cứu
-        </Button>
-        <div className="flex-1" />
-        <Button
-          variant="outline"
-          className="gap-2"
-          disabled={list.length === 0}
-          onClick={exportCsv}
-        >
-          <Download size={14} /> Xuất CSV
-        </Button>
-        <Button variant="outline" className="gap-2" onClick={() => window.print()}>
-          In
-        </Button>
-      </div>
-
-      {isFetching && <div className="text-sm text-neutral-500">Đang tính…</div>}
-
-      <div className="bg-white rounded-lg border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-neutral-100 text-neutral-600">
-              <tr>
-                <th className="p-3 text-left font-medium w-24">TK</th>
-                <th className="p-3 text-left font-medium">Tên tài khoản</th>
-                <th className="p-3 text-right font-medium">Đầu Nợ</th>
-                <th className="p-3 text-right font-medium">Đầu Có</th>
-                <th className="p-3 text-right font-medium">PS Nợ</th>
-                <th className="p-3 text-right font-medium">PS Có</th>
-                <th className="p-3 text-right font-medium">Cuối Nợ</th>
-                <th className="p-3 text-right font-medium">Cuối Có</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
-              {list.length === 0 && !isFetching && (
-                <tr><td colSpan={8} className="p-6 text-center text-neutral-500">Chưa có phát sinh trong kỳ</td></tr>
-              )}
-              {list.map((r) => (
-                <tr key={r.accountId} className="hover:bg-neutral-50">
-                  <td className="p-3 font-mono text-blue-700">{r.accountCode}</td>
-                  <td className="p-3">{r.accountName}</td>
-                  <td className="p-3 text-right font-mono">{r.openingDebit ? formatCurrency(r.openingDebit) : ''}</td>
-                  <td className="p-3 text-right font-mono">{r.openingCredit ? formatCurrency(r.openingCredit) : ''}</td>
-                  <td className="p-3 text-right font-mono">{r.periodDebit ? formatCurrency(r.periodDebit) : ''}</td>
-                  <td className="p-3 text-right font-mono">{r.periodCredit ? formatCurrency(r.periodCredit) : ''}</td>
-                  <td className="p-3 text-right font-mono">{r.closingDebit ? formatCurrency(r.closingDebit) : ''}</td>
-                  <td className="p-3 text-right font-mono">{r.closingCredit ? formatCurrency(r.closingCredit) : ''}</td>
-                </tr>
-              ))}
-            </tbody>
-            {list.length > 0 && (
-              <tfoot className="bg-neutral-900 text-white font-semibold">
-                <tr>
-                  <td className="p-3" colSpan={2}>Tổng cộng</td>
-                  <td className="p-3 text-right font-mono">{formatCurrency(totals.oD)}</td>
-                  <td className="p-3 text-right font-mono">{formatCurrency(totals.oC)}</td>
-                  <td className="p-3 text-right font-mono">{formatCurrency(totals.pD)}</td>
-                  <td className="p-3 text-right font-mono">{formatCurrency(totals.pC)}</td>
-                  <td className="p-3 text-right font-mono">{formatCurrency(totals.cD)}</td>
-                  <td className="p-3 text-right font-mono">{formatCurrency(totals.cC)}</td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-      </div>
-
-      {list.length > 0 && (
-        <div className={`p-4 rounded-lg border text-sm ${
-          balanced ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                   : 'bg-red-50 border-red-200 text-red-800'
-        }`}>
-          {balanced
-            ? '✓ Sổ CÂN — Tổng phát sinh Nợ = Tổng phát sinh Có'
-            : '⚠ Sổ LỆCH — Tổng Nợ ≠ Tổng Có. Cần rà soát chứng từ ngay.'}
-        </div>
       )}
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <TbKpi
+          icon={Wallet}
+          label="Số tài khoản"
+          value={String(filtered.length)}
+          tone="blue"
+          hint={hasFilter ? 'Sau lọc' : 'Trong kỳ'}
+        />
+        <TbKpi
+          icon={TrendingUp}
+          label="Tổng PS Nợ"
+          value={formatCurrency(totals.pD)}
+          tone="emerald"
+          hint="Phát sinh Nợ"
+        />
+        <TbKpi
+          icon={TrendingDown}
+          label="Tổng PS Có"
+          value={formatCurrency(totals.pC)}
+          tone="violet"
+          hint="Phát sinh Có"
+        />
+        <TbKpi
+          icon={balanced ? Scale : AlertTriangle}
+          label="Cân đối PS"
+          value={balanced ? 'Cân' : formatCurrency(Math.abs(periodDiff))}
+          tone={balanced ? 'teal' : 'rose'}
+          hint={balanced ? 'PS Nợ = PS Có ✓' : 'Lệch — rà soát nhật ký'}
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
+        <span className="inline-flex items-center gap-1">
+          <HintIcon label="Nợ đầu / Có đầu: số dư đầu kỳ của tài khoản." />
+          Nợ/Có đầu
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <HintIcon label="PS = Phát sinh — tổng ghi sổ Nợ hoặc Có trong kỳ đang chọn." />
+          PS = phát sinh
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <HintIcon label="Nợ cuối / Có cuối: số dư cuối kỳ sau khi cộng phát sinh." />
+          Nợ/Có cuối
+        </span>
+      </div>
+
+      <FilterBar
+        hasActiveFilters={hasFilter}
+        onClear={clearFilters}
+        countLabel={`${filtered.length} tài khoản${hasFilter ? ' (đã lọc)' : ''}`}
+        extra={(
+          <AppTooltip content="Làm mới dữ liệu kỳ hiện tại">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void refetch()}
+              className="gap-2 h-9"
+              disabled={isFetching || !from || !to}
+              aria-label="Làm mới"
+            >
+              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+              Làm mới
+            </Button>
+          </AppTooltip>
+        )}
+      >
+        <div className="min-w-[100px]">
+          <Select
+            options={[year - 1, year, year + 1].map((y) => ({
+              value: String(y),
+              label: `Năm ${y}`,
+            }))}
+            value={String(year)}
+            onChange={(v) => { setYear(Number(v)); setSelectedPeriodId(null) }}
+            showSearch={false}
+            aria-label="Năm kỳ kế toán"
+          />
+        </div>
+        <div className="flex gap-1 border rounded-md p-0.5 bg-white overflow-x-auto max-w-full">
+          {periodList.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setSelectedPeriodId(p.id)}
+              className={`px-3 py-1.5 text-sm rounded whitespace-nowrap ${
+                selectedPeriodId === p.id
+                  ? 'bg-neutral-900 text-white'
+                  : p.status === 'CLOSED' || p.status === 'LOCKED'
+                    ? 'text-neutral-400'
+                    : 'text-neutral-700 hover:bg-neutral-100'
+              }`}
+              title={`Tháng ${p.month}: ${toDateKey(p.startDate)} → ${toDateKey(p.endDate)}`}
+              aria-label={`Tháng ${p.month}`}
+            >
+              Tháng {p.month}
+            </button>
+          ))}
+        </div>
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            placeholder="Tìm mã / tên tài khoản…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Tìm tài khoản"
+          />
+        </div>
+      </FilterBar>
+
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được bảng cân đối thử"
+            message={errMsg}
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={Scale}
+            title={isFilteredEmpty ? 'Không có tài khoản khớp bộ lọc' : 'Chưa có phát sinh trong kỳ'}
+            description={
+              isFilteredEmpty
+                ? 'Thử xoá tìm kiếm hoặc đổi từ khoá mã / tên TK.'
+                : 'Chọn kỳ khác hoặc đợi nghiệp vụ ghi sổ (nhật ký).'
+            }
+            action={
+              isFilteredEmpty
+                ? { label: 'Xoá lọc', onClick: clearFilters }
+                : { label: 'Làm mới', onClick: () => void refetch() }
+            }
+          />
+        </div>
+      ) : (
+        <AppTable
+          columns={columns}
+          data={filtered}
+          isLoading={isLoading}
+          density="compact"
+          showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onRefresh={() => void refetch()}
+        />
+      )}
+    </div>
+  )
+}
+
+interface TbKpiProps {
+  icon: LucideIcon
+  label: string
+  value: string
+  tone: 'blue' | 'emerald' | 'violet' | 'rose' | 'teal'
+  hint?: string
+}
+
+function TbKpi({ icon: Icon, label, value, tone, hint }: TbKpiProps) {
+  const toneMap = {
+    blue: 'bg-blue-50 text-blue-700 [&_.ico]:bg-blue-100 [&_.ico]:text-blue-600',
+    emerald: 'bg-emerald-50 text-emerald-700 [&_.ico]:bg-emerald-100 [&_.ico]:text-emerald-600',
+    violet: 'bg-violet-50 text-violet-700 [&_.ico]:bg-violet-100 [&_.ico]:text-violet-600',
+    rose: 'bg-rose-50 text-rose-700 [&_.ico]:bg-rose-100 [&_.ico]:text-rose-600',
+    teal: 'bg-teal-50 text-teal-700 [&_.ico]:bg-teal-100 [&_.ico]:text-teal-600',
+  }[tone]
+  return (
+    <div className={`rounded-xl border border-neutral-200/60 p-3 flex items-center gap-3 ${toneMap}`}>
+      <div className="ico w-10 h-10 rounded-lg flex items-center justify-center shrink-0">
+        <Icon size={18} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] font-semibold uppercase tracking-wider opacity-80 truncate">
+          {label}
+        </div>
+        <div className="text-lg font-bold tabular-nums text-neutral-900 leading-tight truncate">
+          {value}
+        </div>
+        {hint && <div className="text-[10px] opacity-80 truncate mt-0.5">{hint}</div>}
+      </div>
     </div>
   )
 }

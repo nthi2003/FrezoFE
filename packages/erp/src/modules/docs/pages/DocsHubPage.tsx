@@ -4,7 +4,7 @@
 
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, ChevronRight, Settings2 } from 'lucide-react'
-import { Button, ErrorState, PageHeader } from '@frezo/ui'
+import { Button, ErrorState, PageHeader, Skeleton } from '@frezo/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { usePermission } from '@/lib/hooks/usePermission'
 import { DocsSideNav } from '../components/DocsSideNav'
@@ -62,7 +62,17 @@ export function DocsHubPage() {
 
         <div className="space-y-3 min-w-0">
           {isLoading ? (
-            <div className="text-sm text-neutral-500 py-16 text-center">Đang tải tài liệu…</div>
+            <div className="space-y-3 py-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-4 p-4 rounded-xl border border-neutral-200 bg-white">
+                  <Skeleton className="w-10 h-10 rounded-lg shrink-0" />
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <Skeleton className="h-4 w-48 max-w-full" />
+                    <Skeleton className="h-3 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : isError && docs.length === 0 ? (
             <ErrorState
               title="Không tải được tài liệu"

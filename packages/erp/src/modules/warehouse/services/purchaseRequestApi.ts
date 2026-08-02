@@ -1,6 +1,6 @@
 // ============================================================
 // Purchase Request API — /warehouse/purchase-requests
-// from-alerts → List<> ; list → FePage {content,...}
+// from-alerts → List<> ; list → FePage {content,...} ; POST create
 // ============================================================
 
 import axiosClient from '@/lib/axios/axiosClient'
@@ -46,12 +46,23 @@ export interface FromAlertsRequest {
   note?: string
 }
 
-export interface PurchaseRequestUpdateRequest {
+export interface PurchaseRequestLineInput {
+  productId: string
+  warehouseId?: string
+  qty: number
+  stockAlertId?: string
+  note?: string
+}
+
+export interface PurchaseRequestSaveRequest {
   supplierId?: string
   warehouseId?: string
   note?: string
-  lines?: PurchaseRequestLineDto[]
+  lines?: PurchaseRequestLineInput[]
 }
+
+/** @deprecated Use PurchaseRequestSaveRequest */
+export type PurchaseRequestUpdateRequest = PurchaseRequestSaveRequest
 
 export const purchaseRequestApi = {
   /** BE: FePage — dùng unwrapList (content / items / array) */
@@ -81,7 +92,12 @@ export const purchaseRequestApi = {
         return unwrapList<PurchaseRequestDto>(r.data)
       }),
 
-  update: (id: string, body: PurchaseRequestUpdateRequest) =>
+  create: (body: PurchaseRequestSaveRequest) =>
+    axiosClient
+      .post<ApiResponse<PurchaseRequestDto>>('/warehouse/purchase-requests', body)
+      .then((r) => r.data.data),
+
+  update: (id: string, body: PurchaseRequestSaveRequest) =>
     axiosClient
       .put<ApiResponse<PurchaseRequestDto>>(
         `/warehouse/purchase-requests/${id}`,

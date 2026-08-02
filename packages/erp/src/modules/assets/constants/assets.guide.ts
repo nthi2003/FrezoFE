@@ -39,7 +39,7 @@ export const ASSETS_GUIDE: PageGuideConfig = {
       type: 'tips',
       heading: 'Mẹo dùng nhanh',
       tips: [
-        'Ai duyệt được cấu hình ở Thiết kế quy trình (phần Tài sản) — chỉ Admin/vai trò cấu hình.',
+        'Ai duyệt được cấu hình ở Cấu hình luồng duyệt → tab Mẫu / Designer (phần Tài sản) — chỉ Admin/vai trò cấu hình.',
         'Tab Yêu cầu cấp phát ưu tiên xử lý phiếu Chờ duyệt trước khi tạo thêm.',
         'Đang có yêu cầu chưa xong thì không tạo thêm yêu cầu cấp phát cho cùng tài sản.',
       ],
@@ -52,7 +52,7 @@ export const ASSETS_GUIDE: PageGuideConfig = {
         { label: 'Yêu cầu cấp phát', href: '/docs/guide-asset-assign' },
         { label: 'Khấu hao định kỳ', href: '/assets/depreciation' },
         { label: 'Hướng dẫn khấu hao', href: '/docs/guide-depreciation' },
-        { label: 'Thiết kế quy trình', href: '/qtht/workflows' },
+        { label: 'Mẫu / Designer', href: '/approval/flows?tab=templates' },
       ],
     },
     {

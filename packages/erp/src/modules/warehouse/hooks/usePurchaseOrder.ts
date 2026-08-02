@@ -22,11 +22,11 @@ export function useCreatePoFromPr() {
   return useMutation({
     mutationFn: (prId: string) => purchaseOrderApi.fromPr(prId),
     onSuccess: (po) => {
-      toast.success(`Đã tạo PO ${po?.code || po?.id || ''}`)
+      toast.success(`Đã tạo đơn mua hàng ${po?.code || po?.id || ''}`)
       qc.invalidateQueries({ queryKey: ['warehouse', 'purchase-orders'] })
       qc.invalidateQueries({ queryKey: ['warehouse', 'purchase-requests'] })
     },
-    onError: () => toast.error('Tạo PO từ PR thất bại'),
+    onError: () => toast.error('Tạo đơn mua hàng từ yêu cầu thất bại'),
   })
 }
 
@@ -35,10 +35,10 @@ export function useConfirmPurchaseOrder() {
   return useMutation({
     mutationFn: (id: string) => purchaseOrderApi.confirm(id),
     onSuccess: () => {
-      toast.success('Đã confirm PO')
+      toast.success('Đã xác nhận đơn mua hàng')
       qc.invalidateQueries({ queryKey: ['warehouse', 'purchase-orders'] })
     },
-    onError: () => toast.error('Confirm PO thất bại'),
+    onError: () => toast.error('Xác nhận đơn mua hàng thất bại'),
   })
 }
 

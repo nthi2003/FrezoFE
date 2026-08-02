@@ -4,15 +4,16 @@
 // ============================================================
 
 import { lazy, Suspense } from 'react'
-import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { MainLayout } from '@/components/layout/MainLayout'
+import { LobbyLayout } from '@/components/layout/LobbyLayout'
 import { useAuthStore } from '@/stores/authStore'
 import { menuApi } from '@/modules/menus/services/menuApi'
 
 // ---- Lazy load pages per module ----
 const LoginPage       = lazy(() => import('@/modules/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })))
-const HomePage        = lazy(() => import('@/modules/dashboard/pages/HomePage').then(m => ({ default: m.HomePage })))
+const LobbyPage       = lazy(() => import('@/modules/dashboard/pages/LobbyPage').then(m => ({ default: m.LobbyPage })))
 const DashboardPage   = lazy(() => import('@/modules/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
 
 // Modules
@@ -34,7 +35,6 @@ const AssetsPage = lazy(() => import('@/modules/assets/pages/AssetsPage').then(m
 const DepreciationPostPage = lazy(() => import('@/modules/assets/pages/DepreciationPostPage').then(m => ({ default: m.DepreciationPostPage })))
 
 // Workflow Engine — quy trình duyệt chung cho mọi module
-const WorkflowsPage = lazy(() => import('@/modules/workflow/pages/WorkflowsPage').then(m => ({ default: m.WorkflowsPage })))
 const WorkflowTemplateGalleryPage = lazy(() => import('@/modules/workflow/pages/WorkflowTemplateGalleryPage').then(m => ({ default: m.WorkflowTemplateGalleryPage })))
 const WorkflowDesignerPage = lazy(() => import('@/modules/workflow/pages/WorkflowDesignerPage').then(m => ({ default: m.WorkflowDesignerPage })))
 
@@ -57,6 +57,7 @@ const RecruitmentBoardPage  = lazy(() => import('@/modules/qlns/pages/Recruitmen
 const OkrsPage                  = lazy(() => import('@/modules/qlns/pages/OkrsPage').then(m => ({ default: m.OkrsPage })))
 const PerformanceReviewsPage    = lazy(() => import('@/modules/qlns/pages/PerformanceReviewsPage').then(m => ({ default: m.PerformanceReviewsPage })))
 const OnboardingPage            = lazy(() => import('@/modules/qlns/pages/OnboardingPage').then(m => ({ default: m.OnboardingPage })))
+const OffboardingPage           = lazy(() => import('@/modules/qlns/pages/OffboardingPage').then(m => ({ default: m.OffboardingPage })))
 const ContractSignPage          = lazy(() => import('@/modules/contracts/pages/ContractSignPage').then(m => ({ default: m.ContractSignPage })))
 
 // Customers
@@ -71,12 +72,15 @@ const ProductsPage    = lazy(() => import('@/modules/products/pages/ProductsPage
 const ProductCategoriesPage = lazy(() => import('@/modules/products/pages/ProductCategoriesPage').then(m => ({ default: m.ProductCategoriesPage })))
 
 // Tasks
-const TasksPage       = lazy(() => import('@/modules/tasks/pages/TasksPage').then(m => ({ default: m.TasksPage })))
-const TicketsPage     = lazy(() => import('@/modules/tasks/pages/TicketsPage').then(m => ({ default: m.TicketsPage })))
-const TagsPage        = lazy(() => import('@/modules/tasks/pages/TagsPage').then(m => ({ default: m.TagsPage })))
-const TicketCategoriesPage = lazy(() => import('@/modules/tasks/pages/TicketCategoriesPage').then(m => ({ default: m.TicketCategoriesPage })))
+const WorkHubPage     = lazy(() => import('@/modules/tasks/pages/WorkHubPage').then(m => ({ default: m.WorkHubPage })))
+const TaskLegacyRedirect = lazy(() => import('@/modules/tasks/components/TaskLegacyRedirect').then(m => ({ default: m.TaskLegacyRedirect })))
 const LeavesPage      = lazy(() => import('@/modules/qlns/pages/LeavesPage').then(m => ({ default: m.LeavesPage })))
 const AttendancePage  = lazy(() => import('@/modules/qlns/pages/AttendancePage').then(m => ({ default: m.AttendancePage })))
+const TimeHubPage     = lazy(() => import('@/modules/qlns/pages/TimeHubPage').then(m => ({ default: m.TimeHubPage })))
+const PayrollHubPage  = lazy(() => import('@/modules/qlns/pages/PayrollHubPage').then(m => ({ default: m.PayrollHubPage })))
+const PeopleHubPage   = lazy(() => import('@/modules/qlns/pages/PeopleHubPage').then(m => ({ default: m.PeopleHubPage })))
+const PerformanceHubPage = lazy(() => import('@/modules/qlns/pages/PerformanceHubPage').then(m => ({ default: m.PerformanceHubPage })))
+const QlnsLegacyRedirect = lazy(() => import('@/modules/qlns/components/QlnsLegacyRedirect').then(m => ({ default: m.QlnsLegacyRedirect })))
 
 // Articles
 const ArticlesPage       = lazy(() => import('@/modules/articles/pages/ArticlesPage').then(m => ({ default: m.ArticlesPage })))
@@ -108,7 +112,7 @@ const GuideEditorPage = lazy(() => import('@/modules/docs/pages/GuideEditorPage'
 
 // Approval (FZ-003)
 const ApprovalInboxPage = lazy(() => import('@/modules/approval/pages/ApprovalInboxPage').then(m => ({ default: m.ApprovalInboxPage })))
-const ApprovalFlowConfigPage = lazy(() => import('@/modules/approval/pages/ApprovalFlowConfigPage').then(m => ({ default: m.ApprovalFlowConfigPage })))
+const ApprovalConfigHubPage = lazy(() => import('@/modules/approval/pages/ApprovalConfigHubPage').then(m => ({ default: m.ApprovalConfigHubPage })))
 
 // Warehouse (FZ-010)
 const ReorderRulesPage = lazy(() => import('@/modules/warehouse/pages/ReorderRulesPage').then(m => ({ default: m.ReorderRulesPage })))
@@ -123,6 +127,8 @@ const GoodsReceiptNotesPage = lazy(() => import('@/modules/warehouse/pages/Goods
 const GoodsReceiptNoteDetailPage = lazy(() => import('@/modules/warehouse/pages/GoodsReceiptNoteDetailPage').then(m => ({ default: m.GoodsReceiptNoteDetailPage })))
 const GoodsIssueNotesPage = lazy(() => import('@/modules/warehouse/pages/GoodsIssueNotesPage').then(m => ({ default: m.GoodsIssueNotesPage })))
 const GoodsIssueNoteDetailPage = lazy(() => import('@/modules/warehouse/pages/GoodsIssueNoteDetailPage').then(m => ({ default: m.GoodsIssueNoteDetailPage })))
+const ShrinkagePage = lazy(() => import('@/modules/warehouse/pages/ShrinkagePage').then(m => ({ default: m.ShrinkagePage })))
+const BatchesPage = lazy(() => import('@/modules/warehouse/pages/BatchesPage').then(m => ({ default: m.BatchesPage })))
 const WarehouseDashboardPage = lazy(() => import('@/modules/warehouse/pages/WarehouseDashboardPage').then(m => ({ default: m.WarehouseDashboardPage })))
 
 // Accounting
@@ -135,14 +141,16 @@ const AccountingSettingsPage  = lazy(() => import('@/modules/accounting/pages/Ac
 const FiscalPeriodsPage       = lazy(() => import('@/modules/accounting/pages/FiscalPeriodsPage').then(m => ({ default: m.FiscalPeriodsPage })))
 const BankReconciliationPage  = lazy(() => import('@/modules/accounting/pages/BankReconciliationPage').then(m => ({ default: m.BankReconciliationPage })))
 const BankStatementImportPage = lazy(() => import('@/modules/accounting/pages/BankStatementImportPage').then(m => ({ default: m.BankStatementImportPage })))
+const TaxDeclarationPage      = lazy(() => import('@/modules/accounting/pages/TaxDeclarationPage').then(m => ({ default: m.TaxDeclarationPage })))
+const AccountingOperationsHubPage = lazy(() => import('@/modules/accounting/pages/AccountingOperationsHubPage').then(m => ({ default: m.AccountingOperationsHubPage })))
+const AccountingReportsHubPage    = lazy(() => import('@/modules/accounting/pages/AccountingReportsHubPage').then(m => ({ default: m.AccountingReportsHubPage })))
+const AccountingSetupHubPage      = lazy(() => import('@/modules/accounting/pages/AccountingSetupHubPage').then(m => ({ default: m.AccountingSetupHubPage })))
+const AccountingLegacyRedirect    = lazy(() => import('@/modules/accounting/components/AccountingLegacyRedirect').then(m => ({ default: m.AccountingLegacyRedirect })))
 
 // CRM
-const LeadsPage     = lazy(() => import('@/modules/crm/pages/LeadsPage').then(m => ({ default: m.LeadsPage })))
-const DealsPage     = lazy(() => import('@/modules/crm/pages/DealsPage').then(m => ({ default: m.DealsPage })))
-const QuotesPage    = lazy(() => import('@/modules/crm/pages/QuotesPage').then(m => ({ default: m.QuotesPage })))
-const InvoicesPage  = lazy(() => import('@/modules/crm/pages/InvoicesPage').then(m => ({ default: m.InvoicesPage })))
-const MeetingsPage  = lazy(() => import('@/modules/crm/pages/MeetingsPage').then(m => ({ default: m.MeetingsPage })))
-const EmailSequencesPage = lazy(() => import('@/modules/crm/pages/EmailSequencesPage').then(m => ({ default: m.EmailSequencesPage })))
+const CrmPipelineHubPage = lazy(() => import('@/modules/crm/pages/CrmPipelineHubPage').then(m => ({ default: m.CrmPipelineHubPage })))
+const CrmSalesHubPage = lazy(() => import('@/modules/crm/pages/CrmSalesHubPage').then(m => ({ default: m.CrmSalesHubPage })))
+const CrmLegacyRedirect = lazy(() => import('@/modules/crm/components/CrmLegacyRedirect').then(m => ({ default: m.CrmLegacyRedirect })))
 
 // FB Automation
 const FbDashboardPage     = lazy(() => import('@/modules/fbautomation/pages/FbDashboardPage').then(m => ({ default: m.FbDashboardPage })))
@@ -156,11 +164,25 @@ const LeadImportPage      = lazy(() => import('@/modules/fbautomation/pages/Lead
 const SocialContentPage   = lazy(() => import('@/modules/fbautomation/pages/SocialContentPage').then(m => ({ default: m.SocialContentPage })))
 const AffiliatePage       = lazy(() => import('@/modules/fbautomation/pages/AffiliatePage').then(m => ({ default: m.AffiliatePage })))
 
+// AI Automation
+const AIDashboardPage   = lazy(() => import('@/modules/ai/pages/AIDashboardPage').then(m => ({ default: m.AIDashboardPage })))
+const AIAccountsPage    = lazy(() => import('@/modules/ai/pages/AIAccountsPage').then(m => ({ default: m.AIAccountsPage })))
+const AIGroupScannerPage = lazy(() => import('@/modules/ai/pages/GroupScannerPage').then(m => ({ default: m.GroupScannerPage })))
+const AIPosterPage      = lazy(() => import('@/modules/ai/pages/PosterPage').then(m => ({ default: m.PosterPage })))
+const AICommentsPage    = lazy(() => import('@/modules/ai/pages/CommentsPage').then(m => ({ default: m.CommentsPage })))
+const AIInboxPage       = lazy(() => import('@/modules/ai/pages/InboxPage').then(m => ({ default: m.InboxPage })))
+const AIContentGenPage  = lazy(() => import('@/modules/ai/pages/ContentGenPage').then(m => ({ default: m.ContentGenPage })))
+const AIGgMapScannerPage = lazy(() => import('@/modules/ai/pages/GgMapScannerPage').then(m => ({ default: m.GgMapScannerPage })))
+
 // Error / Not Found Page
 import { NotFoundPage } from '@/components/shared/NotFoundPage'
 import { PlaceholderPage } from '@/components/shared/PlaceholderPage'
 import { RouteErrorBoundary } from '@/components/shared/RouteErrorBoundary'
 import { hasPermission } from '@/lib/hooks/usePermission'
+import { canAccessTaskPathname } from '@/modules/tasks/utils/taskRoutes'
+import { canAccessAccountingHubPathname } from '@/modules/accounting/utils/accountingRoutes'
+import { canAccessQlnsHubPathname } from '@/modules/qlns/utils/qlnsRoutes'
+import { canAccessCrmHubPathname } from '@/modules/crm/utils/crmRoutes'
 // AppSplash = màn brand toàn trang (bootstrap/auth), PageLoader = loader trong MainLayout
 import { AppSplash, PageLoader } from '@/components/shared/AppLoading'
 
@@ -213,6 +235,29 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       return <>{children}</>
     }
 
+    // Task hub `/task` — allowed if user has any legacy task/ticket/tag menu
+    const menuFeUrls = flatMenus
+      .map((m) => m.feUrl)
+      .filter((u): u is string => !!u)
+    if (canAccessTaskPathname(path, menuFeUrls)) {
+      return <>{children}</>
+    }
+
+    // Accounting hubs — allowed if user has any legacy menu in that group
+    if (canAccessAccountingHubPathname(path, menuFeUrls)) {
+      return <>{children}</>
+    }
+
+    // CRM hubs — allowed if user has any legacy menu in that group
+    if (canAccessCrmHubPathname(path, menuFeUrls)) {
+      return <>{children}</>
+    }
+
+    // QLNS hubs — allowed if user has any legacy menu in that hub group
+    if (canAccessQlnsHubPathname(path, menuFeUrls)) {
+      return <>{children}</>
+    }
+
     // Check if the current path matches any allowed menu's feUrl
     const hasAccess = flatMenus.some((menu) => {
       if (!menu.feUrl) return false
@@ -253,7 +298,7 @@ export const router = createBrowserRouter([
     ),
   },
 
-  // Protected routes (inside MainLayout)
+  // Protected routes — LobbyLayout (/) vs MainLayout (ERP modules)
   {
     path: '/',
     // errorElement ở root chặn mọi lỗi runtime từ lazy chunk / render trong subtree —
@@ -261,11 +306,19 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorBoundary />,
     element: (
       <ProtectedRoute>
-        <MainLayout />
+        <Outlet />
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <Suspense fallback={<PageLoader />}><HomePage /></Suspense> },
+      {
+        element: <LobbyLayout />,
+        children: [
+          { index: true, element: <Suspense fallback={<PageLoader />}><LobbyPage /></Suspense> },
+        ],
+      },
+      {
+        element: <MainLayout />,
+        children: [
       { path: 'home', element: <Navigate to="/" replace /> },
       { path: 'dashboard', element: <Suspense fallback={<PageLoader />}><DashboardPage /></Suspense> },
 
@@ -283,27 +336,33 @@ export const router = createBrowserRouter([
       { path: 'qtht/security',      element: <Suspense fallback={<PageLoader />}><SecurityPage /></Suspense> },
       { path: 'qtht/settings',      element: <Suspense fallback={<PageLoader />}><SettingsPage /></Suspense> },
       { path: 'qtht/apilogs',       element: <Suspense fallback={<PageLoader />}><ApiLogsPage /></Suspense> },
-      { path: 'qtht/workflows',     element: <Suspense fallback={<PageLoader />}><WorkflowsPage /></Suspense> },
+      { path: 'qtht/workflows',     element: <Navigate to="/approval/flows?tab=templates" replace /> },
       { path: 'qtht/workflows/templates', element: <Suspense fallback={<PageLoader />}><WorkflowTemplateGalleryPage /></Suspense> },
       { path: 'qtht/workflows/:id/designer', element: <Suspense fallback={<PageLoader />}><WorkflowDesignerPage /></Suspense> },
       { path: 'qtht/website',        element: <Suspense fallback={<PageLoader />}><WebsiteManagementPage /></Suspense> },
       { path: 'qtht/tin-tuc',        element: <Suspense fallback={<PageLoader />}><NewsPage /></Suspense> },
       { path: 'qtht/tin-tuc/tao-moi', element: <Suspense fallback={<PageLoader />}><NewsCreatePage /></Suspense> },
 
-      // QLNS
-      { path: 'qlns/persons',     element: <Suspense fallback={<PageLoader />}><PersonsPage /></Suspense> },
-      { path: 'qlns/contract',        element: <Suspense fallback={<PageLoader />}><ContractPage /></Suspense> },
+      // QLNS — unified hubs + legacy redirects
+      { path: 'qlns/time',        element: <Suspense fallback={<PageLoader />}><TimeHubPage /></Suspense> },
+      { path: 'qlns/payroll',     element: <Suspense fallback={<PageLoader />}><PayrollHubPage /></Suspense> },
+      { path: 'qlns/people',      element: <Suspense fallback={<PageLoader />}><PeopleHubPage /></Suspense> },
+      { path: 'qlns/performance', element: <Suspense fallback={<PageLoader />}><PerformanceHubPage /></Suspense> },
+      { path: 'qlns/persons',     element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/people" tab="persons" /></Suspense> },
+      { path: 'qlns/contract',        element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/people" tab="contracts" /></Suspense> },
       { path: 'qlns/contract/create', element: <Suspense fallback={<PageLoader />}><ContractCreatePage /></Suspense> },
       { path: 'qlns/contract/sign/:id', element: <Suspense fallback={<PageLoader />}><ContractSignPage /></Suspense> },
       { path: 'qlns/contract/:id', element: <Suspense fallback={<PageLoader />}><ContractDetailPage /></Suspense> },
-      { path: 'qlns/payrolls',    element: <Suspense fallback={<PageLoader />}><PayrollsPage /></Suspense> },
-      { path: 'qlns/salary-bands', element: <Suspense fallback={<PageLoader />}><SalaryBandsPage /></Suspense> },
-      { path: 'qtht/salary-bands', element: <Suspense fallback={<PageLoader />}><SalaryBandsPage /></Suspense> },
-      { path: 'qlns/recruitment/requisitions', element: <Suspense fallback={<PageLoader />}><RequisitionsPage /></Suspense> },
-      { path: 'qlns/recruitment/board',        element: <Suspense fallback={<PageLoader />}><RecruitmentBoardPage /></Suspense> },
-      { path: 'qlns/okrs', element: <Suspense fallback={<PageLoader />}><OkrsPage /></Suspense> },
-      { path: 'qlns/performance-reviews', element: <Suspense fallback={<PageLoader />}><PerformanceReviewsPage /></Suspense> },
-      { path: 'qlns/onboarding', element: <Suspense fallback={<PageLoader />}><OnboardingPage /></Suspense> },
+      { path: 'qlns/payrolls',    element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/payroll" tab="payrolls" /></Suspense> },
+      { path: 'qlns/salary-bands', element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/payroll" tab="bands" /></Suspense> },
+      { path: 'qtht/salary-bands', element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/payroll" tab="bands" /></Suspense> },
+      { path: 'qlns/payroll-periods', element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/payroll" tab="payrolls" drawer="periods" /></Suspense> },
+      { path: 'qlns/recruitment/requisitions', element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/people" tab="recruitment" /></Suspense> },
+      { path: 'qlns/recruitment/board',        element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/people" tab="recruitment" /></Suspense> },
+      { path: 'qlns/okrs', element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/performance" tab="okrs" /></Suspense> },
+      { path: 'qlns/performance-reviews', element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/performance" tab="reviews" /></Suspense> },
+      { path: 'qlns/onboarding', element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/people" tab="onboarding" /></Suspense> },
+      { path: 'qlns/offboarding', element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/people" tab="offboarding" /></Suspense> },
 
       // Customer
       { path: 'customer',            element: <Suspense fallback={<PageLoader />}><CustomersPage /></Suspense> },
@@ -315,17 +374,16 @@ export const router = createBrowserRouter([
       { path: 'product',          element: <Suspense fallback={<PageLoader />}><ProductsPage /></Suspense> },
       { path: 'loai-san-pham',    element: <Suspense fallback={<PageLoader />}><ProductCategoriesPage /></Suspense> },
 
-      // Task
-      { path: 'task',             element: <Suspense fallback={<PageLoader />}><TasksPage /></Suspense> },
-      { path: 'task/tickets',     element: <Suspense fallback={<PageLoader />}><TicketsPage /></Suspense> },
-      // Alias legacy BE notification deep-link `/tasks?ticketId=...`
-      { path: 'tasks',            element: <Suspense fallback={<PageLoader />}><TicketsPage /></Suspense> },
-      { path: 'task/tags',        element: <Suspense fallback={<PageLoader />}><TagsPage /></Suspense> },
-      { path: 'task/categories',  element: <Suspense fallback={<PageLoader />}><TicketCategoriesPage /></Suspense> },
-      { path: 'qlns/leaves',      element: <Suspense fallback={<PageLoader />}><LeavesPage /></Suspense> },
+      // Task — unified hub + danh mục ticket
+      { path: 'task',             element: <Suspense fallback={<PageLoader />}><WorkHubPage /></Suspense> },
+      { path: 'task/tickets',     element: <Suspense fallback={<PageLoader />}><TaskLegacyRedirect tab="board" /></Suspense> },
+      { path: 'tasks',            element: <Suspense fallback={<PageLoader />}><TaskLegacyRedirect tab="board" /></Suspense> },
+      { path: 'task/tags',        element: <Suspense fallback={<PageLoader />}><TaskLegacyRedirect tab="tags" /></Suspense> },
+      { path: 'task/categories',  element: <Suspense fallback={<PageLoader />}><TaskLegacyRedirect tab="categories" /></Suspense> },
+      { path: 'qlns/leaves',      element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/time" tab="leaves" /></Suspense> },
 
-      // Attendance
-      { path: 'admin/attendance', element: <Suspense fallback={<PageLoader />}><AttendancePage /></Suspense> },
+      // Attendance — legacy redirect
+      { path: 'admin/attendance', element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/time" tab="daily" /></Suspense> },
 
       // Articles
       { path: 'admin/article-management',            element: <Suspense fallback={<PageLoader />}><ArticlesPage /></Suspense> },
@@ -356,9 +414,9 @@ export const router = createBrowserRouter([
       { path: 'admin/guides/new', element: <Suspense fallback={<PageLoader />}><GuideEditorPage /></Suspense> },
       { path: 'admin/guides/:id/edit', element: <Suspense fallback={<PageLoader />}><GuideEditorPage /></Suspense> },
 
-      // Approval module (FZ-003 / FE-1)
+      // Approval module (FZ-003 / FE-1) — config hub + ops inbox
       { path: 'approval/inbox',   element: <Suspense fallback={<PageLoader />}><ApprovalInboxPage /></Suspense> },
-      { path: 'approval/flows',   element: <Suspense fallback={<PageLoader />}><ApprovalFlowConfigPage /></Suspense> },
+      { path: 'approval/flows',   element: <Suspense fallback={<PageLoader />}><ApprovalConfigHubPage /></Suspense> },
 
       // Warehouse (FZ-010 / FE-3)
       { path: 'warehouse', element: <Suspense fallback={<PageLoader />}><WarehouseDashboardPage /></Suspense> },
@@ -374,25 +432,33 @@ export const router = createBrowserRouter([
       { path: 'warehouse/grn/:id', element: <Suspense fallback={<PageLoader />}><GoodsReceiptNoteDetailPage /></Suspense> },
       { path: 'warehouse/gin', element: <Suspense fallback={<PageLoader />}><GoodsIssueNotesPage /></Suspense> },
       { path: 'warehouse/gin/:id', element: <Suspense fallback={<PageLoader />}><GoodsIssueNoteDetailPage /></Suspense> },
+      { path: 'warehouse/shrinkage', element: <Suspense fallback={<PageLoader />}><ShrinkagePage /></Suspense> },
+      { path: 'warehouse/batches', element: <Suspense fallback={<PageLoader />}><BatchesPage /></Suspense> },
 
-      // Accounting
-      { path: 'accounting/accounts',       element: <Suspense fallback={<PageLoader />}><AccountsPage /></Suspense> },
-      { path: 'accounting/journals',       element: <Suspense fallback={<PageLoader />}><JournalsPage /></Suspense> },
-      { path: 'accounting/ledger',         element: <Suspense fallback={<PageLoader />}><GeneralLedgerPage /></Suspense> },
-      { path: 'accounting/trial-balance',  element: <Suspense fallback={<PageLoader />}><TrialBalancePage /></Suspense> },
-      { path: 'accounting/financial-statements', element: <Suspense fallback={<PageLoader />}><FinancialStatementsPage /></Suspense> },
-      { path: 'accounting/settings',       element: <Suspense fallback={<PageLoader />}><AccountingSettingsPage /></Suspense> },
-      { path: 'accounting/periods',        element: <Suspense fallback={<PageLoader />}><FiscalPeriodsPage /></Suspense> },
-      { path: 'accounting/bank-reconciliation',        element: <Suspense fallback={<PageLoader />}><BankReconciliationPage /></Suspense> },
+      // Accounting — unified hubs + legacy redirects
+      { path: 'accounting',                  element: <Suspense fallback={<PageLoader />}><AccountingOperationsHubPage /></Suspense> },
+      { path: 'accounting/reports',          element: <Suspense fallback={<PageLoader />}><AccountingReportsHubPage /></Suspense> },
+      { path: 'accounting/setup',            element: <Suspense fallback={<PageLoader />}><AccountingSetupHubPage /></Suspense> },
+      { path: 'accounting/journals',         element: <Suspense fallback={<PageLoader />}><AccountingLegacyRedirect hubPath="/accounting" tab="journals" /></Suspense> },
+      { path: 'accounting/ledger',           element: <Suspense fallback={<PageLoader />}><AccountingLegacyRedirect hubPath="/accounting" tab="ledger" /></Suspense> },
+      { path: 'accounting/bank-reconciliation', element: <Suspense fallback={<PageLoader />}><AccountingLegacyRedirect hubPath="/accounting" tab="bank" /></Suspense> },
+      { path: 'accounting/trial-balance',    element: <Suspense fallback={<PageLoader />}><AccountingLegacyRedirect hubPath="/accounting/reports" tab="trial-balance" /></Suspense> },
+      { path: 'accounting/financial-statements', element: <Suspense fallback={<PageLoader />}><AccountingLegacyRedirect hubPath="/accounting/reports" tab="financial" /></Suspense> },
+      { path: 'accounting/tax',              element: <Suspense fallback={<PageLoader />}><AccountingLegacyRedirect hubPath="/accounting/reports" tab="tax" /></Suspense> },
+      { path: 'accounting/settings',         element: <Suspense fallback={<PageLoader />}><AccountingLegacyRedirect hubPath="/accounting/setup" tab="settings" /></Suspense> },
+      { path: 'accounting/periods',          element: <Suspense fallback={<PageLoader />}><AccountingLegacyRedirect hubPath="/accounting/setup" drawer="periods" /></Suspense> },
+      { path: 'accounting/accounts',         element: <Suspense fallback={<PageLoader />}><AccountingLegacyRedirect hubPath="/accounting/setup" tab="accounts" /></Suspense> },
       { path: 'accounting/bank-reconciliation/import', element: <Suspense fallback={<PageLoader />}><BankStatementImportPage /></Suspense> },
 
-      // CRM
-      { path: 'crm/leads',     element: <Suspense fallback={<PageLoader />}><LeadsPage /></Suspense> },
-      { path: 'crm/deals',     element: <Suspense fallback={<PageLoader />}><DealsPage /></Suspense> },
-      { path: 'crm/quotes',    element: <Suspense fallback={<PageLoader />}><QuotesPage /></Suspense> },
-      { path: 'crm/invoices',  element: <Suspense fallback={<PageLoader />}><InvoicesPage /></Suspense> },
-      { path: 'crm/meetings',  element: <Suspense fallback={<PageLoader />}><MeetingsPage /></Suspense> },
-      { path: 'crm/email-sequences', element: <Suspense fallback={<PageLoader />}><EmailSequencesPage /></Suspense> },
+      // CRM — unified hubs + legacy redirects
+      { path: 'crm',             element: <Suspense fallback={<PageLoader />}><CrmPipelineHubPage /></Suspense> },
+      { path: 'crm/sales',       element: <Suspense fallback={<PageLoader />}><CrmSalesHubPage /></Suspense> },
+      { path: 'crm/leads',       element: <Suspense fallback={<PageLoader />}><CrmLegacyRedirect hubPath="/crm" tab="leads" /></Suspense> },
+      { path: 'crm/deals',       element: <Suspense fallback={<PageLoader />}><CrmLegacyRedirect hubPath="/crm" tab="deals" /></Suspense> },
+      { path: 'crm/meetings',    element: <Suspense fallback={<PageLoader />}><CrmLegacyRedirect hubPath="/crm" tab="meetings" /></Suspense> },
+      { path: 'crm/email-sequences', element: <Suspense fallback={<PageLoader />}><CrmLegacyRedirect hubPath="/crm" tab="deals" drawer="sequences" /></Suspense> },
+      { path: 'crm/quotes',      element: <Suspense fallback={<PageLoader />}><CrmLegacyRedirect hubPath="/crm/sales" tab="quotes" /></Suspense> },
+      { path: 'crm/invoices',    element: <Suspense fallback={<PageLoader />}><CrmLegacyRedirect hubPath="/crm/sales" tab="invoices" /></Suspense> },
 
       // FB Automation
       { path: 'fb',                element: <Suspense fallback={<PageLoader />}><FbDashboardPage /></Suspense> },
@@ -424,6 +490,16 @@ export const router = createBrowserRouter([
       { path: 'mkt/live',         element: <PlaceholderPage title="Livestream Reminder" moduleCode="MKT · LIVE" description="Tạo event + notify khách đăng ký trước giờ live. Standalone — không cần Meta App." /> },
       { path: 'mkt/zalo',         element: <PlaceholderPage title="Zalo OA Broadcast" moduleCode="MKT · ZALO" description="Gửi ZNS theo template đã duyệt. Cần Zalo OA verified + template duyệt trước." /> },
 
+      // AI Automation
+      { path: 'ai',               element: <Suspense fallback={<PageLoader />}><AIDashboardPage /></Suspense> },
+      { path: 'ai/accounts',      element: <Suspense fallback={<PageLoader />}><AIAccountsPage /></Suspense> },
+      { path: 'ai/scan-groups',   element: <Suspense fallback={<PageLoader />}><AIGroupScannerPage /></Suspense> },
+      { path: 'ai/poster',        element: <Suspense fallback={<PageLoader />}><AIPosterPage /></Suspense> },
+      { path: 'ai/comments',      element: <Suspense fallback={<PageLoader />}><AICommentsPage /></Suspense> },
+      { path: 'ai/inbox',         element: <Suspense fallback={<PageLoader />}><AIInboxPage /></Suspense> },
+      { path: 'ai/content',       element: <Suspense fallback={<PageLoader />}><AIContentGenPage /></Suspense> },
+      { path: 'ai/maps',          element: <Suspense fallback={<PageLoader />}><AIGgMapScannerPage /></Suspense> },
+
       // Placeholder routes — menu đã seed nhưng UI chi tiết chưa build.
       // Giữ menu trong sidebar để giữ nguyên IA + phân quyền, nhưng thay 404 bằng trang "đang phát triển".
       { path: 'admin/events',      element: <Suspense fallback={<PageLoader />}><EventsAdminPage /></Suspense> },
@@ -433,6 +509,8 @@ export const router = createBrowserRouter([
       { path: 'admin/qlts',        element: <Suspense fallback={<PageLoader />}><AssetsPage /></Suspense> },
       { path: 'assets/depreciation', element: <Suspense fallback={<PageLoader />}><DepreciationPostPage /></Suspense> },
       { path: 'admin/qlbghd',      element: <PlaceholderPage title="Quản Lý Bảng Giá Hợp Đồng" moduleCode="BGHD" description="Bảng giá / phụ lục hợp đồng, phê duyệt và version — đang được xây dựng." /> },
+        ],
+      },
     ],
   },
 

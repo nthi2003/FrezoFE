@@ -6,32 +6,28 @@ import type { PageGuideConfig } from '@frezo/ui'
  */
 export const ATTENDANCE_GUIDE: PageGuideConfig = {
   title: 'Chấm công',
-  subtitle: 'Check-in khi tới văn phòng, check-out trước khi về — theo dõi giờ công trong ngày.',
-  docHref: '/docs/guide-attendance-settings',
+  subtitle:
+    'Bước 1–3 luồng Chấm công & Lương: chấm ngày → duyệt nghỉ/OT → tổng hợp công trước khi tính lương.',
+  docHref: '/docs/guide-hr-payroll',
   sections: [
     {
       type: 'steps',
-      heading: 'Chấm công hằng ngày',
+      heading: 'Luồng chấm công (bước 1–3)',
       steps: [
         {
-          title: 'Check-in đầu giờ',
+          title: 'Chấm công hàng ngày',
           description:
-            'Bấm CHECK IN góc trên khi tới văn phòng. Cho phép vị trí nếu trình duyệt hỏi — giúp xác nhận bạn đang đúng chỗ.',
+            'Check-in khi tới văn phòng (GPS/app/máy). Check-out trước khi về — ghi giờ làm thực tế.',
         },
         {
-          title: 'Làm việc trong ngày',
+          title: 'Duyệt nghỉ phép & tăng ca',
           description:
-            'Sau check-in, trang hiện bạn đang làm việc và đếm giờ. Đóng trang rồi mở lại vẫn giữ trạng thái đúng.',
+            'Tab Đơn nghỉ phép — QLTT duyệt tại đây hoặc Hộp thư duyệt.',
         },
         {
-          title: 'Check-out cuối giờ',
+          title: 'Tổng hợp công cuối tháng',
           description:
-            'Bấm CHECK OUT trước khi rời văn phòng. Hệ thống ghi giờ ra để tính công cuối tháng.',
-        },
-        {
-          title: 'Xem lịch tháng',
-          description:
-            'Tab Tổng quan: xem các ngày đã chấm và các chỉ số cá nhân (ngày công, đúng giờ, muộn…).',
+            'Tab Danh sách / Theo dõi ngày — HR đối chiếu ngày công trước khi sang Bảng lương.',
         },
       ],
     },

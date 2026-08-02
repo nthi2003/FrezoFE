@@ -24,15 +24,26 @@ export function formatSupplierLabel(row: SupplierDisplayFields): string {
 }
 
 export interface ProductDisplayFields {
+  /** Enriched line/DTO fields */
   productName?: string
   productCode?: string
   productId?: string
+  /** Catalog product from `/product` API (`useProducts`) */
+  name?: string
+  code?: string
+  id?: string
 }
 
-/** Prefer productName/code from API; fallback to productId. */
+/**
+ * Label for product combobox / display.
+ * Accepts both enriched DTO shape (`productCode`/`productName`) and catalog shape (`code`/`name`).
+ */
 export function formatProductLabel(row: ProductDisplayFields): string {
-  if (row.productName && row.productCode) return `${row.productCode} — ${row.productName}`
-  return row.productName || row.productCode || row.productId || '—'
+  const code = row.productCode || row.code
+  const name = row.productName || row.name
+  const id = row.productId || row.id
+  if (code && name) return `${code} — ${name}`
+  return name || code || id || '—'
 }
 
 export interface CustomerDisplayFields {

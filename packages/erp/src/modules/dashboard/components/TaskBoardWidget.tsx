@@ -79,7 +79,7 @@ export function TaskBoardWidget({ mineOnly = true }: TaskBoardWidgetProps) {
         </div>
         <button
           type="button"
-          onClick={() => nav('/task/tickets')}
+          onClick={() => nav('/task?tab=board')}
           className="inline-flex items-center gap-1 text-xs font-medium text-primary-700 hover:text-primary-800 shrink-0"
         >
           Mở board <ArrowRight size={14} />
@@ -113,7 +113,7 @@ export function TaskBoardWidget({ mineOnly = true }: TaskBoardWidgetProps) {
               ? 'Khi được giao ticket, chúng sẽ hiện trên board này.'
               : 'Tạo ticket đầu tiên trên Kanban.'
           }
-          action={{ label: 'Mở board', onClick: () => nav('/task/tickets') }}
+          action={{ label: 'Mở board', onClick: () => nav('/task?tab=board') }}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -138,7 +138,7 @@ export function TaskBoardWidget({ mineOnly = true }: TaskBoardWidgetProps) {
                     <button
                       type="button"
                       onClick={() =>
-                        nav(`/task/tickets?ticketId=${encodeURIComponent(t.id)}`)
+                        nav(`/task?tab=board&ticketId=${encodeURIComponent(t.id)}`)
                       }
                       className="w-full text-left px-2.5 py-2 rounded-lg bg-white border border-neutral-100 hover:border-neutral-300 hover:shadow-sm transition"
                     >

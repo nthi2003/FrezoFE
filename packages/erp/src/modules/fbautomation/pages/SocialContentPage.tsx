@@ -7,13 +7,14 @@
 // Trạng thái: DRAFT / SCHEDULED / PUBLISHING / PUBLISHED / FAILED / CANCELLED
 // ============================================================
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Send, Calendar, Facebook, MessageCircle, Instagram, Video, Plus, Trash2,
   Copy, Play, Ban, Clock, CheckCircle2, XCircle, FileEdit, Loader2,
   Image as ImageIcon,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, Input, Label, Textarea } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, Input, Label, Textarea, Select, IconActionButton } from '@frezo/ui'
+import { FilterBar } from '@/components/ui/FilterBar'
 import { toast } from 'sonner'
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 import {
@@ -155,36 +156,44 @@ export function SocialContentPage() {
         {/* Config warning banner */}
         <ConfigNotice />
 
-        {/* Status filter pills */}
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusPill
-            label={`Tất cả (${counts.all || 0})`}
-            active={statusFilter === 'all'}
-            onClick={() => setStatusFilter('all')}
-          />
-          {(Object.keys(STATUS_META) as StatusKey[]).map((k) => (
-            <StatusPill
-              key={k}
-              label={`${STATUS_META[k].label} (${counts[k] || 0})`}
-              active={statusFilter === k}
-              onClick={() => setStatusFilter(k)}
-              color={STATUS_META[k].color}
+        <FilterBar
+          hasActiveFilters={statusFilter !== 'all' || channelFilter !== 'all'}
+          onClear={() => { setStatusFilter('all'); setChannelFilter('all') }}
+          countLabel={`${posts.length} bài${statusFilter !== 'all' || channelFilter !== 'all' ? ' (đã lọc)' : ''}`}
+        >
+          <div className="min-w-[150px]">
+            <Select
+              options={[
+                { value: 'all', label: `Tất cả trạng thái (${counts.all || 0})` },
+                ...(Object.keys(STATUS_META) as StatusKey[]).map((k) => ({
+                  value: k,
+                  label: `${STATUS_META[k].label} (${counts[k] || 0})`,
+                })),
+              ]}
+              value={statusFilter}
+              onChange={(v) => setStatusFilter(v as StatusKey | 'all')}
+              placeholder="Trạng thái"
+              aria-label="Lọc trạng thái"
+              showSearch={false}
             />
-          ))}
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-xs text-neutral-500">Kênh:</span>
-            <select
-              className="px-3 py-1.5 rounded-md border border-neutral-200 text-sm bg-white"
-              value={channelFilter}
-              onChange={(e) => setChannelFilter(e.target.value as any)}
-            >
-              <option value="all">Tất cả kênh</option>
-              {(Object.keys(CHANNEL_META) as ChannelKey[]).map((k) => (
-                <option key={k} value={k}>{CHANNEL_META[k].label}</option>
-              ))}
-            </select>
           </div>
-        </div>
+          <div className="min-w-[150px]">
+            <Select
+              options={[
+                { value: 'all', label: 'Tất cả kênh' },
+                ...(Object.keys(CHANNEL_META) as ChannelKey[]).map((k) => ({
+                  value: k,
+                  label: CHANNEL_META[k].label,
+                })),
+              ]}
+              value={channelFilter}
+              onChange={(v) => setChannelFilter(v as ChannelKey | 'all')}
+              placeholder="Kênh"
+              aria-label="Lọc kênh"
+              showSearch={false}
+            />
+          </div>
+        </FilterBar>
 
         {/* Two-column layout */}
         <div className="grid lg:grid-cols-5 gap-6">
@@ -367,23 +376,6 @@ export function SocialContentPage() {
 // ============================================================
 // Sub components
 // ============================================================
-function StatusPill({
-  label, active, color, onClick,
-}: { label: string; active: boolean; color?: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
-        active
-          ? 'bg-primary-600 text-white border-primary-600'
-          : color || 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
-      }`}
-    >
-      {label}
-    </button>
-  )
-}
-
 function ConfigNotice() {
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
@@ -459,21 +451,21 @@ function PostCard({
       )}
       <div className="flex items-center justify-end gap-1 pt-2 border-t border-neutral-100" onClick={(e) => e.stopPropagation()}>
         {post.status === 'SCHEDULED' && (
-          <button onClick={onCancel} className="p-1.5 hover:bg-amber-50 rounded text-amber-600" title="Huỷ lịch">
+          <IconActionButton tooltip="Huỷ lịch" tone="amber" onClick={onCancel}>
             <Ban size={14} />
-          </button>
+          </IconActionButton>
         )}
         {(post.status === 'DRAFT' || post.status === 'SCHEDULED') && (
-          <button onClick={onPublish} className="p-1.5 hover:bg-emerald-50 rounded text-emerald-600" title="Đăng ngay">
+          <IconActionButton tooltip="Đăng ngay" tone="emerald" onClick={onPublish}>
             <Play size={14} />
-          </button>
+          </IconActionButton>
         )}
-        <button onClick={onDuplicate} className="p-1.5 hover:bg-neutral-100 rounded text-neutral-600" title="Nhân bản">
+        <IconActionButton tooltip="Nhân bản" onClick={onDuplicate}>
           <Copy size={14} />
-        </button>
-        <button onClick={onDelete} className="p-1.5 hover:bg-rose-50 rounded text-neutral-600 hover:text-rose-600" title="Xoá">
+        </IconActionButton>
+        <IconActionButton tooltip="Xoá" tone="red" onClick={onDelete}>
           <Trash2 size={14} />
-        </button>
+        </IconActionButton>
       </div>
     </div>
   )

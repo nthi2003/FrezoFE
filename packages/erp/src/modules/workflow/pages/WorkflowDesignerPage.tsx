@@ -162,7 +162,7 @@ function WorkflowDesignerInner() {
     setDeleteNodeConfirm(false)
   }
 
-  const goList = () => nav('/qtht/workflows')
+  const goList = () => nav('/approval/flows?tab=templates')
 
   const guardedNavigate = (fn: () => void) => {
     if (dirty) setLeaveConfirm(() => fn)

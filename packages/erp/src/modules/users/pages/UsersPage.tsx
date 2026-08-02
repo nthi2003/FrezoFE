@@ -2,10 +2,11 @@
 // FREZO ERP — Users Page
 // ============================================================
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Loader2, KeyRound, Lock, Unlock, Eye, EyeOff } from 'lucide-react'
+import { Plus, Edit, Loader2, KeyRound, Lock, Unlock, Eye, EyeOff, Search, Users } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import {
   AppModal,
   ConfirmDialog,
@@ -16,6 +17,9 @@ import {
   FormField,
   PageHeader,
   PageGuideButton,
+  EmptyState,
+  ErrorState,
+  IconActionButton,
   type PageGuideConfig,
 } from '@frezo/ui'
 import { unwrapList } from '@frezo/utils'
@@ -89,7 +93,10 @@ export function UsersPage() {
     isOpen: boolean; title: string; message: string; onConfirm: () => void
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
 
-  const { data: usersData, isLoading } = useUsers(1, 1000, '')
+  const [searchText, setSearchText] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | '1' | '0'>('all')
+
+  const { data: usersData, isLoading, isError, isFetching, refetch } = useUsers(1, 1000, '')
   const { data: personOptions } = useQuery({
     queryKey: ['persons-combobox'],
     queryFn: () => personApi.getCombobox(),
@@ -108,6 +115,30 @@ export function UsersPage() {
     defaultValues: { username: '', password: '', email: '', fullname: '', dataAction: 1, personId: '', roleIds: [], orgId: '' },
   })
   const selectedRoleIds = watch('roleIds') || []
+
+  const allUsers = usersData?.items || []
+
+  const filteredUsers = useMemo(() => {
+    let list = allUsers
+    if (statusFilter !== 'all') {
+      list = list.filter((u) => String(u.status) === statusFilter)
+    }
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase().trim()
+      list = list.filter(
+        (u) =>
+          (u.username || '').toLowerCase().includes(q) ||
+          ((u as any).name || u.fullName || '').toLowerCase().includes(q) ||
+          (u.email || '').toLowerCase().includes(q) ||
+          (u.phone || '').includes(q),
+      )
+    }
+    return list
+  }, [allUsers, searchText, statusFilter])
+
+  const hasActiveFilters = Boolean(searchText.trim()) || statusFilter !== 'all'
+  const isFilteredEmpty = !isLoading && !isError && allUsers.length > 0 && filteredUsers.length === 0
+  const isFullyEmpty = !isLoading && !isError && allUsers.length === 0
 
   const closeModal = () => {
     setIsModalOpen(false)
@@ -225,44 +256,44 @@ export function UsersPage() {
       key: 'actions', title: 'Thao tác', align: 'center', width: 140,
       render: (_, record) => (
         <div className="flex items-center justify-center gap-1">
-          <button title="Sửa" onClick={() => handleOpenEdit(record)} className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors">
+          <IconActionButton tooltip="Sửa" tone="primary" onClick={() => handleOpenEdit(record)}>
             <Edit size={15} />
-          </button>
-          <button
-            title="Reset mật khẩu"
+          </IconActionButton>
+          <IconActionButton
+            tooltip="Reset mật khẩu"
+            tone="amber"
             onClick={() => setConfirm({
               isOpen: true, title: 'Reset mật khẩu',
               message: 'Bạn có chắc chắn muốn reset mật khẩu tài khoản này về mặc định?',
               onConfirm: () => { resetPassword.mutate(record.id!); setConfirm(c => ({ ...c, isOpen: false })) },
             })}
-            className="p-1.5 text-neutral-400 hover:text-warning hover:bg-warning/10 rounded-md transition-colors"
           >
             <KeyRound size={15} />
-          </button>
+          </IconActionButton>
           {record.status === 1 ? (
-            <button
-              title="Khóa tài khoản"
+            <IconActionButton
+              tooltip="Khóa tài khoản"
+              tone="rose"
               onClick={() => setConfirm({
                 isOpen: true, title: 'Khóa tài khoản',
                 message: 'Bạn có chắc chắn muốn khóa tài khoản này?',
                 onConfirm: () => { lockUser.mutate(record.id!); setConfirm(c => ({ ...c, isOpen: false })) },
               })}
-              className="p-1.5 text-neutral-400 hover:text-danger hover:bg-danger/10 rounded-md transition-colors"
             >
               <Lock size={15} />
-            </button>
+            </IconActionButton>
           ) : (
-            <button
-              title="Mở khóa tài khoản"
+            <IconActionButton
+              tooltip="Mở khóa tài khoản"
+              tone="emerald"
               onClick={() => setConfirm({
                 isOpen: true, title: 'Mở khóa tài khoản',
                 message: 'Bạn có chắc chắn muốn mở khóa tài khoản này?',
                 onConfirm: () => { activeUser.mutate(record.id!); setConfirm(c => ({ ...c, isOpen: false })) },
               })}
-              className="p-1.5 text-neutral-400 hover:text-success hover:bg-success/10 rounded-md transition-colors"
             >
               <Unlock size={15} />
-            </button>
+            </IconActionButton>
           )}
         </div>
       ),
@@ -287,17 +318,80 @@ export function UsersPage() {
         }
       />
 
-      {/* Table */}
-      <AppTable
-        columns={columns}
-        data={usersData?.items || []}
-        isLoading={isLoading}
-        showSearch={true}
-        searchPlaceholder="Tìm theo tên đăng nhập, họ tên, email..."
-        onRefresh={() => {
-          queryClient.invalidateQueries({ queryKey: ['users'] })
+      <FilterBar
+        hasActiveFilters={hasActiveFilters}
+        onClear={() => {
+          setSearchText('')
+          setStatusFilter('all')
         }}
-      />
+        countLabel={`${filteredUsers.length} người dùng${hasActiveFilters ? ' (đã lọc)' : ''}`}
+      >
+        <div className="min-w-[140px]">
+          <Select
+            options={[
+              { value: 'all', label: 'Tất cả trạng thái' },
+              { value: '1', label: 'Hoạt động' },
+              { value: '0', label: 'Khóa' },
+            ]}
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as 'all' | '1' | '0')}
+            placeholder="Trạng thái"
+            aria-label="Lọc trạng thái"
+            showSearch={false}
+          />
+        </div>
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            placeholder="Tìm theo tên đăng nhập, họ tên, email…"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            aria-label="Tìm người dùng"
+          />
+        </div>
+      </FilterBar>
+
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được người dùng"
+            message="Kiểm tra kết nối hoặc quyền truy cập rồi thử lại."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={Users}
+            title={isFilteredEmpty ? 'Không có người dùng khớp bộ lọc' : 'Chưa có người dùng nào'}
+            description={
+              isFilteredEmpty
+                ? 'Thử xoá lọc hoặc đổi từ khoá.'
+                : 'Thêm tài khoản đầu tiên để bắt đầu.'
+            }
+            action={
+              isFilteredEmpty
+                ? { label: 'Xoá lọc', onClick: () => { setSearchText(''); setStatusFilter('all') } }
+                : { label: 'Thêm mới', onClick: handleOpenCreate }
+            }
+          />
+        </div>
+      ) : (
+        <AppTable
+          columns={columns}
+          data={filteredUsers}
+          isLoading={isLoading}
+          density="compact"
+          showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onRefresh={() => {
+            queryClient.invalidateQueries({ queryKey: ['users'] })
+          }}
+        />
+      )}
 
       {/* Modal Thêm / Sửa */}
       <AppModal

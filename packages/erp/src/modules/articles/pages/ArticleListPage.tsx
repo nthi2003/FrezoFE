@@ -21,11 +21,7 @@ import {
   type HomeArticle,
 } from '../utils/homeArticle'
 import { articleTone, articleToneByKey } from '../components/ArticleArtwork'
-import {
-  ArticleGridCard,
-  FeaturedArticleCard,
-  SpotlightArticleCard,
-} from '../components/ArticleCards'
+import { ArticleGridCard, FeaturedArticleCard } from '../components/ArticleCards'
 import { NewsroomMasthead } from '../components/NewsroomMasthead'
 
 /** Bỏ dấu để tìm kiếm tiếng Việt không phụ thuộc bộ gõ. */
@@ -45,14 +41,8 @@ function searchIndex(a: HomeArticle): string {
 
 function SectionHeading({ title, hint }: { title: string; hint?: string }) {
   return (
-    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <h2 className="flex items-center gap-2 text-base font-semibold text-neutral-900">
-        <span
-          aria-hidden="true"
-          className="h-4 w-1 rounded-full bg-gradient-to-b from-primary-500 to-emerald-400"
-        />
-        {title}
-      </h2>
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <h2 className="text-base font-semibold text-neutral-900">{title}</h2>
       {hint && <span className="text-xs text-neutral-500">{hint}</span>}
     </div>
   )
@@ -60,26 +50,30 @@ function SectionHeading({ title, hint }: { title: string; hint?: string }) {
 
 function NewsroomSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 lg:grid-cols-12">
-        <Skeleton className="h-60 rounded-2xl sm:h-72 lg:col-span-8 lg:h-[26rem]" />
-        <div className="space-y-3 lg:col-span-4">
-          <Skeleton className="h-[5.5rem] rounded-xl" />
-          <Skeleton className="h-[5.5rem] rounded-xl" />
-          <Skeleton className="hidden h-[13rem] rounded-xl lg:block" />
+    <div className="space-y-8">
+      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-surface">
+        <div className="flex flex-col md:flex-row">
+          <Skeleton className="aspect-[16/10] w-full rounded-none md:w-[42%] md:min-h-[14rem]" />
+          <div className="flex flex-1 flex-col gap-3 p-5 md:p-6">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-6 w-4/5" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-11/12" />
+            <Skeleton className="mt-auto h-4 w-40" />
+          </div>
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
-            className="overflow-hidden rounded-2xl border border-neutral-200 bg-white"
+            className="overflow-hidden rounded-xl border border-neutral-200 bg-surface"
           >
             <Skeleton className="aspect-[16/10] w-full rounded-none" />
             <div className="space-y-2 p-4">
+              <Skeleton className="h-3 w-28" />
               <Skeleton className="h-4 w-4/5" />
               <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-2/3" />
             </div>
           </div>
         ))}
@@ -129,19 +123,12 @@ export function ArticleListPage() {
   const monthCount = useMemo(() => articles.filter(isInCurrentMonth).length, [articles])
   const latestLabel = articles.length ? formatArticleDate(articles[0]) : ''
 
-  // Bố cục magazine chỉ áp dụng cho feed đầy đủ; khi lọc thì lưới phẳng dễ quét hơn.
   const featured = !isFiltering ? visible[0] : undefined
-  const spotlight = !isFiltering ? visible.slice(1, 3) : []
-  const gridItems = isFiltering ? visible : visible.slice(3)
+  const gridItems = isFiltering ? visible : visible.slice(1)
 
   return (
-    <div className="relative min-h-full">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-gradient-to-b from-primary-50/80 via-primary-50/25 to-transparent"
-      />
-
-      <div className="relative mx-auto max-w-6xl space-y-6 p-4 animate-fade-in md:p-6">
+    <div className="min-h-full bg-neutral-50">
+      <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 animate-fade-in md:px-6 md:py-8">
         <Breadcrumb
           items={[
             { label: 'Trang chủ', onClick: () => nav('/') },
@@ -165,7 +152,7 @@ export function ArticleListPage() {
         {isLoading ? (
           <NewsroomSkeleton />
         ) : isError ? (
-          <div className="rounded-2xl border border-neutral-200 bg-white shadow-card">
+          <div className="rounded-xl border border-neutral-200 bg-surface">
             <ErrorState
               title="Không tải được danh sách"
               message="Kết nối tới máy chủ đang có vấn đề. Thử lại sau vài giây."
@@ -174,7 +161,7 @@ export function ArticleListPage() {
             />
           </div>
         ) : articles.length === 0 ? (
-          <div className="rounded-2xl border border-primary-100 bg-gradient-to-br from-white to-primary-50/60 shadow-card">
+          <div className="rounded-xl border border-neutral-200 bg-surface">
             <EmptyState
               icon={Newspaper}
               title="Chưa có bài viết"
@@ -183,7 +170,7 @@ export function ArticleListPage() {
             />
           </div>
         ) : visible.length === 0 ? (
-          <div className="rounded-2xl border border-neutral-200 bg-white shadow-card">
+          <div className="rounded-xl border border-neutral-200 bg-surface">
             <EmptyState
               icon={SearchX}
               title="Không tìm thấy bài viết phù hợp"
@@ -196,43 +183,22 @@ export function ArticleListPage() {
             />
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {featured && (
-              <div className="grid gap-4 lg:grid-cols-12">
-                <div className="lg:col-span-8">
-                  <FeaturedArticleCard article={featured} onOpen={openArticle} />
-                </div>
-
-                {spotlight.length > 0 && (
-                  <div className="flex flex-col gap-3 lg:col-span-4">
-                    <SectionHeading title="Đọc tiếp" />
-                    {spotlight.map((a, i) => (
-                      <SpotlightArticleCard
-                        key={a.id}
-                        article={a}
-                        onOpen={openArticle}
-                        index={i}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+              <section aria-label="Bài mới nhất">
+                <FeaturedArticleCard article={featured} onOpen={openArticle} />
+              </section>
             )}
 
             {gridItems.length > 0 && (
-              <section className="space-y-4">
+              <section className="space-y-4" aria-label="Danh sách bài viết">
                 <SectionHeading
-                  title={isFiltering ? 'Kết quả' : 'Tất cả bài viết'}
+                  title={isFiltering ? 'Kết quả tìm kiếm' : 'Tất cả bài viết'}
                   hint={`${gridItems.length} bài`}
                 />
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {gridItems.map((a, i) => (
-                    <ArticleGridCard
-                      key={a.id}
-                      article={a}
-                      onOpen={openArticle}
-                      index={i}
-                    />
+                  {gridItems.map((a) => (
+                    <ArticleGridCard key={a.id} article={a} onOpen={openArticle} />
                   ))}
                 </div>
               </section>

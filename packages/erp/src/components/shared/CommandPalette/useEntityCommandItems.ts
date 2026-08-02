@@ -108,7 +108,7 @@ const ENTITY_DEFS: EntityDef[] = [
       const net = Number(r.netSalary ?? r.total ?? 0)
       return net ? `${net.toLocaleString('vi-VN')} ₫` : str(r.status) || ''
     },
-    buildNavPath: () => '/qlns/payrolls',
+    buildNavPath: () => '/qlns/payroll?tab=payrolls',
   },
 ]
 

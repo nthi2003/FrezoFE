@@ -26,16 +26,61 @@ function normalizePath(url: string): string {
 }
 
 /**
- * BE từng emit `/tasks?ticketId=...` (không có route).
- * Canonical FE: `/task/tickets?ticketId=...`.
+ * BE từng emit `/tasks?ticketId=...` hoặc `/task/tickets?...`.
+ * Canonical FE: `/task?tab=board&ticketId=...`.
  */
 function canonicalizeTicketDeepLink(path: string): string {
-  if (!path.startsWith('/tasks')) return path
-  // /tasks → /task/tickets ; /tasks?... → /task/tickets?...
+  let rest = ''
   if (path === '/tasks' || path.startsWith('/tasks?') || path.startsWith('/tasks#')) {
-    return `/task/tickets${path.slice('/tasks'.length)}`
+    rest = path.slice('/tasks'.length)
+  } else if (path === '/task/tickets' || path.startsWith('/task/tickets?') || path.startsWith('/task/tickets#')) {
+    rest = path.slice('/task/tickets'.length)
+  } else {
+    return path
   }
-  return path
+
+  const qIdx = rest.indexOf('?')
+  const query = qIdx >= 0 ? rest.slice(qIdx + 1) : ''
+  const sp = new URLSearchParams(query)
+  if (!sp.has('tab')) sp.set('tab', 'board')
+  const qs = sp.toString()
+  return qs ? `/task?${qs}` : '/task?tab=board'
+}
+
+/** Legacy QLNS leaf routes → hub canonical URLs (preserve query except tab rewrite). */
+function canonicalizeQlnsDeepLink(path: string): string {
+  const qIdx = path.indexOf('?')
+  const pathname = qIdx >= 0 ? path.slice(0, qIdx) : path
+  const sp = new URLSearchParams(qIdx >= 0 ? path.slice(qIdx + 1) : '')
+
+  const hubMap: Record<string, { hub: string; tab: string; drawer?: string }> = {
+    '/admin/attendance': { hub: '/qlns/time', tab: 'daily' },
+    '/qlns/leaves': { hub: '/qlns/time', tab: 'leaves' },
+    '/qlns/payrolls': { hub: '/qlns/payroll', tab: 'payrolls' },
+    '/qlns/salary-bands': { hub: '/qlns/payroll', tab: 'bands' },
+    '/qtht/salary-bands': { hub: '/qlns/payroll', tab: 'bands' },
+    '/qlns/payroll-periods': { hub: '/qlns/payroll', tab: 'payrolls', drawer: 'periods' },
+    '/qlns/persons': { hub: '/qlns/people', tab: 'persons' },
+    '/qlns/contract': { hub: '/qlns/people', tab: 'contracts' },
+    '/qlns/onboarding': { hub: '/qlns/people', tab: 'onboarding' },
+    '/qlns/offboarding': { hub: '/qlns/people', tab: 'offboarding' },
+    '/qlns/recruitment/requisitions': { hub: '/qlns/people', tab: 'recruitment' },
+    '/qlns/recruitment/board': { hub: '/qlns/people', tab: 'recruitment' },
+    '/qlns/okrs': { hub: '/qlns/performance', tab: 'okrs' },
+    '/qlns/performance-reviews': { hub: '/qlns/performance', tab: 'reviews' },
+  }
+
+  const mapped = hubMap[pathname.replace(/\/+$/, '') || '/']
+  if (!mapped) return path
+
+  sp.set('tab', mapped.tab)
+  if (mapped.drawer) sp.set('drawer', mapped.drawer)
+  const qs = sp.toString()
+  return qs ? `${mapped.hub}?${qs}` : mapped.hub
+}
+
+function canonicalizeDeepLink(path: string): string {
+  return canonicalizeQlnsDeepLink(canonicalizeTicketDeepLink(path))
 }
 
 /**
@@ -45,20 +90,20 @@ export function resolveNotificationUrl(n: NotifDeepLinkInput): string | null {
   const raw = n.actionUrl || n.link
   if (raw) {
     const path = normalizePath(raw)
-    if (path) return canonicalizeTicketDeepLink(path)
+    if (path) return canonicalizeDeepLink(path)
   }
 
   const type = (n.type || '').toUpperCase()
   const entityType = (n.entityType || '').toUpperCase()
   const id = n.entityId
   if (type.startsWith('LEAVE') || entityType === 'LEAVE') {
-    return id ? `/qlns/leaves` : '/approval/inbox'
+    return id ? `/qlns/time?tab=leaves&highlight=${encodeURIComponent(id)}` : '/approval/inbox'
   }
   if (type.startsWith('APPROVAL') || entityType === 'APPROVAL') {
     return '/approval/inbox'
   }
   if (type.startsWith('PAYROLL') || entityType === 'PAYROLL') {
-    return '/qlns/payrolls'
+    return '/qlns/payroll?tab=payrolls'
   }
   if (
     type.includes('PURCHASE_REQUEST') ||
@@ -103,7 +148,9 @@ export function resolveNotificationUrl(n: NotifDeepLinkInput): string | null {
       : '/accounting/bank-reconciliation'
   }
   if (type.startsWith('TICKET') || entityType === 'TICKET') {
-    return id ? `/task/tickets?ticketId=${encodeURIComponent(id)}` : '/task/tickets'
+    return id
+      ? `/task?tab=board&ticketId=${encodeURIComponent(id)}`
+      : '/task?tab=board'
   }
   if (
     type.includes('RECRUIT') ||
@@ -111,8 +158,8 @@ export function resolveNotificationUrl(n: NotifDeepLinkInput): string | null {
     entityType === 'APPLICATION'
   ) {
     return id
-      ? `/qlns/recruitment/board?requisitionId=${id}`
-      : '/qlns/recruitment/requisitions'
+      ? `/qlns/people?tab=recruitment&requisitionId=${id}`
+      : '/qlns/people?tab=recruitment'
   }
   if (type.includes('DEAL') || entityType === 'DEAL') {
     return '/crm/deals'

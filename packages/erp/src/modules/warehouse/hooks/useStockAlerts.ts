@@ -1,12 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { warehouseApi } from '../services/warehouseApi'
-import type { StockAlertStatus } from '../types'
+import type { StockAlertStatus, StockAlertType } from '../types'
 
-export function useStockAlerts(status: 'open' | 'resolved' | StockAlertStatus = 'open') {
+export function useStockAlerts(
+  status: 'open' | 'resolved' | StockAlertStatus = 'open',
+  alertType?: StockAlertType | '',
+) {
   return useQuery({
-    queryKey: ['warehouse', 'stock-alerts', status],
-    queryFn: () => warehouseApi.listStockAlerts({ status }),
+    queryKey: ['warehouse', 'stock-alerts', status, alertType],
+    queryFn: () =>
+      warehouseApi.listStockAlerts({
+        status,
+        alertType: alertType || undefined,
+      }),
     select: (p) => p?.content ?? [],
     refetchInterval: 60_000,
   })
@@ -26,6 +33,6 @@ export function useDismissStockAlert() {
       toast.success('Đã bỏ qua cảnh báo')
       qc.invalidateQueries({ queryKey: ['warehouse', 'stock-alerts'] })
     },
-    onError: () => toast.error('Dismiss thất bại'),
+    onError: () => toast.error('Bỏ qua cảnh báo thất bại'),
   })
 }

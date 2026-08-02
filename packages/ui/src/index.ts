@@ -2,6 +2,8 @@ export { Button, buttonVariants } from './button'
 export type { ButtonProps } from './button'
 export { Input } from './input'
 export type { InputProps } from './input'
+export { VndInput } from './VndInput'
+export type { VndInputProps } from './VndInput'
 export { Textarea } from './textarea'
 export type { TextareaProps } from './textarea'
 export { Label } from './label'
@@ -107,3 +109,17 @@ export type { PhoneRevealProps } from './PhoneReveal'
 
 export { BulkSelectionBar } from './BulkSelectionBar'
 export type { BulkSelectionBarProps } from './BulkSelectionBar'
+
+// ---- Tooltip (thay native title= — TooltipProvider gắn ở AppProviders) ----
+export {
+  TooltipProvider,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  AppTooltip,
+  TOOLTIP_DELAY_MS,
+} from './tooltip'
+export type { AppTooltipProps } from './tooltip'
+
+export { IconActionButton } from './IconActionButton'
+export type { IconActionButtonProps, IconActionTone } from './IconActionButton'

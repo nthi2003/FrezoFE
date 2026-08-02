@@ -18,6 +18,8 @@ export interface UserProfile {
   email: string
   fullName: string
   avatar?: string
+  /** Person.id — dùng khớp QTBV article.managerId (người duyệt được gán). */
+  personId?: string
   roles: string[]
   permissions: string[]
   isAdmin: boolean

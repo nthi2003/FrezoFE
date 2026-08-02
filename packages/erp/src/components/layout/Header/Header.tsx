@@ -3,15 +3,15 @@
 // Breadcrumb, page title, user actions
 // ============================================================
 
-import { useState, useRef, useEffect, useMemo } from 'react'
-import { Search, ChevronRight, User, LogOut, Command } from 'lucide-react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { useAuthStore } from '@/stores/authStore'
-import { resolveAvatarUrl } from '@/modules/auth/utils/resolveAvatarUrl'
+import { useMemo } from 'react'
+import { Search, ChevronRight, Command } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
+import { AppTooltip } from '@frezo/ui'
 import { useMenus } from '@/modules/menus/hooks/useMenus'
 import type { MenuTreeNode } from '@/modules/menus/types/menu.types'
 import { useCommandPaletteContext } from '@/components/shared/CommandPalette/context'
 import { NotificationBell } from '@/components/shared/NotificationBell'
+import { UserAccountMenu } from '@/components/shared/UserAvatar'
 import { getDocTitleBySlug } from '@/modules/docs/services/docsRegistry'
 
 // Fallback tĩnh cho các route không có trong menu BE
@@ -34,7 +34,7 @@ const FALLBACK_LABELS: Record<string, string> = {
   '/qtht/landing-config': 'Landing Config',
   '/admin':        'Quản trị',
   '/admin/article-management': 'Bài viết',
-  '/admin/attendance': 'Chấm công',
+  '/admin/attendance': 'Chấm công & nghỉ phép',
   '/email':        'Email',
   '/email/config': 'Cấu hình Email',
   '/email/template': 'Mẫu Email',
@@ -44,18 +44,41 @@ const FALLBACK_LABELS: Record<string, string> = {
 
   '/qlns':         'Nhân sự',
   '/qlns/persons': 'Nhân viên',
+  '/qlns/people': 'Hồ sơ & tổ chức',
+  '/qlns/time': 'Chấm công & nghỉ phép',
+  '/qlns/payroll': 'Lương & đãi ngộ',
+  '/qlns/performance': 'Hiệu suất',
   '/qlns/contract': 'Hợp đồng',
   '/qlns/contract/create': 'Tạo hợp đồng',
   '/qlns/payrolls': 'Bảng lương',
+  '/qlns/salary-bands': 'Bậc lương',
   '/qlns/leaves':  'Nghỉ phép',
   '/customer':     'Khách hàng',
   '/product':      'Sản phẩm',
   '/task':         'Công việc',
-  '/task/tickets': 'Giao việc',
-  '/task/tags':    'Thẻ',
-  '/task/categories': 'Danh mục Ticket',
+  '/task/categories': 'Danh mục ticket',
   '/profile':      'Hồ sơ',
   '/notifications': 'Thông báo',
+
+  '/accounting': 'Sổ & chứng từ',
+  '/accounting/reports': 'Báo cáo kế toán',
+  '/accounting/setup': 'Thiết lập kế toán',
+  '/accounting/accounts': 'Hệ thống tài khoản',
+  '/accounting/journals': 'Sổ nhật ký',
+  '/accounting/ledger': 'Sổ cái',
+  '/accounting/trial-balance': 'Bảng cân đối thử',
+  '/accounting/financial-statements': 'Báo cáo tài chính',
+  '/accounting/settings': 'Cài đặt kế toán',
+  '/accounting/periods': 'Kỳ kế toán',
+  '/accounting/bank-reconciliation': 'Đối chiếu ngân hàng',
+  '/accounting/bank-reconciliation/import': 'Import sao kê',
+  '/accounting/tax': 'Kê khai thuế',
+
+  '/approval': 'Phê duyệt',
+  '/approval/inbox': 'Hộp thư duyệt',
+  '/approval/flows': 'Cấu hình luồng duyệt',
+  '/qtht/workflows': 'Mẫu / Designer',
+  '/qtht/workflows/templates': 'Thư viện mẫu workflow',
 }
 
 // Flatten menuTree thành map feUrl → name (tiếng Việt từ BE)
@@ -92,9 +115,6 @@ function buildBreadcrumbs(pathname: string, labelMap: Map<string, string>) {
 
 export function Header() {
   const { pathname } = useLocation()
-  const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
-  const avatarSrc = resolveAvatarUrl(user)
   const { menuTree } = useMenus()
   const commandPalette = useCommandPaletteContext()
 
@@ -105,20 +125,6 @@ export function Header() {
 
   const breadcrumbs = buildBreadcrumbs(pathname, labelMap)
   const pageTitle = labelMap.get(pathname) || FALLBACK_LABELS[pathname] || breadcrumbs[breadcrumbs.length - 1]?.label || 'Frezo ERP'
-
-  // User dropdown
-  const [showUserMenu, setShowUserMenu] = useState(false)
-  const userMenuRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setShowUserMenu(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   return (
     <header className="h-[60px] flex items-center justify-between px-6 bg-white border-b border-border shrink-0 gap-4">
@@ -142,78 +148,24 @@ export function Header() {
       {/* Right: Actions */}
       <div className="flex items-center gap-2 shrink-0">
         {/* Command palette trigger — Ctrl+K */}
-        <button
-          type="button"
-          onClick={commandPalette.open}
-          className="hidden sm:flex items-center gap-2 h-8 pl-2.5 pr-2 text-xs bg-neutral-50 border border-border rounded-lg text-neutral-500 hover:bg-white hover:border-primary-300 hover:text-neutral-700 transition-colors group"
-          title="Mở thanh lệnh (Ctrl+K)"
-        >
-          <Search size={13} className="text-neutral-400 group-hover:text-primary-500" />
-          <span className="w-32 text-left">Tìm kiếm nhanh...</span>
-          <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white border border-neutral-200 text-[10px] font-mono font-semibold text-neutral-500 shadow-sm">
-            {isMac ? <Command size={9} /> : 'Ctrl'} K
-          </kbd>
-        </button>
+        <AppTooltip content="Mở thanh lệnh (Ctrl+K)">
+          <button
+            type="button"
+            onClick={commandPalette.open}
+            className="hidden sm:flex items-center gap-2 h-8 pl-2.5 pr-2 text-xs bg-neutral-50 border border-border rounded-lg text-neutral-500 hover:bg-white hover:border-primary-300 hover:text-neutral-700 transition-colors group"
+          >
+            <Search size={13} className="text-neutral-400 group-hover:text-primary-500" />
+            <span className="w-32 text-left">Tìm kiếm nhanh...</span>
+            <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white border border-neutral-200 text-[10px] font-mono font-semibold text-neutral-500 shadow-sm">
+              {isMac ? <Command size={9} /> : 'Ctrl'} K
+            </kbd>
+          </button>
+        </AppTooltip>
 
         {/* Notification Bell */}
         <NotificationBell />
 
-        {/* User avatar dropdown */}
-        <div className="relative" ref={userMenuRef}>
-          <div
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 pl-2 border-l border-border cursor-pointer"
-          >
-            {avatarSrc ? (
-              <img src={avatarSrc} alt="avatar" className="w-7 h-7 rounded-full object-cover border border-border" />
-            ) : (
-              <div className="w-7 h-7 bg-primary-600 rounded-full flex items-center justify-center
-                hover:bg-primary-700 transition-colors">
-                <span className="text-white text-xs font-bold uppercase">
-                  {user?.fullName?.charAt(0) || user?.username?.charAt(0) || 'U'}
-                </span>
-              </div>
-            )}
-            <div className="hidden md:block">
-              <div className="text-xs font-semibold text-neutral-700 leading-tight">
-                {user?.fullName || user?.username}
-              </div>
-              <div className="text-[10px] text-neutral-400 leading-tight">
-                {user?.isAdmin ? 'Admin' : user?.roles?.[0] || 'User'}
-              </div>
-            </div>
-          </div>
-
-          {/* Dropdown menu */}
-          {showUserMenu && (
-            <div className="absolute top-10 right-0 w-48 bg-white rounded-xl shadow-lg border border-border overflow-hidden z-50 animate-fade-in">
-              <div className="px-4 py-3 border-b border-border bg-neutral-50">
-                <div className="text-sm font-semibold text-neutral-800 truncate">
-                  {user?.fullName || user?.username}
-                </div>
-                <div className="text-xs text-neutral-500 truncate mt-0.5">
-                  {user?.email || user?.username}
-                </div>
-              </div>
-              <div className="py-1">
-                <button
-                  onClick={() => { setShowUserMenu(false); navigate('/profile') }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
-                >
-                  <User size={15} className="text-neutral-400" />
-                  <span>Thông tin cá nhân</span>
-                </button>
-                <button
-                  onClick={() => { setShowUserMenu(false); logout() }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                >
-                  <LogOut size={15} />
-                  <span>Đăng xuất</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        <UserAccountMenu />
       </div>
     </header>
   )

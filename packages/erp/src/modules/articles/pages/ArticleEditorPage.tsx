@@ -42,6 +42,8 @@ import {
   toArticleUpdatePayload,
 } from '../constants/schema'
 import { usePermission } from '@/lib/hooks/usePermission'
+import { Can, PermissionButton } from '@/lib/permissions'
+import { useAuthStore } from '@/stores/authStore'
 import { personApi } from '@/modules/qlns/services/personApi'
 import { organizationApi } from '@/modules/qtht/services/qthtApi'
 
@@ -126,6 +128,7 @@ export function ArticleEditorPage() {
   const canSubmit = usePermission('QTBV.ARTICLES.SUBMIT') || canUpdate
   const canReview = usePermission('QTBV.ARTICLES.REVIEW')
   const canPublish = usePermission('QTBV.ARTICLES.PUBLISH')
+  const myPersonId = useAuthStore((s) => s.user?.personId)
 
   const { data: raw, isLoading: isFetching } = useArticleById(id || '')
   const createReq = useCreateArticle()
@@ -289,13 +292,18 @@ export function ArticleEditorPage() {
     submitReq.mutate(id)
   }
 
+  const isDesignatedApprover =
+    !!myPersonId && !!managerId && myPersonId === managerId
+  /** BE review/publish chỉ cho person = article.managerId — ẩn UI nếu không phải người được gán. */
+  const canActAsArticleApprover = isDesignatedApprover
+
   const handleReview = (approved: boolean) => {
-    if (!id || !canReview) return
+    if (!id || !canReview || !canActAsArticleApprover) return
     reviewReq.mutate({ id, approved })
   }
 
   const handlePublish = () => {
-    if (!id || !canPublish) return
+    if (!id || !canPublish || !canActAsArticleApprover) return
     publishReq.mutate(id)
   }
 
@@ -434,35 +442,40 @@ export function ArticleEditorPage() {
                 </Button>
               )}
 
-            {isEdit && canReview && status === 'WAITING_APPROVAL' && (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleReview(false)}
-                  disabled={isSaving}
-                  className="h-9"
-                >
-                  Từ chối
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => handleReview(true)}
-                  disabled={isSaving}
-                  className="bg-primary-600 hover:bg-primary-700 text-white h-9"
-                >
-                  {reviewReq.isPending ? (
-                    <Loader2 size={14} className="mr-1.5 animate-spin" />
-                  ) : (
-                    <CheckCircle2 size={14} className="mr-1.5" />
-                  )}
-                  Duyệt
-                </Button>
-              </>
-            )}
+            {isEdit &&
+              canActAsArticleApprover &&
+              status === 'WAITING_APPROVAL' && (
+                <Can permission="QTBV.ARTICLES.REVIEW">
+                  <PermissionButton
+                    permission="QTBV.ARTICLES.REVIEW"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleReview(false)}
+                    disabled={isSaving}
+                    className="h-9"
+                  >
+                    Từ chối
+                  </PermissionButton>
+                  <PermissionButton
+                    permission="QTBV.ARTICLES.REVIEW"
+                    size="sm"
+                    onClick={() => handleReview(true)}
+                    disabled={isSaving}
+                    className="bg-primary-600 hover:bg-primary-700 text-white h-9"
+                  >
+                    {reviewReq.isPending ? (
+                      <Loader2 size={14} className="mr-1.5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 size={14} className="mr-1.5" />
+                    )}
+                    Duyệt bài viết
+                  </PermissionButton>
+                </Can>
+              )}
 
-            {isEdit && canPublish && status === 'APPROVED' && (
-              <Button
+            {isEdit && canActAsArticleApprover && status === 'APPROVED' && (
+              <PermissionButton
+                permission="QTBV.ARTICLES.PUBLISH"
                 size="sm"
                 onClick={handlePublish}
                 disabled={isSaving}
@@ -474,7 +487,7 @@ export function ArticleEditorPage() {
                   <Send size={14} className="mr-1.5" />
                 )}
                 Xuất bản
-              </Button>
+              </PermissionButton>
             )}
           </div>
         </div>

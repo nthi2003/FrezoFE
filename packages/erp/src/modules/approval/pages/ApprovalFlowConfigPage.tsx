@@ -1,14 +1,18 @@
 // ============================================================
 // ApprovalFlowConfigPage — CRUD template luồng duyệt (FE-1)
 // Drag-sort bước đơn giản bằng ▲▼ (không cần dnd lib).
+// Layout: PageHeader + PageGuide + sticky FilterBar + AppTable compact
 // ============================================================
 
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Plus, Pencil, GripVertical, ChevronUp, ChevronDown, Trash2, Workflow, Info,
 } from 'lucide-react'
-import { Button, PageHeader, AppModal, EmptyState, PageGuideButton } from '@frezo/ui'
+import {
+  Button, PageHeader, AppModal, EmptyState, ErrorState, PageGuideButton, Select,
+} from '@frezo/ui'
+import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import {
   useApprovalFlows, useCreateApprovalFlow, useUpdateApprovalFlow,
 } from '../hooks/useApprovalFlows'
@@ -22,22 +26,27 @@ import {
 } from '../types'
 import { usePermission } from '@/lib/hooks/usePermission'
 import { APPROVAL_FLOWS_GUIDE } from '../constants/approvals.guide'
+import { pageRootClass } from '../utils/pageEmbed'
 
 const SUBJECT_OPTIONS = Object.values(SubjectType).map((v) => ({
   value: v,
   label: SUBJECT_TYPE_LABEL[v] || v,
 }))
 
-export function ApprovalFlowConfigPage() {
-  const { data: flows = [], isLoading } = useApprovalFlows()
+export function ApprovalFlowConfigPage({ embedded }: { embedded?: boolean } = {}) {
+  const { data: flows = [], isLoading, isError, isFetching, refetch } = useApprovalFlows()
   const create = useCreateApprovalFlow()
   const update = useUpdateApprovalFlow()
   const canCreate = usePermission('APPROVAL_FLOWS.CREATE')
   const canUpdate = usePermission('APPROVAL_FLOWS.UPDATE')
+  const navigate = useNavigate()
+  const [, setSearchParams] = useSearchParams()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ApprovalFlowDto | null>(null)
   const [form, setForm] = useState<ApprovalFlowRequest>(emptyForm())
+  const [subjectFilter, setSubjectFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
 
   /** subjectType → flow đang active (runtime gắn đơn). */
   const activeBySubject = useMemo(() => {
@@ -47,6 +56,16 @@ export function ApprovalFlowConfigPage() {
     }
     return map
   }, [flows])
+
+  const filtered = useMemo(() => {
+    let list = [...flows]
+    if (subjectFilter) list = list.filter((f) => f.subjectType === subjectFilter)
+    if (statusFilter === 'active') list = list.filter((f) => f.active)
+    if (statusFilter === 'inactive') list = list.filter((f) => !f.active)
+    return list
+  }, [flows, subjectFilter, statusFilter])
+
+  const hasActiveFilters = Boolean(subjectFilter || statusFilter)
 
   const openCreate = () => {
     setEditing(null)
@@ -82,45 +101,211 @@ export function ApprovalFlowConfigPage() {
     }
   }
 
+  const columns: AppTableColumn<ApprovalFlowDto>[] = [
+    {
+      key: 'name',
+      title: 'Tên luồng',
+      render: (_, row) => (
+        <div className="min-w-0">
+          <div className="font-medium text-neutral-900 truncate">{row.name}</div>
+          {row.description && (
+            <div className="text-xs text-neutral-500 truncate max-w-md">{row.description}</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'subjectType',
+      title: 'Loại đối tượng',
+      width: 160,
+      render: (_, row) => (
+        <span className="text-sm text-neutral-700">
+          {SUBJECT_TYPE_LABEL[row.subjectType] || row.subjectType}
+        </span>
+      ),
+    },
+    {
+      key: 'steps',
+      title: 'Các bước',
+      render: (_, row) => (
+        <div className="flex flex-wrap items-center gap-1">
+          {row.steps
+            .slice()
+            .sort((a, b) => a.stepOrder - b.stepOrder)
+            .map((s, i) => (
+              <span
+                key={`${s.stepOrder}-${s.approverRole}`}
+                className="inline-flex items-center gap-1 text-[11px] bg-neutral-50 border border-neutral-200 rounded px-1.5 py-0.5"
+              >
+                <span className="font-bold text-neutral-400">{i + 1}.</span>
+                {roleLabel(s.approverRole)}
+              </span>
+            ))}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      title: 'Trạng thái',
+      width: 200,
+      render: (_, row) => {
+        const subjectLabel = SUBJECT_TYPE_LABEL[row.subjectType] || row.subjectType
+        const isRuntime = activeBySubject.get(row.subjectType)?.id === row.id
+        return (
+          <div className="flex flex-wrap gap-1">
+            <span
+              className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${
+                row.active
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-neutral-100 text-neutral-500 border-neutral-200'
+              }`}
+            >
+              {row.active ? 'Đang kích hoạt' : 'Tắt'}
+            </span>
+            {isRuntime ? (
+              <span className="text-[10px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                Áp dụng: {subjectLabel}
+              </span>
+            ) : (
+              <span className="text-[10px] font-medium text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                Chưa gắn — không tự chạy
+              </span>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      key: 'actions',
+      title: 'Thao tác',
+      width: 100,
+      align: 'right',
+      render: (_, row) =>
+        canUpdate ? (
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => openEdit(row)}>
+            <Pencil size={13} /> Sửa
+          </Button>
+        ) : null,
+    },
+  ]
+
+  const goTemplatesTab = () => {
+    if (embedded) {
+      setSearchParams(
+        (prev) => {
+          const sp = new URLSearchParams(prev)
+          sp.set('tab', 'templates')
+          return sp
+        },
+        { replace: true },
+      )
+      return
+    }
+    navigate('/approval/flows?tab=templates')
+  }
+
+  const headerActions = (
+    <div className="flex flex-wrap gap-2 items-center">
+      <PageGuideButton guide={APPROVAL_FLOWS_GUIDE} />
+      {canCreate ? (
+        <Button className="gap-2" onClick={openCreate}>
+          <Plus size={15} /> Tạo luồng mới
+        </Button>
+      ) : null}
+    </div>
+  )
+
   return (
-    <div className="p-6 space-y-4 animate-fade-in">
-      <PageHeader
-        title="Cấu hình luồng duyệt"
-        description="Gắn luồng duyệt theo loại đơn — đơn chờ sẽ vào Hộp thư duyệt."
-        actions={
-          <>
-            <PageGuideButton guide={APPROVAL_FLOWS_GUIDE} />
-            {canCreate ? (
-              <Button className="gap-2" onClick={openCreate}>
-                <Plus size={15} /> Tạo luồng mới
-              </Button>
-            ) : null}
-          </>
-        }
-      />
+    <div className={pageRootClass(embedded)}>
+      {!embedded && (
+        <PageHeader
+          title="Cấu hình luồng duyệt"
+          description="Gắn luồng duyệt theo loại đơn — đơn chờ sẽ vào Hộp thư duyệt."
+          actions={headerActions}
+        />
+      )}
+      {embedded && (
+        <div className="flex flex-wrap gap-2 items-center justify-end">{headerActions}</div>
+      )}
 
       <div className="flex gap-2.5 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-2.5 text-sm text-sky-950">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
         <p className="leading-snug">
-          Đây là chỗ <b>gắn</b> luồng vào loại đơn: chọn <b>Loại đối tượng</b> → sửa bước → tick{' '}
-          <b>Đang kích hoạt</b> → lưu. Badge <b>Áp dụng: Nghỉ phép</b> (hoặc Mua hàng / Lương) = đơn mới đi theo draft đó.
-          Hướng dẫn từng bước:{' '}
+          Tab này <b>gắn</b> luồng vào loại đơn: chọn <b>Loại đối tượng</b> → sửa bước → tick{' '}
+          <b>Đang kích hoạt</b> → lưu. Badge <b>Áp dụng: …</b> = đơn mới đi theo draft đó.
+          Hướng dẫn:{' '}
           <Link to="/docs/guide-approval-attach" className="font-semibold underline underline-offset-2 hover:text-sky-800">
-            Gắn luồng duyệt vào nghỉ phép
+            Gắn luồng duyệt
           </Link>
-          . Template ở{' '}
-          <Link to="/qtht/workflows" className="font-semibold underline underline-offset-2 hover:text-sky-800">
-            Thiết kế quy trình
-          </Link>
-          {' '}không tự gắn Leave.
+          . Cần vẽ mẫu sơ đồ nâng cao → tab{' '}
+          <button
+            type="button"
+            onClick={goTemplatesTab}
+            className="font-semibold underline underline-offset-2 hover:text-sky-800"
+          >
+            Mẫu / Designer
+          </button>
+          {' '}(không tự gắn Leave).
         </p>
       </div>
 
-      {isLoading ? (
-        <div className="p-8 text-center text-neutral-500 border rounded-xl bg-white">
-          Đang tải…
+      <div className={`sticky top-0 z-10 py-2 bg-neutral-50/95 backdrop-blur border-y border-neutral-200/80 ${embedded ? '-mx-1 px-1' : '-mx-6 px-6'}`}>
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="min-w-[160px]">
+            <Select
+              options={[
+                { value: '', label: 'Tất cả loại đối tượng' },
+                ...SUBJECT_OPTIONS,
+              ]}
+              value={subjectFilter}
+              onChange={setSubjectFilter}
+              placeholder="Loại đối tượng"
+              aria-label="Lọc theo loại đối tượng"
+              showSearch={false}
+            />
+          </div>
+          <div className="min-w-[140px]">
+            <Select
+              options={[
+                { value: '', label: 'Tất cả trạng thái' },
+                { value: 'active', label: 'Đang kích hoạt' },
+                { value: 'inactive', label: 'Tắt' },
+              ]}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              placeholder="Trạng thái"
+              aria-label="Lọc theo trạng thái"
+              showSearch={false}
+            />
+          </div>
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSubjectFilter('')
+                setStatusFilter('')
+              }}
+            >
+              Xoá lọc
+            </Button>
+          )}
+          <span className="text-xs text-neutral-500 ml-auto tabular-nums">
+            {filtered.length} luồng{hasActiveFilters ? ' (đã lọc)' : ''}
+          </span>
         </div>
-      ) : flows.length === 0 ? (
+      </div>
+
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được luồng duyệt"
+            message="Kiểm tra kết nối hoặc quyền truy cập rồi thử lại."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : !isLoading && flows.length === 0 ? (
         <div className="border rounded-xl bg-white">
           <EmptyState
             icon={Workflow}
@@ -129,17 +314,30 @@ export function ApprovalFlowConfigPage() {
             action={canCreate ? { label: 'Tạo luồng mới', onClick: openCreate } : undefined}
           />
         </div>
-      ) : (
-        <div className="grid gap-3">
-          {flows.map((f) => (
-            <FlowCard
-              key={f.id}
-              flow={f}
-              isRuntimeActive={activeBySubject.get(f.subjectType)?.id === f.id}
-              onEdit={canUpdate ? () => openEdit(f) : undefined}
-            />
-          ))}
+      ) : !isLoading && filtered.length === 0 ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={Workflow}
+            title="Không có bản ghi phù hợp bộ lọc"
+            description="Thử đổi bộ lọc hoặc xoá lọc."
+            action={{
+              label: 'Xoá lọc',
+              onClick: () => {
+                setSubjectFilter('')
+                setStatusFilter('')
+              },
+            }}
+          />
         </div>
+      ) : (
+        <AppTable
+          columns={columns}
+          data={filtered}
+          isLoading={isLoading}
+          loadingRows={6}
+          density="compact"
+          onRefresh={() => void refetch()}
+        />
       )}
 
       <AppModal
@@ -158,75 +356,6 @@ export function ApprovalFlowConfigPage() {
           isEdit={!!editing}
         />
       </AppModal>
-    </div>
-  )
-}
-
-// ------------------------------------------------------------
-// Sub-components
-// ------------------------------------------------------------
-
-function FlowCard({
-  flow,
-  isRuntimeActive,
-  onEdit,
-}: {
-  flow: ApprovalFlowDto
-  isRuntimeActive: boolean
-  onEdit?: () => void
-}) {
-  const subjectLabel = SUBJECT_TYPE_LABEL[flow.subjectType] || flow.subjectType
-  return (
-    <div className="bg-white border border-neutral-200 rounded-xl p-4 flex items-start gap-3 shadow-sm">
-      <div className="w-10 h-10 rounded-lg bg-violet-50 text-violet-700 flex items-center justify-center shrink-0">
-        <Workflow size={18} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="font-semibold text-neutral-900">{flow.name}</h3>
-          <span
-            className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${
-              flow.active
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : 'bg-neutral-100 text-neutral-500 border-neutral-200'
-            }`}
-          >
-            {flow.active ? 'Đang kích hoạt' : 'Tắt'}
-          </span>
-          {isRuntimeActive ? (
-            <span className="text-[10px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
-              Áp dụng: {subjectLabel}
-            </span>
-          ) : (
-            <span className="text-[10px] font-medium text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-              Chưa gắn — không tự chạy
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-neutral-500 mt-0.5">
-          Loại đối tượng: <b className="text-neutral-700">{subjectLabel}</b>
-          {flow.description ? ` · ${flow.description}` : ''}
-        </p>
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {flow.steps
-            .slice()
-            .sort((a, b) => a.stepOrder - b.stepOrder)
-            .map((s, i) => (
-              <span
-                key={`${s.stepOrder}-${s.approverRole}`}
-                className="inline-flex items-center gap-1 text-xs bg-neutral-50 border border-neutral-200 rounded-md px-2 py-1"
-              >
-                <span className="font-bold text-neutral-400">{i + 1}.</span>
-                {roleLabel(s.approverRole)}
-              </span>
-            ))}
-        </div>
-      </div>
-      {onEdit && (
-        <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={onEdit}>
-          <Pencil size={13} /> Sửa
-        </Button>
-      )}
     </div>
   )
 }
@@ -285,17 +414,14 @@ function FlowForm({
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Loại đối tượng *">
-          <select
-            className="w-full border rounded-md px-3 py-2 text-sm"
+          <Select
+            options={SUBJECT_OPTIONS}
             value={form.subjectType}
-            onChange={(e) => setForm({ ...form, subjectType: e.target.value })}
-          >
-            {SUBJECT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setForm({ ...form, subjectType: v })}
+            placeholder="Loại đối tượng"
+            aria-label="Loại đối tượng"
+            showSearch={false}
+          />
         </Field>
         <Field label="Trạng thái">
           <label className="flex items-center gap-2 h-9 text-sm">
@@ -331,23 +457,23 @@ function FlowForm({
             >
               <GripVertical size={14} className="text-neutral-300 shrink-0" />
               <span className="text-xs font-bold text-neutral-400 w-5">{idx + 1}</span>
-              <select
-                className="flex-1 border rounded-md px-2 py-1.5 text-sm bg-white"
-                value={s.approverRole}
-                onChange={(e) => updateStep(idx, { approverRole: e.target.value })}
-              >
-                {APPROVER_ROLE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+              <div className="flex-1 min-w-0">
+                <Select
+                  options={APPROVER_ROLE_OPTIONS}
+                  value={s.approverRole}
+                  onChange={(v) => updateStep(idx, { approverRole: v })}
+                  placeholder="Vai trò duyệt"
+                  aria-label={`Vai trò duyệt bước ${idx + 1}`}
+                  showSearch={APPROVER_ROLE_OPTIONS.length > 8}
+                />
+              </div>
               <div className="flex items-center gap-0.5">
                 <button
                   type="button"
                   className="p-1 text-neutral-400 hover:text-neutral-700"
                   onClick={() => moveStep(idx, -1)}
                   title="Lên"
+                  aria-label="Di chuyển bước lên"
                 >
                   <ChevronUp size={14} />
                 </button>
@@ -356,6 +482,7 @@ function FlowForm({
                   className="p-1 text-neutral-400 hover:text-neutral-700"
                   onClick={() => moveStep(idx, 1)}
                   title="Xuống"
+                  aria-label="Di chuyển bước xuống"
                 >
                   <ChevronDown size={14} />
                 </button>
@@ -364,6 +491,7 @@ function FlowForm({
                   className="p-1 text-neutral-400 hover:text-rose-600"
                   onClick={() => removeStep(idx)}
                   title="Xoá bước"
+                  aria-label="Xoá bước"
                 >
                   <Trash2 size={14} />
                 </button>

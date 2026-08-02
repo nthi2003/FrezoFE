@@ -201,10 +201,10 @@ export function AssetAssignModal({ open, asset, onClose }: Props) {
                 chỉ khi đủ bước và <b>xác nhận bàn giao</b>, tài sản mới chuyển <b>IN_USE</b>.
                 {' '}
                 <Link
-                  to="/qtht/workflows"
+                  to="/approval/flows?tab=templates"
                   className="inline-flex items-center gap-0.5 text-primary-700 hover:text-primary-900 font-medium"
                 >
-                  Cấu hình tại Workflows <ExternalLink size={10} />
+                  Cấu hình tại Luồng duyệt → Mẫu / Designer <ExternalLink size={10} />
                 </Link>
               </div>
             </>

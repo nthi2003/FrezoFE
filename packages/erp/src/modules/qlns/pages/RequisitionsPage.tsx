@@ -7,10 +7,11 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Plus, Search, Briefcase, Users as UsersIcon, Kanban, Loader2, ArrowRight,
+  Plus, Search, Briefcase, Users as UsersIcon, Kanban, ArrowRight,
 } from 'lucide-react'
-import { toast } from 'sonner'
-import { Button, PageHeader, AppModal, EmptyState, BulkSelectionBar } from '@frezo/ui'
+import { Button, PageHeader, AppModal, EmptyState, ErrorState, BulkSelectionBar } from '@frezo/ui'
+import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import { formatDate } from '@frezo/utils'
 import {
   useRequisitions, useCreateRequisition,
@@ -40,7 +41,7 @@ const STATUS_TONE: Record<RequisitionStatus, string> = {
 
 export function RequisitionsPage() {
   const nav = useNavigate()
-  const { data: rows, isLoading, isError } = useRequisitions()
+  const { data: rows, isLoading, isError, refetch, isFetching } = useRequisitions()
   const create = useCreateRequisition()
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
@@ -62,7 +63,6 @@ export function RequisitionsPage() {
     )
   }, [list, search])
 
-  // ---- Bulk selection ----
   const selection = useTableSelection<Requisition>(filtered, (r) => r.id)
   const headerCheckboxRef = useCheckboxIndeterminate(selection.someSelected)
 
@@ -76,6 +76,12 @@ export function RequisitionsPage() {
     return { total, openCount, filledCount, openHeadcount }
   }, [list])
 
+  const hasFilter = !!search.trim()
+  const isFilteredEmpty = !isLoading && !isError && list.length > 0 && filtered.length === 0
+  const isFullyEmpty = !isLoading && !isError && list.length === 0
+
+  const clearFilters = () => setSearch('')
+
   const onCreate = () => {
     if (!form.title.trim() || form.headcount < 1) return
     create.mutate(form, {
@@ -88,6 +94,95 @@ export function RequisitionsPage() {
       },
     })
   }
+
+  const columns: AppTableColumn<Requisition>[] = useMemo(() => [
+    {
+      key: 'select',
+      title: '',
+      width: 44,
+      align: 'center',
+      render: (_, r) => (
+        <input
+          type="checkbox"
+          className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-300 cursor-pointer"
+          checked={selection.isSelected(r)}
+          onChange={() => selection.toggleRow(r)}
+          aria-label={`Chọn tin ${r.title}`}
+        />
+      ),
+    },
+    {
+      key: 'title',
+      title: 'Tiêu đề',
+      render: (_, r) => (
+        <div>
+          <div className="font-medium text-neutral-900">{r.title}</div>
+          {r.positionCode && (
+            <div className="text-[11px] text-neutral-400 font-mono">{r.positionCode}</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'departmentName',
+      title: 'Phòng ban',
+      render: (_, r) => <span className="text-neutral-600">{r.departmentName || '—'}</span>,
+    },
+    {
+      key: 'headcount',
+      title: 'Số lượng',
+      align: 'center',
+      render: (_, r) => {
+        const filled = r.filledCount ?? 0
+        const pct = r.headcount > 0 ? Math.min(100, Math.round((filled / r.headcount) * 100)) : 0
+        return (
+          <div>
+            <div className="text-sm font-semibold tabular-nums">{filled}/{r.headcount}</div>
+            <div className="mt-1 mx-auto max-w-[80px] h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full ${pct === 100 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        )
+      },
+    },
+    {
+      key: 'openDate',
+      title: 'Ngày mở',
+      render: (_, r) => (
+        <span className="text-xs text-neutral-500">
+          {r.openedDate || r.openDate ? formatDate((r.openedDate || r.openDate) as string) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      title: 'Trạng thái',
+      align: 'center',
+      render: (_, r) => (
+        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs border ${STATUS_TONE[r.status]}`}>
+          {STATUS_LABEL[r.status]}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      title: 'Thao tác',
+      align: 'right',
+      width: 140,
+      render: (_, r) => (
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
+          onClick={() => nav(`/qlns/recruitment/board?requisitionId=${r.id}`)}
+        >
+          Xem ứng viên <ArrowRight size={12} />
+        </button>
+      ),
+    },
+  ], [nav, selection])
 
   return (
     <div className="p-6 space-y-4 animate-fade-in">
@@ -106,7 +201,6 @@ export function RequisitionsPage() {
         }
       />
 
-      {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiTile icon={Briefcase} label="Tổng tin" value={stats.total} tone="neutral" />
         <KpiTile icon={UsersIcon} label="Đang tuyển" value={stats.openCount} tone="emerald" />
@@ -114,132 +208,77 @@ export function RequisitionsPage() {
         <KpiTile icon={Briefcase} label="Đã đủ" value={stats.filledCount} tone="blue" />
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[260px] max-w-md">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            className="w-full pl-9 pr-3 py-2 border rounded-md text-sm"
-            placeholder="Tìm theo tiêu đề, phòng ban, mã vị trí…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-      </div>
+      {!isFullyEmpty && (
+        <FilterBar
+          hasActiveFilters={hasFilter}
+          onClear={clearFilters}
+          countLabel={`${filtered.length} tin${hasFilter ? ' (đã lọc)' : ''}`}
+        >
+          <div className="relative flex-1 min-w-[260px] max-w-md">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+              placeholder="Tìm theo tiêu đề, phòng ban, mã vị trí…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Tìm tin tuyển dụng"
+            />
+          </div>
+          {filtered.length > 0 && (
+            <label className="inline-flex items-center gap-2 h-9 px-2 cursor-pointer">
+              <input
+                ref={headerCheckboxRef}
+                type="checkbox"
+                className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-300"
+                checked={selection.allSelected}
+                onChange={selection.toggleAll}
+                aria-label="Chọn tất cả tin"
+              />
+              <span className="text-xs text-neutral-500">Chọn tất cả</span>
+            </label>
+          )}
+        </FilterBar>
+      )}
 
-      {/* Table / Empty */}
-      {isLoading ? (
-        <div className="p-8 border rounded-lg bg-white text-center text-neutral-500">
-          <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" /> Đang tải…
-        </div>
-      ) : isError ? (
-        <div className="border rounded-lg bg-white">
-          <EmptyState
-            icon={Briefcase}
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
             title="Không tải được tin tuyển dụng"
-            description="Lỗi API (401 không bị nuốt). Kiểm tra đăng nhập hoặc thử lại."
+            message="Lỗi API (401 không bị nuốt). Kiểm tra đăng nhập hoặc thử lại."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
           />
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="border rounded-lg bg-white">
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
           <EmptyState
             icon={Briefcase}
-            title="Chưa có tin tuyển dụng"
+            title={isFilteredEmpty ? 'Không có tin khớp bộ lọc' : 'Chưa có tin tuyển dụng'}
             description={
-              list.length === 0
-                ? 'Tạo tin mới để bắt đầu quy trình tuyển dụng (quantity / hiredCount sync BE).'
-                : 'Không có tin nào khớp với tìm kiếm.'
+              isFilteredEmpty
+                ? 'Thử xoá lọc hoặc đổi từ khoá tìm kiếm.'
+                : 'Tạo tin mới để bắt đầu quy trình tuyển dụng.'
             }
-            action={{ label: 'Tạo tin tuyển dụng', onClick: () => setShowCreate(true) }}
+            action={
+              isFilteredEmpty
+                ? { label: 'Xoá lọc', onClick: clearFilters }
+                : { label: 'Tạo tin tuyển dụng', onClick: () => setShowCreate(true) }
+            }
           />
         </div>
       ) : (
-        <div className="overflow-x-auto border rounded-lg bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-neutral-50 text-neutral-600">
-              <tr>
-                <th className="p-3 text-center w-10">
-                  <input
-                    ref={headerCheckboxRef}
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-300 cursor-pointer"
-                    checked={selection.allSelected}
-                    onChange={selection.toggleAll}
-                    aria-label="Chọn tất cả tin"
-                  />
-                </th>
-                <th className="p-3 text-left font-medium">Tiêu đề</th>
-                <th className="p-3 text-left font-medium">Phòng ban</th>
-                <th className="p-3 text-center font-medium">Headcount</th>
-                <th className="p-3 text-left font-medium">Ngày mở</th>
-                <th className="p-3 text-center font-medium">Trạng thái</th>
-                <th className="p-3 text-right font-medium w-40">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
-              {filtered.map((r) => {
-                const filled = r.filledCount ?? 0
-                const pct = r.headcount > 0 ? Math.min(100, Math.round((filled / r.headcount) * 100)) : 0
-                const rowSelected = selection.isSelected(r)
-                return (
-                  <tr
-                    key={r.id}
-                    className={rowSelected ? 'bg-primary-50/40 hover:bg-primary-50/60' : 'hover:bg-neutral-50'}
-                  >
-                    <td className="p-3 text-center">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-300 cursor-pointer"
-                        checked={rowSelected}
-                        onChange={() => selection.toggleRow(r)}
-                        aria-label={`Chọn tin ${r.title}`}
-                      />
-                    </td>
-                    <td className="p-3 font-medium text-neutral-900">
-                      {r.title}
-                      {r.positionCode && (
-                        <div className="text-[11px] text-neutral-400 font-mono">{r.positionCode}</div>
-                      )}
-                    </td>
-                    <td className="p-3 text-neutral-600">{r.departmentName || '—'}</td>
-                    <td className="p-3 text-center">
-                      <div className="text-sm font-semibold tabular-nums">
-                        {filled}/{r.headcount}
-                      </div>
-                      <div className="mt-1 mx-auto max-w-[80px] h-1.5 bg-neutral-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${pct === 100 ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </td>
-                    <td className="p-3 text-xs text-neutral-500">
-                      {r.openedDate || r.openDate
-                        ? formatDate((r.openedDate || r.openDate) as string)
-                        : '—'}
-                    </td>
-                    <td className="p-3 text-center">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs border ${STATUS_TONE[r.status]}`}>
-                        {STATUS_LABEL[r.status]}
-                      </span>
-                    </td>
-                    <td className="p-3 text-right">
-                      <button
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
-                        onClick={() => nav(`/qlns/recruitment/board?requisitionId=${r.id}`)}
-                      >
-                        Xem ứng viên <ArrowRight size={12} />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <AppTable
+          columns={columns}
+          data={filtered}
+          isLoading={isLoading}
+          density="compact"
+          showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onRefresh={() => void refetch()}
+        />
       )}
 
-      {/* Sticky bulk-action bar — hiện khi có tin được chọn (export ẩn — chưa seed *.EXPORT) */}
       {selection.count > 0 && (
         <BulkSelectionBar
           selectedCount={selection.count}
@@ -251,7 +290,6 @@ export function RequisitionsPage() {
         />
       )}
 
-      {/* Create modal */}
       <AppModal
         isOpen={showCreate}
         onClose={() => setShowCreate(false)}
@@ -314,10 +352,6 @@ export function RequisitionsPage() {
     </div>
   )
 }
-
-// ============================================================
-// Local sub-components
-// ============================================================
 
 interface KpiTileProps {
   icon: typeof Briefcase

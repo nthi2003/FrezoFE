@@ -38,7 +38,7 @@ const ACTIONS: QuickAction[] = [
     label: 'Tạo bảng lương',
     icon: Calculator,
     tone: 'blue',
-    to: '/qlns/payrolls',
+    to: '/qlns/payroll?tab=payrolls',
     permissions: ['PAYROLL.VIEW', 'QLNS_PAYROLL_VIEW', 'PAYROLL.APPROVE'],
   },
   {

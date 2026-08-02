@@ -14,7 +14,7 @@ import {
   Upload, FileSpreadsheet, CheckCircle, XCircle, Loader2, Info,
   RotateCcw, Download, History, AlertCircle, FileCheck2, ExternalLink,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, Input, Label } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, Input, Label, IconActionButton } from '@frezo/ui'
 import { toast } from 'sonner'
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 import {
@@ -344,9 +344,9 @@ export function LeadImportPage() {
                       batch={b}
                       onRollback={() => {
                         askConfirm({
-                          title: 'Rollback batch?',
+                          title: 'Hoàn tác batch này?',
                           message: `Batch "${b.filename}" — toàn bộ lead trong batch sẽ bị xoá mềm.`,
-                          confirmText: 'Rollback',
+                          confirmText: 'Hoàn tác',
                           variant: 'warning',
                           onConfirm: () => rollbackMut.mutate(b.id),
                         })
@@ -384,16 +384,12 @@ function BatchCard({ batch, onRollback }: { batch: BatchRow; onRollback: () => v
         </div>
         {batch.rolledBack ? (
           <span className="text-[10px] px-2 py-0.5 bg-neutral-200 text-neutral-600 rounded font-bold">
-            ROLLED BACK
+            ĐÃ HOÀN TÁC
           </span>
         ) : (
-          <button
-            onClick={onRollback}
-            className="p-1.5 hover:bg-rose-50 hover:text-rose-600 rounded text-neutral-500"
-            title="Rollback batch này"
-          >
+          <IconActionButton tooltip="Hoàn tác batch này" tone="rose" onClick={onRollback}>
             <RotateCcw size={14} />
-          </button>
+          </IconActionButton>
         )}
       </div>
       <div className="grid grid-cols-4 gap-2 text-xs">

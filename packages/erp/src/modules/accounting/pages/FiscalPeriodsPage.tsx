@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import {
   CalendarRange,
+  HelpCircle,
   Lock,
   LockOpen,
+  RefreshCw,
   RotateCw,
-  Unlock,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -15,8 +15,13 @@ import {
   ErrorState,
   ConfirmDialog,
   StatusBadge,
+  Select,
 } from '@frezo/ui'
 import type { StatusColor } from '@frezo/ui'
+import { AppTable } from '@/components/ui/AppTable'
+import type { AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
+import { pageRootClass } from '../utils/pageEmbed'
 import { usePermission } from '@/lib/hooks/usePermission'
 import {
   usePeriods,
@@ -30,7 +35,7 @@ const PERIOD_STATUS: Record<
   PeriodStatus,
   { label: string; color: StatusColor; icon: LucideIcon }
 > = {
-  OPEN: { label: 'Mở', color: 'success', icon: Unlock },
+  OPEN: { label: 'Mở', color: 'success', icon: LockOpen },
   CLOSED: { label: 'Đã khóa', color: 'warning', icon: Lock },
   LOCKED: { label: 'Khóa cứng', color: 'danger', icon: Lock },
 }
@@ -45,7 +50,13 @@ type ConfirmAction = {
   period: FiscalPeriod
 }
 
-export function FiscalPeriodsPage() {
+export function FiscalPeriodsPage({
+  embedded,
+  inDrawer,
+}: {
+  embedded?: boolean
+  inDrawer?: boolean
+} = {}) {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null)
@@ -75,14 +86,94 @@ export function FiscalPeriodsPage() {
       ? (closePeriod.variables ?? reopenPeriod.variables)
       : null
 
+  const hasActiveFilters = year !== now.getFullYear()
+  const clearFilters = () => setYear(now.getFullYear())
+
+  const columns: AppTableColumn<FiscalPeriod>[] = [
+    {
+      key: 'month',
+      title: 'Kỳ',
+      render: (_, p) => (
+        <span className="font-medium text-neutral-900">
+          {MONTH_LABEL[p.month - 1] ?? `Tháng ${p.month}`}/{p.year}
+        </span>
+      ),
+    },
+    {
+      key: 'startDate',
+      title: 'Từ ngày',
+      render: (_, p) => (
+        <span className="text-neutral-600 tabular-nums">{p.startDate}</span>
+      ),
+    },
+    {
+      key: 'endDate',
+      title: 'Đến ngày',
+      render: (_, p) => (
+        <span className="text-neutral-600 tabular-nums">{p.endDate}</span>
+      ),
+    },
+    {
+      key: 'status',
+      title: 'Trạng thái',
+      render: (_, p) => {
+        const cfg = PERIOD_STATUS[p.status] ?? PERIOD_STATUS.OPEN
+        return <StatusBadge label={cfg.label} color={cfg.color} icon={cfg.icon} />
+      },
+    },
+    {
+      key: 'actions',
+      title: '',
+      align: 'right',
+      width: 140,
+      render: (_, p) => {
+        const isBusy = busyId === p.id
+        if (canUpdate && p.status === 'OPEN') {
+          return (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              disabled={isBusy}
+              onClick={() => setConfirm({ type: 'close', period: p })}
+            >
+              <Lock size={14} />
+              Khóa kỳ
+            </Button>
+          )
+        }
+        if (canUpdate && p.status === 'CLOSED') {
+          return (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              disabled={isBusy}
+              onClick={() => setConfirm({ type: 'reopen', period: p })}
+            >
+              <LockOpen size={14} />
+              Mở lại
+            </Button>
+          )
+        }
+        if (p.status === 'LOCKED') {
+          return <span className="text-xs text-neutral-400">Không mở từ UI</span>
+        }
+        return null
+      },
+    },
+  ]
+
   if (!canView) {
     return (
-      <div className="p-6 animate-fade-in max-w-4xl mx-auto">
+      <div className={pageRootClass(embedded || inDrawer, 'max-w-4xl mx-auto')}>
+        {!embedded && !inDrawer && (
         <PageHeader
           title="Kỳ kế toán"
           description="Xem và khóa/mở lại kỳ theo năm tài chính."
         />
-        <div className="mt-4 border rounded-xl bg-white">
+        )}
+        <div className={`${embedded || inDrawer ? '' : 'mt-4'} border rounded-xl bg-white`}>
           <EmptyState
             icon={CalendarRange}
             title="Bạn không có quyền xem kỳ kế toán"
@@ -94,133 +185,108 @@ export function FiscalPeriodsPage() {
   }
 
   return (
-    <div className="p-6 space-y-4 animate-fade-in max-w-4xl mx-auto">
+    <div className={pageRootClass(embedded || inDrawer, 'max-w-4xl mx-auto')}>
+      {!embedded && !inDrawer && (
       <PageHeader
         title="Kỳ kế toán"
-        description="Khóa kỳ để chặn ghi sổ mới; mở lại khi cần điều chỉnh. Kỳ khóa cứng (LOCKED) không mở từ UI."
-        actions={
-          <Link to="/accounting/settings">
-            <Button variant="outline">Cài đặt kế toán</Button>
-          </Link>
-        }
-      />
-
-      <div className="bg-white border rounded-xl p-4 flex flex-wrap items-end gap-3">
-        <label className="text-xs text-neutral-500 space-y-1">
-          Năm
-          <input
-            type="number"
-            className="block w-28 border rounded-md px-3 py-2 text-sm"
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value) || now.getFullYear())}
-          />
-        </label>
-        {canCreate && (
-          <Button
-            variant="outline"
-            className="gap-1.5"
-            disabled={ensureYear.isPending}
-            onClick={() => ensureYear.mutate(year)}
-          >
-            <RotateCw size={14} />
-            Tạo năm {year} + 12 kỳ
-          </Button>
+        description="Khóa kỳ để chặn ghi sổ mới; mở lại khi cần điều chỉnh. Kỳ khóa cứng không mở từ giao diện."
+        actions={(
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-flex items-center text-neutral-400 hover:text-primary-600 cursor-help"
+              title="Kỳ kế toán: 12 tháng trong năm tài chính. Khóa kỳ chặn ghi sổ mới; khóa cứng chỉ mở từ hệ thống."
+              aria-label="Giải thích kỳ kế toán"
+            >
+              <HelpCircle size={16} strokeWidth={2} />
+            </span>
+          </div>
         )}
-        <Button
-          variant="outline"
-          className="gap-1.5"
-          disabled={isFetching}
-          onClick={() => void refetch()}
-        >
-          Làm mới
-        </Button>
-      </div>
+      />
+      )}
 
-      <div className="bg-white border rounded-xl overflow-hidden">
-        {isError ? (
+      <FilterBar
+        hasActiveFilters={hasActiveFilters}
+        onClear={clearFilters}
+        countLabel={`${list.length} kỳ · Năm ${year}`}
+        extra={(
+          <>
+            {canCreate && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 h-9"
+                disabled={ensureYear.isPending}
+                onClick={() => ensureYear.mutate(year)}
+              >
+                <RotateCw size={14} />
+                Tạo năm {year}
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 h-9"
+              disabled={isFetching}
+              onClick={() => void refetch()}
+            >
+              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+              Làm mới
+            </Button>
+          </>
+        )}
+      >
+        <div className="min-w-[120px]">
+          <Select
+            options={[year - 1, year, year + 1].map((y) => ({
+              value: String(y),
+              label: `Năm ${y}`,
+            }))}
+            value={String(year)}
+            onChange={(v) => setYear(Number(v))}
+            showSearch={false}
+            aria-label="Năm kỳ kế toán"
+          />
+        </div>
+      </FilterBar>
+
+      {isError ? (
+        <div className="border rounded-xl bg-white">
           <ErrorState
             title="Không tải được danh sách kỳ"
             message="Vui lòng thử lại. Nếu lỗi tiếp diễn, kiểm tra quyền VIEW kỳ kế toán."
             onRetry={() => void refetch()}
             isRetrying={isFetching}
           />
-        ) : isLoading ? (
-          <div className="p-6 space-y-2">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-10 rounded-md bg-neutral-100 animate-pulse" />
-            ))}
-          </div>
-        ) : list.length === 0 ? (
+        </div>
+      ) : !isLoading && list.length === 0 ? (
+        <div className="border rounded-xl bg-white">
           <EmptyState
             icon={CalendarRange}
             title={`Chưa có kỳ năm ${year}`}
             description={
               canCreate
-                ? 'Bấm “Tạo năm + 12 kỳ” để khởi tạo, hoặc đảm bảo năm đã được seed từ Cài đặt.'
+                ? 'Bấm "Tạo năm" để khởi tạo 12 kỳ, hoặc đảm bảo năm đã được seed từ Cài đặt.'
                 : 'Liên hệ kế toán trưởng để khởi tạo năm tài chính.'
             }
+            action={
+              canCreate
+                ? { label: `Tạo năm ${year}`, onClick: () => ensureYear.mutate(year) }
+                : undefined
+            }
           />
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-neutral-50 border-b text-left text-xs text-neutral-500">
-              <tr>
-                <th className="px-4 py-2.5 font-medium">Kỳ</th>
-                <th className="px-4 py-2.5 font-medium">Từ ngày</th>
-                <th className="px-4 py-2.5 font-medium">Đến ngày</th>
-                <th className="px-4 py-2.5 font-medium">Trạng thái</th>
-                <th className="px-4 py-2.5 font-medium text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((p) => {
-                const cfg = PERIOD_STATUS[p.status] ?? PERIOD_STATUS.OPEN
-                const isBusy = busyId === p.id
-                return (
-                  <tr key={p.id} className="border-b last:border-0 hover:bg-neutral-50/60">
-                    <td className="px-4 py-3 font-medium text-neutral-900">
-                      {MONTH_LABEL[p.month - 1] ?? `Tháng ${p.month}`}/{p.year}
-                    </td>
-                    <td className="px-4 py-3 text-neutral-600 tabular-nums">{p.startDate}</td>
-                    <td className="px-4 py-3 text-neutral-600 tabular-nums">{p.endDate}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge label={cfg.label} color={cfg.color} icon={cfg.icon} />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {canUpdate && p.status === 'OPEN' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="gap-1.5"
-                          disabled={isBusy}
-                          onClick={() => setConfirm({ type: 'close', period: p })}
-                        >
-                          <Lock size={14} />
-                          Khóa kỳ
-                        </Button>
-                      )}
-                      {canUpdate && p.status === 'CLOSED' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="gap-1.5"
-                          disabled={isBusy}
-                          onClick={() => setConfirm({ type: 'reopen', period: p })}
-                        >
-                          <LockOpen size={14} />
-                          Mở lại
-                        </Button>
-                      )}
-                      {p.status === 'LOCKED' && (
-                        <span className="text-xs text-neutral-400">Không mở từ UI</span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </div>
+      ) : (
+        <AppTable
+          columns={columns}
+          data={list}
+          isLoading={isLoading}
+          density="compact"
+          showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onRefresh={() => void refetch()}
+        />
+      )}
 
       <ConfirmDialog
         isOpen={!!confirm}

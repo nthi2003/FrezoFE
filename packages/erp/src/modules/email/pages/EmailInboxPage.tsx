@@ -5,7 +5,7 @@ import {
   RefreshCw, Search, Paperclip, Clock, Mail, MailOpen,
   Menu, X, SquarePen,
 } from 'lucide-react'
-import { Button } from '@frezo/ui'
+import { Button, IconActionButton, AppTooltip } from '@frezo/ui'
 import { Input } from '@frezo/ui'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axiosClient from '@/lib/axios/axiosClient'
@@ -183,13 +183,9 @@ export function EmailInboxPage() {
       </div>
 
       {/* Toggle sidebar */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="flex-shrink-0 w-7 flex items-center justify-center border-r border-border hover:bg-neutral-50 text-neutral-400 transition-colors"
-        title={sidebarOpen ? 'Thu gọn' : 'Mở rộng'}
-      >
+      <IconActionButton tooltip={sidebarOpen ? 'Thu gọn' : 'Mở rộng'} className="flex-shrink-0 w-7 border-r border-border hover:bg-neutral-50" onClick={() => setSidebarOpen(!sidebarOpen)}>
         {sidebarOpen ? <ChevronLeft size={15} /> : <ChevronRight size={15} />}
-      </button>
+      </IconActionButton>
 
       {selectedEmail ? (
         /* Email Detail View */
@@ -269,11 +265,7 @@ export function EmailInboxPage() {
           {/* Toolbar */}
           <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border">
             <div className="flex items-center gap-1">
-              <button
-                onClick={selectAll}
-                className="p-1.5 rounded-lg hover:bg-neutral-100 transition-colors"
-                title="Chọn tất cả"
-              >
+              <IconActionButton tooltip="Chọn tất cả" onClick={selectAll}>
                 <div className={`w-4 h-4 rounded border-2 ${
                   selectedIds.size === filteredEmails?.length && filteredEmails?.length > 0
                     ? 'bg-primary-600 border-primary-600'
@@ -283,14 +275,10 @@ export function EmailInboxPage() {
                     <span className="text-white text-[10px] font-bold">✓</span>
                   )}
                 </div>
-              </button>
-              <button
-                onClick={() => refetch()}
-                className="p-1.5 rounded-lg hover:bg-neutral-100 transition-colors"
-                title="Làm mới"
-              >
-                <RefreshCw size={15} className={`text-neutral-500 ${isFetching ? 'animate-spin' : ''}`} />
-              </button>
+              </IconActionButton>
+              <IconActionButton tooltip="Làm mới" onClick={() => refetch()}>
+                <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} />
+              </IconActionButton>
             </div>
             <div className="relative flex-1 max-w-sm">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />

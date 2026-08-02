@@ -31,6 +31,8 @@ export interface WarehouseDetailShellProps {
   missingIcon?: React.ComponentType<{ className?: string }>
   children?: ReactNode
   footer?: ReactNode
+  /** Override content width/alignment (vd. tab Xem phiếu cần rộng hơn) */
+  contentClassName?: string
 }
 
 export function WarehouseDetailShell({
@@ -54,6 +56,7 @@ export function WarehouseDetailShell({
   missingIcon,
   children,
   footer,
+  contentClassName,
 }: WarehouseDetailShellProps) {
   const nav = useNavigate()
 
@@ -100,7 +103,12 @@ export function WarehouseDetailShell({
         actions={actions}
       />
 
-      <div className="p-6 space-y-4 max-w-4xl">
+      <div
+        className={
+          contentClassName ??
+          'p-6 space-y-4 max-w-6xl w-full mx-auto'
+        }
+      >
         {pipeline}
         {alert}
         {children}

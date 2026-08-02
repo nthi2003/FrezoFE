@@ -5,13 +5,16 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ShieldCheck, Send, CheckCircle2, Clock, Loader2 } from 'lucide-react'
-import { Button, PageHeader, EmptyState } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, PageGuideButton } from '@frezo/ui'
 import {
   useContractSignStatus,
   useRequestSignOtp,
   useConfirmSignOtp,
 } from '../hooks/useContractSign'
 import type { ConfirmSignResult, SignStatusDto } from '../services/contractSignApi'
+import { StatusPipelineStepper } from '../../warehouse/components/StatusPipelineStepper'
+import { DIGITAL_CONTRACT_PIPELINE } from '../../accounting/constants/accountingWorkflow'
+import { DIGITAL_CONTRACT_GUIDE } from '../constants/digitalContract.guide'
 
 function isSigned(status?: SignStatusDto | null, confirm?: ConfirmSignResult | null) {
   if (confirm?.status === 'SIGNED') return true
@@ -43,6 +46,7 @@ export function ContractSignPage() {
   const signedAt = lastConfirm?.signedAt || status?.signedAt
   const signedBy = lastConfirm?.signedBy || status?.signedBy
   const audit = lastConfirm?.audit || status?.audit
+  const pipelineIndex = signed ? 3 : 2
 
   return (
     <div className="p-6 space-y-4 animate-fade-in max-w-2xl">
@@ -50,11 +54,16 @@ export function ContractSignPage() {
         title="Ký hợp đồng điện tử"
         description={`Hợp đồng #${id} — xác thực OTP + audit.`}
         actions={
-          <Button variant="outline" onClick={() => nav('/qlns/contract')}>
-            Quay lại
-          </Button>
+          <>
+            <PageGuideButton guide={DIGITAL_CONTRACT_GUIDE} />
+            <Button variant="outline" onClick={() => nav('/qlns/contract')}>
+              Quay lại
+            </Button>
+          </>
         }
       />
+
+      <StatusPipelineStepper steps={DIGITAL_CONTRACT_PIPELINE} currentIndex={pipelineIndex} />
 
       {isLoading && (
         <div className="p-8 text-center">

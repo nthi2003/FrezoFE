@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Loader2 } from 'lucide-react'
-import { AppModal, Button } from '@frezo/ui'
+import { AppModal, Button, Select, VndInput } from '@frezo/ui'
 import { toast } from 'sonner'
 import { useCategories } from '@/modules/qtht/hooks/useCategory'
 import { useCreateAsset, useUpdateAsset } from '../hooks/useAsset'
@@ -115,16 +115,16 @@ export function AssetFormModal({ open, editing, onClose }: Props) {
         {/* Row 2: Category + Brand + Model */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <Field label="Loại *" error={errors.categoryCode}>
-            <select
+            <Select
+              options={[
+                { value: '', label: '— Chọn loại —' },
+                ...categories.map((c) => ({ value: c.code, label: c.name })),
+              ]}
               value={form.categoryCode || ''}
-              onChange={(e) => setF('categoryCode', e.target.value || null)}
-              className={inputCls}
-            >
-              <option value="">— Chọn loại —</option>
-              {categories.map((c) => (
-                <option key={c.code} value={c.code}>{c.name}</option>
-              ))}
-            </select>
+              onChange={(v) => setF('categoryCode', v || null)}
+              placeholder="— Chọn loại —"
+              aria-label="Loại tài sản"
+            />
           </Field>
           <Field label="Hãng">
             <input
@@ -179,10 +179,9 @@ export function AssetFormModal({ open, editing, onClose }: Props) {
             />
           </Field>
           <Field label="Giá mua (VND)" error={errors.purchasePrice}>
-            <input
-              type="number"
-              value={form.purchasePrice ?? ''}
-              onChange={(e) => setF('purchasePrice', e.target.value === '' ? null : Number(e.target.value))}
+            <VndInput
+              value={form.purchasePrice}
+              onChange={(n) => setF('purchasePrice', n ?? null)}
               placeholder="0"
               className={inputCls + ' tabular-nums'}
             />

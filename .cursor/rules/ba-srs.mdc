@@ -28,6 +28,14 @@ alwaysApply: false
 - Chỉ file `guide-*.md` + `index` phục vụ runtime `http://localhost:3000/docs` mới được sửa trong `FrezoFE/packages/erp/src/docs/`
 - Giọng **user cuối**, không DEV — voice meta đặt tại `Desktop/F/docs/BA_DOCS_HUB_VOICE.md`
 
+### Exception — Workflow BA nội bộ module (dev/BA reference)
+
+- Tài liệu workflow nghiệp vụ chi tiết (Mermaid, ma trận gap, mockup text) đặt cạnh module FE:
+  - Kho: `FrezoFE/packages/erp/src/modules/warehouse/WAREHOUSE_WORKFLOW_SME_RAU_CU.md`
+  - QLNS: `FrezoFE/packages/erp/src/modules/qlns/HR_WORKFLOW_QLNS.md`
+  - Kế toán / Thuế / HĐ số: `FrezoFE/packages/erp/src/modules/accounting/ACCOUNTING_WORKFLOW.md`
+- Giọng BA nội bộ + EU mockup — **không** copy vào `Desktop/F/docs/` trừ khi cần báo cáo CF riêng.
+
 ### Naming gợi ý trong `Desktop/F/docs`
 
 - `BA_CF_<Module>.md`

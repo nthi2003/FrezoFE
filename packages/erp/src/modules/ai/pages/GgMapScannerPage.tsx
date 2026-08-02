@@ -1,176 +1,325 @@
-import { useState } from 'react'
-import { useGgMapScan, useGgMapResults, useImportGgMapResult, useImportAllGgMapResults } from '../hooks/useAI'
-import { Button } from '@frezo/ui'
-import { Input } from '@frezo/ui'
-import { Search, Loader2, MapPin, Star, Phone, Download, CheckCircle } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import {
+  useGgMapScan, useGgMapResults, useImportGgMapResult, useImportAllGgMapResults,
+} from '../hooks/useAI'
+import { Button, Input, PageHeader, EmptyState, ErrorState, Label, Select } from '@frezo/ui'
+import {
+  Search, Loader2, MapPin, Star, Phone, Download, CheckCircle, HelpCircle,
+} from 'lucide-react'
+import { AppTable } from '@/components/ui/AppTable'
+import type { AppTableColumn, BulkAction } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
+import { toast } from 'sonner'
 
 export function GgMapScannerPage() {
   const [keyword, setKeyword] = useState('')
   const [maxResults, setMaxResults] = useState(20)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'imported' | 'pending'>('ALL')
 
   const scanReq = useGgMapScan()
-  const { data, isLoading } = useGgMapResults()
+  const { data, isLoading, isError, isFetching, refetch } = useGgMapResults()
   const importReq = useImportGgMapResult()
   const importAllReq = useImportAllGgMapResults()
 
-  const results = data?.results || data || []
+  const results = useMemo(() => {
+    const raw = data?.results || data || []
+    return Array.isArray(raw) ? raw : []
+  }, [data])
+
+  const filtered = useMemo(() => {
+    let rows = results
+    if (statusFilter === 'imported') rows = rows.filter((r: any) => r.status === 'imported')
+    if (statusFilter === 'pending') rows = rows.filter((r: any) => r.status !== 'imported')
+    const q = search.trim().toLowerCase()
+    if (q) {
+      rows = rows.filter((r: any) =>
+        (r.name || '').toLowerCase().includes(q) ||
+        (r.address || '').toLowerCase().includes(q) ||
+        (r.phone || '').toLowerCase().includes(q),
+      )
+    }
+    return rows
+  }, [results, search, statusFilter])
+
+  const hasFilter = !!search.trim() || statusFilter !== 'ALL'
+  const isFullyEmpty = !isLoading && !isError && results.length === 0
+  const isFilteredEmpty = !isLoading && !isError && results.length > 0 && filtered.length === 0
 
   const handleScan = () => {
     if (!keyword.trim()) return
     scanReq.mutate({ keyword: keyword.trim(), maxResults })
   }
 
-  const handleImport = (id: number) => importReq.mutate(id)
-  const handleImportAll = () => {
-    const ids = (Array.isArray(results) ? results : []).map((r: any) => r.id)
-    if (ids.length > 0) importAllReq.mutate(ids)
-  }
+  const bulkActions: BulkAction<any>[] = [
+    {
+      key: 'import',
+      label: 'Import đã chọn',
+      icon: Download,
+      onClick: async (rows) => {
+        const ids = rows.filter((r) => r.status !== 'imported').map((r) => r.id)
+        if (ids.length === 0) {
+          toast.warning('Không có kết quả nào có thể import')
+          return
+        }
+        await importAllReq.mutateAsync(ids)
+      },
+    },
+  ]
+
+  const columns: AppTableColumn<any>[] = [
+    {
+      key: 'name',
+      title: 'Tên quán',
+      render: (_, r) => (
+        <div>
+          <p className="font-medium text-neutral-900">{r.name}</p>
+          {r.website && (
+            <a
+              href={r.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-primary-600 hover:underline"
+              title={r.website}
+            >
+              {r.website}
+            </a>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'address',
+      title: 'Địa chỉ',
+      render: (_, r) => (
+        <span className="text-sm text-neutral-500 max-w-[220px] truncate block" title={r.address}>
+          {r.address || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'phone',
+      title: 'SĐT',
+      align: 'center',
+      render: (_, r) =>
+        r.phone ? (
+          <span className="inline-flex items-center gap-1 text-sm">
+            <Phone className="w-3 h-3 text-neutral-400" />
+            {r.phone}
+          </span>
+        ) : (
+          <span className="text-neutral-300">—</span>
+        ),
+    },
+    {
+      key: 'rating',
+      title: 'Đánh giá',
+      align: 'center',
+      render: (_, r) =>
+        r.rating ? (
+          <span className="inline-flex items-center gap-1 text-sm font-medium">
+            <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+            {r.rating}
+          </span>
+        ) : (
+          <span className="text-neutral-300">—</span>
+        ),
+    },
+    {
+      key: 'status',
+      title: 'Trạng thái',
+      align: 'center',
+      render: (_, r) =>
+        r.status === 'imported' ? (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <CheckCircle className="w-3 h-3" />
+            Đã import
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200">
+            Tiềm năng
+          </span>
+        ),
+    },
+    {
+      key: 'actions',
+      title: 'Thao tác',
+      align: 'right',
+      width: 120,
+      render: (_, r) =>
+        r.status !== 'imported' ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => importReq.mutate(r.id)}
+            disabled={importReq.isPending}
+            className="text-primary-600 hover:text-primary-800 hover:bg-primary-50 gap-1"
+            title="Import vào khách hàng tiềm năng"
+          >
+            {importReq.isPending
+              ? <Loader2 className="w-3 h-3 animate-spin" />
+              : <Download className="w-3 h-3" />}
+            Import
+          </Button>
+        ) : (
+          <span className="text-xs text-emerald-600">Đã import</span>
+        ),
+    },
+  ]
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">
-            <MapPin className="w-6 h-6 inline-block mr-2 text-red-500" />
+    <div className="p-6 space-y-4 animate-fade-in">
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2">
+            <MapPin className="w-6 h-6 text-red-500" />
             Quét Google Maps
-          </h1>
-          <p className="text-neutral-500 text-sm">Tìm kiếm quán ăn, nhà hàng, cửa hàng trên Google Maps và import vào danh sách khách hàng tiềm năng</p>
-        </div>
-      </div>
-
-      <div className="p-6 bg-white rounded-xl border border-neutral-200 shadow-sm">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Input
-            placeholder="Nhập từ khóa ví dụ: Quán ăn Đà Nẵng, Nhà hàng Hà Nội..."
-            value={keyword}
-            onChange={e => setKeyword(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleScan()}
-            className="flex-1"
-          />
-          <div className="flex gap-2">
-            <select
-              value={maxResults}
-              onChange={e => setMaxResults(Number(e.target.value))}
-              className="px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white"
-            >
-              <option value={10}>10 kết quả</option>
-              <option value={20}>20 kết quả</option>
-              <option value={50}>50 kết quả</option>
-            </select>
+          </span>
+        }
+        description="Tìm quán ăn, nhà hàng, cửa hàng trên Google Maps và import vào danh sách khách hàng tiềm năng."
+        actions={
+          results.length > 0 ? (
             <Button
-              onClick={handleScan}
-              disabled={scanReq.isPending || !keyword.trim()}
-              className="bg-primary-600 hover:bg-primary-700 text-white whitespace-nowrap"
+              onClick={() => {
+                const ids = results.map((r: any) => r.id)
+                if (ids.length > 0) importAllReq.mutate(ids)
+              }}
+              disabled={importAllReq.isPending}
+              variant="outline"
+              className="border-primary-300 text-primary-700 hover:bg-primary-50 gap-1.5"
             >
-              {scanReq.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Search className="w-4 h-4 mr-2" />}
-              {scanReq.isPending ? 'Đang quét...' : 'Quét Maps'}
+              {importAllReq.isPending
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Download className="w-4 h-4" />}
+              Import tất cả
             </Button>
-          </div>
-        </div>
-      </div>
+          ) : undefined
+        }
+      />
 
-      {results.length > 0 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-neutral-500">Tìm thấy {results.length} kết quả</p>
+      <div className="p-4 bg-white rounded-xl border border-neutral-200">
+        <div className="flex flex-col sm:flex-row gap-3 items-end">
+          <div className="flex-1 w-full">
+            <Label className="mb-1 inline-flex items-center gap-1">
+              Từ khoá
+              <span title="VD: Quán ăn Đà Nẵng, Nhà hàng Hà Nội">
+                <HelpCircle size={12} className="text-neutral-400" />
+              </span>
+            </Label>
+            <Input
+              placeholder="Nhập từ khoá…"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleScan()}
+            />
+          </div>
+          <div>
+            <Label className="mb-1">Số kết quả</Label>
+            <Select
+              options={[
+                { value: '10', label: '10 kết quả' },
+                { value: '20', label: '20 kết quả' },
+                { value: '50', label: '50 kết quả' },
+              ]}
+              value={String(maxResults)}
+              onChange={(v) => setMaxResults(Number(v))}
+              placeholder="Số kết quả"
+              aria-label="Số kết quả"
+              showSearch={false}
+              className="w-36"
+            />
+          </div>
           <Button
-            onClick={handleImportAll}
-            disabled={importAllReq.isPending}
-            variant="outline"
-            className="border-primary-300 text-primary-700 hover:bg-primary-50"
+            onClick={handleScan}
+            disabled={scanReq.isPending || !keyword.trim()}
+            className="bg-primary-600 hover:bg-primary-700 text-white whitespace-nowrap"
           >
-            {importAllReq.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
-            Import tất cả
+            {scanReq.isPending
+              ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              : <Search className="w-4 h-4 mr-2" />}
+            {scanReq.isPending ? 'Đang quét…' : 'Quét Maps'}
           </Button>
         </div>
-      )}
-
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="p-12 text-center text-neutral-400">Đang tải...</div>
-        ) : results.length === 0 ? (
-          <div className="p-12 text-center text-neutral-400">
-            {scanReq.isPending
-              ? 'Đang quét Google Maps...'
-              : 'Chưa có dữ liệu. Hãy nhập từ khóa và bấm "Quét Maps" để bắt đầu.'}
-          </div>
-        ) : (
-          <table className="w-full">
-            <thead className="bg-neutral-50 border-b">
-              <tr>
-                <th className="text-left px-4 py-3 text-sm font-medium text-neutral-600">Tên quán</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-neutral-600">Địa chỉ</th>
-                <th className="text-center px-4 py-3 text-sm font-medium text-neutral-600">SĐT</th>
-                <th className="text-center px-4 py-3 text-sm font-medium text-neutral-600">Đánh giá</th>
-                <th className="text-center px-4 py-3 text-sm font-medium text-neutral-600">Trạng thái</th>
-                <th className="text-center px-4 py-3 text-sm font-medium text-neutral-600">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((r: any) => (
-                <tr key={r.id} className="border-b last:border-b-0 hover:bg-neutral-50">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-neutral-900">{r.name}</p>
-                    {r.website && (
-                      <a href={r.website} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 hover:underline">
-                        {r.website}
-                      </a>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-neutral-500 max-w-[250px] truncate">{r.address}</td>
-                  <td className="px-4 py-3 text-center text-sm">
-                    {r.phone ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Phone className="w-3 h-3 text-neutral-400" />
-                        {r.phone}
-                      </span>
-                    ) : (
-                      <span className="text-neutral-300">---</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {r.rating ? (
-                      <span className="inline-flex items-center gap-1 text-sm font-medium">
-                        <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
-                        {r.rating}
-                      </span>
-                    ) : (
-                      <span className="text-neutral-300">---</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {r.status === 'imported' ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-300">
-                        <CheckCircle className="w-3 h-3" />
-                        Đã import
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-300">
-                        Tiềm năng
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {r.status !== 'imported' ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleImport(r.id)}
-                        disabled={importReq.isPending}
-                        className="text-primary-600 hover:text-primary-800 hover:bg-primary-50"
-                      >
-                        {importReq.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Download className="w-3 h-3 mr-1" />}
-                        Import
-                      </Button>
-                    ) : (
-                      <span className="text-xs text-green-600">Đã import</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
       </div>
+
+      <FilterBar
+        hasActiveFilters={hasFilter}
+        onClear={() => { setSearch(''); setStatusFilter('ALL') }}
+        countLabel={`${filtered.length} kết quả${hasFilter ? ' (đã lọc)' : ''}`}
+      >
+        <div className="min-w-[150px]">
+          <Select
+            options={[
+              { value: 'ALL', label: 'Tất cả trạng thái' },
+              { value: 'pending', label: 'Tiềm năng' },
+              { value: 'imported', label: 'Đã import' },
+            ]}
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+            placeholder="Trạng thái"
+            aria-label="Lọc trạng thái"
+            showSearch={false}
+          />
+        </div>
+        <div className="relative flex-1 min-w-[220px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            placeholder="Tìm tên, địa chỉ, SĐT…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Tìm kết quả Maps"
+          />
+        </div>
+      </FilterBar>
+
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được kết quả Maps"
+            message="Kiểm tra kết nối AI service rồi thử lại."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={MapPin}
+            title={
+              isFilteredEmpty
+                ? 'Không có kết quả khớp bộ lọc'
+                : scanReq.isPending
+                  ? 'Đang quét Google Maps…'
+                  : 'Chưa có dữ liệu'
+            }
+            description={
+              isFilteredEmpty
+                ? 'Thử xoá lọc hoặc đổi trạng thái.'
+                : 'Nhập từ khoá và bấm Quét Maps để bắt đầu.'
+            }
+            action={
+              isFilteredEmpty
+                ? { label: 'Xoá lọc', onClick: () => { setSearch(''); setStatusFilter('ALL') } }
+                : undefined
+            }
+          />
+        </div>
+      ) : (
+        <AppTable
+          columns={columns}
+          data={filtered}
+          isLoading={isLoading}
+          density="compact"
+          showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onRefresh={() => void refetch()}
+          selectable
+          getRowId={(r) => String(r.id)}
+          bulkActions={bulkActions}
+        />
+      )}
     </div>
   )
 }

@@ -1,20 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   Plus, Trophy, XCircle, User, CalendarDays, MessageSquare, ChevronRight, LayoutGrid,
   GripVertical,
 } from 'lucide-react'
 import {
-  Button, PageHeader, AppModal, ConfirmDialog, EmptyState, ErrorState, Select, Label,
+  Button, PageHeader, PageGuideButton, AppModal, ConfirmDialog, EmptyState, ErrorState, Select, Label, VndInput,
+  IconActionButton,
 } from '@frezo/ui'
-import { formatCurrency, formatDate } from '@frezo/utils'
+import { formatCurrency, formatDate, unwrapOne } from '@frezo/utils'
+import { toast } from 'sonner'
+import { FilterBar } from '@/components/ui/FilterBar'
 import {
   usePipelines, usePipelineStages, useDealsByPipeline, useCreateDeal,
   useMoveDealStage, useMarkDealWon, useMarkDealLost, useEnsureDefaultPipeline,
   useReorderPipelineStages,
 } from '../hooks/useCrm'
 import type { Deal, Pipeline, Stage } from '../services/crmApi'
+import { useCustomers } from '@/modules/customers/hooks/useCustomer'
 import { CommentDrawer } from '@/components/shared/CommentThread'
 import { SubjectType } from '@/modules/approval/types'
+import { DEALS_GUIDE } from '../constants/deals.guide'
+import { pageRootClass } from '@/modules/accounting/utils/pageEmbed'
 
 const COLUMN_DRAG_MIME = 'application/x-frezo-kanban-column'
 
@@ -94,15 +101,43 @@ function ownerInitials(username?: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-export function DealsPage() {
+export function DealsPage({ embedded }: { embedded?: boolean } = {}) {
+  const [searchParams, setSearchParams] = useSearchParams()
   const { data: pipelines } = usePipelines()
+  const { data: customersRaw } = useCustomers()
   const pipelineList = useMemo(
     () => ((pipelines as Pipeline[] | undefined) ?? []),
     [pipelines],
   )
   const ensureDefault = useEnsureDefaultPipeline()
 
+  const customerOptions = useMemo(() => {
+    const list = (customersRaw as { id: string; name?: string }[] | undefined) ?? []
+    return list.map((c) => ({
+      value: c.id,
+      label: c.name?.trim() || c.id,
+    }))
+  }, [customersRaw])
+
+  const customerNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const o of customerOptions) map.set(o.value, o.label)
+    return map
+  }, [customerOptions])
+
+  const resolveCustomerName = (d: Deal) =>
+    d.customerName?.trim()
+    || (d.customerId ? customerNameById.get(d.customerId) : undefined)
+    || undefined
+
   const [pipelineId, setPipelineId] = useState<string | undefined>()
+  const [customerFilter, setCustomerFilter] = useState<string>(
+    () => searchParams.get('customerId') || '',
+  )
+  const [focusDealId, setFocusDealId] = useState<string | null>(
+    () => searchParams.get('dealId'),
+  )
+
   useEffect(() => {
     if (pipelineList.length > 0 && !pipelineId) {
       const def = pipelineList.find((p) => p.isDefault) || pipelineList[0]
@@ -138,10 +173,16 @@ export function DealsPage() {
     [deals],
   )
 
+  /** Mỗi thẻ = 1 dealId riêng; lọc theo customerId khi user chọn KH. */
+  const scopedDeals = useMemo(() => {
+    if (!customerFilter) return dealList
+    return dealList.filter((d) => d.customerId === customerFilter)
+  }, [dealList, customerFilter])
+
   const dealsByStage = useMemo(() => {
     const m = new Map<string, Deal[]>()
     stageList.forEach((s) => m.set(s.id, []))
-    dealList.forEach((d) => {
+    scopedDeals.forEach((d) => {
       if (d.status === 'OPEN' || d.status === 'STALLED') {
         const arr = m.get(d.stageId) ?? []
         arr.push(d)
@@ -149,19 +190,19 @@ export function DealsPage() {
       }
     })
     return m
-  }, [dealList, stageList])
+  }, [scopedDeals, stageList])
 
   const openDeals = useMemo(
-    () => dealList.filter((d) => d.status === 'OPEN' || d.status === 'STALLED'),
-    [dealList],
+    () => scopedDeals.filter((d) => d.status === 'OPEN' || d.status === 'STALLED'),
+    [scopedDeals],
   )
   const totalValue = useMemo(
-    () => dealList.filter((d) => d.status === 'OPEN').reduce((s, d) => s + (d.amount || 0), 0),
-    [dealList],
+    () => scopedDeals.filter((d) => d.status === 'OPEN').reduce((s, d) => s + (d.amount || 0), 0),
+    [scopedDeals],
   )
   const wonValue = useMemo(
-    () => dealList.filter((d) => d.status === 'WON').reduce((s, d) => s + (d.amount || 0), 0),
-    [dealList],
+    () => scopedDeals.filter((d) => d.status === 'WON').reduce((s, d) => s + (d.amount || 0), 0),
+    [scopedDeals],
   )
 
   const move = useMoveDealStage()
@@ -173,23 +214,82 @@ export function DealsPage() {
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [createError, setCreateError] = useState('')
   const [commentDeal, setCommentDeal] = useState<Deal | null>(null)
   const [wonTarget, setWonTarget] = useState<Deal | null>(null)
   const [lostTarget, setLostTarget] = useState<Deal | null>(null)
   const [lostReason, setLostReason] = useState('')
   const [form, setForm] = useState({
-    title: '', amount: 0, stageId: '', expectedCloseDate: '', description: '',
+    title: '',
+    amount: 0,
+    stageId: '',
+    customerId: '',
+    expectedCloseDate: '',
+    description: '',
   })
+
+  // Deep-link: ?dealId= / ?customerId= / ?create=1&customerId= (Lead convert / Customer 360)
+  useEffect(() => {
+    const dealId = searchParams.get('dealId')
+    const cid = searchParams.get('customerId')
+    const wantsCreate = searchParams.get('create') === '1'
+    if (dealId) setFocusDealId(dealId)
+    if (cid) setCustomerFilter(cid)
+    if (wantsCreate) {
+      setCreateError('')
+      setForm({
+        title: '',
+        amount: 0,
+        stageId: stageList[0]?.id || '',
+        customerId: cid || '',
+        expectedCloseDate: '',
+        description: '',
+      })
+      setShowCreate(true)
+    }
+    if (!dealId && !cid && !wantsCreate) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('dealId')
+    next.delete('create')
+    if (cid) next.delete('customerId')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams, stageList])
+
+  // Prefill giai đoạn đầu khi stages load sau deep-link create
+  useEffect(() => {
+    if (!showCreate || form.stageId || !stageList[0]?.id) return
+    setForm((f) => ({ ...f, stageId: stageList[0].id }))
+  }, [showCreate, form.stageId, stageList])
+
+  // Highlight deal từ deep-link; tự lọc theo KH của deal đó
+  useEffect(() => {
+    if (!focusDealId || dealList.length === 0) return
+    const d = dealList.find((x) => x.id === focusDealId)
+    if (!d) {
+      toast.message('Không tìm thấy cơ hội trên phễu hiện tại')
+      setFocusDealId(null)
+      return
+    }
+    if (d.pipelineId && d.pipelineId !== pipelineId) {
+      setPipelineId(d.pipelineId)
+      return
+    }
+    if (d.customerId) setCustomerFilter(d.customerId)
+    toast.success(`Đang mở cơ hội «${d.title}»`)
+    const t = window.setTimeout(() => setFocusDealId(null), 8000)
+    return () => window.clearTimeout(t)
+  }, [focusDealId, dealList, pipelineId])
 
   const onDropCard = (stageId: string) => {
     if (draggingColumnId || !draggingId) return
+    // Chỉ mutate đúng deal id của thẻ đang kéo — không đụng deal khác
     const d = dealList.find((x) => x.id === draggingId)
     if (!d || d.stageId === stageId) {
       setDraggingId(null)
       setDropTargetId(null)
       return
     }
-    move.mutate({ id: draggingId, stageId })
+    move.mutate({ id: d.id, stageId })
     setDraggingId(null)
     setDropTargetId(null)
   }
@@ -243,28 +343,58 @@ export function DealsPage() {
     persistStageOrder(ordered, prev)
   }
 
+  const emptyForm = () => ({
+    title: '',
+    amount: 0,
+    stageId: stageList[0]?.id || '',
+    customerId: customerFilter || '',
+    expectedCloseDate: '',
+    description: '',
+  })
+
   const onCreate = () => {
-    if (!pipelineId || !form.title || !form.stageId) return
+    if (!pipelineId || !form.title.trim() || !form.stageId) return
+    if (!form.customerId) {
+      setCreateError('Chọn khách hàng — mỗi cơ hội phải gắn 1 KH (deal id mới, không dùng chung).')
+      return
+    }
+    setCreateError('')
     const amount = Math.max(0, Math.floor(Number(form.amount) || 0))
     create.mutate(
-      { ...form, pipelineId, amount },
-      { onSuccess: () => {
-        setShowCreate(false)
-        setForm({ title: '', amount: 0, stageId: '', expectedCloseDate: '', description: '' })
-      }},
+      {
+        title: form.title.trim(),
+        pipelineId,
+        stageId: form.stageId,
+        customerId: form.customerId,
+        amount,
+        expectedCloseDate: form.expectedCloseDate || undefined,
+        description: form.description || undefined,
+      },
+      {
+        onSuccess: (res) => {
+          const created = unwrapOne<Deal>(res)
+          setShowCreate(false)
+          setForm(emptyForm())
+          setCustomerFilter(form.customerId)
+          if (created?.id) setFocusDealId(created.id)
+        },
+      },
     )
   }
 
-  const onAmountChange = (raw: string) => {
-    const digits = raw.replace(/\D/g, '').replace(/^0+(?=\d)/, '')
-    const n = digits === '' ? 0 : Number(digits)
-    setForm({ ...form, amount: Number.isFinite(n) && n >= 0 ? n : 0 })
+  const onAmountChange = (n: number | undefined) => {
+    setForm({ ...form, amount: n == null || !Number.isFinite(n) || n < 0 ? 0 : n })
   }
 
   const openCreate = () => {
-    if (stageList[0]) setForm((f) => ({ ...f, stageId: stageList[0].id }))
+    setCreateError('')
+    setForm(emptyForm())
     setShowCreate(true)
   }
+
+  const hasCustomerFilter = !!customerFilter
+  const isFilteredEmpty = !isLoading && !isError && hasCustomerFilter && openDeals.length === 0
+  const isFullyEmpty = !isLoading && !isError && !hasCustomerFilter && openDeals.length === 0 && stageList.length > 0
 
   const pipelineOptions = useMemo(
     () => pipelineList.map((p) => ({ value: p.id, label: p.name })),
@@ -277,11 +407,14 @@ export function DealsPage() {
 
   if (pipelineList.length === 0) {
     return (
-      <div className="p-6">
-        <PageHeader
-          title="Cơ hội bán"
-          description="Chưa có phễu bán hàng. Bấm bên dưới để tạo phễu mặc định gồm 5 giai đoạn."
-        />
+      <div className={pageRootClass(embedded)}>
+        {!embedded && (
+          <PageHeader
+            title="Cơ hội bán"
+            description="Chưa có phễu bán hàng. Tạo phễu mặc định gồm các giai đoạn chuẩn."
+            actions={<PageGuideButton guide={DEALS_GUIDE} />}
+          />
+        )}
         <Button onClick={() => ensureDefault.mutate()} className="gap-2">
           <Plus size={16} /> Tạo phễu mặc định
         </Button>
@@ -289,16 +422,42 @@ export function DealsPage() {
     )
   }
 
-  return (
-    <div className="p-6 space-y-4">
-      <PageHeader
-        title="Cơ hội bán"
-        description={`Kéo thẻ để đổi giai đoạn; kéo núm trên header cột để sắp xếp cột. Tổng đang mở: ${formatCurrency(totalValue)} · Đã chốt: ${formatCurrency(wonValue)}`}
-      />
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      <PageGuideButton guide={DEALS_GUIDE} />
+      <Button className="gap-2" onClick={openCreate}>
+        <Plus size={16} /> Thêm cơ hội
+      </Button>
+    </div>
+  )
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="w-64 space-y-1.5">
-          <Label htmlFor="crm-pipeline-select">Phễu bán hàng</Label>
+  return (
+    <div className={pageRootClass(embedded)}>
+      {embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-neutral-600">
+            Kanban phễu — kéo thẻ đổi giai đoạn.
+            <span className="ml-2 text-xs text-neutral-400 tabular-nums">
+              {openDeals.length} cơ hội · {formatCurrency(totalValue)}
+            </span>
+          </p>
+          {headerActions}
+        </div>
+      ) : (
+        <PageHeader
+          title="Cơ hội bán"
+          description={`Kéo thẻ đổi giai đoạn; kéo núm cột để sắp xếp. Đang mở: ${formatCurrency(totalValue)} · Đã chốt: ${formatCurrency(wonValue)}`}
+          actions={headerActions}
+        />
+      )}
+
+      <FilterBar
+        hasActiveFilters={hasCustomerFilter}
+        onClear={() => setCustomerFilter('')}
+        countLabel={`${openDeals.length} cơ hội đang mở${hasCustomerFilter ? ' (theo KH)' : ''}`}
+      >
+        <div className="w-56 space-y-1">
+          <Label htmlFor="crm-pipeline-select" className="text-xs text-neutral-500">Phễu bán hàng</Label>
           <Select
             id="crm-pipeline-select"
             options={pipelineOptions}
@@ -309,11 +468,21 @@ export function DealsPage() {
             aria-label="Phễu bán hàng"
           />
         </div>
-        <div className="flex-1" />
-        <Button className="gap-2" onClick={openCreate}>
-          <Plus size={16} /> Thêm cơ hội
-        </Button>
-      </div>
+        <div className="w-64 space-y-1">
+          <Label htmlFor="crm-deal-customer-filter" className="text-xs text-neutral-500">
+            Khách hàng
+          </Label>
+          <Select
+            id="crm-deal-customer-filter"
+            options={[{ value: '', label: 'Tất cả khách hàng' }, ...customerOptions]}
+            value={customerFilter}
+            onChange={(v) => setCustomerFilter(v || '')}
+            placeholder="Lọc theo khách hàng…"
+            showSearch={customerOptions.length > 5}
+            aria-label="Lọc theo khách hàng"
+          />
+        </div>
+      </FilterBar>
 
       {isError && (
         <div className="border border-border rounded-lg bg-surface">
@@ -336,13 +505,21 @@ export function DealsPage() {
         </div>
       )}
 
-      {!isLoading && !isError && openDeals.length === 0 && stageList.length > 0 && (
+      {(isFullyEmpty || isFilteredEmpty) && (
         <div className="border border-border rounded-lg bg-surface mb-2">
           <EmptyState
             icon={Trophy}
-            title="Phễu bán hàng trống"
-            description="Chưa có cơ hội đang mở — thêm cơ hội mới hoặc chuyển khách tiềm năng thành cơ hội. Kéo-thả để đổi giai đoạn (1 bước)."
-            action={{ label: 'Thêm cơ hội', onClick: openCreate }}
+            title={isFilteredEmpty ? 'Khách hàng này chưa có cơ hội trên phễu' : 'Phễu bán hàng trống'}
+            description={
+              isFilteredEmpty
+                ? 'Mỗi cơ hội gắn 1 khách hàng (deal id riêng). Thêm cơ hội cho KH này hoặc xoá lọc để xem tất cả.'
+                : 'Chưa có cơ hội đang mở — thêm cơ hội gắn khách hàng, hoặc chuyển khách tiềm năng thành cơ hội.'
+            }
+            action={
+              isFilteredEmpty
+                ? { label: 'Thêm cơ hội cho KH này', onClick: openCreate }
+                : { label: 'Thêm cơ hội', onClick: openCreate }
+            }
           />
         </div>
       )}
@@ -486,9 +663,13 @@ export function DealsPage() {
                   ) : (
                     items.map((d) => {
                       const isDragging = draggingId === d.id
+                      const isFocused = focusDealId === d.id
+                      const custName = resolveCustomerName(d)
                       return (
                         <div
                           key={d.id}
+                          data-deal-id={d.id}
+                          data-customer-id={d.customerId || undefined}
                           draggable={!draggingColumnId}
                           onDragStart={() => {
                             if (draggingColumnId) return
@@ -500,13 +681,17 @@ export function DealsPage() {
                             setDraggingId(null)
                             setDropTargetId(null)
                           }}
-                          className={`bg-surface rounded-lg p-3 border border-neutral-200 border-l-4 ${tone.border} cursor-grab active:cursor-grabbing hover:border-neutral-300 hover:shadow-sm transition ${
+                          className={`bg-surface rounded-lg p-3 border border-l-4 ${tone.border} cursor-grab active:cursor-grabbing hover:border-neutral-300 hover:shadow-sm transition ${
+                            isFocused
+                              ? 'border-primary-400 ring-2 ring-primary-300 shadow-card'
+                              : 'border-neutral-200'
+                          } ${
                             isDragging
                               ? 'opacity-40 scale-[0.98] ring-2 ring-primary-200 shadow-card'
                               : ''
                           }`}
                         >
-                          {/* Card density: tên / giá / owner / ngày */}
+                          {/* Card: 1 dealId · 1 customerId — không gộp chung */}
                           <div className="flex items-start gap-2 mb-1">
                             <div className="text-sm font-medium text-neutral-900 flex-1 min-w-0 line-clamp-2">
                               {d.title}
@@ -524,10 +709,23 @@ export function DealsPage() {
                           <div className="text-base font-semibold text-neutral-900 mb-1.5 tabular-nums">
                             {formatCurrency(d.amount)}
                           </div>
-                          <div className="flex flex-wrap gap-2 text-xs text-neutral-500">
-                            {d.customerName && (
-                              <span className="inline-flex items-center gap-1 truncate max-w-[140px]" title={d.customerName}>
-                                <User size={11} aria-hidden />{d.customerName}
+                          <div className="flex flex-wrap gap-2 text-xs text-neutral-500 mb-0.5">
+                            {d.customerId && custName ? (
+                              <Link
+                                to={`/customers/${d.customerId}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 truncate max-w-[160px] text-primary-700 hover:underline"
+                                title={`KH: ${custName}`}
+                              >
+                                <User size={11} aria-hidden />{custName}
+                              </Link>
+                            ) : d.customerId ? (
+                              <span className="inline-flex items-center gap-1 truncate max-w-[160px]" title={d.customerId}>
+                                <User size={11} aria-hidden />{d.customerId.slice(0, 8)}…
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-warning-dark">
+                                <User size={11} aria-hidden />Chưa gắn KH
                               </span>
                             )}
                             {d.expectedCloseDate && (
@@ -535,6 +733,9 @@ export function DealsPage() {
                                 <CalendarDays size={11} aria-hidden /> {formatDate(d.expectedCloseDate)}
                               </span>
                             )}
+                          </div>
+                          <div className="text-[10px] text-neutral-400 font-mono truncate" title={d.id}>
+                            deal:{d.id.slice(0, 8)}…
                           </div>
                           <div className="flex justify-end items-center gap-0.5 mt-2 pt-2 border-t border-neutral-100">
                             {nextStage && (
@@ -552,43 +753,43 @@ export function DealsPage() {
                                 Tiếp <ChevronRight size={12} aria-hidden />
                               </button>
                             )}
-                            <button
-                              type="button"
-                              className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-primary-50 text-primary-600"
+                            <IconActionButton
+                              tooltip="Bình luận"
+                              tone="blue"
+                              size="sm"
+                              className="h-7 w-7 text-primary-600 hover:bg-primary-50"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 setCommentDeal(d)
                               }}
-                              title="Bình luận"
-                              aria-label="Bình luận"
                             >
                               <MessageSquare size={14} aria-hidden />
-                            </button>
-                            <button
-                              type="button"
-                              className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-success-light text-success-dark"
+                            </IconActionButton>
+                            <IconActionButton
+                              tooltip="Đánh dấu đã chốt"
+                              tone="emerald"
+                              size="sm"
+                              className="h-7 w-7 text-success-dark hover:bg-success-light"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 setWonTarget(d)
                               }}
-                              title="Đánh dấu đã chốt"
-                              aria-label="Đánh dấu đã chốt"
                             >
                               <Trophy size={14} aria-hidden />
-                            </button>
-                            <button
-                              type="button"
-                              className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-danger-light text-danger"
+                            </IconActionButton>
+                            <IconActionButton
+                              tooltip="Đánh dấu thất bại"
+                              tone="rose"
+                              size="sm"
+                              className="h-7 w-7 text-danger hover:bg-danger-light"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 setLostReason('')
                                 setLostTarget(d)
                               }}
-                              title="Đánh dấu thất bại"
-                              aria-label="Đánh dấu thất bại"
                             >
                               <XCircle size={14} aria-hidden />
-                            </button>
+                            </IconActionButton>
                           </div>
                         </div>
                       )
@@ -601,8 +802,31 @@ export function DealsPage() {
         </div>
       )}
 
-      <AppModal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Thêm cơ hội mới">
+      <AppModal
+        isOpen={showCreate}
+        onClose={() => { setShowCreate(false); setCreateError('') }}
+        title="Thêm cơ hội mới"
+        description="Mỗi lần tạo = 1 deal id mới, bắt buộc gắn 1 khách hàng — không dùng chung cơ hội giữa các KH."
+      >
         <div className="space-y-3">
+          <div>
+            <Label className="mb-1 block">Khách hàng *</Label>
+            <Select
+              options={customerOptions}
+              value={form.customerId}
+              onChange={(v) => {
+                setForm({ ...form, customerId: v || '' })
+                if (createError) setCreateError('')
+              }}
+              placeholder="Chọn khách hàng…"
+              showSearch={customerOptions.length > 5}
+              aria-label="Khách hàng"
+              aria-invalid={!!createError && !form.customerId}
+            />
+            {createError && (
+              <p className="mt-1 text-xs text-danger-dark">{createError}</p>
+            )}
+          </div>
           <div>
             <label className="text-sm text-neutral-700 mb-1 block">Tiêu đề *</label>
             <input
@@ -614,13 +838,11 @@ export function DealsPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm text-neutral-700 mb-1 block">Giá trị (VND)</label>
-              <input
-                type="text"
-                inputMode="numeric"
+              <VndInput
                 placeholder="0"
-                className="w-full border rounded-md px-3 py-2 text-sm tabular-nums"
-                value={form.amount ? form.amount.toLocaleString('vi-VN') : ''}
-                onChange={(e) => onAmountChange(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm h-auto"
+                value={form.amount || undefined}
+                onChange={onAmountChange}
               />
             </div>
             <div>
@@ -654,8 +876,11 @@ export function DealsPage() {
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setShowCreate(false)}>Huỷ</Button>
-            <Button onClick={onCreate} disabled={create.isPending || !form.title}>
+            <Button variant="outline" onClick={() => { setShowCreate(false); setCreateError('') }}>Huỷ</Button>
+            <Button
+              onClick={onCreate}
+              disabled={create.isPending || !form.title.trim() || !form.customerId}
+            >
               Thêm
             </Button>
           </div>
@@ -730,7 +955,11 @@ export function DealsPage() {
         subjectType={SubjectType.DEAL}
         subjectId={commentDeal?.id || ''}
         title={commentDeal?.title || 'Cơ hội'}
-        subtitle={commentDeal?.customerName}
+        subtitle={
+          commentDeal
+            ? resolveCustomerName(commentDeal) || commentDeal.customerId || undefined
+            : undefined
+        }
       />
     </div>
   )

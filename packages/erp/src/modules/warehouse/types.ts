@@ -4,6 +4,7 @@
 
 export type StockAlertSeverity = 'CRITICAL' | 'WARNING' | 'INFO'
 export type StockAlertStatus = 'OPEN' | 'DISMISSED' | 'RESOLVED'
+export type StockAlertType = 'LOW_STOCK' | 'EXPIRY_SOON'
 
 export interface ReorderRuleDto {
   id: string
@@ -44,6 +45,11 @@ export interface StockAlertDto {
   minQty: number
   severity: StockAlertSeverity
   status: StockAlertStatus
+  alertType?: StockAlertType
+  batchId?: string
+  batchCode?: string
+  expiryDate?: string
+  daysToExpiry?: number
   triggeredAt: string
   dismissedAt?: string
 }

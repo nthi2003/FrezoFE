@@ -113,7 +113,8 @@ export const dealsApi = {
       .then((r) => r.data),
   listByOwner: (ownerUsername: string) =>
     axiosClient
-      .get<ApiResponse<Deal[]>>('/crm/deals', { params: { ownerUsername } })
+      // BE DealController: @RequestParam("owner")
+      .get<ApiResponse<Deal[]>>('/crm/deals', { params: { owner: ownerUsername } })
       .then((r) => r.data),
   listByCustomer: (customerId: string) =>
     axiosClient
@@ -125,15 +126,20 @@ export const dealsApi = {
     axiosClient.post<ApiResponse<Deal>>('/crm/deals', data).then((r) => r.data),
   update: (id: string, data: DealRequest) =>
     axiosClient.put<ApiResponse<Deal>>(`/crm/deals/${id}`, data).then((r) => r.data),
+  /** BE: PATCH /crm/deals/{id}/move-stage?toStageId=… — luôn theo deal id của thẻ đó. */
   moveToStage: (id: string, stageId: string) =>
     axiosClient
-      .post<ApiResponse<Deal>>(`/crm/deals/${id}/stage`, null, { params: { stageId } })
+      .patch<ApiResponse<Deal>>(`/crm/deals/${id}/move-stage`, null, {
+        params: { toStageId: stageId },
+      })
       .then((r) => r.data),
   markWon: (id: string) =>
-    axiosClient.post<ApiResponse<Deal>>(`/crm/deals/${id}/won`).then((r) => r.data),
+    axiosClient.patch<ApiResponse<Deal>>(`/crm/deals/${id}/won`).then((r) => r.data),
   markLost: (id: string, reason?: string) =>
     axiosClient
-      .post<ApiResponse<Deal>>(`/crm/deals/${id}/lost`, null, { params: reason ? { reason } : {} })
+      .patch<ApiResponse<Deal>>(`/crm/deals/${id}/lost`, null, {
+        params: reason ? { reason } : {},
+      })
       .then((r) => r.data),
 }
 
@@ -262,18 +268,40 @@ export const invoicesApi = {
     axiosClient
       .get<ApiResponse<Invoice[]>>('/crm/invoices', { params: status ? { status } : {} })
       .then((r) => r.data),
+  /** BE: GET /crm/invoices/{id} → { invoice, items } — flatten cho FE Invoice */
   getWithItems: (id: string) =>
-    axiosClient.get<ApiResponse<Invoice>>(`/crm/invoices/${id}/full`).then((r) => r.data),
+    axiosClient
+      .get<ApiResponse<{ invoice: Invoice; items: InvoiceItem[] } | Invoice>>(`/crm/invoices/${id}`)
+      .then((r) => {
+        const body = r.data as ApiResponse<{ invoice: Invoice; items: InvoiceItem[] } | Invoice>
+        const payload = (body as { data?: unknown }).data ?? body
+        if (payload && typeof payload === 'object' && 'invoice' in payload) {
+          const nested = payload as { invoice: Invoice; items?: InvoiceItem[] }
+          return {
+            ...body,
+            data: { ...nested.invoice, items: nested.items ?? [] },
+          } as ApiResponse<Invoice>
+        }
+        return body as ApiResponse<Invoice>
+      }),
   create: (data: InvoiceRequest) =>
     axiosClient.post<ApiResponse<Invoice>>('/crm/invoices', data).then((r) => r.data),
   update: (id: string, data: InvoiceRequest) =>
     axiosClient.put<ApiResponse<Invoice>>(`/crm/invoices/${id}`, data).then((r) => r.data),
+  /** BE: PATCH /crm/invoices/{id}/issue */
   issue: (id: string) =>
-    axiosClient.post<ApiResponse<Invoice>>(`/crm/invoices/${id}/issue`).then((r) => r.data),
+    axiosClient.patch<ApiResponse<Invoice>>(`/crm/invoices/${id}/issue`).then((r) => r.data),
+  /** BE: POST /crm/invoices/{id}/post-to-gl */
   postToGL: (id: string) =>
-    axiosClient.post<ApiResponse<Invoice>>(`/crm/invoices/${id}/post-gl`).then((r) => r.data),
-  recordPayment: (id: string, amount: number, note?: string) =>
+    axiosClient.post<ApiResponse<Invoice>>(`/crm/invoices/${id}/post-to-gl`).then((r) => r.data),
+  /** BE: POST /crm/invoices/{id}/record-payment?amount=&paymentAccountCode= */
+  recordPayment: (id: string, amount: number, paymentAccountCode?: string) =>
     axiosClient
-      .post<ApiResponse<Invoice>>(`/crm/invoices/${id}/payment`, null, { params: { amount, note } })
+      .post<ApiResponse<Invoice>>(`/crm/invoices/${id}/record-payment`, null, {
+        params: {
+          amount,
+          ...(paymentAccountCode ? { paymentAccountCode } : {}),
+        },
+      })
       .then((r) => r.data),
 }

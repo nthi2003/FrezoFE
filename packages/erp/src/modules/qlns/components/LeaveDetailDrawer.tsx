@@ -22,6 +22,7 @@ import {
   useApprovalBySubject,
 } from '@/modules/approval/hooks/useApprovals'
 import { SubjectType } from '@/modules/approval/types'
+import { Can, PermissionButton } from '@/lib/permissions'
 import { useAnyPermission } from '@/lib/hooks/usePermission'
 
 interface Props {
@@ -235,15 +236,17 @@ export function LeaveDetailDrawer({ lead, currentUsername, isAdmin, onClose }: P
                   </Button>
                 )}
                 {canActAsApprover && (
-                  <>
-                    <Button
+                  <Can anyOf={['LEAVE.APPROVE', 'APPROVALS.APPROVE']}>
+                    <PermissionButton
+                      anyOf={['LEAVE.APPROVE', 'APPROVALS.APPROVE']}
                       variant="outline"
                       onClick={() => setRejectMode(true)}
                       className="flex-1 gap-1.5 text-rose-600 border-rose-200"
                     >
                       <XCircle size={14} /> Từ chối
-                    </Button>
-                    <Button
+                    </PermissionButton>
+                    <PermissionButton
+                      anyOf={['LEAVE.APPROVE', 'APPROVALS.APPROVE']}
                       onClick={handleApprove}
                       disabled={approve.isPending}
                       className="flex-1 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -254,8 +257,8 @@ export function LeaveDetailDrawer({ lead, currentUsername, isAdmin, onClose }: P
                         <CheckCircle2 size={14} />
                       )}
                       Duyệt
-                    </Button>
-                  </>
+                    </PermissionButton>
+                  </Can>
                 )}
                 {!canActAsApprover && !canCancel && (
                   <Link

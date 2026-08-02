@@ -1,15 +1,16 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Plus, Pencil, Trash2, Users, Phone, Mail, Search, X,
-  Eye, EyeOff, Sparkles, Download, Upload, Building2, User, Loader2,
-  Radar, FileDown,
+  Plus, Pencil, Trash2, Users, Phone, Mail, Search,
+  Eye, EyeOff, Sparkles, Download, Building2, User, Loader2,
+  Radar, FileDown, RefreshCw,
   type LucideIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppTable } from '@/components/ui/AppTable'
 import type { BulkAction } from '@/components/ui/AppTable/AppTable'
-import { AppModal, PageHeader, PageGuideButton, ConfirmDialog, EmptyState, ErrorState } from '@frezo/ui'
+import { FilterBar } from '@/components/ui/FilterBar'
+import { AppModal, PageHeader, PageGuideButton, ConfirmDialog, EmptyState, ErrorState, IconActionButton } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { Button } from '@frezo/ui'
 import {
@@ -40,7 +41,7 @@ export function CustomersPage() {
 
   // Filters
   const [searchText, setSearchText] = useState('')
-  const [quickTab, setQuickTab] = useState<'all' | 'individual' | 'company' | 'noContact'>('all')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'individual' | 'company' | 'noContact'>('all')
 
   // Reveal-phone state (per customer)
   const [revealed, setRevealed] = useState<Record<string, string>>({})
@@ -57,12 +58,12 @@ export function CustomersPage() {
       const count = res?.data?.count ?? 0
       toast.success(`AI đồng bộ thành công${count ? ` — ${count} khách hàng mới` : ''}`)
     },
-    onError: () => toast.error('AI Sync thất bại — kiểm tra Facebook token'),
+    onError: () => toast.error('Đồng bộ AI thất bại — kiểm tra kết nối Facebook'),
   })
 
   const exportReq = useMutation({
     mutationFn: () => customerApi.export(),
-    onSuccess: () => toast.success('Đã xuất file — kiểm tra Downloads'),
+    onSuccess: () => toast.success('Đã xuất file — kiểm tra thư mục Tải xuống'),
     onError: () => toast.error('Xuất file thất bại'),
   })
 
@@ -76,7 +77,7 @@ export function CustomersPage() {
         toast.error('Không lấy được số — có thể khách chưa có SĐT')
       }
     },
-    onError: () => toast.error('Không có quyền reveal SĐT'),
+    onError: () => toast.error('Không có quyền xem SĐT đầy đủ'),
   })
 
   const dataList: any[] = Array.isArray(rawData) ? rawData : []
@@ -84,13 +85,13 @@ export function CustomersPage() {
   // ---- Client-side filter ----
   const filteredList = useMemo(() => {
     let list = dataList
-    if (quickTab === 'individual') {
+    if (typeFilter === 'individual') {
       list = list.filter((c) => (c.type || 'INDIVIDUAL') === 'INDIVIDUAL')
     }
-    if (quickTab === 'company') {
+    if (typeFilter === 'company') {
       list = list.filter((c) => c.type === 'COMPANY' || c.taxCode)
     }
-    if (quickTab === 'noContact') {
+    if (typeFilter === 'noContact') {
       list = list.filter((c) => !c.phone && !c.email)
     }
     if (searchText.trim()) {
@@ -103,7 +104,7 @@ export function CustomersPage() {
       )
     }
     return list
-  }, [dataList, quickTab, searchText])
+  }, [dataList, typeFilter, searchText])
 
   const stats = useMemo(() => {
     const total = dataList.length
@@ -163,10 +164,10 @@ export function CustomersPage() {
 
   const clearFilters = () => {
     setSearchText('')
-    setQuickTab('all')
+    setTypeFilter('all')
   }
 
-  const hasFilter = !!searchText || quickTab !== 'all'
+  const hasFilter = !!searchText.trim() || typeFilter !== 'all'
 
   // ---- Bulk actions ----
   const exportCustomersCsv = (rows: any[]) => {
@@ -214,7 +215,7 @@ export function CustomersPage() {
       ? [
           {
             key: 'export-csv',
-            label: 'Export CSV',
+            label: 'Xuất CSV',
             icon: FileDown,
             variant: 'outline' as const,
             onClick: (rows: any[]) => exportCustomersCsv(rows),
@@ -326,35 +327,19 @@ export function CustomersPage() {
       width: 160,
       render: (_: any, row: any) => (
         <div className="flex items-center gap-1">
-          <button
-            title="Xem 360°"
-            onClick={() => nav(`/customer/${row.id}/360`)}
-            className="p-1.5 text-neutral-400 hover:text-violet-600 hover:bg-violet-50 rounded-md transition-colors"
-          >
+          <IconActionButton tooltip="Xem 360°" tone="violet" onClick={() => nav(`/customer/${row.id}/360`)}>
             <Radar className="w-4 h-4" />
-          </button>
-          <button
-            title="Xem nhanh"
-            onClick={() => openDetail(row)}
-            className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-          >
+          </IconActionButton>
+          <IconActionButton tooltip="Xem nhanh" tone="blue" onClick={() => openDetail(row)}>
             <Eye className="w-4 h-4" />
-          </button>
-          <button
-            title="Sửa"
-            onClick={() => openEdit(row)}
-            className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
-          >
+          </IconActionButton>
+          <IconActionButton tooltip="Sửa" tone="primary" onClick={() => openEdit(row)}>
             <Pencil className="w-4 h-4" />
-          </button>
+          </IconActionButton>
           {showDelete && (
-            <button
-              title="Xóa"
-              onClick={() => setConfirmDelete(row)}
-              className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
-            >
+            <IconActionButton tooltip="Xóa" tone="rose" onClick={() => setConfirmDelete(row)}>
               <Trash2 className="w-4 h-4" />
-            </button>
+            </IconActionButton>
           )}
         </div>
       ),
@@ -364,7 +349,7 @@ export function CustomersPage() {
   const formFields = [
     {
       name: 'avatarUrl',
-      label: 'Avatar',
+      label: 'Ảnh đại diện',
       type: 'image',
       colSpan: 2,
       aspectRatio: '1/1',
@@ -386,8 +371,8 @@ export function CustomersPage() {
   return (
     <div className="p-6 space-y-5 animate-fade-in">
       <PageHeader
-        title="Khách hàng (CRM)"
-        description="Danh bạ khách hàng — cá nhân & doanh nghiệp. Tích hợp AI Inbox để tự thu thập từ Facebook."
+        title="Khách hàng"
+        description="Danh bạ cá nhân & doanh nghiệp. Đồng bộ từ hộp thư Facebook khi cần."
         actions={
           <>
             <PageGuideButton guide={CUSTOMERS_GUIDE} />
@@ -402,7 +387,7 @@ export function CustomersPage() {
               ) : (
                 <Sparkles size={15} className="text-primary-500" />
               )}
-              AI Sync
+              Đồng bộ AI
             </Button>
             {canExport && (
               <Button
@@ -411,7 +396,7 @@ export function CustomersPage() {
                 variant="outline"
                 className="gap-2"
               >
-                <Download size={15} /> Export
+                <Download size={15} /> Xuất file
               </Button>
             )}
             <Button
@@ -424,101 +409,86 @@ export function CustomersPage() {
         }
       />
 
-      {isError ? (
-        <div className="border rounded-xl bg-white">
-          <ErrorState
-            title="Không tải được khách hàng"
-            onRetry={() => refetch()}
-            isRetrying={isFetching}
-          />
-        </div>
-      ) : null}
-
       {/* KPI cards */}
+      {!isError && (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard icon={Users} label="Tổng khách" value={stats.total} tone="neutral" />
         <KpiCard icon={User} label="Cá nhân" value={stats.individual} tone="emerald" />
         <KpiCard icon={Building2} label="Doanh nghiệp" value={stats.company} tone="blue" />
         <KpiCard icon={Phone} label="Có SĐT" value={stats.withPhone} tone="amber" />
       </div>
+      )}
 
-      {/* Filter bar */}
-      <div className="p-3 bg-white border border-neutral-200 shadow-sm rounded-2xl space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <input
-              type="text"
-              placeholder="Tìm theo tên, SĐT, email, MST..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="h-10 w-full pl-9 pr-3 text-sm bg-neutral-50 border border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:bg-white transition-all placeholder:text-neutral-400"
-            />
-          </div>
-          <Button variant="outline" disabled className="gap-2 opacity-60 cursor-not-allowed">
-            <Upload size={15} /> Import
+      <FilterBar
+        hasActiveFilters={hasFilter}
+        onClear={clearFilters}
+        countLabel={`${filteredList.length} khách${hasFilter ? ' (đã lọc)' : ''}`}
+        selects={[
+          {
+            id: 'type',
+            label: 'Loại khách',
+            value: typeFilter,
+            onChange: (v) => setTypeFilter(v as typeof typeFilter),
+            options: [
+              { value: 'all', label: 'Tất cả loại' },
+              { value: 'individual', label: 'Cá nhân' },
+              { value: 'company', label: 'Doanh nghiệp' },
+              { value: 'noContact', label: 'Chưa có liên hệ' },
+            ],
+          },
+        ]}
+        extra={(
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void refetch()}
+            className="gap-2 h-9"
+            disabled={isFetching}
+          >
+            <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+            Làm mới
           </Button>
-        </div>
-
-        {/* Quick tabs */}
-        <div className="flex flex-wrap items-center gap-2">
-          {[
-            { key: 'all' as const, label: 'Tất cả', count: stats.total },
-            { key: 'individual' as const, label: 'Cá nhân', count: stats.individual },
-            { key: 'company' as const, label: 'Doanh nghiệp', count: stats.company },
-            {
-              key: 'noContact' as const,
-              label: 'Chưa có liên hệ',
-              count: dataList.filter((c) => !c.phone && !c.email).length,
-            },
-          ].map((t) => {
-            const active = quickTab === t.key
-            return (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setQuickTab(t.key)}
-                className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-medium border transition ${
-                  active
-                    ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
-                    : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
-                }`}
-              >
-                {t.label}
-                <span
-                  className={`inline-flex items-center justify-center min-w-[18px] h-4 rounded-full text-[10px] font-bold ${
-                    active ? 'bg-white/20 text-white' : 'bg-neutral-100 text-neutral-500'
-                  }`}
-                >
-                  {t.count}
-                </span>
-              </button>
-            )
-          })}
-          {hasFilter && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="ml-auto inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition"
-            >
-              <X size={12} /> Xoá lọc
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Table */}
-      {!isError && !isLoading && filteredList.length === 0 ? (
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm">
-          <EmptyState
-            icon={Users}
-            title="Chưa có khách hàng"
-            description="Thêm khách hàng hoặc mở hồ sơ 360 để xem cơ hội bán / hoá đơn liên quan."
-            action={{ label: 'Thêm khách hàng', onClick: openCreate }}
+        )}
+      >
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="search"
+            placeholder="Tìm theo tên, SĐT, email, MST…"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            aria-label="Tìm khách hàng"
           />
         </div>
-      ) : !isError ? (
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
+      </FilterBar>
+
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được khách hàng"
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : !isLoading && filteredList.length === 0 ? (
+        <div className="bg-white rounded-xl border border-neutral-200">
+          <EmptyState
+            icon={Users}
+            title={hasFilter ? 'Không có khách hàng khớp bộ lọc' : 'Chưa có khách hàng'}
+            description={
+              hasFilter
+                ? 'Thử xoá lọc hoặc đổi từ khoá.'
+                : 'Thêm khách hàng hoặc mở hồ sơ 360° để xem cơ hội bán / hoá đơn liên quan.'
+            }
+            action={
+              hasFilter
+                ? { label: 'Xoá lọc', onClick: clearFilters }
+                : { label: 'Thêm khách hàng', onClick: openCreate }
+            }
+          />
+        </div>
+      ) : (
         <AppTable
           data={filteredList}
           columns={columns as any}
@@ -527,18 +497,19 @@ export function CustomersPage() {
           selectable
           getRowId={(row: any) => String(row.id)}
           bulkActions={bulkActions}
-          defaultDensity="compact"
-          showDensityToggle
+          density="compact"
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onRefresh={() => void refetch()}
         />
-      </div>
-      ) : null}
+      )}
 
       {/* Create/Edit Modal */}
       <AppModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title={selectedItem ? 'Cập nhật khách hàng' : 'Thêm khách hàng mới'}
-        description={selectedItem ? 'Chỉnh sửa thông tin liên hệ và ghi chú.' : 'Điền thông tin để thêm khách hàng vào CRM.'}
+        description={selectedItem ? 'Chỉnh sửa thông tin liên hệ và ghi chú.' : 'Điền thông tin để thêm vào danh bạ khách hàng.'}
         maxWidth="3xl"
       >
         <AppForm
@@ -637,7 +608,7 @@ export function CustomersPage() {
 
             <div className="p-4 bg-neutral-50 border border-dashed border-neutral-200 rounded-lg text-center">
               <p className="text-sm text-neutral-500">
-                📊 Lịch sử đơn hàng, tương tác chat sẽ hiển thị ở đây (đang phát triển).
+                Lịch sử đơn hàng và tương tác sẽ hiển thị tại đây (đang phát triển).
               </p>
             </div>
 

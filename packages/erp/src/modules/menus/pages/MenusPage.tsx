@@ -17,6 +17,8 @@ import {
   IconPicker,
   IconPreview,
   StatusBadge,
+  IconActionButton,
+  AppTooltip,
   type PageGuideConfig,
 } from '@frezo/ui'
 
@@ -241,22 +243,12 @@ function TreeNode({
 
         {/* Hover actions */}
         <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity shrink-0 ml-0.5">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onAddChild(node.code) }}
-            className="p-0.5 text-primary-600 hover:bg-primary-100 rounded transition-colors"
-            title="Thêm menu con"
-          >
+          <IconActionButton tooltip="Thêm menu con" tone="primary" size="sm" className="p-0.5" onClick={(e) => { e.stopPropagation(); onAddChild(node.code) }}>
             <Plus size={12} />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onDelete(node) }}
-            className="p-0.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-            title="Xoá menu"
-          >
+          </IconActionButton>
+          <IconActionButton tooltip="Xoá menu" tone="red" size="sm" className="p-0.5" onClick={(e) => { e.stopPropagation(); onDelete(node) }}>
             <Trash2 size={12} />
-          </button>
+          </IconActionButton>
         </div>
       </div>
 

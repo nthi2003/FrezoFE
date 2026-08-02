@@ -10,7 +10,7 @@ import {
   type LucideIcon, CheckCircle, AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Drawer, Button, StatusBadge } from '@frezo/ui'
+import { Drawer, Button, StatusBadge, IconActionButton } from '@frezo/ui'
 
 interface Props {
   isOpen: boolean
@@ -440,14 +440,14 @@ function Empty() {
 
 function CopyButton({ value }: { value: string }) {
   return (
-    <button
-      type="button"
-      onClick={() => { navigator.clipboard.writeText(value); toast.success('Đã copy') }}
-      className="p-0.5 text-neutral-400 hover:text-primary-600 rounded"
-      title="Copy"
+    <IconActionButton
+      tooltip="Sao chép"
+      size="sm"
+      className="p-0.5"
+      onClick={() => { navigator.clipboard.writeText(value); toast.success('Đã sao chép') }}
     >
       <Copy size={11} />
-    </button>
+    </IconActionButton>
   )
 }
 

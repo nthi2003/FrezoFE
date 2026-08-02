@@ -15,6 +15,8 @@ export interface DepreciationScheduleDto {
   method?: string
   startDate?: string
   months?: number
+  /** Nguyên giá tài sản (purchasePrice). */
+  purchasePrice?: number
   monthlyAmount?: number
   remainingValue?: number
   status?: string

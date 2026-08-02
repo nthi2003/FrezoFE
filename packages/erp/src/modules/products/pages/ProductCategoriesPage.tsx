@@ -1,10 +1,10 @@
-import { useState } from 'react'
-import { Plus, Edit, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Plus, Edit, Trash2, Search, Tags } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
-import { AppModal } from '@frezo/ui'
+import type { AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
+import { AppModal, Button, ConfirmDialog, EmptyState, PageHeader } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
-import { Button } from '@frezo/ui'
-import { ConfirmDialog } from '@frezo/ui'
 import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from '@/modules/qtht/hooks/useCategory'
 import { categoryFormSchema } from '@/modules/qtht/constants/category.schema'
 
@@ -32,6 +32,8 @@ export function ProductCategoriesPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<any | null>(null)
+  const [search, setSearch] = useState('')
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all')
 
   const { data: rawData, isLoading } = useCategories(GROUP_CODE)
   const createReq = useCreateCategory()
@@ -39,6 +41,26 @@ export function ProductCategoriesPage() {
   const deleteReq = useDeleteCategory()
 
   const dataList = rawData || []
+
+  const filtered = useMemo(() => {
+    let list = dataList
+    if (activeFilter === 'active') list = list.filter((r: any) => r.active !== false)
+    if (activeFilter === 'inactive') list = list.filter((r: any) => r.active === false)
+    const q = search.trim().toLowerCase()
+    if (q) {
+      list = list.filter(
+        (r: any) =>
+          (r.code || '').toLowerCase().includes(q) ||
+          (r.name || '').toLowerCase().includes(q) ||
+          (r.shortName || '').toLowerCase().includes(q),
+      )
+    }
+    return list
+  }, [dataList, search, activeFilter])
+
+  const hasFilter = !!search.trim() || activeFilter !== 'all'
+  const isFilteredEmpty = !isLoading && dataList.length > 0 && filtered.length === 0
+  const isFullyEmpty = !isLoading && dataList.length === 0
 
   const handleSubmit = (values: any) => {
     const payload = {
@@ -64,12 +86,14 @@ export function ProductCategoriesPage() {
     })
   }
 
-  const columns = [
-    { title: 'Mã loại', dataIndex: 'code', filterType: 'text' as const },
-    { title: 'Tên loại sản phẩm', dataIndex: 'name', filterType: 'text' as const },
-    { title: 'Tên viết tắt', dataIndex: 'shortName' },
+  const columns: AppTableColumn<any>[] = [
+    { key: 'code', title: 'Mã loại', dataIndex: 'code' },
+    { key: 'name', title: 'Tên loại sản phẩm', dataIndex: 'name' },
+    { key: 'shortName', title: 'Tên viết tắt', dataIndex: 'shortName' },
     {
-      title: 'Trạng thái', dataIndex: 'active',
+      key: 'active',
+      title: 'Trạng thái',
+      dataIndex: 'active',
       render: (val: boolean) => (
         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${val !== false ? 'bg-green-50 text-green-700' : 'bg-neutral-100 text-neutral-500'}`}>
           {val !== false ? 'Kích hoạt' : 'Tắt'}
@@ -77,12 +101,14 @@ export function ProductCategoriesPage() {
       ),
     },
     {
+      key: 'actions',
       title: 'Thao tác',
-      dataIndex: 'id',
       width: 100,
+      align: 'right',
       render: (_: any, row: any) => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 justify-end">
           <button
+            type="button"
             title="Sửa"
             onClick={() => { setSelectedItem(row); setModalOpen(true) }}
             className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
@@ -90,6 +116,7 @@ export function ProductCategoriesPage() {
             <Edit className="w-4 h-4" />
           </button>
           <button
+            type="button"
             title="Xóa"
             onClick={() => setConfirmDelete(row)}
             className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
@@ -102,29 +129,91 @@ export function ProductCategoriesPage() {
   ]
 
   return (
-    <div className="space-y-6 animate-fade-in p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Quản lý Loại Sản phẩm</h1>
-          <p className="text-sm text-neutral-500 mt-1">Quản lý danh mục loại sản phẩm</p>
-        </div>
-        <Button
-          onClick={() => { setSelectedItem(null); setModalOpen(true) }}
-          className="gap-2 bg-primary-700 hover:bg-primary-800 text-white shadow-sm shadow-primary/20"
-        >
-          <Plus size={17} /> Thêm loại sản phẩm
-        </Button>
-      </div>
+    <div className="space-y-4 animate-fade-in p-6">
+      <PageHeader
+        title="Quản lý loại sản phẩm"
+        description="Danh mục loại sản phẩm dùng chung cho kho và bán hàng."
+        actions={(
+          <Button
+            onClick={() => { setSelectedItem(null); setModalOpen(true) }}
+            className="gap-1.5"
+          >
+            <Plus size={16} /> Thêm loại sản phẩm
+          </Button>
+        )}
+      />
 
-      <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+      <FilterBar
+        hasActiveFilters={hasFilter}
+        onClear={() => {
+          setSearch('')
+          setActiveFilter('all')
+        }}
+        countLabel={`${filtered.length} loại${hasFilter ? ' (đã lọc)' : ''}`}
+        selects={[
+          {
+            id: 'active',
+            label: 'Trạng thái',
+            value: activeFilter,
+            onChange: (v) => setActiveFilter(v as 'all' | 'active' | 'inactive'),
+            options: [
+              { value: 'all', label: 'Tất cả trạng thái' },
+              { value: 'active', label: 'Đang kích hoạt' },
+              { value: 'inactive', label: 'Đã tắt' },
+            ],
+          },
+        ]}
+      >
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            className="w-full h-9 pl-9 pr-3 text-sm border rounded-md bg-white"
+            placeholder="Tìm mã, tên loại…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Tìm loại sản phẩm"
+          />
+        </div>
+      </FilterBar>
+
+      {isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={Tags}
+            title={isFilteredEmpty ? 'Không có loại khớp bộ lọc' : 'Chưa có loại sản phẩm'}
+            description={
+              isFilteredEmpty
+                ? 'Thử xoá lọc hoặc đổi từ khoá.'
+                : 'Thêm loại đầu tiên để gắn vào sản phẩm.'
+            }
+            action={
+              isFilteredEmpty
+                ? {
+                    label: 'Xoá lọc',
+                    onClick: () => {
+                      setSearch('')
+                      setActiveFilter('all')
+                    },
+                  }
+                : {
+                    label: 'Thêm loại sản phẩm',
+                    onClick: () => {
+                      setSelectedItem(null)
+                      setModalOpen(true)
+                    },
+                  }
+            }
+          />
+        </div>
+      ) : (
         <AppTable
-          data={dataList}
+          data={filtered}
           columns={columns}
           isLoading={isLoading}
-          showSearch
-          searchPlaceholder="Tìm theo mã, tên loại sản phẩm..."
+          density="compact"
+          showSearch={false}
         />
-      </div>
+      )}
 
       <AppModal
         isOpen={modalOpen}

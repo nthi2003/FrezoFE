@@ -1,7 +1,11 @@
-import { useState } from 'react'
-import { Plus, Trash2, Pencil, Send, Users, Mail, X, Copy } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Plus, Trash2, Pencil, Send, Users, Mail, X, Search } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
-import { AppModal, Button, ErrorState } from '@frezo/ui'
+import { FilterBar } from '@/components/ui/FilterBar'
+import {
+  AppModal, Button, ConfirmDialog, EmptyState, ErrorState,
+  PageHeader, PageGuideButton, IconActionButton, type PageGuideConfig,
+} from '@frezo/ui'
 import { Input } from '@frezo/ui'
 import { Label } from '@frezo/ui'
 import { useForm } from 'react-hook-form'
@@ -15,6 +19,18 @@ import {
   useSendTestEmail,
 } from '../hooks/useEmail'
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
+
+const GROUPS_GUIDE: PageGuideConfig = {
+  title: 'Nhóm Email',
+  subtitle: 'Tạo nhóm email để gửi hàng loạt hoặc gửi test.',
+  sections: [
+    {
+      heading: 'Mẹo',
+      type: 'tips',
+      tips: ['Thêm từng email vào nhóm trước khi lưu.', 'Dùng nút Gửi để test email tới nhóm.'],
+    },
+  ],
+}
 
 const groupSchema = z.object({
   name: z.string().min(1, 'Tên nhóm không được để trống'),
@@ -32,6 +48,7 @@ export function EmailGroupsPage() {
   const [emails, setEmails] = useState<string[]>([])
   const [newEmail, setNewEmail] = useState('')
   const [emailError, setEmailError] = useState('')
+  const [search, setSearch] = useState('')
 
   const { data, isLoading, isError, refetch, isFetching } = useEmailGroups()
   const createReq = useCreateEmailGroup()
@@ -41,6 +58,20 @@ export function EmailGroupsPage() {
 
   const isEditing = !!editingRecord
   const dataList = Array.isArray(data) ? data : []
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return dataList
+    return dataList.filter(
+      (g) =>
+        (g.name || '').toLowerCase().includes(q) ||
+        (g.description || '').toLowerCase().includes(q),
+    )
+  }, [dataList, search])
+
+  const hasFilter = !!search.trim()
+  const isFilteredEmpty = !isLoading && !isError && dataList.length > 0 && filtered.length === 0
+  const isFullyEmpty = !isLoading && !isError && dataList.length === 0
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(groupSchema),
@@ -134,14 +165,15 @@ export function EmailGroupsPage() {
       width: 160,
       render: (_: any, row: any) => (
         <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="sm" onClick={() => openEdit(row)} title="Sửa">
+          <IconActionButton tooltip="Sửa" size="sm" onClick={() => openEdit(row)}>
             <Pencil className="w-3.5 h-3.5" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => openSend(row)} title="Gửi email cho nhóm">
-            <Send className="w-3.5 h-3.5 text-primary-600" />
-          </Button>
-          <Button
-            variant="ghost"
+          </IconActionButton>
+          <IconActionButton tooltip="Gửi email cho nhóm" tone="primary" size="sm" onClick={() => openSend(row)}>
+            <Send className="w-3.5 h-3.5" />
+          </IconActionButton>
+          <IconActionButton
+            tooltip="Xóa"
+            tone="red"
             size="sm"
             onClick={() =>
               askConfirm({
@@ -151,29 +183,45 @@ export function EmailGroupsPage() {
                 onConfirm: () => deleteReq.mutate(row.id),
               })
             }
-            title="Xóa"
           >
-            <Trash2 className="w-3.5 h-3.5 text-red-500" />
-          </Button>
+            <Trash2 className="w-3.5 h-3.5" />
+          </IconActionButton>
         </div>
       ),
     },
   ]
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 flex items-center gap-2">
-            <Users className="text-primary-600" />
-            Nhóm Email
-          </h1>
-          <p className="text-sm text-neutral-500 mt-1">Tạo nhóm email để gửi hàng loạt</p>
+    <div className="p-6 space-y-4 animate-fade-in">
+      <PageHeader
+        title="Nhóm Email"
+        description="Tạo nhóm email để gửi hàng loạt"
+        actions={(
+          <div className="flex flex-wrap gap-2 items-center">
+            <PageGuideButton guide={GROUPS_GUIDE} />
+            <Button onClick={openCreate} className="gap-2 bg-primary-600 hover:bg-primary-700 text-white">
+              <Plus className="w-4 h-4" /> Tạo nhóm
+            </Button>
+          </div>
+        )}
+      />
+
+      <FilterBar
+        hasActiveFilters={hasFilter}
+        onClear={() => setSearch('')}
+        countLabel={`${filtered.length} nhóm${hasFilter ? ' (đã lọc)' : ''}`}
+      >
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            placeholder="Tìm kiếm nhóm email…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Tìm nhóm email"
+          />
         </div>
-        <Button onClick={openCreate} className="bg-primary-600 hover:bg-primary-700 text-white">
-          <Plus className="w-4 h-4 mr-2" /> Tạo nhóm
-        </Button>
-      </div>
+      </FilterBar>
 
       {isError ? (
         <div className="border rounded-xl bg-white overflow-hidden">
@@ -183,13 +231,32 @@ export function EmailGroupsPage() {
             isRetrying={isFetching}
           />
         </div>
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={Users}
+            title={isFilteredEmpty ? 'Không có nhóm khớp bộ lọc' : 'Chưa có nhóm email nào'}
+            description={
+              isFilteredEmpty
+                ? 'Thử xoá lọc hoặc đổi từ khoá.'
+                : 'Tạo nhóm đầu tiên để gửi email hàng loạt.'
+            }
+            action={
+              isFilteredEmpty
+                ? { label: 'Xoá lọc', onClick: () => setSearch('') }
+                : { label: 'Tạo nhóm', onClick: openCreate }
+            }
+          />
+        </div>
       ) : (
         <AppTable
           columns={columns}
-          data={dataList}
+          data={filtered}
           isLoading={isLoading}
-          showSearch
-          searchPlaceholder="Tìm kiếm nhóm email..."
+          density="compact"
+          showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
           onRefresh={refetch}
         />
       )}

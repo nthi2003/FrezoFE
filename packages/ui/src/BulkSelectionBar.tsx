@@ -2,6 +2,8 @@ import * as React from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@frezo/utils'
 
+import { AppTooltip } from './tooltip'
+
 export interface BulkSelectionBarProps {
   /** Số item đã chọn — bar hiển thị khi > 0 */
   selectedCount: number
@@ -64,18 +66,19 @@ export function BulkSelectionBar({
     >
       <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4 px-4 md:px-6 py-3">
         <div className="flex items-center gap-3 min-w-0 text-white">
-          <button
-            type="button"
-            onClick={onDeselect}
-            className="inline-flex items-center justify-center h-8 w-8 rounded hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 shrink-0"
-            title="Bỏ chọn tất cả"
-            aria-label="Bỏ chọn tất cả"
-          >
-            <X size={16} strokeWidth={2} />
-          </button>
+          <AppTooltip content="Bỏ chọn tất cả">
+            <button
+              type="button"
+              onClick={onDeselect}
+              className="inline-flex items-center justify-center h-8 w-8 rounded hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 shrink-0"
+              aria-label="Bỏ chọn tất cả"
+            >
+              <X size={16} strokeWidth={2} />
+            </button>
+          </AppTooltip>
 
           <span className="text-sm font-medium tabular-nums truncate">
-            {label} <span className="text-primary-400">{selectedCount}</span>
+            {label} <span className="text-white font-semibold">{selectedCount}</span>
             {totalCount !== undefined && (
               <span className="text-neutral-400"> / {totalCount}</span>
             )}

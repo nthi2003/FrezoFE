@@ -49,6 +49,8 @@ import {
   PageHeader,
   EmptyState,
   ImageUploader,
+  IconActionButton,
+  AppTooltip,
 } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
 import { AppForm } from '@/components/shared/AppForm'
@@ -69,6 +71,8 @@ import {
 import { bannerFormSchema, type BannerFormValues } from '../constants/banner.schema'
 import { makeImageUploader } from '@/lib/upload'
 import { LandingPreview, type PreviewDevice, type LandingConfigLite } from '../components/LandingPreview'
+import { Can } from '@/lib/permissions'
+import { usePermission } from '@/lib/hooks/usePermission'
 
 // ============================================================
 // Constants
@@ -547,16 +551,18 @@ function ConfigTab() {
             <div className="text-[11px] uppercase tracking-wider font-semibold text-neutral-400">
               Danh mục
             </div>
-            <button
-              type="button"
-              onClick={() => setPreviewOn(!previewOn)}
-              title={previewOn ? 'Ẩn preview' : 'Hiện preview'}
-              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
-                previewOn ? 'bg-emerald-100 text-emerald-700' : 'bg-neutral-100 text-neutral-500'
-              }`}
-            >
-              {previewOn ? <Eye size={14} /> : <EyeOff size={14} />} {previewOn ? 'On' : 'Off'}
-            </button>
+            <AppTooltip content={previewOn ? 'Ẩn preview' : 'Hiện preview'}>
+              <button
+                type="button"
+                onClick={() => setPreviewOn(!previewOn)}
+                aria-label={previewOn ? 'Ẩn preview' : 'Hiện preview'}
+                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
+                  previewOn ? 'bg-emerald-100 text-emerald-700' : 'bg-neutral-100 text-neutral-500'
+                }`}
+              >
+                {previewOn ? <Eye size={14} /> : <EyeOff size={14} />} {previewOn ? 'On' : 'Off'}
+              </button>
+            </AppTooltip>
           </div>
           <nav className="space-y-0.5">
             {FORM_SECTIONS.map((s) => {
@@ -760,14 +766,9 @@ function ConfigTab() {
                 </div>
                 <div className="flex items-center gap-2">
                   <DeviceSwitcher value={device} onChange={setDevice} />
-                  <button
-                    type="button"
-                    title="Mở landing thật trong tab mới"
-                    onClick={() => window.open(LANDING_URL, '_blank', 'noopener,noreferrer')}
-                    className="h-7 w-7 inline-flex items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
-                  >
+                  <IconActionButton tooltip="Mở landing thật trong tab mới" onClick={() => window.open(LANDING_URL, '_blank', 'noopener,noreferrer')}>
                     <Maximize2 size={14} />
-                  </button>
+                  </IconActionButton>
                 </div>
               </div>
               <div className="p-3 bg-neutral-100">
@@ -846,6 +847,10 @@ function ArticlesTab() {
   const updateReq = useUpdateArticle()
   const deleteReq = useDeleteArticle()
   const createReq = useCreateArticle()
+  const canPublish = usePermission('QTBV.ARTICLES.PUBLISH')
+  const canCreate = usePermission('QTBV.ARTICLES.CREATE')
+  const canUpdate = usePermission('QTBV.ARTICLES.UPDATE')
+  const canDelete = usePermission('QTBV.ARTICLES.DELETE')
 
   const [typeFilter, setTypeFilter] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
@@ -859,8 +864,15 @@ function ArticlesTab() {
     })
   }, [rawData, typeFilter, statusFilter])
 
+  /** Chỉ unpublish / publish khi đã qua duyệt — không bypass WAITING_APPROVAL bằng UPDATE. */
   const quickPublish = (row: any) => {
+    if (!canPublish) return
+    if (row.status === 'WAITING_APPROVAL') return
     const next = row.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED'
+    if (next === 'PUBLISHED' && row.status !== 'APPROVED' && row.status !== 'PUBLISHED') {
+      toast.error('Bài cần được duyệt trước khi xuất bản nhanh.')
+      return
+    }
     updateReq.mutate({ id: row.id, data: { ...row, status: next } })
   }
 
@@ -936,58 +948,51 @@ function ArticlesTab() {
       width: 200,
       render: (_: any, row: any) => (
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            title={row.status === 'PUBLISHED' ? 'Chuyển về nháp' : 'Xuất bản nhanh'}
-            onClick={() => quickPublish(row)}
-            disabled={updateReq.isPending}
-          >
-            {row.status === 'PUBLISHED' ? (
-              <XCircle size={16} className="text-amber-600" />
-            ) : (
-              <CheckCircle2 size={16} className="text-emerald-600" />
+          <Can permission="QTBV.ARTICLES.PUBLISH">
+            {(row.status === 'PUBLISHED' || row.status === 'APPROVED') && (
+              <IconActionButton
+                tooltip={row.status === 'PUBLISHED' ? 'Chuyển về nháp' : 'Xuất bản nhanh'}
+                tone={row.status === 'PUBLISHED' ? 'amber' : 'emerald'}
+                onClick={() => quickPublish(row)}
+                disabled={updateReq.isPending}
+              >
+                {row.status === 'PUBLISHED' ? (
+                  <XCircle size={16} />
+                ) : (
+                  <CheckCircle2 size={16} />
+                )}
+              </IconActionButton>
             )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Xem preview"
-            onClick={() => window.open(`${LANDING_URL}/bai-viet/${row.id}`, '_blank')}
-          >
-            <Eye size={16} className="text-blue-600" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Sao chép"
-            onClick={() => duplicate(row)}
-          >
-            <Copy size={16} className="text-neutral-500" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Chỉnh sửa (mở trình soạn full)"
-            onClick={() => navigate(`/admin/article-management/${row.id}/edit`)}
-          >
-            <Pencil size={16} className="text-primary-600" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Xoá"
-            onClick={() =>
-              askConfirm({
-                title: 'Xoá bài viết?',
-                message: `Bài viết "${row.title}" sẽ bị xoá.`,
-                confirmText: 'Xoá',
-                onConfirm: () => deleteReq.mutate(row.id),
-              })
-            }
-          >
-            <Trash2 size={16} className="text-red-500" />
-          </Button>
+          </Can>
+          <IconActionButton tooltip="Xem preview" tone="blue" onClick={() => window.open(`${LANDING_URL}/bai-viet/${row.id}`, '_blank')}>
+            <Eye size={16} />
+          </IconActionButton>
+          {canCreate && (
+            <IconActionButton tooltip="Sao chép" onClick={() => duplicate(row)}>
+              <Copy size={16} />
+            </IconActionButton>
+          )}
+          {canUpdate && (
+            <IconActionButton tooltip="Chỉnh sửa (mở trình soạn full)" tone="primary" onClick={() => navigate(`/admin/article-management/${row.id}/edit`)}>
+              <Pencil size={16} />
+            </IconActionButton>
+          )}
+          {canDelete && (
+            <IconActionButton
+              tooltip="Xoá"
+              tone="red"
+              onClick={() =>
+                askConfirm({
+                  title: 'Xoá bài viết?',
+                  message: `Bài viết "${row.title}" sẽ bị xoá.`,
+                  confirmText: 'Xoá',
+                  onConfirm: () => deleteReq.mutate(row.id),
+                })
+              }
+            >
+              <Trash2 size={16} />
+            </IconActionButton>
+          )}
         </div>
       ),
     },
@@ -1037,12 +1042,14 @@ function ArticlesTab() {
           <span className="text-xs text-neutral-500">
             Tổng: <strong>{dataList.length}</strong> bài
           </span>
-          <Button
-            onClick={() => navigate('/admin/article-management/new')}
-            className="bg-primary-600 hover:bg-primary-700 text-white"
-          >
-            <Plus size={14} className="mr-1.5" /> Thêm bài viết
-          </Button>
+          {canCreate && (
+            <Button
+              onClick={() => navigate('/admin/article-management/new')}
+              className="bg-primary-600 hover:bg-primary-700 text-white"
+            >
+              <Plus size={14} className="mr-1.5" /> Thêm bài viết
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1057,12 +1064,14 @@ function ArticlesTab() {
                 : 'Bắt đầu bằng cách tạo bài viết mới với trình soạn full-page.'
             }
             action={
-              <Button
-                onClick={() => navigate('/admin/article-management/new')}
-                className="bg-primary-600 hover:bg-primary-700 text-white"
-              >
-                <Plus size={14} className="mr-1.5" /> Tạo bài đầu tiên
-              </Button>
+              canCreate ? (
+                <Button
+                  onClick={() => navigate('/admin/article-management/new')}
+                  className="bg-primary-600 hover:bg-primary-700 text-white"
+                >
+                  <Plus size={14} className="mr-1.5" /> Tạo bài đầu tiên
+                </Button>
+              ) : undefined
             }
           />
         </div>
@@ -1292,34 +1301,20 @@ function BannersTab() {
 
                           {/* Hover actions */}
                           <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-end px-2 pb-2 gap-1">
-                            <button
-                              type="button"
-                              onClick={() => moveOrder(banner, -1)}
-                              disabled={idx === 0}
-                              className="w-7 h-7 rounded-md bg-white/95 text-neutral-700 hover:bg-white flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
-                              title="Lên"
-                            >
+                            <IconActionButton tooltip="Lên" size="sm" className="w-7 h-7 bg-white/95 text-neutral-700 hover:bg-white disabled:opacity-30" onClick={() => moveOrder(banner, -1)} disabled={idx === 0}>
                               <ArrowUp size={12} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => moveOrder(banner, +1)}
-                              disabled={idx === list.length - 1}
-                              className="w-7 h-7 rounded-md bg-white/95 text-neutral-700 hover:bg-white flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
-                              title="Xuống"
-                            >
+                            </IconActionButton>
+                            <IconActionButton tooltip="Xuống" size="sm" className="w-7 h-7 bg-white/95 text-neutral-700 hover:bg-white disabled:opacity-30" onClick={() => moveOrder(banner, +1)} disabled={idx === list.length - 1}>
                               <ArrowDown size={12} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openEdit(banner)}
-                              className="w-7 h-7 rounded-md bg-white/95 text-primary-700 hover:bg-white flex items-center justify-center"
-                              title="Chỉnh sửa"
-                            >
+                            </IconActionButton>
+                            <IconActionButton tooltip="Chỉnh sửa" tone="primary" size="sm" className="w-7 h-7 bg-white/95 hover:bg-white" onClick={() => openEdit(banner)}>
                               <Pencil size={12} />
-                            </button>
-                            <button
-                              type="button"
+                            </IconActionButton>
+                            <IconActionButton
+                              tooltip="Xoá"
+                              tone="red"
+                              size="sm"
+                              className="w-7 h-7 bg-white/95 hover:bg-white"
                               onClick={() =>
                                 askConfirm({
                                   title: 'Xoá banner?',
@@ -1328,11 +1323,9 @@ function BannersTab() {
                                   onConfirm: () => deleteReq.mutate(banner.id),
                                 })
                               }
-                              className="w-7 h-7 rounded-md bg-white/95 text-red-600 hover:bg-white flex items-center justify-center"
-                              title="Xoá"
                             >
                               <Trash2 size={12} />
-                            </button>
+                            </IconActionButton>
                           </div>
                         </div>
 

@@ -248,6 +248,7 @@ function TransferRequestCard({
             </div>
           ) : (
             <WorkflowStepper
+              layout="progress"
               steps={steps}
               currentIndex={currentIndex}
               rejected={req.status === 'REJECTED'}

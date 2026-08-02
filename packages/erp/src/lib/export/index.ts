@@ -8,3 +8,5 @@ export {
 } from './exporters'
 
 export { ExportButton, ExportMenu } from './ExportButton'
+export { downloadCsv, toCsv, type CsvColumn } from './toCsv'
+export { downloadExcel } from './toExcel'

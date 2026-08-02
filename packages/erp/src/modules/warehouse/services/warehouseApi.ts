@@ -10,6 +10,7 @@ import type {
   ReorderRuleRequest,
   StockAlertDto,
   StockAlertStatus,
+  StockAlertType,
   WarehouseOption,
 } from '../types'
 
@@ -63,6 +64,7 @@ export const warehouseApi = {
 
   listStockAlerts: (params?: {
     status?: StockAlertStatus | 'open' | 'resolved'
+    alertType?: StockAlertType | string
   }) =>
     axiosClient
       .get<ApiResponse<PageResponse<StockAlertDto>>>(`${BASE}/stock-alerts`, {
@@ -73,6 +75,7 @@ export const warehouseApi = {
               : params?.status === 'resolved'
                 ? 'RESOLVED'
                 : params?.status,
+          alertType: params?.alertType,
         },
       })
       .then((r) => r.data.data),

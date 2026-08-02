@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Search, LayoutGrid, CalendarDays, Users, Filter, X, Flame, Zap, AlertCircle, Clock, MessageSquare, type LucideIcon } from 'lucide-react'
+import { Plus, Search, LayoutGrid, CalendarDays, Users, Filter, Flame, Zap, AlertCircle, Clock, MessageSquare, type LucideIcon } from 'lucide-react'
 import { TicketCalendar } from '../components/TicketCalendar'
 import { TicketCard } from '../components/TicketCard'
 import {
@@ -15,7 +15,11 @@ import {
   Label,
   Input,
   Select,
+  AppTooltip,
 } from '@frezo/ui'
+import { FilterBar } from '@/components/ui/FilterBar'
+import { FilterExportDrawer, FilterExportTrigger } from '@/components/shared/FilterExportDrawer'
+import { downloadCsv } from '@/utils/csvExport'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
@@ -110,19 +114,30 @@ const PRIORITY_FILTER = [
 // Page
 // ============================================================
 
-export function TicketsPage() {
+interface TicketsPageProps {
+  embedded?: boolean
+  /** Tab "Của tôi" — bật sẵn filter assignee = profile. */
+  initialMineOnly?: boolean
+}
+
+export function TicketsPage({ embedded = false, initialMineOnly = false }: TicketsPageProps) {
   const [searchParams, setSearchParams] = useSearchParams()
   const deepLinkTicketId = searchParams.get('ticketId')
   const deepLinkHandledRef = useRef<string | null>(null)
 
   const [modalOpen, setModalOpen] = useState(false)
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any | null>(null)
   const [commentTicket, setCommentTicket] = useState<any | null>(null)
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [priorityFilters, setPriorityFilters] = useState<string[]>([])
   const [assigneeFilter, setAssigneeFilter] = useState('')
-  const [mineOnly, setMineOnly] = useState(false)
+  const [mineOnly, setMineOnly] = useState(initialMineOnly)
+
+  useEffect(() => {
+    setMineOnly(initialMineOnly)
+  }, [initialMineOnly])
 
   /** FR-UX-16 WIP hint theo cột (soft limit) */
   const WIP_LIMIT: Record<string, number> = {
@@ -299,7 +314,7 @@ export function TicketsPage() {
     clearTicketDeepLink()
   }, [clearTicketDeepLink])
 
-  // Deep-link từ notification: /task/tickets?ticketId=... (hoặc alias /tasks?ticketId=...)
+  // Deep-link từ notification: /task?tab=board&ticketId=... (legacy /task/tickets, /tasks)
   useEffect(() => {
     if (!deepLinkTicketId) {
       deepLinkHandledRef.current = null
@@ -401,126 +416,146 @@ export function TicketsPage() {
     !!fromDate ||
     !!toDate
 
-  // ============================================================
-  // Render
-  // ============================================================
-  return (
-    <div className="p-6 space-y-5 bg-neutral-50/50 min-h-[calc(100vh-64px)] animate-fade-in">
-      <PageHeader
-        title="Giao việc (Ticket)"
-        description="Kanban board tác vụ nội bộ — kéo thả để đổi trạng thái, theo dõi SLA và priority."
-        actions={
-          <>
-            <PageGuideButton guide={TICKETS_GUIDE} />
-            <Button onClick={handleOpenCreate} className="gap-2 bg-primary-600 hover:bg-primary-700 shadow-sm">
-              <Plus className="w-4 h-4" /> Thêm giao việc
-            </Button>
-          </>
-        }
-      />
+  const activeFilterCount =
+    (searchText ? 1 : 0) +
+    (statusFilter ? 1 : 0) +
+    priorityFilters.length +
+    (assigneeFilter ? 1 : 0) +
+    (mineOnly ? 1 : 0) +
+    (fromDate ? 1 : 0) +
+    (toDate ? 1 : 0)
 
-      {/* Stats strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatChip label="Tổng ticket" value={stats.total} tone="neutral" />
-        <StatChip label="Đang xử lý" value={stats.inProgress} tone="info" />
-        <StatChip label="Khẩn cấp" value={stats.urgent} tone="danger" icon={Flame} />
-        <StatChip label="Quá hạn" value={stats.overdue} tone="warning" />
-      </div>
+  const handleExportCsv = () => {
+    downloadCsv(
+      'giao-viec.csv',
+      filteredList.map((t) => ({
+        code: t.code,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+        assignee: personMap[t.assigneeId] ?? t.assigneeId,
+        dueDate: t.dueDate,
+        category: t.category,
+      })),
+      [
+        { key: 'code', label: 'Mã' },
+        { key: 'title', label: 'Tiêu đề' },
+        { key: 'status', label: 'Trạng thái' },
+        { key: 'priority', label: 'Mức ưu tiên' },
+        { key: 'assignee', label: 'Người thực hiện' },
+        { key: 'dueDate', label: 'Hạn' },
+        { key: 'category', label: 'Danh mục' },
+      ],
+    )
+  }
 
-      {/* Filter bar */}
-      <div className="p-3 bg-surface border border-border shadow-card rounded-xl space-y-3">
-        {/* Row 1: search + status + date + view toggle */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm tiêu đề, mã, mô tả..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="h-10 w-full pl-9 pr-3 text-sm bg-neutral-50 border border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:bg-white transition-all placeholder:text-neutral-400"
-            />
-          </div>
-          <div className="w-44">
-            <Select
-              options={STATUS_OPTIONS}
-              value={statusFilter}
-              onChange={(val) => setStatusFilter(val || '')}
-              placeholder="Tất cả trạng thái"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="h-10 px-3 text-sm border border-neutral-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-primary-400 text-neutral-600"
-              title="Từ ngày"
-            />
-            <span className="text-neutral-400">→</span>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="h-10 px-3 text-sm border border-neutral-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-primary-400 text-neutral-600"
-              title="Đến ngày"
-            />
-          </div>
-          <div className="flex items-center bg-neutral-100/80 rounded-lg p-1 border border-neutral-200/50 ml-auto">
-            <button
-              type="button"
-              onClick={() => setViewMode('kanban')}
-              className={`px-3 py-1.5 text-sm rounded-md flex items-center gap-1.5 transition-all ${
-                viewMode === 'kanban'
-                  ? 'bg-white shadow-sm text-primary-600 font-semibold'
-                  : 'text-neutral-500 hover:text-neutral-700'
-              }`}
-            >
-              <LayoutGrid className="w-4 h-4" /> Kanban
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('calendar')}
-              className={`px-3 py-1.5 text-sm rounded-md flex items-center gap-1.5 transition-all ${
-                viewMode === 'calendar'
-                  ? 'bg-white shadow-sm text-primary-600 font-semibold'
-                  : 'text-neutral-500 hover:text-neutral-700'
-              }`}
-            >
-              <CalendarDays className="w-4 h-4" /> Lịch
-            </button>
-          </div>
+  const viewModeToggle = (
+    <div className="flex items-center bg-neutral-100/80 rounded-md p-0.5 border border-neutral-200/50">
+      <AppTooltip content="Bảng Kanban theo trạng thái">
+        <button
+          type="button"
+          onClick={() => setViewMode('kanban')}
+          className={`px-3 py-1.5 text-sm rounded-md flex items-center gap-1.5 transition-all ${
+            viewMode === 'kanban'
+              ? 'bg-white shadow-sm text-primary-600 font-semibold'
+              : 'text-neutral-500 hover:text-neutral-700'
+          }`}
+        >
+          <LayoutGrid className="w-4 h-4" /> Bảng
+        </button>
+      </AppTooltip>
+      <AppTooltip content="Lịch theo hạn xử lý">
+        <button
+          type="button"
+          onClick={() => setViewMode('calendar')}
+          className={`px-3 py-1.5 text-sm rounded-md flex items-center gap-1.5 transition-all ${
+            viewMode === 'calendar'
+              ? 'bg-white shadow-sm text-primary-600 font-semibold'
+              : 'text-neutral-500 hover:text-neutral-700'
+          }`}
+        >
+          <CalendarDays className="w-4 h-4" /> Lịch
+        </button>
+      </AppTooltip>
+    </div>
+  )
+
+  const filterDrawerContent = (
+    <>
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-neutral-600">Tìm kiếm</label>
+        <div className="relative">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="text"
+            placeholder="Tìm tiêu đề, mã, mô tả…"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="h-9 w-full pl-9 pr-3 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-400 placeholder:text-neutral-400"
+          />
         </div>
-
-        {/* Row 2: quick chips */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mr-1 inline-flex items-center gap-1">
-            <Filter size={11} /> Lọc nhanh:
-          </span>
+      </div>
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-neutral-600">Trạng thái</label>
+        <Select
+          options={STATUS_OPTIONS}
+          value={statusFilter}
+          onChange={(val) => setStatusFilter(val || '')}
+          placeholder="Tất cả trạng thái"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-neutral-600">Từ ngày</label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="h-9 w-full px-3 text-sm border border-neutral-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-primary-400 text-neutral-600"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-neutral-600">Đến ngày</label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="h-9 w-full px-3 text-sm border border-neutral-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-primary-400 text-neutral-600"
+          />
+        </div>
+      </div>
+      {!initialMineOnly && (
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-neutral-600">Phạm vi</label>
           <button
             type="button"
             onClick={() => setMineOnly((v) => !v)}
             disabled={!currentPersonId}
-            className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-medium border transition ${
+            className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium border transition ${
               mineOnly
                 ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
                 : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
             } ${!currentPersonId ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title={currentPersonId ? 'Chỉ hiển thị ticket được giao cho tôi' : 'Cần liên kết tài khoản với nhân sự'}
           >
-            <Users size={12} /> Của tôi
+            <Users size={12} /> Chỉ việc của tôi
           </button>
-          <div className="w-44">
-            <Select
-              options={[
-                { value: '', label: 'Assignee: tất cả' },
-                ...(personOptions || []),
-              ]}
-              value={assigneeFilter}
-              onChange={(val) => setAssigneeFilter(val || '')}
-              placeholder="Assignee"
-            />
-          </div>
+        </div>
+      )}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-neutral-600">Người thực hiện</label>
+        <Select
+          options={[
+            { value: '', label: 'Người thực hiện: tất cả' },
+            ...(personOptions || []),
+          ]}
+          value={assigneeFilter}
+          onChange={(val) => setAssigneeFilter(val || '')}
+          placeholder="Người thực hiện"
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-neutral-600">Mức ưu tiên</label>
+        <div className="flex flex-wrap gap-2">
           {PRIORITY_FILTER.map((p) => {
             const active = priorityFilters.includes(p.value)
             const Icon = p.icon
@@ -529,7 +564,7 @@ export function TicketsPage() {
                 key={p.value}
                 type="button"
                 onClick={() => togglePriority(p.value)}
-                className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-medium border transition ${
+                className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium border transition ${
                   active
                     ? p.tone.replace('hover:', '') + ' font-semibold'
                     : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
@@ -539,17 +574,179 @@ export function TicketsPage() {
               </button>
             )
           })}
-          {hasActiveFilter && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="ml-auto inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition"
-            >
-              <X size={12} /> Xoá lọc
-            </button>
-          )}
         </div>
       </div>
+    </>
+  )
+
+  const filterBarContent = (
+    <>
+      <div className="flex flex-wrap items-center gap-2 w-full">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="text"
+            placeholder="Tìm tiêu đề, mã, mô tả…"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="h-9 w-full pl-9 pr-3 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-400 placeholder:text-neutral-400"
+          />
+        </div>
+        <div className="w-44">
+          <Select
+            options={STATUS_OPTIONS}
+            value={statusFilter}
+            onChange={(val) => setStatusFilter(val || '')}
+            placeholder="Tất cả trạng thái"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="h-9 px-3 text-sm border border-neutral-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-primary-400 text-neutral-600"
+            title="Từ ngày"
+          />
+          <span className="text-neutral-400">→</span>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="h-9 px-3 text-sm border border-neutral-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-primary-400 text-neutral-600"
+            title="Đến ngày"
+          />
+        </div>
+        <div className="ml-auto">{viewModeToggle}</div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 w-full">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mr-1 inline-flex items-center gap-1">
+          <Filter size={11} /> Lọc nhanh
+        </span>
+        {!initialMineOnly && (
+          <button
+            type="button"
+            onClick={() => setMineOnly((v) => !v)}
+            disabled={!currentPersonId}
+            className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium border transition ${
+              mineOnly
+                ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+            } ${!currentPersonId ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title={currentPersonId ? 'Chỉ việc được giao cho tôi' : 'Cần liên kết tài khoản với nhân sự'}
+          >
+            <Users size={12} /> Của tôi
+          </button>
+        )}
+        <div className="w-44">
+          <Select
+            options={[
+              { value: '', label: 'Người thực hiện: tất cả' },
+              ...(personOptions || []),
+            ]}
+            value={assigneeFilter}
+            onChange={(val) => setAssigneeFilter(val || '')}
+            placeholder="Người thực hiện"
+          />
+        </div>
+        {PRIORITY_FILTER.map((p) => {
+          const active = priorityFilters.includes(p.value)
+          const Icon = p.icon
+          return (
+            <button
+              key={p.value}
+              type="button"
+              onClick={() => togglePriority(p.value)}
+              className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium border transition ${
+                active
+                  ? p.tone.replace('hover:', '') + ' font-semibold'
+                  : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+              }`}
+            >
+              <Icon size={12} /> {p.label}
+            </button>
+          )
+        })}
+      </div>
+    </>
+  )
+
+  // ============================================================
+  // Render
+  // ============================================================
+  const headerActions = (
+    <>
+      <PageGuideButton guide={TICKETS_GUIDE} />
+      <Button onClick={handleOpenCreate} className="gap-2 bg-primary-600 hover:bg-primary-700 shadow-sm">
+        <Plus className="w-4 h-4" /> Thêm giao việc
+      </Button>
+    </>
+  )
+
+  return (
+    <div
+      className={
+        embedded
+          ? 'space-y-5'
+          : 'p-6 space-y-5 bg-neutral-50/50 min-h-[calc(100vh-64px)] animate-fade-in'
+      }
+    >
+      {embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-neutral-600">
+            {initialMineOnly
+              ? 'Việc được giao cho bạn — kéo thả để đổi trạng thái.'
+              : 'Bảng trạng thái — kéo thả, theo dõi hạn và mức ưu tiên.'}
+            <span className="ml-2 text-xs text-neutral-400 tabular-nums">
+              {filteredList.length} việc{hasActiveFilter ? ' (đã lọc)' : ''}
+            </span>
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {viewModeToggle}
+            <FilterExportTrigger
+              onClick={() => setFilterDrawerOpen(true)}
+              activeCount={activeFilterCount}
+            />
+            {headerActions}
+          </div>
+        </div>
+      ) : (
+        <PageHeader
+          title="Giao việc"
+          description="Bảng trạng thái nội bộ — kéo thả để đổi trạng thái, theo dõi hạn và mức ưu tiên."
+          actions={headerActions}
+        />
+      )}
+
+      {/* Stats strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatChip label="Tổng việc" value={stats.total} tone="neutral" />
+        <StatChip label="Đang xử lý" value={stats.inProgress} tone="info" />
+        <StatChip label="Khẩn cấp" value={stats.urgent} tone="danger" icon={Flame} />
+        <StatChip label="Quá hạn" value={stats.overdue} tone="warning" />
+      </div>
+
+      {embedded ? (
+        <FilterExportDrawer
+          isOpen={filterDrawerOpen}
+          onClose={() => setFilterDrawerOpen(false)}
+          hasActiveFilters={hasActiveFilter}
+          onClear={clearFilters}
+          onExport={handleExportCsv}
+          exportDisabled={filteredList.length === 0}
+        >
+          {filterDrawerContent}
+        </FilterExportDrawer>
+      ) : (
+        <FilterBar
+          hasActiveFilters={hasActiveFilter}
+          onClear={clearFilters}
+          countLabel={`${filteredList.length} việc${hasActiveFilter ? ' (đã lọc)' : ''}`}
+          className="space-y-2"
+        >
+          {filterBarContent}
+        </FilterBar>
+      )}
 
       {/* === BODY === */}
       {isLoading ? (
@@ -579,11 +776,11 @@ export function TicketsPage() {
       ) : filteredList.length === 0 ? (
         <EmptyState
           icon={LayoutGrid}
-          title={hasActiveFilter ? 'Không có ticket nào khớp bộ lọc' : 'Chưa có ticket nào'}
+          title={hasActiveFilter ? 'Không có việc nào khớp bộ lọc' : 'Chưa có giao việc'}
           description={
             hasActiveFilter
               ? 'Thử xoá bộ lọc để xem tất cả giao việc.'
-              : 'Tạo ticket đầu tiên để bắt đầu theo dõi trên Kanban.'
+              : 'Tạo giao việc đầu tiên để theo dõi trên bảng trạng thái.'
           }
           action={
             hasActiveFilter
@@ -627,9 +824,9 @@ export function TicketsPage() {
                           ? 'bg-warning-light text-warning-dark border-warning/40'
                           : 'bg-white/70 text-neutral-500 border-neutral-200'
                       }`}
-                      title={`Gợi ý WIP ≤ ${WIP_LIMIT[col.key]} thẻ`}
+                      title={`Gợi ý tải cột ≤ ${WIP_LIMIT[col.key]} thẻ`}
                     >
-                      WIP {col.items.length}/{WIP_LIMIT[col.key]}
+                      Tải {col.items.length}/{WIP_LIMIT[col.key]}
                     </span>
                   )}
                 </div>
@@ -649,11 +846,11 @@ export function TicketsPage() {
                 {col.items.length === 0 ? (
                   <EmptyState
                     icon={LayoutGrid}
-                    title={dragOverCol === col.key ? 'Thả ticket vào đây' : `Cột «${col.label}» trống`}
+                    title={dragOverCol === col.key ? 'Thả việc vào đây' : `Cột «${col.label}» trống`}
                     description={
                       dragOverCol === col.key
                         ? 'Kéo thẻ từ cột khác để đổi trạng thái.'
-                        : 'Không có ticket ở trạng thái này (hoặc đã bị lọc).'
+                        : 'Không có việc ở trạng thái này (hoặc đã bị lọc).'
                     }
                     className="py-8 border-0 shadow-none bg-transparent"
                   />
@@ -691,7 +888,7 @@ export function TicketsPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {selectedItem?.code && (
             <div className="flex items-center gap-2 px-3 py-2 bg-neutral-50 rounded-lg border border-neutral-200">
-              <span className="text-xs text-neutral-400 font-medium">Mã ticket:</span>
+              <span className="text-xs text-neutral-400 font-medium">Mã việc:</span>
               <span className="text-sm font-mono text-neutral-700 font-semibold">
                 {selectedItem.code}
               </span>
@@ -702,7 +899,7 @@ export function TicketsPage() {
             <Label>
               Tiêu đề <span className="text-red-500">*</span>
             </Label>
-            <Input {...register('title')} placeholder="VD: Fix bug đăng nhập trên Safari..." />
+            <Input {...register('title')} placeholder="VD: Sửa lỗi đăng nhập trên Safari…" />
             {errors.title && <p className="text-xs text-red-500">{errors.title.message as string}</p>}
           </div>
 
@@ -711,7 +908,7 @@ export function TicketsPage() {
             <textarea
               {...register('description')}
               rows={3}
-              placeholder="Reproduce step, expected/actual behavior, screenshot link..."
+              placeholder="Mô tả vấn đề, bước tái hiện, kết quả mong muốn…"
               className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent placeholder:text-neutral-400 resize-none"
             />
           </div>
@@ -759,7 +956,7 @@ export function TicketsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Hạn hoàn thành (SLA)</Label>
+              <Label>Hạn hoàn thành</Label>
               <input
                 type="datetime-local"
                 {...register('dueDate')}
@@ -773,7 +970,7 @@ export function TicketsPage() {
             <textarea
               {...register('resolutionNote')}
               rows={2}
-              placeholder="Ghi lại giải pháp / commit / PR link khi hoàn thành..."
+              placeholder="Ghi lại cách xử lý khi hoàn thành…"
               className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent placeholder:text-neutral-400 resize-none"
             />
           </div>
@@ -793,7 +990,7 @@ export function TicketsPage() {
               </Button>
             )}
             <Button type="button" variant="outline" onClick={handleCloseModal}>
-              Hủy
+              Huỷ
             </Button>
             <Button
               type="submit"
@@ -801,10 +998,10 @@ export function TicketsPage() {
               className="bg-primary-600 hover:bg-primary-700 text-white"
             >
               {createReq.isPending || updateReq.isPending
-                ? 'Đang xử lý...'
+                ? 'Đang xử lý…'
                 : selectedItem
                   ? 'Cập nhật'
-                  : 'Tạo ticket'}
+                  : 'Tạo giao việc'}
             </Button>
           </div>
         </form>
@@ -815,7 +1012,7 @@ export function TicketsPage() {
         onClose={() => setCommentTicket(null)}
         subjectType={SubjectType.TICKET}
         subjectId={commentTicket?.id || ''}
-        title={commentTicket?.title || 'Ticket'}
+        title={commentTicket?.title || 'Giao việc'}
         subtitle={commentTicket?.code}
       />
 
@@ -825,7 +1022,7 @@ export function TicketsPage() {
         title="Xoá giao việc?"
         message={
           deleteTarget
-            ? `Ticket "${deleteTarget.title}" sẽ bị xoá. Hành động này không hoàn tác từ UI.`
+            ? `「${deleteTarget.title}」 sẽ bị xoá. Thao tác không thể hoàn tác.`
             : ''
         }
         confirmText="Xoá"

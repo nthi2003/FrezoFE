@@ -33,6 +33,18 @@ export const productApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then(res => res.data)
   },
+  /** Lịch sử giá vốn theo lô nhập (product_batches) */
+  getCostHistory: (id: string) =>
+    axiosClient.get<ApiResponse<ProductCostHistoryPoint[]>>(`/product/${id}/cost-history`).then(res => res.data),
+}
+
+export interface ProductCostHistoryPoint {
+  date?: string
+  unitCost?: number
+  qty?: number
+  batchCode?: string
+  supplierId?: string
+  source?: string
 }
 
 export const orderApi = {

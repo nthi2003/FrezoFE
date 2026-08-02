@@ -2,14 +2,27 @@ import { useState, useMemo, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Plus, Pencil, Trash2, Package, Layers, Upload, Loader2,
-  LayoutGrid, List, Search, X, AlertTriangle, TrendingUp, Sparkles,
-  type LucideIcon,
+  LayoutGrid, List, Search, AlertTriangle, TrendingUp, Sparkles, LineChart,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppTable } from '@/components/ui/AppTable'
-import { AppModal, PageHeader, PageGuideButton, EmptyState, ErrorState } from '@frezo/ui'
+import type { AppTableColumn, BulkAction } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
+import {
+  AppModal,
+  PageHeader,
+  PageGuideButton,
+  EmptyState,
+  ErrorState,
+  Button,
+  ConfirmDialog,
+  StatCard,
+  StatusBadge,
+  AppTooltip,
+  IconActionButton,
+} from '@frezo/ui'
+import { formatCurrency } from '@frezo/utils'
 import { AppForm } from '@/components/shared/AppForm'
-import { Button, ConfirmDialog, Select } from '@frezo/ui'
 import { categoryApi } from '@/modules/qtht/services/categoryApi'
 import { productApi } from '../services/productApi'
 import {
@@ -20,6 +33,7 @@ import {
 } from '../hooks/useProduct'
 import { productFormSchema, type ProductFormValues, SEASON_OPTIONS, ORIGIN_SUGGESTIONS } from '../constants/schema'
 import { ProductGridCard } from '../components/ProductGridCard'
+import { ProductPriceHistoryModal } from '../components/ProductPriceHistoryModal'
 import { PRODUCTS_GUIDE } from '../constants/products.guide'
 import { usePermission } from '@/lib/hooks/usePermission'
 
@@ -31,13 +45,14 @@ export function ProductsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<any | null>(null)
-  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState<any[] | null>(null)
+  const [priceHistoryProduct, setPriceHistoryProduct] = useState<any | null>(null)
   const [imageUrl, setImageUrl] = useState('')
   const [imageUploading, setImageUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Filters
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  // Filters — mặc định list (enterprise scanning); grid giữ làm tuỳ chọn
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
   const [searchText, setSearchText] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
@@ -134,8 +149,21 @@ export function ProductsPage() {
     }
   }
 
+  const nextProductCode = (products: any[]) => {
+    let max = 0
+    for (const p of products) {
+      const m = String(p.code || '').match(/^SP(\d+)$/i)
+      if (m) max = Math.max(max, Number(m[1]))
+    }
+    return `SP${String(max + 1).padStart(3, '0')}`
+  }
+
   const handleSubmit = (values: ProductFormValues) => {
-    const payload = { ...values, imageUrl }
+    const code =
+      (values.code || '').trim() ||
+      selectedItem?.code ||
+      (!selectedItem ? nextProductCode(dataList) : '')
+    const payload = { ...values, code, imageUrl }
     if (selectedItem?.id) {
       updateReq.mutate(
         { id: selectedItem.id, data: payload },
@@ -166,17 +194,14 @@ export function ProductsPage() {
 
   const clearSelection = () => setSelected({})
 
-  const bulkDelete = () => {
-    if (!selectedIds.length) return
-    setConfirmBulkDelete(true)
-  }
-
-  const runBulkDelete = () => {
-    Promise.all(selectedIds.map((id) => deleteReq.mutateAsync(id))).then(() => {
-      clearSelection()
-      setConfirmBulkDelete(false)
-      toast.success(`Đã xoá ${selectedIds.length} sản phẩm`)
-    })
+  const runBulkDelete = async () => {
+    const rows = confirmBulkDelete || []
+    const ids = rows.map((r) => r.id).filter(Boolean)
+    if (!ids.length) return
+    await Promise.all(ids.map((id) => deleteReq.mutateAsync(id)))
+    clearSelection()
+    setConfirmBulkDelete(null)
+    toast.success(`Đã xoá ${ids.length} sản phẩm`)
   }
 
   const clearFilters = () => {
@@ -186,7 +211,7 @@ export function ProductsPage() {
     setOnlyNew(false)
   }
 
-  const hasActiveFilter = searchText || categoryFilter || statusFilter || onlyNew
+  const hasActiveFilter = !!(searchText || categoryFilter || statusFilter || onlyNew)
 
   // ---- Form config — align với BE Product entity + ProductCreateRequest ----
   const formFields = [
@@ -196,11 +221,13 @@ export function ProductsPage() {
       placeholder: 'VD: Cà chua bi Đà Lạt loại 1',
       colSpan: 2,
     },
-    {
-      name: 'code', label: 'Mã SP', required: true,
-      placeholder: 'VD: SP001',
-      description: 'Mã unique bắt buộc — dùng cho tra cứu nhanh, in tem, quét mã.',
-    },
+    // Mã SP: create ẩn + tự sinh; edit hiện read-only
+    ...(selectedItem
+      ? [{
+          name: 'code', label: 'Mã SP', readOnly: true,
+          description: 'Mã hệ thống — không chỉnh sửa.',
+        }]
+      : []),
     {
       name: 'category', label: 'Danh mục', type: 'select', options: categoryOptions, required: true,
       placeholder: categoryOptions.length === 0
@@ -221,12 +248,8 @@ export function ProductsPage() {
 
     // ---- SECTION 3: Giá & Marketing ----
     {
-      name: 'price', label: 'Giá bán (VNĐ)', type: 'number', placeholder: '0', required: true,
+      name: 'price', label: 'Giá bán (VNĐ)', type: 'currency', placeholder: '0', required: true,
       description: 'Giá niêm yết cho khách hàng cuối. Chưa VAT.',
-    },
-    {
-      name: 'rating', label: 'Rating (0-5)', type: 'number', placeholder: 'VD: 4.5',
-      description: 'Điểm đánh giá trung bình — có thể để trống, cập nhật sau.',
     },
 
     // ---- SECTION 4: Cảnh báo tồn & hạn dùng ----
@@ -261,275 +284,264 @@ export function ProductsPage() {
     season: '',
     warningThreshold: undefined as any,
     expiryAlertDays: undefined as any,
-    rating: undefined as any,
     isNew: false,
     isActive: true,
     description: '',
   }
 
   // ---- Table columns (list view) ----
-  const listColumns = [
+  const listColumns: AppTableColumn<any>[] = [
     {
+      key: 'name',
       title: 'Sản phẩm',
-      dataIndex: 'name',
-      filterType: 'text' as const,
-      render: (_: string, row: any) => (
+      render: (_, row) => (
         <div className="flex items-center gap-2.5 min-w-0">
           {row.imageUrl ? (
             <img
               src={row.imageUrl}
               alt=""
-              className="w-10 h-10 rounded-lg object-cover border border-neutral-200 shrink-0"
+              className="w-9 h-9 rounded-md object-cover border border-neutral-200 shrink-0"
             />
           ) : (
-            <div className="w-10 h-10 rounded-lg bg-neutral-100 flex items-center justify-center text-neutral-300 shrink-0">
-              <Package size={16} />
+            <div className="w-9 h-9 rounded-md bg-neutral-100 flex items-center justify-center text-neutral-300 shrink-0">
+              <Package size={14} />
             </div>
           )}
           <div className="min-w-0">
-            <div className="font-medium text-neutral-800 truncate">{row.name}</div>
-            <div className="text-[10px] text-neutral-400 font-medium">{row.code || '—'}</div>
+            <div className="font-medium text-sm text-neutral-900 truncate" title={row.name}>
+              {row.name || '—'}
+            </div>
+            <div className="font-mono text-[11px] text-neutral-500">{row.code || '—'}</div>
           </div>
         </div>
       ),
     },
     {
+      key: 'category',
       title: 'Danh mục',
-      dataIndex: 'categoryId',
-      render: (_: string, row: any) => (
-        <span className="text-neutral-600">
+      render: (_, row) => (
+        <span className="text-sm text-neutral-700">
           {categoryMap[row.categoryId || row.category] || '—'}
         </span>
       ),
     },
     {
-      title: 'Giá',
-      dataIndex: 'price',
-      render: (val: number) => (
-        <span className="font-mono text-sm font-semibold text-neutral-800">
-          {Number(val ?? 0).toLocaleString('vi-VN')}₫
+      key: 'price',
+      title: 'Giá bán',
+      align: 'right',
+      width: 120,
+      render: (_, row) => (
+        <span className="tabular-nums text-sm font-medium text-neutral-900">
+          {formatCurrency(Number(row.price ?? 0))}
         </span>
       ),
     },
     {
+      key: 'isActive',
       title: 'Trạng thái',
-      dataIndex: 'isActive',
-      render: (val: boolean) => (
-        <span
-          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-            val !== false ? 'bg-emerald-50 text-emerald-700' : 'bg-neutral-100 text-neutral-600'
-          }`}
-        >
-          {val !== false ? 'Đang KD' : 'Ngừng KD'}
-        </span>
+      width: 120,
+      render: (_, row) => (
+        <StatusBadge
+          label={row.isActive !== false ? 'Đang KD' : 'Ngừng KD'}
+          color={row.isActive !== false ? 'success' : 'neutral'}
+        />
       ),
     },
     {
-      title: 'Đánh giá',
-      dataIndex: 'rating',
-      render: (val: number) => (
-        <span className="text-xs text-neutral-600">{val ? `${val} ⭐` : '—'}</span>
-      ),
-    },
-    {
+      key: 'isNew',
       title: 'Nhãn',
-      dataIndex: 'isNew',
-      render: (val: boolean) =>
-        val ? (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-pink-50 text-pink-600 text-[11px] font-semibold rounded-full">
-            <Sparkles size={10} /> Sản phẩm mới
-          </span>
+      width: 110,
+      render: (_, row) =>
+        row.isNew ? (
+          <StatusBadge label="Sản phẩm mới" color="info" icon={Sparkles} />
         ) : (
-          <span className="text-xs text-neutral-400">—</span>
+          <span className="text-sm text-neutral-400">—</span>
         ),
     },
     {
-      title: 'Thao tác',
-      dataIndex: 'id',
-      width: 100,
-      render: (_: any, row: any) => (
-        <div className="flex items-center gap-1">
-          {canUpdate && (
-            <button
-              title="Sửa"
-              onClick={() => openModal(row)}
-              className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
+      key: 'actions',
+      title: '',
+      align: 'right',
+      width: 148,
+      render: (_, row) => (
+        <div className="flex items-center justify-end gap-1">
+          <AppTooltip content="Biến động giá">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-neutral-600"
+              onClick={() => setPriceHistoryProduct(row)}
+              aria-label="Biến động giá"
             >
-              <Pencil className="w-4 h-4" />
-            </button>
+              <LineChart size={12} />
+            </Button>
+          </AppTooltip>
+          {canUpdate && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1"
+              onClick={() => openModal(row)}
+            >
+              <Pencil size={12} /> Sửa
+            </Button>
           )}
           {canDelete && (
-            <button
-              title="Xóa"
-              onClick={() => setConfirmDelete(row)}
-              className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <IconActionButton tooltip="Xoá" tone="rose" size="sm" onClick={() => setConfirmDelete(row)}>
+              <Trash2 size={12} />
+            </IconActionButton>
           )}
         </div>
       ),
     },
   ]
 
+  const bulkActions: BulkAction<any>[] = canDelete
+    ? [
+        {
+          key: 'delete',
+          label: 'Xoá đã chọn',
+          icon: Trash2,
+          variant: 'destructive',
+          onClick: (rows) => setConfirmBulkDelete(rows),
+        },
+      ]
+    : []
+
+  const kpiStats = [
+    { label: 'Tổng SP', value: stats.total, icon: Package },
+    { label: 'Đang KD', value: stats.active, icon: TrendingUp },
+    { label: 'Sản phẩm mới', value: stats.newCount, icon: Sparkles },
+    { label: 'Có cảnh báo', value: stats.withWarning, icon: AlertTriangle },
+    { label: 'Danh mục', value: categoryOptions.length, icon: Layers },
+  ]
+
   // ============================================================
   // Render
   // ============================================================
   return (
-    <div className="p-6 space-y-5 animate-fade-in">
+    <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
         title="Sản phẩm"
-        description="Catalog toàn bộ sản phẩm — quản lý giá, danh mục, tồn kho và cảnh báo hạn dùng."
+        description="Catalog sản phẩm — giá, danh mục, tồn và cảnh báo hạn dùng."
         actions={
-          <>
+          <div className="flex flex-wrap gap-2 items-center">
             <PageGuideButton guide={PRODUCTS_GUIDE} />
             {canCreate && (
-              <Button
-                onClick={() => openModal(null)}
-                className="gap-2 bg-primary-700 hover:bg-primary-800 text-white shadow-sm"
-              >
-                <Plus size={17} /> Thêm sản phẩm
+              <Button onClick={() => openModal(null)} className="gap-1.5">
+                <Plus size={16} strokeWidth={2.5} />
+                Thêm sản phẩm
               </Button>
             )}
+          </div>
+        }
+      />
+
+      {!isLoading && !isError && dataList.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {kpiStats.map((s) => (
+            <StatCard key={s.label} label={s.label} value={s.value} icon={s.icon} className="!p-4" />
+          ))}
+        </div>
+      )}
+
+      <FilterBar
+        selects={[
+          {
+            id: 'category',
+            label: 'Danh mục',
+            value: categoryFilter,
+            onChange: setCategoryFilter,
+            options: [
+              { value: '', label: 'Tất cả danh mục' },
+              ...categoryOptions.map((c) => ({ value: c.value, label: c.label })),
+            ],
+            minWidth: '160px',
+          },
+          {
+            id: 'status',
+            label: 'Trạng thái',
+            value: statusFilter,
+            onChange: (v) => setStatusFilter((v as '' | 'active' | 'inactive') || ''),
+            options: [
+              { value: '', label: 'Tất cả trạng thái' },
+              { value: 'active', label: 'Đang kinh doanh' },
+              { value: 'inactive', label: 'Ngừng kinh doanh' },
+            ],
+          },
+        ]}
+        hasActiveFilters={hasActiveFilter}
+        onClear={clearFilters}
+        countLabel={`${filteredList.length} sản phẩm${hasActiveFilter ? ' (đã lọc)' : ''}`}
+        extra={
+          <>
+            <input
+              className="h-9 border rounded-md px-3 text-sm bg-white min-w-[180px]"
+              placeholder="Tìm tên, mã, nguồn gốc…"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              aria-label="Tìm kiếm sản phẩm"
+            />
+            <label className="inline-flex items-center gap-2 h-9 px-3 rounded-md border bg-white text-sm text-neutral-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={onlyNew}
+                onChange={(e) => setOnlyNew(e.target.checked)}
+                className="rounded border-neutral-300"
+              />
+              Chỉ sản phẩm mới
+            </label>
+            <div className="inline-flex items-center rounded-md border bg-white p-0.5">
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={`h-8 px-2.5 rounded text-xs font-medium inline-flex items-center gap-1 ${
+                  viewMode === 'list'
+                    ? 'bg-neutral-100 text-primary-700'
+                    : 'text-neutral-500 hover:text-neutral-800'
+                }`}
+                aria-label="Xem bảng"
+              >
+                <List size={13} /> Bảng
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`h-8 px-2.5 rounded text-xs font-medium inline-flex items-center gap-1 ${
+                  viewMode === 'grid'
+                    ? 'bg-neutral-100 text-primary-700'
+                    : 'text-neutral-500 hover:text-neutral-800'
+                }`}
+                aria-label="Xem lưới"
+              >
+                <LayoutGrid size={13} /> Lưới
+              </button>
+            </div>
           </>
         }
       />
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiCard icon={Package} label="Tổng SP" value={stats.total} tone="blue" />
-        <KpiCard icon={TrendingUp} label="Đang KD" value={stats.active} tone="green" />
-        <KpiCard icon={Sparkles} label="Sản phẩm mới" value={stats.newCount} tone="pink" />
-        <KpiCard
-          icon={AlertTriangle}
-          label="Có cảnh báo"
-          value={stats.withWarning}
-          tone="orange"
-        />
-        <KpiCard icon={Layers} label="Danh mục" value={categoryOptions.length} tone="neutral" />
-      </div>
-
-      {/* Filter bar */}
-      <div className="p-3 bg-white border border-neutral-200 shadow-sm rounded-2xl space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <input
-              type="text"
-              placeholder="Tìm theo tên, mã, nguồn gốc..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="h-10 w-full pl-9 pr-3 text-sm bg-neutral-50 border border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:bg-white transition-all placeholder:text-neutral-400"
-            />
-          </div>
-          <div className="w-52">
-            <Select
-              options={[{ value: '', label: 'Tất cả danh mục' }, ...categoryOptions]}
-              value={categoryFilter}
-              onChange={(v) => setCategoryFilter(v || '')}
-              placeholder="Tất cả danh mục"
-              showSearch
-            />
-          </div>
-          <div className="w-44">
-            <Select
-              options={[
-                { value: '', label: 'Tất cả trạng thái' },
-                { value: 'active', label: 'Đang kinh doanh' },
-                { value: 'inactive', label: 'Ngừng kinh doanh' },
-              ]}
-              value={statusFilter}
-              onChange={(v) => setStatusFilter((v as any) || '')}
-              placeholder="Trạng thái"
-            />
-          </div>
-          <label className="inline-flex items-center gap-2 h-10 px-3 rounded-lg bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 cursor-pointer text-sm text-neutral-700 font-medium select-none">
-            <input
-              type="checkbox"
-              checked={onlyNew}
-              onChange={(e) => setOnlyNew(e.target.checked)}
-              className="w-4 h-4 accent-pink-500"
-            />
-            <Sparkles size={13} className="text-pink-500" />
-            Chỉ sản phẩm mới
-          </label>
-
-          <div className="flex items-center bg-neutral-100 rounded-lg p-1 border border-neutral-200/50 ml-auto">
-            <button
-              type="button"
-              onClick={() => setViewMode('grid')}
-              className={`px-3 py-1.5 text-sm rounded-md flex items-center gap-1.5 transition-all ${
-                viewMode === 'grid'
-                  ? 'bg-white shadow-sm text-primary-600 font-semibold'
-                  : 'text-neutral-500 hover:text-neutral-700'
-              }`}
-            >
-              <LayoutGrid className="w-4 h-4" /> Grid
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className={`px-3 py-1.5 text-sm rounded-md flex items-center gap-1.5 transition-all ${
-                viewMode === 'list'
-                  ? 'bg-white shadow-sm text-primary-600 font-semibold'
-                  : 'text-neutral-500 hover:text-neutral-700'
-              }`}
-            >
-              <List className="w-4 h-4" /> List
-            </button>
-          </div>
-        </div>
-
-        {hasActiveFilter && (
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-neutral-500">
-              Hiển thị <b className="text-neutral-800">{filteredList.length}</b> / {stats.total} sản
-              phẩm
-            </span>
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="ml-auto inline-flex items-center gap-1 h-7 px-2 rounded-md font-medium text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition"
-            >
-              <X size={12} /> Xoá lọc
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Bulk actions bar (sticky when selection > 0) */}
-      {selectedIds.length > 0 && (
-        <div className="sticky top-2 z-20 bg-primary-600 text-white rounded-xl shadow-lg px-4 py-2.5 flex items-center gap-3">
-          <span className="text-sm font-semibold">
-            Đã chọn {selectedIds.length} sản phẩm
-          </span>
-          <button
-            onClick={clearSelection}
-            className="text-xs text-white/80 hover:text-white underline underline-offset-2"
-          >
+      {viewMode === 'grid' && selectedIds.length > 0 && canDelete && (
+        <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+          <span className="tabular-nums font-medium">Đã chọn {selectedIds.length}</span>
+          <Button variant="ghost" size="sm" onClick={clearSelection}>
             Bỏ chọn
-          </button>
-          <div className="ml-auto flex items-center gap-2">
-            {canDelete && (
-              <button
-                onClick={bulkDelete}
-                disabled={deleteReq.isPending}
-                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-white/15 hover:bg-white/25 text-sm font-medium transition"
-              >
-                <Trash2 size={13} /> Xoá đã chọn
-              </button>
-            )}
-          </div>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-danger-dark"
+            onClick={() =>
+              setConfirmBulkDelete(filteredList.filter((p: any) => selected[p.id]))
+            }
+          >
+            <Trash2 size={13} /> Xoá đã chọn
+          </Button>
         </div>
       )}
 
-      {/* Body */}
-      {isLoading ? (
-        <div className="flex items-center justify-center h-40">
-          <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : isError ? (
-        <div className="bg-white rounded-xl border border-neutral-200">
+      {isError ? (
+        <div className="border rounded-xl bg-white">
           <ErrorState
             title="Không tải được catalog"
             message="Lỗi mạng hoặc máy chủ. Thử lại."
@@ -537,58 +549,60 @@ export function ProductsPage() {
             isRetrying={isFetching}
           />
         </div>
-      ) : filteredList.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-neutral-200">
-          {hasActiveFilter ? (
-            <EmptyState
-              icon={Search}
-              title="Không tìm thấy sản phẩm nào"
-              description="Bộ lọc hiện tại không khớp với sản phẩm nào. Thử điều chỉnh từ khoá hoặc bỏ bớt lọc."
-              action={{ label: 'Xoá tất cả bộ lọc', onClick: clearFilters }}
-            />
-          ) : (
-            <EmptyState
-              icon={Package}
-              title="Chưa có sản phẩm nào"
-              description="Bắt đầu bằng cách thêm sản phẩm đầu tiên vào catalog. Bạn có thể thêm ảnh, giá, danh mục và tồn kho."
-              action={
-                canCreate ? (
-                  <div className="flex items-center gap-2">
-                    <Button variant="default" onClick={() => openModal(null)} className="gap-1.5">
-                      <Plus size={14} /> Thêm sản phẩm đầu tiên
-                    </Button>
-                  </div>
-                ) : undefined
-              }
-            />
-          )}
-        </div>
-      ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
-          {filteredList.map((p: any) => (
-            <ProductGridCard
-              key={p.id}
-              product={p}
-              categoryLabel={categoryMap[p.categoryId || p.category]}
-              isSelected={!!selected[p.id]}
-              onSelectToggle={() => toggleSelect(p.id)}
-              onEdit={canUpdate ? () => openModal(p) : undefined}
-              onDelete={canDelete ? () => setConfirmDelete(p) : undefined}
-              onClick={canUpdate ? () => openModal(p) : undefined}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
-          <AppTable
-            data={filteredList}
-            columns={listColumns as any}
-            isLoading={isLoading}
-            showSearch={false}
-            defaultDensity="compact"
-            showDensityToggle
+      ) : !isLoading && filteredList.length === 0 ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={hasActiveFilter ? Search : Package}
+            title={hasActiveFilter ? 'Không có sản phẩm phù hợp bộ lọc' : 'Chưa có sản phẩm nào'}
+            description={
+              hasActiveFilter
+                ? 'Thử đổi từ khoá, danh mục hoặc xoá lọc.'
+                : 'Thêm sản phẩm đầu tiên vào catalog (ảnh, giá, danh mục).'
+            }
+            action={
+              hasActiveFilter
+                ? { label: 'Xoá lọc', onClick: clearFilters }
+                : canCreate
+                  ? { label: 'Thêm sản phẩm', onClick: () => openModal(null) }
+                  : undefined
+            }
           />
         </div>
+      ) : viewMode === 'grid' ? (
+        isLoading ? (
+          <div className="border rounded-xl bg-white p-16 flex justify-center text-neutral-400 text-sm">
+            <Loader2 size={20} className="animate-spin text-primary-500" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
+            {filteredList.map((p: any) => (
+              <ProductGridCard
+                key={p.id}
+                product={p}
+                categoryLabel={categoryMap[p.categoryId || p.category]}
+                isSelected={!!selected[p.id]}
+                onSelectToggle={() => toggleSelect(p.id)}
+                onEdit={canUpdate ? () => openModal(p) : undefined}
+                onDelete={canDelete ? () => setConfirmDelete(p) : undefined}
+                onPriceHistory={() => setPriceHistoryProduct(p)}
+                onClick={canUpdate ? () => openModal(p) : undefined}
+              />
+            ))}
+          </div>
+        )
+      ) : (
+        <AppTable
+          columns={listColumns}
+          data={filteredList}
+          isLoading={isLoading}
+          loadingRows={6}
+          density="compact"
+          showSearch={false}
+          onRefresh={() => void refetch()}
+          selectable={canDelete}
+          getRowId={(row) => row.id}
+          bulkActions={bulkActions}
+        />
       )}
 
       {/* Modal — Redesign: left = brand/media panel, right = form scroll với section headers */}
@@ -614,7 +628,7 @@ export function ProductsPage() {
                   <button
                     type="button"
                     onClick={() => setImageUrl('')}
-                    className="text-[11px] text-rose-500 hover:text-rose-600 font-medium"
+                    className="text-[11px] text-danger-dark hover:underline font-medium"
                   >
                     Xoá ảnh
                   </button>
@@ -622,10 +636,10 @@ export function ProductsPage() {
               </div>
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className={`relative w-full aspect-square rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden group ${
+                className={`relative w-full aspect-square rounded-xl border border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden group ${
                   imageUrl
-                    ? 'border-transparent bg-neutral-100 shadow-sm'
-                    : 'border-neutral-200 hover:border-primary-400 bg-neutral-50 hover:bg-primary-50/30'
+                    ? 'border-transparent bg-neutral-100'
+                    : 'border-neutral-200 hover:border-primary-400 bg-neutral-50'
                 }`}
               >
                 <input
@@ -638,24 +652,24 @@ export function ProductsPage() {
                 {imageUploading ? (
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 size={24} className="animate-spin text-primary-500" />
-                    <span className="text-xs text-primary-600 font-medium animate-pulse">Đang tải...</span>
+                    <span className="text-xs text-primary-600 font-medium">Đang tải...</span>
                   </div>
                 ) : imageUrl ? (
                   <>
                     <img
                       src={imageUrl}
                       alt="preview"
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                      <span className="text-white text-xs font-medium flex items-center gap-1.5 bg-black/40 px-3 py-1.5 rounded-full">
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <span className="text-white text-xs font-medium flex items-center gap-1.5 bg-black/40 px-3 py-1.5 rounded-md">
                         <Upload size={14} /> Đổi ảnh
                       </span>
                     </div>
                   </>
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-center p-4">
-                    <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-1 group-hover:scale-110 transition-transform duration-300">
+                    <div className="w-12 h-12 rounded-full bg-white border border-neutral-200 flex items-center justify-center mb-1">
                       <Upload size={20} className="text-primary-500" />
                     </div>
                     <span className="text-sm font-semibold text-neutral-700">Tải ảnh lên</span>
@@ -667,16 +681,6 @@ export function ProductsPage() {
               </div>
             </div>
 
-            {/* Field-guide card — giúp user biết luật nhập */}
-            <div className="rounded-xl bg-primary-50/50 border border-primary-100 p-3 text-[12px] leading-relaxed text-neutral-600 space-y-1.5">
-              <div className="flex items-center gap-1.5 text-primary-700 font-semibold text-[11px] uppercase tracking-wide">
-                <Sparkles size={13} /> Gợi ý nhập nhanh
-              </div>
-              <div>• <b>Mã SP</b>: bỏ trống → tự sinh.</div>
-              <div>• <b>Nguồn gốc</b>: tên tỉnh / vùng canh tác.</div>
-              <div>• <b>Ngưỡng cảnh báo</b>: đơn vị theo kho (kg / cái / thùng).</div>
-              <div>• Ảnh: giữ tỷ lệ vuông để hiển thị đẹp cả grid & list.</div>
-            </div>
           </aside>
 
           {/* ---- RIGHT PANEL: Form ---- */}
@@ -708,15 +712,15 @@ export function ProductsPage() {
                   type="button"
                   variant="outline"
                   onClick={() => setModalOpen(false)}
-                  className="rounded-xl min-w-[100px]"
+                  className="min-w-[100px]"
                 >
-                  Hủy
+                  Huỷ
                 </Button>
                 <Button
                   type="submit"
                   form="product-form"
                   disabled={createReq.isPending || updateReq.isPending}
-                  className="bg-primary-600 hover:bg-primary-700 text-white rounded-xl min-w-[140px] shadow-sm gap-1.5"
+                  className="min-w-[140px] gap-1.5"
                 >
                   {createReq.isPending || updateReq.isPending ? (
                     <>
@@ -739,66 +743,35 @@ export function ProductsPage() {
         </div>
       </AppModal>
 
-      {/* Confirm Delete */}
       <ConfirmDialog
         isOpen={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
         onConfirm={handleDelete}
-        title="Xóa sản phẩm"
-        message={`Bạn có chắc chắn muốn xóa sản phẩm "${confirmDelete?.name}"? Hành động này không thể hoàn tác.`}
+        title="Xoá sản phẩm"
+        message={`Bạn có chắc muốn xoá sản phẩm "${confirmDelete?.name}"? Hành động này không thể hoàn tác.`}
         variant="danger"
-        confirmText="Xóa"
-        cancelText="Hủy"
+        confirmText="Xoá"
+        cancelText="Huỷ"
         isLoading={deleteReq.isPending}
       />
 
       <ConfirmDialog
-        isOpen={confirmBulkDelete}
-        onClose={() => setConfirmBulkDelete(false)}
-        onConfirm={runBulkDelete}
-        title={`Xoá ${selectedIds.length} sản phẩm đã chọn?`}
+        isOpen={!!confirmBulkDelete?.length}
+        onClose={() => setConfirmBulkDelete(null)}
+        onConfirm={() => void runBulkDelete()}
+        title={`Xoá ${confirmBulkDelete?.length || 0} sản phẩm đã chọn?`}
         message="Không thể hoàn tác. Các sản phẩm đã chọn sẽ bị xoá."
         variant="danger"
         confirmText="Xoá hết"
         cancelText="Huỷ"
         isLoading={deleteReq.isPending}
       />
-    </div>
-  )
-}
 
-// ============================================================
-// Sub-components
-// ============================================================
-
-interface KpiCardProps {
-  icon: LucideIcon
-  label: string
-  value: number
-  tone: 'blue' | 'green' | 'orange' | 'pink' | 'neutral'
-}
-
-function KpiCard({ icon: Icon, label, value, tone }: KpiCardProps) {
-  const toneMap = {
-    blue: 'bg-blue-50 text-blue-700 [&_.ico]:bg-blue-100 [&_.ico]:text-blue-600',
-    green: 'bg-emerald-50 text-emerald-700 [&_.ico]:bg-emerald-100 [&_.ico]:text-emerald-600',
-    orange: 'bg-orange-50 text-orange-700 [&_.ico]:bg-orange-100 [&_.ico]:text-orange-600',
-    pink: 'bg-pink-50 text-pink-700 [&_.ico]:bg-pink-100 [&_.ico]:text-pink-600',
-    neutral: 'bg-white border border-neutral-200 text-neutral-700 [&_.ico]:bg-neutral-100 [&_.ico]:text-neutral-600',
-  }[tone]
-  return (
-    <div className={`rounded-xl p-3 flex items-center gap-3 ${toneMap}`}>
-      <div className="ico w-9 h-9 rounded-lg flex items-center justify-center shrink-0">
-        <Icon size={16} />
-      </div>
-      <div className="min-w-0">
-        <div className="text-[11px] font-semibold uppercase tracking-wider opacity-80 truncate">
-          {label}
-        </div>
-        <div className="text-xl font-bold tabular-nums text-neutral-900 leading-none mt-0.5">
-          {value.toLocaleString('vi-VN')}
-        </div>
-      </div>
+      <ProductPriceHistoryModal
+        product={priceHistoryProduct}
+        open={!!priceHistoryProduct}
+        onClose={() => setPriceHistoryProduct(null)}
+      />
     </div>
   )
 }

@@ -1,33 +1,45 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useMemo, useState, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Check, X, CalendarDays, LayoutDashboard, ListChecks, PlaneTakeoff, Inbox, UsersRound } from 'lucide-react'
+import {
+  LayoutDashboard, ListChecks, UsersRound,
+  Search, RefreshCw, ChevronLeft, ChevronRight,
+} from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
-import { AppModal, PageHeader, PageGuideButton } from '@frezo/ui'
-import { AppForm } from '@/components/shared/AppForm'
-import { Button } from '@frezo/ui'
-import { Select } from '@frezo/ui'
+import { FilterBar } from '@/components/ui/FilterBar'
+import {
+  PageHeader, PageGuideButton, EmptyState, ErrorState,
+  Button, Select,
+} from '@frezo/ui'
 import { profileApi } from '@/modules/profile/services/profileApi'
 import { usePersonsCombobox } from '../hooks/usePerson'
 import { useAttendanceList, useMyMonthAttendance } from '../hooks/useAttendance'
-import {
-  useLeaveRequests,
-  useCreateLeaveRequest,
-  useApproveLeaveRequest,
-  useRejectLeaveRequest,
-} from '../hooks/useLeave'
-import { leaveRequestSchema, leaveRejectSchema } from '../constants/schema'
 import { formatDate } from '@frezo/utils'
 import { AttendanceTodayCard } from '../components/AttendanceTodayCard'
 import { AttendanceKPICards } from '../components/AttendanceKPICards'
 import { AttendanceHeatmap } from '../components/AttendanceHeatmap'
 import { AttendanceDailyRoster } from '../components/AttendanceDailyRoster'
 import { ATTENDANCE_GUIDE } from '../constants/attendance.guide'
-import { usePermission, useAnyPermission } from '@/lib/hooks/usePermission'
+import { StatusPipelineStepper } from '../../warehouse/components/StatusPipelineStepper'
+import {
+  ATTENDANCE_PAYROLL_PIPELINE,
+  attendanceWorkflowStepIndex,
+} from '../constants/hrWorkflow'
+import { pageRootClass } from '../utils/pageEmbed'
+import { payrollHubUrl, timeHubUrl } from '../utils/qlnsRoutes'
 
-// ============================================================
-// Constants
-// ============================================================
+const now = new Date()
+const CURRENT_MONTH = now.getMonth() + 1
+const CURRENT_YEAR = now.getFullYear()
+
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
+  value: String(i + 1),
+  label: `Tháng ${i + 1}`,
+}))
+
+const YEAR_OPTIONS = [CURRENT_YEAR - 2, CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1].map((y) => ({
+  value: String(y),
+  label: `Năm ${y}`,
+}))
 
 const STATUS_OPTIONS = [
   { value: 'PRESENT', label: 'Có mặt' },
@@ -47,35 +59,32 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   HOLIDAY: { label: 'Nghỉ lễ', color: 'bg-slate-100 text-slate-600' },
 }
 
-const TABS = [
+const STANDALONE_TABS = [
   { key: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
   { key: 'daily', label: 'Theo dõi ngày', icon: UsersRound },
-  { key: 'list', label: 'Danh sách chấm công', icon: ListChecks },
-  { key: 'leaves', label: 'Đơn nghỉ phép', icon: PlaneTakeoff },
+  { key: 'list', label: 'Danh sách tháng', icon: ListChecks },
 ] as const
 
-type TabKey = (typeof TABS)[number]['key']
+type AttendanceTabKey = 'overview' | 'daily' | 'list'
 
-// ============================================================
-// Page
-// ============================================================
-
-export function AttendancePage() {
-  const now = new Date()
-  const [month, setMonth] = useState(now.getMonth() + 1)
-  const [year, setYear] = useState(now.getFullYear())
+export function AttendancePage({
+  embedded,
+  initialTab = 'daily',
+}: {
+  embedded?: boolean
+  initialTab?: AttendanceTabKey
+} = {}) {
+  const [month, setMonth] = useState(CURRENT_MONTH)
+  const [year, setYear] = useState(CURRENT_YEAR)
   const [personIdFilter, setPersonIdFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [listSearch, setListSearch] = useState('')
   const [page, setPage] = useState(1)
-  const [size, setSize] = useState(10)
-  const [activeTab, setActiveTab] = useState<TabKey>('daily')
-  const [createModalOpen, setCreateModalOpen] = useState(false)
-  const [rejectModalOpen, setRejectModalOpen] = useState(false)
-  const [selectedLeaveId, setSelectedLeaveId] = useState<string | null>(null)
-  const canCreateLeave = usePermission('LEAVE.CREATE')
-  const canApproveLeave = useAnyPermission(['LEAVE.APPROVE', 'APPROVALS.APPROVE'])
+  const [size, setSize] = useState(20)
+  const [activeTab, setActiveTab] = useState<AttendanceTabKey>(initialTab)
 
-  // ---- Auth / profile: lấy personId của user hiện tại ----
+  const effectiveTab = embedded ? initialTab : activeTab
+
   const { data: profile } = useQuery({
     queryKey: ['profile'],
     queryFn: profileApi.getProfile,
@@ -84,7 +93,6 @@ export function AttendancePage() {
   const myPersonId = profile?.personId
   const myName = profile?.name
 
-  // ---- Team / list data ----
   const filterParams = {
     month,
     year,
@@ -93,18 +101,17 @@ export function AttendancePage() {
     pageNumber: page,
     pageSize: size,
   }
-  const { data: rawData, isLoading } = useAttendanceList(filterParams)
+  const {
+    data: rawData,
+    isLoading,
+    isError: listIsError,
+    error: listError,
+    refetch: refetchList,
+    isFetching: listFetching,
+  } = useAttendanceList(filterParams)
 
-  // ---- Personal month data (cho Overview) ----
   const { data: myMonthRecords = [] } = useMyMonthAttendance(myPersonId, month, year)
-
-  // ---- Person combobox ----
   const { options: personOptions, data: personData, isLoading: personsLoading } = usePersonsCombobox()
-
-  const { data: leaveData, isLoading: leaveLoading } = useLeaveRequests()
-  const createReq = useCreateLeaveRequest()
-  const approveReq = useApproveLeaveRequest()
-  const rejectReq = useRejectLeaveRequest()
 
   const personMap = useMemo(() => {
     const map: Record<string, string> = {}
@@ -116,24 +123,55 @@ export function AttendancePage() {
 
   const dataList = rawData?.items || []
   const totalElements = rawData?.total || 0
+  const periodLabel = `Tháng ${month}/${year}`
+  const isCurrentPeriod = month === CURRENT_MONTH && year === CURRENT_YEAR
 
-  // ---- Handlers ----
-  /** Resolve tên NV — không bao giờ flash UUID. */
-  const getPersonName = (record: any) =>
-    record.personName || personMap[record.personId] || '—'
+  const listHasFilter = !!personIdFilter || !!statusFilter || !!listSearch.trim()
+  const clearListFilters = useCallback(() => {
+    setPersonIdFilter('')
+    setStatusFilter('')
+    setListSearch('')
+    setPage(1)
+  }, [])
+
+  const shiftPeriod = useCallback((delta: -1 | 1) => {
+    setMonth((m) => {
+      const next = m + delta
+      if (next < 1) { setYear((y) => y - 1); return 12 }
+      if (next > 12) { setYear((y) => y + 1); return 1 }
+      return next
+    })
+    setPage(1)
+  }, [])
+
+  const goCurrentPeriod = () => {
+    setMonth(CURRENT_MONTH)
+    setYear(CURRENT_YEAR)
+    setPage(1)
+  }
+
+  const getPersonName = useCallback(
+    (record: any) => record.personName || personMap[record.personId] || '—',
+    [personMap],
+  )
+
+  const filteredList = useMemo(() => {
+    const q = listSearch.trim().toLowerCase()
+    if (!q) return dataList
+    return dataList.filter((row: any) => getPersonName(row).toLowerCase().includes(q))
+  }, [dataList, listSearch, getPersonName])
 
   const handlePageChange = (newPage: number, newSize: number) => {
     setPage(newPage)
     setSize(newSize)
   }
 
-  const handleOpenReject = (id: string) => {
-    setSelectedLeaveId(id)
-    setRejectModalOpen(true)
-  }
+  const listErrMsg =
+    (listError as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+    (listError as Error)?.message ||
+    'Không tải được danh sách chấm công.'
 
-  // ---- Columns cho danh sách chấm công (dành cho manager) ----
-  const attendanceColumns: AppTableColumn<any>[] = [
+  const attendanceColumns: AppTableColumn<any>[] = useMemo(() => [
     {
       title: 'Nhân viên',
       dataIndex: 'personId',
@@ -185,8 +223,6 @@ export function AttendancePage() {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
-      filterType: 'select',
-      filterOptions: STATUS_OPTIONS,
       render: (val: string) => {
         const s = STATUS_MAP[val] || STATUS_MAP['ABSENT']
         return (
@@ -202,64 +238,59 @@ export function AttendancePage() {
         <span className="text-neutral-500 text-xs max-w-[150px] truncate block">{val || '—'}</span>
       ),
     },
-  ]
+  ], [personMap, personsLoading, getPersonName])
 
-  // ============================================================
-  // Render
-  // ============================================================
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
-      <PageHeader
-        title="Chấm công"
-        description="Theo dõi roster ngày toàn công ty, giờ công cá nhân và đơn nghỉ phép."
-        actions={
-          <>
-            <PageGuideButton guide={ATTENDANCE_GUIDE} />
-            {activeTab === 'leaves' && (
-              <>
-                <Link to="/approval/inbox">
-                  <Button variant="outline" className="gap-2">
-                    <Inbox className="w-4 h-4" /> Approval Inbox
-                  </Button>
-                </Link>
-                {canCreateLeave && (
-                  <Button onClick={() => setCreateModalOpen(true)} className="gap-2">
-                    <CalendarDays className="w-4 h-4" /> Tạo đơn nghỉ phép
-                  </Button>
-                )}
-              </>
-            )}
-          </>
-        }
+    <div className={pageRootClass(embedded)}>
+      {!embedded && (
+        <PageHeader
+          title="Chấm công"
+          description="Theo dõi roster ngày toàn công ty và giờ công cá nhân."
+          actions={<PageGuideButton guide={ATTENDANCE_GUIDE} />}
+        />
+      )}
+
+      <StatusPipelineStepper
+        steps={ATTENDANCE_PAYROLL_PIPELINE}
+        currentIndex={attendanceWorkflowStepIndex(effectiveTab)}
+        nextCta={{ label: 'Nghỉ phép', href: timeHubUrl({ tab: 'leaves' }) }}
       />
 
-      {/* Today Hero — luôn hiển thị nếu có personId */}
-      <AttendanceTodayCard personId={myPersonId} personName={myName} />
+      {(effectiveTab === 'overview' || effectiveTab === 'daily') && (
+        <AttendanceTodayCard personId={myPersonId} personName={myName} />
+      )}
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-1 bg-neutral-100 p-1 rounded-lg w-fit">
-        {TABS.map((t) => {
-          const Icon = t.icon
-          const active = activeTab === t.key
-          return (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                active
-                  ? 'bg-white text-neutral-900 shadow-sm'
-                  : 'text-neutral-500 hover:text-neutral-700'
-              }`}
-            >
-              <Icon size={14} />
-              {t.label}
-            </button>
-          )
-        })}
-      </div>
+      {!embedded && (
+        <div
+          className="inline-flex flex-wrap gap-1 bg-neutral-100 p-1 rounded-lg"
+          role="tablist"
+          aria-label="Chế độ xem chấm công"
+        >
+          {STANDALONE_TABS.map((t) => {
+            const Icon = t.icon
+            const active = activeTab === t.key
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActiveTab(t.key)}
+                className={`inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-md transition-all ${
+                  active
+                    ? 'bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200/80'
+                    : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50/80'
+                }`}
+              >
+                <Icon size={15} className={active ? 'text-primary-600' : 'text-neutral-400'} />
+                {t.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
-      {/* === TAB: OVERVIEW === */}
-      {activeTab === 'overview' && (
+      {effectiveTab === 'overview' && (
         <div className="space-y-6">
           <AttendanceKPICards records={myMonthRecords} />
           <AttendanceHeatmap
@@ -275,243 +306,186 @@ export function AttendancePage() {
         </div>
       )}
 
-      {/* === TAB: DAILY ROSTER (HR) — ATT-FE-01 === */}
-      {activeTab === 'daily' && <AttendanceDailyRoster />}
+      {effectiveTab === 'daily' && <AttendanceDailyRoster />}
 
-      {/* === TAB: LIST (tháng — manager) === */}
-      {activeTab === 'list' && (
+      {effectiveTab === 'list' && (
         <>
-          {/* Filters */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-4">
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="w-28">
-                <label className="block text-xs font-medium text-neutral-500 mb-1.5">Tháng</label>
-                <Select
-                  options={Array.from({ length: 12 }, (_, i) => ({
-                    value: String(i + 1),
-                    label: `Tháng ${i + 1}`,
-                  }))}
-                  value={String(month)}
-                  onChange={(v) => {
-                    setMonth(Number(v))
-                    setPage(1)
-                  }}
-                />
-              </div>
-              <div className="w-28">
-                <label className="block text-xs font-medium text-neutral-500 mb-1.5">Năm</label>
-                <Select
-                  options={[2024, 2025, 2026, 2027].map((y) => ({
-                    value: String(y),
-                    label: String(y),
-                  }))}
-                  value={String(year)}
-                  onChange={(v) => {
-                    setYear(Number(v))
-                    setPage(1)
-                  }}
-                />
-              </div>
-              <div className="w-56">
-                <label className="block text-xs font-medium text-neutral-500 mb-1.5">
-                  Nhân viên {personOptions.length > 0 && (
-                    <span className="text-neutral-400 font-normal">({personOptions.length})</span>
-                  )}
-                </label>
-                <Select
-                  options={[{ value: '', label: 'Tất cả nhân viên' }, ...personOptions]}
-                  value={personIdFilter}
-                  onChange={(v) => {
-                    setPersonIdFilter(v)
-                    setPage(1)
-                  }}
-                  showSearch
-                  placeholder={personsLoading ? 'Đang tải...' : 'Chọn nhân viên...'}
-                />
-              </div>
-              <div className="w-40">
-                <label className="block text-xs font-medium text-neutral-500 mb-1.5">
-                  Trạng thái
-                </label>
-                <Select
-                  options={[{ value: '', label: 'Tất cả' }, ...STATUS_OPTIONS]}
-                  value={statusFilter}
-                  onChange={(v) => {
-                    setStatusFilter(v)
-                    setPage(1)
-                  }}
-                />
-              </div>
+          <FilterBar
+            hasActiveFilters={listHasFilter}
+            onClear={clearListFilters}
+            countLabel={`${listSearch.trim() ? filteredList.length : totalElements} bản ghi${listHasFilter ? ' (đã lọc)' : ''} · ${periodLabel}`}
+            extra={(
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void refetchList()}
+                className="gap-2 h-9"
+                disabled={listFetching}
+              >
+                <RefreshCw size={14} className={listFetching ? 'animate-spin' : ''} />
+                Làm mới
+              </Button>
+            )}
+          >
+            <button
+              type="button"
+              onClick={() => shiftPeriod(-1)}
+              className="w-9 h-9 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 flex items-center justify-center"
+              aria-label="Kỳ trước"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <PeriodInlineSelect
+              months={MONTH_OPTIONS}
+              years={YEAR_OPTIONS}
+              month={month}
+              year={year}
+              onChange={(m, y) => { setMonth(m); setYear(y); setPage(1) }}
+            />
+            {isCurrentPeriod && (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary-700 bg-primary-100 px-1.5 py-0.5 rounded">
+                Kỳ hiện tại
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => shiftPeriod(+1)}
+              className="w-9 h-9 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 flex items-center justify-center"
+              aria-label="Kỳ sau"
+            >
+              <ChevronRight size={16} />
+            </button>
+            {!isCurrentPeriod && (
+              <button
+                type="button"
+                onClick={goCurrentPeriod}
+                className="h-9 px-2.5 text-xs font-medium text-primary-700 hover:bg-primary-50 rounded-md border border-primary-200"
+              >
+                ← Về kỳ hiện tại
+              </button>
+            )}
+            <div className="min-w-[160px]">
+              <Select
+                options={[{ value: '', label: 'Tất cả trạng thái' }, ...STATUS_OPTIONS]}
+                value={statusFilter}
+                onChange={(v) => { setStatusFilter(v); setPage(1) }}
+                placeholder="Trạng thái"
+                aria-label="Lọc trạng thái chấm công"
+                showSearch={false}
+              />
             </div>
-          </div>
+            <div className="min-w-[180px]">
+              <Select
+                options={[{ value: '', label: 'Tất cả nhân viên' }, ...personOptions]}
+                value={personIdFilter}
+                onChange={(v) => { setPersonIdFilter(v); setPage(1) }}
+                showSearch
+                placeholder={personsLoading ? 'Đang tải...' : 'Nhân viên'}
+                aria-label="Lọc nhân viên"
+              />
+            </div>
+            <div className="relative flex-1 min-w-[200px] max-w-md">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+                placeholder="Tìm theo tên nhân viên…"
+                value={listSearch}
+                onChange={(e) => setListSearch(e.target.value)}
+                aria-label="Tìm chấm công"
+              />
+            </div>
+          </FilterBar>
 
-          <AppTable
-            data={dataList}
-            columns={attendanceColumns}
-            isLoading={isLoading}
-            pageIndex={page}
-            pageSize={size}
-            totalElements={totalElements}
-            onPageChange={handlePageChange}
-            showSearch
-            searchPlaceholder="Tìm theo tên nhân viên..."
-          />
+          {listIsError ? (
+            <div className="border rounded-xl bg-white">
+              <ErrorState
+                title="Không tải được danh sách chấm công"
+                message={listErrMsg}
+                onRetry={() => void refetchList()}
+                isRetrying={listFetching}
+              />
+            </div>
+          ) : !isLoading && filteredList.length === 0 ? (
+            <div className="border rounded-xl bg-white">
+              <EmptyState
+                icon={ListChecks}
+                title={dataList.length === 0 ? 'Không có bản ghi chấm công' : 'Không có bản ghi khớp bộ lọc'}
+                description={
+                  dataList.length === 0
+                    ? `Chưa có dữ liệu chấm công trong ${periodLabel}.`
+                    : 'Thử xoá lọc hoặc đổi kỳ / trạng thái.'
+                }
+                action={listHasFilter ? { label: 'Xoá lọc', onClick: clearListFilters } : undefined}
+              />
+            </div>
+          ) : (
+            <AppTable
+              data={filteredList}
+              columns={attendanceColumns}
+              isLoading={isLoading}
+              density="compact"
+              pageIndex={page}
+              pageSize={size}
+              totalElements={listSearch.trim() ? filteredList.length : totalElements}
+              onPageChange={handlePageChange}
+              showSearch={false}
+              onRefresh={() => void refetchList()}
+            />
+          )}
         </>
       )}
 
-      {/* === TAB: LEAVES === */}
-      {activeTab === 'leaves' && (
-        <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full caption-bottom text-sm">
-              <thead>
-                <tr className="border-b border-neutral-200">
-                  {['STT', 'Nhân viên', 'Lý do', 'Từ ngày', 'Đến ngày', 'Trạng thái', 'Thao tác'].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        className="h-12 px-4 text-left align-middle font-medium text-neutral-500"
-                      >
-                        {h}
-                      </th>
-                    ),
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {leaveLoading ? (
-                  <tr>
-                    <td colSpan={7} className="p-8 text-center text-neutral-400">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-                        Đang tải...
-                      </div>
-                    </td>
-                  </tr>
-                ) : !leaveData || leaveData.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="p-8 text-center text-neutral-400">
-                      <CalendarDays className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                      Không có đơn nghỉ phép nào
-                    </td>
-                  </tr>
-                ) : (
-                  leaveData.map((row: any, idx: number) => {
-                    const statusMap: Record<string, { label: string; color: string }> = {
-                      APPROVED: { label: 'Đã duyệt', color: 'bg-emerald-100 text-emerald-700' },
-                      REJECTED: { label: 'Từ chối', color: 'bg-rose-100 text-rose-700' },
-                      CANCELLED: { label: 'Đã huỷ', color: 'bg-neutral-100 text-neutral-600' },
-                      PENDING: { label: 'Chờ Approval', color: 'bg-orange-100 text-orange-700' },
-                      PENDING_MANAGER: { label: 'Chờ Approval', color: 'bg-orange-100 text-orange-700' },
-                      PENDING_HR: { label: 'Chờ Approval', color: 'bg-blue-100 text-blue-700' },
-                    }
-                    const st = row.status || 'PENDING'
-                    const s = statusMap[st] || statusMap.PENDING
-                    const canAct =
-                      !st ||
-                      st === 'PENDING' ||
-                      st === 'PENDING_MANAGER' ||
-                      st === 'PENDING_HR'
-                    return (
-                      <tr
-                        key={row.id}
-                        className="border-b border-neutral-100 hover:bg-neutral-50/50 transition-colors"
-                      >
-                        <td className="p-4 text-neutral-500">{idx + 1}</td>
-                        <td className="p-4 font-medium text-neutral-800">
-                          {row.personName || personMap[row.personId] || '—'}
-                        </td>
-                        <td className="p-4 text-neutral-700 max-w-[200px] truncate">{row.reason}</td>
-                        <td className="p-4 text-neutral-600">{formatDate(row.startDate)}</td>
-                        <td className="p-4 text-neutral-600">{formatDate(row.endDate)}</td>
-                        <td className="p-4">
-                          <span className={`px-2 py-1 text-xs rounded-full ${s.color}`}>
-                            {s.label}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            {canAct && canApproveLeave && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => approveReq.mutate(row.id)}
-                                  disabled={approveReq.isPending}
-                                  title="Duyệt qua Approval"
-                                >
-                                  <Check className="w-4 h-4 text-emerald-600" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleOpenReject(row.id)}
-                                  title="Từ chối qua Approval"
-                                >
-                                  <X className="w-4 h-4 text-rose-600" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+      {!embedded && effectiveTab !== 'list' && (
+        <div className="text-sm text-neutral-500 pt-2">
+          Tiếp theo:{' '}
+          <a href={payrollHubUrl()} className="text-primary-600 hover:underline font-medium">
+            Bảng lương
+          </a>
         </div>
       )}
-
-      {/* Create Leave Modal */}
-      <AppModal
-        isOpen={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-        title="Tạo đơn xin nghỉ phép"
-      >
-        <AppForm
-          schema={leaveRequestSchema}
-          defaultValues={{ reason: '', startDate: '', endDate: '' }}
-          onSubmit={(v) => createReq.mutate(v, { onSuccess: () => setCreateModalOpen(false) })}
-          fields={[
-            { name: 'reason', label: 'Lý do' },
-            { name: 'startDate', label: 'Từ ngày', type: 'date' },
-            { name: 'endDate', label: 'Đến ngày', type: 'date' },
-          ]}
-          submitText="Xác nhận"
-          isLoading={createReq.isPending}
-        />
-      </AppModal>
-
-      {/* Reject Leave Modal */}
-      <AppModal
-        isOpen={rejectModalOpen}
-        onClose={() => setRejectModalOpen(false)}
-        title="Từ chối đơn"
-      >
-        <AppForm
-          schema={leaveRejectSchema}
-          defaultValues={{ reason: '' }}
-          onSubmit={(v) =>
-            selectedLeaveId &&
-            rejectReq.mutate(
-              { id: selectedLeaveId, data: v },
-              { onSuccess: () => setRejectModalOpen(false) },
-            )
-          }
-          fields={[{ name: 'reason', label: 'Lý do từ chối' }]}
-          submitText="Xác nhận"
-          isLoading={rejectReq.isPending}
-        />
-      </AppModal>
     </div>
   )
 }
 
-// ============================================================
-// Helpers
-// ============================================================
+function PeriodInlineSelect({
+  months,
+  years,
+  month,
+  year,
+  onChange,
+}: {
+  months: Array<{ value: string; label: string }>
+  years: Array<{ value: string; label: string }>
+  month: number
+  year: number
+  onChange: (month: number, year: number) => void
+}) {
+  return (
+    <div className="inline-flex items-center gap-1">
+      <div className="w-[110px]">
+        <Select
+          options={months}
+          value={String(month)}
+          onChange={(v) => onChange(Number(v), year)}
+          placeholder="Tháng"
+          aria-label="Tháng chấm công"
+          showSearch={false}
+        />
+      </div>
+      <span className="text-neutral-400 text-sm">/</span>
+      <div className="w-[100px]">
+        <Select
+          options={years.map((y) => ({ value: y.value, label: y.label.replace('Năm ', '') }))}
+          value={String(year)}
+          onChange={(v) => onChange(month, Number(v))}
+          placeholder="Năm"
+          aria-label="Năm chấm công"
+          showSearch={false}
+        />
+      </div>
+    </div>
+  )
+}
 
 function formatMinutes(minutes: number | null | undefined): string {
   if (minutes === null || minutes === undefined) return '—'

@@ -1,16 +1,35 @@
 import { useMemo, useState } from 'react'
-import { AlarmClock, Search, Send, CheckCircle2, XCircle } from 'lucide-react'
-import { Button, PageHeader } from '@frezo/ui'
+import { AlarmClock, Search, Send, CheckCircle2, XCircle, FileText } from 'lucide-react'
+import {
+  PageHeader, PageGuideButton, ConfirmDialog, EmptyState, ErrorState, Select,
+  type PageGuideConfig,
+} from '@frezo/ui'
+import { AppTable } from '@/components/ui/AppTable'
+import type { AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import { formatCurrency, formatDate } from '@frezo/utils'
 import { useQuotes, useSetQuoteStatus } from '../hooks/useCrm'
 import type { Quote, QuoteStatus } from '../services/crmApi'
+import { pageRootClass } from '@/modules/accounting/utils/pageEmbed'
 
-// ============================================================
-// Badge: số ngày còn lại trước khi báo giá hết hạn
-// ============================================================
+const QUOTES_GUIDE: PageGuideConfig = {
+  title: 'Báo giá',
+  subtitle: 'Theo dõi báo giá từ nháp → gửi → duyệt / từ chối.',
+  sections: [
+    {
+      heading: 'Luồng trạng thái',
+      type: 'steps',
+      steps: [
+        { title: 'Nháp', description: 'Báo giá mới tạo, chưa gửi khách.' },
+        { title: 'Đã gửi', description: 'Khách đang xem xét — có thể duyệt hoặc từ chối.' },
+        { title: 'Được duyệt / Bị từ chối', description: 'Kết thúc vòng đời báo giá.' },
+      ],
+    },
+  ],
+}
+
 function ExpiryBadge({ validUntil, status }: { validUntil?: string; status: QuoteStatus }) {
   if (!validUntil) return <span className="text-neutral-400 text-xs">—</span>
-  // Không quan trọng nữa nếu đã ACCEPTED / REJECTED
   if (status === 'ACCEPTED' || status === 'REJECTED') {
     return <span className="text-neutral-400 text-xs">{formatDate(validUntil)}</span>
   }
@@ -51,95 +70,246 @@ const STATUS_LABEL: Record<QuoteStatus, string> = {
   DRAFT: 'Nháp', SENT: 'Đã gửi', ACCEPTED: 'Được duyệt', REJECTED: 'Bị từ chối', EXPIRED: 'Hết hạn',
 }
 
-export function QuotesPage() {
-  const { data: rows, isLoading } = useQuotes()
+type ConfirmAction = { id: string; code: string; status: QuoteStatus; next: QuoteStatus }
+
+export function QuotesPage({ embedded }: { embedded?: boolean } = {}) {
+  const { data: rows, isLoading, isError, isFetching, refetch } = useQuotes()
   const setStatus = useSetQuoteStatus()
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<QuoteStatus | 'ALL'>('ALL')
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
 
-  const list = (rows as any[]) ?? []
+  const list = useMemo(() => (Array.isArray(rows) ? (rows as Quote[]) : []), [rows])
+
   const filtered = useMemo(() => {
+    let result = list
+    if (statusFilter !== 'ALL') {
+      result = result.filter((v) => v.status === statusFilter)
+    }
     const q = search.trim().toLowerCase()
-    if (!q) return list
-    return list.filter((v: Quote) =>
-      v.code.toLowerCase().includes(q) || (v.customerName || '').toLowerCase().includes(q))
-  }, [list, search])
+    if (q) {
+      result = result.filter(
+        (v) =>
+          v.code.toLowerCase().includes(q) ||
+          (v.customerName || '').toLowerCase().includes(q),
+      )
+    }
+    return result
+  }, [list, search, statusFilter])
+
+  const hasFilter = !!search.trim() || statusFilter !== 'ALL'
+  const isFilteredEmpty = !isLoading && !isError && list.length > 0 && filtered.length === 0
+  const isFullyEmpty = !isLoading && !isError && list.length === 0
+
+  const confirmLabels: Record<QuoteStatus, { title: string; message: string; confirm: string; variant: 'warning' | 'danger' | 'default' }> = {
+    DRAFT: { title: '', message: '', confirm: '', variant: 'default' },
+    SENT: {
+      title: 'Gửi báo giá?',
+      message: 'Báo giá sẽ chuyển sang Đã gửi — khách có thể xem xét.',
+      confirm: 'Gửi',
+      variant: 'warning',
+    },
+    ACCEPTED: {
+      title: 'Duyệt báo giá?',
+      message: 'Báo giá sẽ được đánh dấu Được duyệt.',
+      confirm: 'Duyệt',
+      variant: 'default',
+    },
+    REJECTED: {
+      title: 'Từ chối báo giá?',
+      message: 'Báo giá sẽ bị từ chối — không thể hoàn tác trực tiếp.',
+      confirm: 'Từ chối',
+      variant: 'danger',
+    },
+    EXPIRED: { title: '', message: '', confirm: '', variant: 'default' },
+  }
+
+  const columns: AppTableColumn<Quote>[] = [
+    {
+      key: 'code',
+      title: 'Mã BG',
+      render: (_, q) => (
+        <span className="font-mono font-semibold text-blue-700">{q.code}</span>
+      ),
+    },
+    { key: 'customerName', title: 'Khách hàng', render: (_, q) => q.customerName || '—' },
+    {
+      key: 'issuedDate',
+      title: 'Ngày phát hành',
+      render: (_, q) => (q.issuedDate ? formatDate(q.issuedDate) : '—'),
+    },
+    {
+      key: 'validUntil',
+      title: 'Hạn',
+      render: (_, q) => <ExpiryBadge validUntil={q.validUntil} status={q.status} />,
+    },
+    {
+      key: 'total',
+      title: 'Giá trị',
+      align: 'right',
+      render: (_, q) => (
+        <span className="font-mono font-semibold tabular-nums">{formatCurrency(q.total)}</span>
+      ),
+    },
+    {
+      key: 'status',
+      title: 'Trạng thái',
+      align: 'center',
+      render: (_, q) => (
+        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs border ${STATUS_TONE[q.status]}`}>
+          {STATUS_LABEL[q.status]}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      title: 'Thao tác',
+      align: 'right',
+      width: 180,
+      render: (_, q) => (
+        <div className="flex items-center justify-end gap-1">
+          {q.status === 'DRAFT' && (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
+              onClick={() => setConfirmAction({ id: q.id, code: q.code, status: q.status, next: 'SENT' })}
+            >
+              <Send size={12} /> Gửi
+            </button>
+          )}
+          {q.status === 'SENT' && (
+            <>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
+                onClick={() => setConfirmAction({ id: q.id, code: q.code, status: q.status, next: 'ACCEPTED' })}
+              >
+                <CheckCircle2 size={12} /> Duyệt
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
+                onClick={() => setConfirmAction({ id: q.id, code: q.code, status: q.status, next: 'REJECTED' })}
+              >
+                <XCircle size={12} /> Từ chối
+              </button>
+            </>
+          )}
+        </div>
+      ),
+    },
+  ]
 
   return (
-    <div className="p-6 space-y-4">
-      <PageHeader
-        title="Báo giá"
-        description="Quản lý báo giá cho khách hàng — theo dõi từ khi gửi đến lúc được duyệt hoặc từ chối."
-      />
+    <div className={pageRootClass(embedded)}>
+      {embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-neutral-600">
+            Báo giá — nháp → gửi → duyệt / từ chối.
+            <span className="ml-2 text-xs text-neutral-400 tabular-nums">
+              {filtered.length} báo giá{hasFilter ? ' (đã lọc)' : ''}
+            </span>
+          </p>
+          <PageGuideButton guide={QUOTES_GUIDE} />
+        </div>
+      ) : (
+        <PageHeader
+          title="Báo giá"
+          description="Quản lý báo giá cho khách hàng — theo dõi từ khi gửi đến lúc được duyệt hoặc từ chối."
+          actions={<PageGuideButton guide={QUOTES_GUIDE} />}
+        />
+      )}
 
-      <div className="flex flex-wrap items-center gap-3">
+      <FilterBar
+        hasActiveFilters={hasFilter}
+        onClear={() => {
+          setSearch('')
+          setStatusFilter('ALL')
+        }}
+        countLabel={`${filtered.length} báo giá${hasFilter ? ' (đã lọc)' : ''}`}
+      >
+        <div className="min-w-[150px]">
+          <Select
+            options={[
+              { value: 'ALL', label: 'Tất cả trạng thái' },
+              ...(Object.keys(STATUS_LABEL) as QuoteStatus[]).map((s) => ({
+                value: s,
+                label: STATUS_LABEL[s],
+              })),
+            ]}
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as QuoteStatus | 'ALL')}
+            placeholder="Trạng thái"
+            showSearch={false}
+            aria-label="Lọc trạng thái"
+          />
+        </div>
         <div className="relative flex-1 min-w-[260px] max-w-md">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
           <input
-            className="w-full pl-9 pr-3 py-2 border rounded-md text-sm"
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
             placeholder="Tìm mã báo giá hoặc khách hàng…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            aria-label="Tìm báo giá"
           />
         </div>
-      </div>
+      </FilterBar>
 
-      <div className="overflow-x-auto border rounded-lg bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-neutral-50 text-neutral-600">
-            <tr>
-              <th className="p-3 text-left font-medium">Mã BG</th>
-              <th className="p-3 text-left font-medium">Khách hàng</th>
-              <th className="p-3 text-left font-medium">Ngày phát hành</th>
-              <th className="p-3 text-left font-medium">Hạn</th>
-              <th className="p-3 text-right font-medium">Giá trị</th>
-              <th className="p-3 text-center font-medium">Trạng thái</th>
-              <th className="p-3 text-right font-medium w-40">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-100">
-            {isLoading && <tr><td colSpan={7} className="p-6 text-center text-neutral-500">Đang tải…</td></tr>}
-            {!isLoading && filtered.length === 0 && (
-              <tr><td colSpan={7} className="p-6 text-center text-neutral-500">Chưa có báo giá nào</td></tr>
-            )}
-            {filtered.map((q: Quote) => (
-              <tr key={q.id} className="hover:bg-neutral-50">
-                <td className="p-3 font-mono font-semibold text-blue-700">{q.code}</td>
-                <td className="p-3">{q.customerName || '—'}</td>
-                <td className="p-3 text-neutral-600">{q.issuedDate ? formatDate(q.issuedDate) : '—'}</td>
-                <td className="p-3">
-                  <ExpiryBadge validUntil={q.validUntil} status={q.status} />
-                </td>
-                <td className="p-3 text-right font-mono font-semibold">{formatCurrency(q.total)}</td>
-                <td className="p-3 text-center">
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs border ${STATUS_TONE[q.status]}`}>
-                    {STATUS_LABEL[q.status]}
-                  </span>
-                </td>
-                <td className="p-3 text-right">
-                  {q.status === 'DRAFT' && (
-                    <button
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 mr-1"
-                      onClick={() => setStatus.mutate({ id: q.id, status: 'SENT' })}
-                    ><Send size={12} /> Gửi</button>
-                  )}
-                  {q.status === 'SENT' && (
-                    <>
-                      <button
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 mr-1"
-                        onClick={() => setStatus.mutate({ id: q.id, status: 'ACCEPTED' })}
-                      ><CheckCircle2 size={12} /> Duyệt</button>
-                      <button
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
-                        onClick={() => setStatus.mutate({ id: q.id, status: 'REJECTED' })}
-                      ><XCircle size={12} /> Từ chối</button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được báo giá"
+            message="Kiểm tra kết nối hoặc quyền truy cập rồi thử lại."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={FileText}
+            title={isFilteredEmpty ? 'Không có báo giá khớp bộ lọc' : 'Chưa có báo giá nào'}
+            description={
+              isFilteredEmpty
+                ? 'Thử xoá lọc hoặc đổi trạng thái.'
+                : 'Báo giá mới sẽ xuất hiện khi tạo từ CRM.'
+            }
+            action={isFilteredEmpty ? { label: 'Xoá lọc', onClick: () => { setSearch(''); setStatusFilter('ALL') } } : undefined}
+          />
+        </div>
+      ) : (
+        <AppTable
+          columns={columns}
+          data={filtered}
+          isLoading={isLoading}
+          density="compact"
+          showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onRefresh={() => void refetch()}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={!!confirmAction}
+        onClose={() => {
+          if (!setStatus.isPending) setConfirmAction(null)
+        }}
+        onConfirm={() => {
+          if (!confirmAction) return
+          setStatus.mutate(
+            { id: confirmAction.id, status: confirmAction.next },
+            { onSettled: () => setConfirmAction(null) },
+          )
+        }}
+        title={confirmAction ? `${confirmLabels[confirmAction.next].title} (${confirmAction.code})` : ''}
+        message={confirmAction ? confirmLabels[confirmAction.next].message : ''}
+        confirmText={confirmAction ? confirmLabels[confirmAction.next].confirm : 'Xác nhận'}
+        cancelText="Huỷ"
+        variant={confirmAction ? confirmLabels[confirmAction.next].variant : 'default'}
+        isLoading={setStatus.isPending}
+      />
     </div>
   )
 }

@@ -3,14 +3,16 @@ import { toast } from 'sonner'
 import {
   performanceApi,
   type ManagerScoreRequest,
+  type OkrCheckInRequest,
   type OkrRequest,
+  type OkrScope,
   type PerformanceReviewRequest,
 } from '../services/performanceApi'
 
-export function useOkrs(ownerPersonId?: string) {
+export function useOkrs(scope: OkrScope = 'mine', ownerPersonId?: string) {
   return useQuery({
-    queryKey: ['qlns', 'okrs', ownerPersonId ?? 'all'],
-    queryFn: () => performanceApi.listOkrs(ownerPersonId),
+    queryKey: ['qlns', 'okrs', scope, ownerPersonId ?? ''],
+    queryFn: () => performanceApi.listOkrs({ scope, ownerPersonId }),
   })
 }
 
@@ -23,6 +25,20 @@ export function useCreateOkr() {
       qc.invalidateQueries({ queryKey: ['qlns', 'okrs'] })
     },
     onError: () => toast.error('Tạo OKR thất bại'),
+  })
+}
+
+export function useCheckInOkr() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: OkrCheckInRequest }) =>
+      performanceApi.checkInOkr(id, body),
+    onSuccess: () => {
+      toast.success('Đã cập nhật tiến độ OKR')
+      qc.invalidateQueries({ queryKey: ['qlns', 'okrs'] })
+    },
+    onError: (e: any) =>
+      toast.error(e?.response?.data?.message || 'Check-in thất bại'),
   })
 }
 

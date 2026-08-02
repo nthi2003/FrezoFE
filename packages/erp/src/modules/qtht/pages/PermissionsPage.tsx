@@ -1,66 +1,208 @@
-import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Plus, Trash2, Search, Shield, HelpCircle } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
-import { AppModal } from '@frezo/ui'
+import type { AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
+import {
+  AppModal, Button, ConfirmDialog, EmptyState, ErrorState,
+  PageHeader, PageGuideButton, IconActionButton, AppTooltip, type PageGuideConfig,
+} from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
-import { Button } from '@frezo/ui'
 import { usePermissions, useCreatePermission, useDeletePermission } from '../hooks/useQtht'
 import { orgSchema } from '../constants/schema'
-import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
+
+const PERMISSIONS_GUIDE: PageGuideConfig = {
+  title: 'Quản lý phân quyền',
+  subtitle: 'Danh mục mã quyền dùng gắn vào vai trò — không tự cấp quyền cho user.',
+  sections: [
+    {
+      heading: 'Cách dùng',
+      type: 'steps',
+      steps: [
+        { title: 'Thêm mã quyền', description: 'Mã viết HOA, không dấu (VD: CREATE, VIEW). Tên hiển thị tiếng Việt.' },
+        { title: 'Gắn vào vai trò', description: 'Sang Quản lý vai trò để chọn quyền cho từng role.' },
+      ],
+    },
+    {
+      heading: 'Lưu ý',
+      type: 'notes',
+      notes: 'Không xóa quyền đang được vai trò tham chiếu — kiểm tra trước khi xóa.',
+    },
+  ],
+}
 
 export function PermissionsPage() {
   const [modalOpen, setModalOpen] = useState(false)
-  const { data: rawData, isLoading, refetch } = usePermissions()
+  const [search, setSearch] = useState('')
+  const [confirmDel, setConfirmDel] = useState<{ id: string; name?: string; code?: string } | null>(null)
+
+  const { data: rawData, isLoading, isError, isFetching, refetch } = usePermissions()
   const createReq = useCreatePermission()
   const deleteReq = useDeletePermission()
-  const { askConfirm, confirmDialog } = useConfirmDialog()
 
-  const dataList = rawData || []
+  const dataList = useMemo(
+    () => (Array.isArray(rawData) ? rawData : []) as any[],
+    [rawData],
+  )
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return dataList
+    return dataList.filter(
+      (p) =>
+        (p.code || '').toLowerCase().includes(q) ||
+        (p.name || '').toLowerCase().includes(q),
+    )
+  }, [dataList, search])
+
+  const hasFilter = !!search.trim()
+  const isFilteredEmpty = !isLoading && !isError && dataList.length > 0 && filtered.length === 0
+  const isFullyEmpty = !isLoading && !isError && dataList.length === 0
 
   const handleSubmit = (values: any) => {
     createReq.mutate(values, { onSuccess: () => setModalOpen(false) })
   }
 
-  const columns = [
-    { title: 'Mã Quyền', dataIndex: 'code', filterType: 'text' as const },
-    { title: 'Tên Quyền', dataIndex: 'name', filterType: 'text' as const },
+  const handleDelete = () => {
+    if (confirmDel?.id) {
+      deleteReq.mutate(confirmDel.id, { onSuccess: () => setConfirmDel(null) })
+    }
+  }
+
+  const columns: AppTableColumn<any>[] = [
     {
+      key: 'code',
+      title: 'Mã quyền',
+      dataIndex: 'code',
+      render: (_, row) => (
+        <span className="font-mono text-xs font-bold text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded border border-neutral-200">
+          {row.code}
+        </span>
+      ),
+    },
+    { key: 'name', title: 'Tên quyền', dataIndex: 'name' },
+    {
+      key: 'actions',
       title: 'Thao tác',
       dataIndex: 'id',
-      render: (_: any, row: any) => (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() =>
-              askConfirm({
-                title: 'Xóa quyền này?',
-                message: `Quyền "${row.name || row.code}" sẽ bị xóa.`,
-                confirmText: 'Xóa',
-                onConfirm: () => deleteReq.mutate(row.id),
-              })
-            }
-          >
-            <Trash2 className="w-4 h-4 text-red-600" />
-          </Button>
-        </div>
+      width: 72,
+      align: 'right',
+      render: (_, row) => (
+        <IconActionButton
+          tooltip="Xóa quyền"
+          tone="red"
+          onClick={() => setConfirmDel({ id: row.id, name: row.name, code: row.code })}
+        >
+          <Trash2 className="w-4 h-4" />
+        </IconActionButton>
       ),
     },
   ]
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-semibold">Quản lý Phân quyền (Permissions)</h1></div>
-        <Button onClick={() => setModalOpen(true)} className="bg-primary-600 hover:bg-primary-700 text-white">
-           <Plus className="w-4 h-4 mr-2" /> Thêm mới
-        </Button>
-      </div>
-      <AppTable data={dataList} columns={columns} isLoading={isLoading} showSearch searchPlaceholder="Tìm kiếm quyền..." onRefresh={refetch} />
-      <AppModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Thêm Quyền">
-        <AppForm schema={orgSchema} defaultValues={{ code: '', name: '' }} onSubmit={handleSubmit} fields={[{ name: 'code', label: 'Mã Quyền (e.g. CREATE, VIEW)' }, { name: 'name', label: 'Tên Quyền' }]} submitText="Lưu" isLoading={createReq.isPending} />
+    <div className="p-6 space-y-4 animate-fade-in">
+      <PageHeader
+        title="Quản lý phân quyền"
+        description="Danh mục mã quyền hệ thống — dùng khi cấu hình vai trò."
+        actions={(
+          <div className="flex items-center gap-2">
+            <AppTooltip content="Mã quyền viết HOA (VD: CREATE, VIEW). Gắn quyền vào vai trò tại trang Vai trò.">
+              <span
+                className="inline-flex items-center text-neutral-400 hover:text-primary-600 cursor-help"
+                aria-label="Giải thích phân quyền"
+              >
+                <HelpCircle size={16} strokeWidth={2} />
+              </span>
+            </AppTooltip>
+            <PageGuideButton guide={PERMISSIONS_GUIDE} />
+            <Button onClick={() => setModalOpen(true)} className="gap-2 bg-primary-600 hover:bg-primary-700 text-white">
+              <Plus className="w-4 h-4" /> Thêm mới
+            </Button>
+          </div>
+        )}
+      />
+
+      <FilterBar
+        hasActiveFilters={hasFilter}
+        onClear={() => setSearch('')}
+        countLabel={`${filtered.length} quyền${hasFilter ? ' (đã lọc)' : ''}`}
+      >
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            placeholder="Tìm mã hoặc tên quyền…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Tìm quyền"
+          />
+        </div>
+      </FilterBar>
+
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được danh sách quyền"
+            message="Kiểm tra kết nối hoặc quyền truy cập rồi thử lại."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={Shield}
+            title={isFilteredEmpty ? 'Không có quyền khớp bộ lọc' : 'Chưa có quyền nào'}
+            description={
+              isFilteredEmpty
+                ? 'Thử xoá lọc hoặc đổi từ khoá tìm kiếm.'
+                : 'Thêm mã quyền đầu tiên để gắn vào vai trò.'
+            }
+            action={
+              isFilteredEmpty
+                ? { label: 'Xoá lọc', onClick: () => setSearch('') }
+                : { label: 'Thêm quyền', onClick: () => setModalOpen(true) }
+            }
+          />
+        </div>
+      ) : (
+        <AppTable
+          data={filtered}
+          columns={columns}
+          isLoading={isLoading}
+          density="compact"
+          showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onRefresh={() => void refetch()}
+        />
+      )}
+
+      <AppModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Thêm quyền">
+        <AppForm
+          schema={orgSchema}
+          defaultValues={{ code: '', name: '' }}
+          onSubmit={handleSubmit}
+          fields={[
+            { name: 'code', label: 'Mã quyền', placeholder: 'VD: CREATE, VIEW', description: 'Viết HOA, không dấu' },
+            { name: 'name', label: 'Tên quyền', placeholder: 'VD: Tạo mới, Xem' },
+          ]}
+          submitText="Lưu"
+          isLoading={createReq.isPending}
+        />
       </AppModal>
-      {confirmDialog}
+
+      <ConfirmDialog
+        isOpen={!!confirmDel}
+        onClose={() => setConfirmDel(null)}
+        onConfirm={handleDelete}
+        title="Xóa quyền này?"
+        message={`Quyền "${confirmDel?.name || confirmDel?.code || ''}" sẽ bị xóa.`}
+        confirmText="Xóa"
+        cancelText="Huỷ"
+        variant="danger"
+        isLoading={deleteReq.isPending}
+      />
     </div>
   )
 }

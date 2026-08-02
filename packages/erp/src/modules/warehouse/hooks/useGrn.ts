@@ -27,7 +27,7 @@ export function useCreateGrn() {
   return useMutation({
     mutationFn: (body: GrnCreateRequest) => grnApi.create(body),
     onSuccess: (grn) => {
-      toast.success(`Đã tạo PNK ${grn?.grnCode || grn?.id || ''}`)
+      toast.success(`Đã tạo phiếu nhập ${grn?.grnCode || grn?.id || ''}`)
       qc.invalidateQueries({ queryKey: ['warehouse', 'grn'] })
     },
     onError: () => toast.error('Tạo phiếu nhập kho thất bại'),
@@ -113,6 +113,6 @@ export function usePrintGrn() {
       w.focus()
       setTimeout(() => w.print(), 300)
     },
-    onError: () => toast.error('Không tải được bản in PNK'),
+    onError: () => toast.error('Không tải được bản in phiếu nhập'),
   })
 }

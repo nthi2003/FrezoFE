@@ -14,6 +14,7 @@ import {
   ErrorState,
   PageGuideButton,
   StatCard,
+  Select,
 } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
@@ -26,6 +27,7 @@ import {
 } from '../hooks/useStockTake'
 import { STOCK_TAKES_GUIDE } from '../constants/stock-takes.guide'
 import { StockTakeStatusBadge } from '../components/StockTakeStatusBadge'
+import { WarehouseSelect } from '../components/WarehouseSelect'
 import {
   countLinesWithVariance,
   resolveProductTokens,
@@ -242,31 +244,32 @@ export function StockTakePage() {
       {/* Sticky filter bar */}
       <div className="sticky top-0 z-10 -mx-6 px-6 py-2 bg-neutral-50/95 backdrop-blur border-y border-neutral-200/80">
         <div className="flex flex-wrap gap-2 items-center">
-          <select
-            className="h-9 border rounded-md px-3 text-sm bg-white min-w-[140px]"
-            value={warehouseFilter}
-            onChange={(e) => setWarehouseFilter(e.target.value)}
-            aria-label="Lọc theo kho"
-          >
-            <option value="">Tất cả kho</option>
-            {(warehouses as { id: string; name?: string }[]).map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name || w.id}
-              </option>
-            ))}
-          </select>
-          <select
-            className="h-9 border rounded-md px-3 text-sm bg-white min-w-[140px]"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            aria-label="Lọc theo trạng thái"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="DRAFT">Nháp</option>
-            <option value="IN_PROGRESS">Đang đếm</option>
-            <option value="SUBMITTED">Đã gửi</option>
-            <option value="POSTED">Hoàn tất</option>
-          </select>
+          <div className="min-w-[140px]">
+            <WarehouseSelect
+              warehouses={warehouses as { id: string; name?: string }[]}
+              value={warehouseFilter}
+              onChange={setWarehouseFilter}
+              emptyOption={{ label: 'Tất cả kho' }}
+              placeholder="Tất cả kho"
+              showSearch={(warehouses as unknown[]).length > 8}
+              aria-label="Lọc theo kho"
+            />
+          </div>
+          <div className="min-w-[140px]">
+            <Select
+              options={[
+                { value: '', label: 'Tất cả trạng thái' },
+                { value: 'DRAFT', label: 'Nháp' },
+                { value: 'IN_PROGRESS', label: 'Đang đếm' },
+                { value: 'SUBMITTED', label: 'Đã gửi' },
+                { value: 'POSTED', label: 'Hoàn tất' },
+              ]}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              showSearch={false}
+              aria-label="Lọc theo trạng thái"
+            />
+          </div>
           {(warehouseFilter || statusFilter) && (
             <Button
               variant="ghost"
@@ -339,19 +342,13 @@ export function StockTakePage() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Kho *">
-              <select
-                id="st-warehouse"
-                className="w-full border rounded-md px-3 py-2 text-sm"
+              <WarehouseSelect
+                warehouses={warehouses as { id: string; name?: string }[]}
                 value={warehouseId}
-                onChange={(e) => setWarehouseId(e.target.value)}
-              >
-                <option value="">— Chọn kho —</option>
-                {(warehouses as { id: string; name?: string }[]).map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name || w.id}
-                  </option>
-                ))}
-              </select>
+                onChange={setWarehouseId}
+                placeholder="— Chọn kho —"
+                aria-label="Kho kiểm kê"
+              />
             </Field>
             <Field label="Ngày kiểm kê">
               <input

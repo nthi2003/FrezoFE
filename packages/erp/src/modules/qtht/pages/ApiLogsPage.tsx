@@ -8,7 +8,7 @@
 //   - Delete cleanup: modal chọn preset ngày (thay <input> ad-hoc + confirm() xấu)
 // ============================================================
 
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Activity, Trash2, RefreshCw, Search, X, Eye, Copy,
   Radio, ChevronDown, Clock, Zap, CheckCircle2, XCircle, TrendingUp,
@@ -16,7 +16,9 @@ import {
 } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import {
-  Button, AppModal, PageHeader, ConfirmDialog, EmptyState,
+  Button, AppModal, PageHeader, ConfirmDialog, EmptyState, ErrorState, PageGuideButton, Select,
+  IconActionButton, AppTooltip,
+  type PageGuideConfig,
 } from '@frezo/ui'
 import { toast } from 'sonner'
 import {
@@ -63,6 +65,39 @@ const DELETE_PRESETS = [
   { days: 180, label: '180 ngày', hint: '(nửa năm)' },
   { days: 365, label: '365 ngày', hint: '(1 năm)' },
 ] as const
+
+const API_LOGS_GUIDE: PageGuideConfig = {
+  title: 'Nhật ký API',
+  subtitle: 'Giám sát request vào hệ thống — lọc method/status, xem chi tiết body, dọn log cũ.',
+  sections: [
+    {
+      heading: 'Thao tác thường dùng',
+      type: 'steps',
+      steps: [
+        {
+          title: 'Lọc nhanh',
+          description: 'Tìm URI / user / IP, chọn phương thức HTTP và nhóm mã trạng thái (2xx, 4xx…).',
+        },
+        {
+          title: 'Xem chi tiết',
+          description: 'Bấm mắt trên dòng để mở request/response body, query params và meta.',
+        },
+        {
+          title: 'Dọn log cũ',
+          description: 'Chọn khoảng ngày → xác nhận. Không thể hoàn tác — backup nếu cần audit dài hạn.',
+        },
+      ],
+    },
+    {
+      heading: 'Mẹo',
+      type: 'tips',
+      tips: [
+        'Bật tự làm mới (5s–1 phút) khi theo dõi sự cố realtime.',
+        'Thời gian phản hồi tô màu: xanh = nhanh, đỏ = rất chậm.',
+      ],
+    },
+  ],
+}
 
 // ============================================================
 // Utilities
@@ -166,14 +201,16 @@ export function ApiLogsPage() {
 
   // Build filter object cho BE. Status preset chỉ có "exact code" support ở BE hiện tại,
   // nên với preset xxx/xxx ta filter client-side (BE hiện tại chưa có statusRange).
+  // pageNumber is 1-based — ApiLogServiceImpl uses ServiceHelper.createPageable
+  // which converts with `page - 1` (same contract as Persons/Attendance).
   const filter: ApiLogFilter = useMemo(() => ({
-    pageNumber: page - 1,
+    pageNumber: page,
     pageSize,
     search: debouncedSearch || undefined,
     method: methodFilter === 'all' ? undefined : methodFilter,
   }), [page, pageSize, debouncedSearch, methodFilter])
 
-  const { data, isLoading, isFetching, refetch } = useApiLogs({
+  const { data, isLoading, isFetching, isError, refetch } = useApiLogs({
     ...filter,
     refetchIntervalMs: refreshInterval || false,
   })
@@ -227,7 +264,7 @@ export function ApiLogsPage() {
       ),
     },
     {
-      title: 'Method',
+      title: 'Phương thức',
       dataIndex: 'method',
       width: 80,
       render: (val: string) => {
@@ -253,7 +290,7 @@ export function ApiLogsPage() {
       ),
     },
     {
-      title: 'Status',
+      title: 'Mã trạng thái',
       dataIndex: 'statusCode',
       width: 90,
       align: 'center' as const,
@@ -285,7 +322,7 @@ export function ApiLogsPage() {
       },
     },
     {
-      title: 'User',
+      title: 'Người dùng',
       dataIndex: 'username',
       width: 130,
       render: (val: string) => (
@@ -297,12 +334,12 @@ export function ApiLogsPage() {
             <span className="text-xs text-neutral-700 truncate">{val}</span>
           </div>
         ) : (
-          <span className="text-xs text-neutral-400 italic">anonymous</span>
+          <span className="text-xs text-neutral-400 italic">ẩn danh</span>
         )
       ),
     },
     {
-      title: 'IP',
+      title: 'Địa chỉ IP',
       dataIndex: 'ipAddress',
       width: 130,
       render: (val: string) => (
@@ -315,13 +352,9 @@ export function ApiLogsPage() {
       width: 50,
       align: 'center' as const,
       render: (_: unknown, row: ApiLogItem) => (
-        <button
-          className="w-7 h-7 rounded-md text-neutral-500 hover:text-primary-700 hover:bg-primary-50 flex items-center justify-center transition-colors"
-          onClick={() => setDetailLog(row)}
-          title="Xem chi tiết"
-        >
+        <IconActionButton tooltip="Xem chi tiết" tone="blue" size="sm" onClick={() => setDetailLog(row)}>
           <Eye size={14} />
-        </button>
+        </IconActionButton>
       ),
     },
   ], [])
@@ -330,15 +363,11 @@ export function ApiLogsPage() {
   return (
     <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            <Activity size={20} className="text-primary-600" />
-            Nhật ký hệ thống (API Logs)
-          </span>
-        }
+        title="Nhật ký API"
         description={`Giám sát mọi request đi vào hệ thống · ${stats?.total ?? '—'} log${refreshInterval > 0 ? ' · đang live' : ''}`}
         actions={
           <>
+            <PageGuideButton guide={API_LOGS_GUIDE} />
             {/* Auto-refresh dropdown */}
             <div className="relative">
               <Button
@@ -357,7 +386,7 @@ export function ApiLogsPage() {
                 ) : (
                   <Radio size={14} className="text-neutral-400" />
                 )}
-                Auto {refreshInterval > 0 ? AUTO_REFRESH_OPTIONS.find((o) => o.value === refreshInterval)?.label : 'Tắt'}
+                Tự làm mới {refreshInterval > 0 ? AUTO_REFRESH_OPTIONS.find((o) => o.value === refreshInterval)?.label : 'Tắt'}
                 <ChevronDown size={14} className="text-neutral-400" />
               </Button>
               {autoRefreshOpen && (
@@ -441,116 +470,100 @@ export function ApiLogsPage() {
         />
       </div>
 
-      {/* ── Toolbar ── */}
-      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-neutral-100 bg-gradient-to-r from-neutral-50 to-white">
-          <div className="relative flex-1 min-w-[240px] md:max-w-[380px]">
+      {/* ── Sticky FilterBar ── */}
+      <div className="sticky top-0 z-10 -mx-6 px-6 py-2 bg-neutral-50/95 backdrop-blur border-y border-neutral-200/80 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[220px] md:max-w-[360px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
             <input
-              type="text"
-              placeholder="Tìm URI, username hoặc IP..."
+              type="search"
+              placeholder="Tìm URI, tên người dùng hoặc IP…"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              className="h-8 w-full pl-8 pr-8 text-sm bg-neutral-50 border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300 focus:bg-white transition-all placeholder:text-neutral-400"
+              className="h-9 w-full pl-8 pr-8 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300"
+              aria-label="Tìm nhật ký API"
             />
             {searchText && (
-              <button
-                type="button"
-                onClick={() => setSearchText('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-700"
-                title="Xoá tìm kiếm"
-              >
+              <IconActionButton tooltip="Xoá tìm kiếm" size="sm" className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5" onClick={() => setSearchText('')}>
                 <X size={14} />
-              </button>
+              </IconActionButton>
             )}
           </div>
 
-          <div className="h-6 w-px bg-neutral-200 hidden md:block" />
-
-          {/* Method chips */}
-          <div className="flex flex-wrap items-center gap-1">
-            <FilterChip
-              active={methodFilter === 'all'}
-              onClick={() => setMethodFilter('all')}
-              label="All"
-              activeClass="bg-neutral-900 text-white border-neutral-900"
+          <div className="min-w-[130px]">
+            <Select
+              options={[
+                { value: 'all', label: 'Tất cả phương thức' },
+                ...METHODS.map((m) => ({ value: m, label: m })),
+              ]}
+              value={methodFilter}
+              onChange={(v) => setMethodFilter(v as Method | 'all')}
+              placeholder="Phương thức"
+              aria-label="Lọc theo phương thức"
+              showSearch={false}
             />
-            {METHODS.map((m) => {
-              const cfg = METHOD_COLORS[m]
-              const activeCls =
-                m === 'GET'    ? 'bg-blue-600 text-white border-blue-600' :
-                m === 'POST'   ? 'bg-emerald-600 text-white border-emerald-600' :
-                m === 'PUT'    ? 'bg-amber-500 text-white border-amber-500' :
-                m === 'PATCH'  ? 'bg-violet-600 text-white border-violet-600' :
-                                 'bg-rose-600 text-white border-rose-600'
-              return (
-                <FilterChip
-                  key={m}
-                  active={methodFilter === m}
-                  onClick={() => setMethodFilter(m)}
-                  label={m}
-                  icon={<span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />}
-                  activeClass={activeCls}
-                />
-              )
-            })}
+          </div>
+
+          <div className="min-w-[140px]">
+            <Select
+              options={STATUS_PRESETS.map((p) => ({ value: p.key, label: p.label }))}
+              value={statusKey}
+              onChange={(v) => setStatusKey(v as StatusKey)}
+              placeholder="Mã trạng thái"
+              aria-label="Lọc theo mã trạng thái"
+              showSearch={false}
+            />
           </div>
 
           {hasActiveFilter && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="ml-auto inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition"
-            >
-              <X size={12} /> Xoá lọc
-            </button>
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X size={12} className="mr-1" /> Xoá lọc
+            </Button>
           )}
+          <span className="text-xs text-neutral-500 ml-auto tabular-nums">
+            {filteredItems.length} log{hasActiveFilter ? ' (đã lọc)' : ''}
+          </span>
         </div>
-
-        {/* Status preset row */}
-        <div className="flex flex-wrap items-center gap-1.5 px-4 py-2.5 bg-white border-b border-neutral-100">
-          <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mr-1">Status:</span>
-          {STATUS_PRESETS.map((p) => (
-            <FilterChip
-              key={p.key}
-              active={statusKey === p.key}
-              onClick={() => setStatusKey(p.key)}
-              label={p.label}
-              activeClass={p.tone}
-            />
-          ))}
-        </div>
-
-        {/* Table hoặc empty */}
-        {!isLoading && filteredItems.length === 0 ? (
-          <div className="py-12">
-            <EmptyState
-              icon={Search}
-              title={hasActiveFilter ? 'Không có log khớp bộ lọc' : 'Chưa có log nào được ghi'}
-              description={hasActiveFilter
-                ? 'Thử bỏ bớt điều kiện tìm kiếm hoặc chọn status preset khác.'
-                : 'Log sẽ tự động xuất hiện khi có request đến hệ thống.'}
-              action={hasActiveFilter ? (
-                <Button variant="outline" onClick={clearFilters}>Xoá bộ lọc</Button>
-              ) : undefined}
-            />
-          </div>
-        ) : (
-          <AppTable
-            columns={columns}
-            data={filteredItems}
-            isLoading={isLoading}
-            showSearch={false}
-            pageIndex={page}
-            pageSize={pageSize}
-            totalElements={data?.total ?? 0}
-            onPageChange={(newPage, newSize) => {
-              setPage(newPage)
-              setPageSize(newSize)
-            }}
-          />
-        )}
       </div>
+
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được nhật ký API"
+            message="Kiểm tra kết nối hoặc quyền truy cập rồi thử lại."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : !isLoading && filteredItems.length === 0 ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={Search}
+            title={hasActiveFilter ? 'Không có bản ghi phù hợp bộ lọc' : 'Chưa có log nào được ghi'}
+            description={hasActiveFilter
+              ? 'Thử đổi bộ lọc hoặc xoá lọc.'
+              : 'Log sẽ tự động xuất hiện khi có request đến hệ thống.'}
+            action={hasActiveFilter ? { label: 'Xoá lọc', onClick: clearFilters } : undefined}
+          />
+        </div>
+      ) : (
+        <AppTable
+          columns={columns}
+          data={filteredItems}
+          isLoading={isLoading}
+          showSearch={false}
+          density="compact"
+          loadingRows={6}
+          pageIndex={page}
+          pageSize={pageSize}
+          totalElements={data?.total ?? 0}
+          onPageChange={(newPage, newSize) => {
+            setPage(newPage)
+            setPageSize(newSize)
+          }}
+          onRefresh={() => void refetch()}
+        />
+      )}
 
       {/* ── Detail modal ── */}
       <ApiLogDetailModal log={detailLog} onClose={() => setDetailLog(null)} />
@@ -568,33 +581,6 @@ export function ApiLogsPage() {
         }
       />
     </div>
-  )
-}
-
-// ============================================================
-// FilterChip — chip button dùng cho method/status filter
-// ============================================================
-
-function FilterChip({
-  active, onClick, label, icon, activeClass,
-}: {
-  active: boolean
-  onClick: () => void
-  label: string
-  icon?: React.ReactNode
-  activeClass: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-mono font-semibold border transition ${
-        active ? activeClass : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
   )
 }
 
@@ -769,23 +755,12 @@ function ApiLogDetailModal({ log, onClose }: { log: ApiLogItem | null; onClose: 
           >
             {current.uri}
           </code>
-          <button
-            type="button"
-            onClick={() => copyToClipboard(current.uri || '', 'Đã copy URI')}
-            className="w-8 h-8 rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 flex items-center justify-center flex-shrink-0"
-            title="Copy URI"
-          >
+          <IconActionButton tooltip="Sao chép URI" onClick={() => copyToClipboard(current.uri || '', 'Đã copy URI')}>
             <Copy size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="w-8 h-8 rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 flex items-center justify-center flex-shrink-0 disabled:opacity-50"
-            title="Tải lại từ máy chủ"
-          >
+          </IconActionButton>
+          <IconActionButton tooltip="Tải lại từ máy chủ" onClick={handleRefresh} disabled={refreshing}>
             <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-          </button>
+          </IconActionButton>
           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-mono font-bold border ${statusCfg.chip} flex-shrink-0`}>
             <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
             {current.statusCode ?? '—'}
@@ -809,8 +784,8 @@ function ApiLogDetailModal({ log, onClose }: { log: ApiLogItem | null; onClose: 
               {current.duration != null ? `${current.duration} ms` : '—'} <span className="opacity-75">· {durTone.label}</span>
             </span>
           } />
-          <MetaCell icon={User} label="User" value={current.username || <span className="italic text-neutral-400">anonymous</span>} />
-          <MetaCell icon={Globe} label="IP address" value={<code className="font-mono text-xs">{current.ipAddress || '—'}</code>} />
+          <MetaCell icon={User} label="Người dùng" value={current.username || <span className="italic text-neutral-400">ẩn danh</span>} />
+          <MetaCell icon={Globe} label="Địa chỉ IP" value={<code className="font-mono text-xs">{current.ipAddress || '—'}</code>} />
           <MetaCell icon={Calendar} label="Bắt đầu" value={<span className="font-mono text-xs">{formatDateTime(current.effFrom)}</span>} />
           <MetaCell icon={Calendar} label="Kết thúc" value={<span className="font-mono text-xs">{formatDateTime(current.effTo)}</span>} />
           <MetaCell icon={Clock} label="Cách đây" value={formatRelative(current.effFrom)} />
@@ -919,14 +894,9 @@ function QueryParamsView({ params }: { params: Array<[string, string]> }) {
                 {v || <span className="text-neutral-400 italic">(trống)</span>}
               </td>
               <td className="px-3 py-2">
-                <button
-                  type="button"
-                  onClick={() => copyToClipboard(v, `Đã copy ${k}`)}
-                  className="w-6 h-6 rounded text-neutral-400 hover:text-neutral-800 hover:bg-neutral-100 flex items-center justify-center"
-                  title="Copy giá trị"
-                >
+                <IconActionButton tooltip="Sao chép giá trị" size="sm" onClick={() => copyToClipboard(v, `Đã copy ${k}`)}>
                   <Copy size={12} />
-                </button>
+                </IconActionButton>
               </td>
             </tr>
           ))}
@@ -1141,7 +1111,7 @@ function DeleteLogsModal({
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
-            <Button variant="outline" onClick={onClose}>Hủy</Button>
+        <Button variant="outline" onClick={onClose}>Huỷ</Button>
             <Button
               onClick={() => setConfirmOpen(true)}
               className="bg-rose-600 hover:bg-rose-700 text-white gap-1.5"

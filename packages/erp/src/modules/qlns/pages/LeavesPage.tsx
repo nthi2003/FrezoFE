@@ -8,16 +8,18 @@
 //   • "Tất cả" — admin only (skip nếu chưa admin).
 //
 // Detail drawer: ApprovalTimeline + duyệt qua Approval Inbox (không approve local).
-// Create modal: chọn nhân viên, loại nghỉ, date range (auto-count ngày).
+// Create modal: nhân viên = person đăng nhập (read-only), loại nghỉ, date range.
 // ============================================================
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
-  Plus, Search, X, RefreshCw, CalendarDays, Filter, CheckCircle2, XCircle,
-  Clock, User, Ban, Loader2, ArrowRight, Bell,
+  Plus, Search, RefreshCw, CalendarDays, Filter, CheckCircle2, XCircle,
+  Clock, User, Ban, ArrowRight, Bell,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, ErrorState, PageGuideButton } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, ErrorState, PageGuideButton, Select } from '@frezo/ui'
+import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import { useAuthStore } from '@/stores/authStore'
 import { useLeaveRequests, useMyLeaveRequests } from '../hooks/useLeave'
 import type { LeaveRequestItem, LeaveStatus } from '../services/leaveApi'
@@ -26,6 +28,7 @@ import { LeaveRequestModal } from '../components/LeaveRequestModal'
 import { LeaveDetailDrawer } from '../components/LeaveDetailDrawer'
 import { usePermission } from '@/lib/hooks/usePermission'
 import { LEAVES_GUIDE } from '../constants/leaves.guide'
+import { pageRootClass } from '../utils/pageEmbed'
 
 // ============================================================
 // Config maps — status → label + màu
@@ -85,7 +88,7 @@ type TabKey = 'inbox' | 'mine' | 'all'
 // Main
 // ============================================================
 
-export function LeavesPage() {
+export function LeavesPage({ embedded }: { embedded?: boolean } = {}) {
   const [searchParams, setSearchParams] = useSearchParams()
   const highlightId = searchParams.get('highlight') || null
 
@@ -154,13 +157,98 @@ export function LeavesPage() {
     setSearch(''); setTypeFilter('all'); setStatusFilter('all')
   }
   const hasFilter = search || typeFilter !== 'all' || statusFilter !== 'all'
+  const isFilteredEmpty = !source.isLoading && !source.isError && rawList.length > 0 && list.length === 0
+  const isFullyEmpty = !source.isLoading && !source.isError && rawList.length === 0
+
+  const columns: AppTableColumn<LeaveRequestItem>[] = useMemo(() => [
+    {
+      key: 'personName',
+      title: 'Nhân viên',
+      render: (_, l) => (
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">
+            {(l.personName || l.createdBy || '?').charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <div className="font-medium text-neutral-900 truncate max-w-[180px]">
+              {l.personName || l.createdBy || 'N/A'}
+            </div>
+            {l.departmentName && (
+              <div className="text-[11px] text-neutral-500 truncate max-w-[180px]">{l.departmentName}</div>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'leaveType',
+      title: 'Loại',
+      render: (_, l) => {
+        const type = TYPE_META[l.leaveType] || { label: l.leaveType, tone: 'bg-neutral-50 text-neutral-700 border-neutral-200' }
+        return (
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${type.tone}`}>
+            {type.label}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'dates',
+      title: 'Thời gian',
+      render: (_, l) => (
+        <div>
+          <div className="text-xs text-neutral-800 tabular-nums">
+            {fmtDate(l.startDate)}
+            {l.endDate && l.endDate !== l.startDate && (
+              <>
+                <ArrowRight size={11} className="inline mx-1 text-neutral-400" />
+                {fmtDate(l.endDate)}
+              </>
+            )}
+          </div>
+          {l.durationDays != null && (
+            <div className="text-[10px] text-neutral-500 mt-0.5">{l.durationDays} ngày</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'reason',
+      title: 'Lý do',
+      render: (_, l) => (
+        <div className="text-xs text-neutral-700 line-clamp-2 max-w-[220px]">
+          {l.reason || <span className="text-neutral-400">—</span>}
+        </div>
+      ),
+    },
+    {
+      key: 'workflow',
+      title: 'Workflow',
+      render: (_, l) => <WorkflowMini lead={l} />,
+    },
+    {
+      key: 'status',
+      title: 'Trạng thái',
+      align: 'right',
+      render: (_, l) => {
+        const st = STATUS_META[(l.status || 'PENDING_MANAGER') as LeaveStatus]
+        return (
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${st.tone}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
+            {st.short}
+          </span>
+        )
+      },
+    },
+  ], [])
 
   // ============================================================
   // Render
   // ============================================================
 
   return (
-    <div className="p-6 space-y-5 animate-fade-in">
+    <div className={pageRootClass(embedded, 'space-y-5')}>
+      {!embedded && (
       <PageHeader
         title={
           <span className="inline-flex items-center gap-2">
@@ -195,6 +283,7 @@ export function LeavesPage() {
           </>
         }
       />
+      )}
 
       {/* Tabs */}
       <div className="bg-white rounded-xl border border-neutral-200 p-1 inline-flex gap-1">
@@ -225,29 +314,50 @@ export function LeavesPage() {
         )}
       </div>
 
-      {/* Toolbar */}
-      <div className="bg-white rounded-xl border border-neutral-200 p-3 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+      <FilterBar
+        hasActiveFilters={!!hasFilter}
+        onClear={clearFilters}
+        countLabel={`${list.length} đơn${hasFilter ? ' (đã lọc)' : ''}`}
+        extra={(
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void source.refetch()}
+            className="gap-2 h-9"
+            disabled={source.isFetching}
+          >
+            <RefreshCw size={14} className={source.isFetching ? 'animate-spin' : ''} />
+            Làm mới
+          </Button>
+        )}
+      >
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm theo tên nhân viên, lý do..."
-            className="w-full h-9 pl-9 pr-9 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white focus:border-primary-300 focus:ring-2 focus:ring-primary-100 outline-none text-sm transition"
+            placeholder="Tìm theo tên nhân viên, lý do…"
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            aria-label="Tìm đơn nghỉ"
           />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
-            >
-              <X size={14} />
-            </button>
-          )}
         </div>
-
-        {/* Type filter chips */}
+        <div className="min-w-[160px]">
+          <Select
+            options={[
+              { value: 'all', label: 'Tất cả trạng thái' },
+              ...(Object.keys(STATUS_META) as LeaveStatus[]).map((k) => ({
+                value: k,
+                label: STATUS_META[k].label,
+              })),
+            ]}
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+            placeholder="Trạng thái"
+            aria-label="Trạng thái"
+            showSearch={false}
+          />
+        </div>
         <div className="flex items-center gap-1 flex-wrap">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 inline-flex items-center gap-1 mr-1">
             <Filter size={11} /> Loại:
@@ -262,37 +372,23 @@ export function LeavesPage() {
             />
           ))}
         </div>
+      </FilterBar>
 
-        {hasFilter && (
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="inline-flex items-center gap-1 h-9 px-3 rounded-lg text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
-          >
-            <X size={12} /> Xoá lọc
-          </button>
-        )}
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
-        {source.isLoading ? (
-          <div className="p-16 flex flex-col items-center justify-center gap-3 text-neutral-400">
-            <Loader2 size={22} className="animate-spin text-primary-500" />
-            <span className="text-sm">Đang tải danh sách đơn...</span>
-          </div>
-        ) : source.isError ? (
+      {source.isError ? (
+        <div className="border rounded-xl bg-white">
           <ErrorState
             title="Không tải được đơn nghỉ"
             message="Lỗi mạng hoặc máy chủ. Thử lại; nếu vẫn lỗi hãy liên hệ HR."
             onRetry={() => void source.refetch()}
             isRetrying={source.isFetching}
           />
-        ) : list.length === 0 ? (
+        </div>
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
           <EmptyState
             icon={hasFilter ? Search : CalendarDays}
             title={
-              hasFilter
+              isFilteredEmpty
                 ? 'Không có đơn khớp bộ lọc'
                 : tab === 'inbox'
                   ? 'Không có đơn cần bạn duyệt'
@@ -301,25 +397,36 @@ export function LeavesPage() {
                     : 'Chưa có đơn nào'
             }
             description={
-              hasFilter
+              isFilteredEmpty
                 ? 'Thử điều chỉnh từ khoá hoặc bỏ bớt filter.'
                 : tab === 'mine'
                   ? 'Bấm "Tạo đơn" ở góc trên để đăng ký nghỉ phép.'
                   : 'Khi có đơn mới, bạn sẽ nhận notification.'
             }
-            action={hasFilter ? { label: 'Xoá lọc', onClick: clearFilters } : undefined}
+            action={isFilteredEmpty ? { label: 'Xoá lọc', onClick: clearFilters } : undefined}
           />
-        ) : (
-          <LeaveTable
-            list={list}
-            highlightId={highlightId}
-            onRowClick={setActiveLead}
-          />
-        )}
-      </div>
+        </div>
+      ) : (
+        <AppTable
+          columns={columns}
+          data={list}
+          isLoading={source.isLoading}
+          density="compact"
+          showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onRefresh={() => void source.refetch()}
+          getRowProps={(l) => ({
+            onClick: () => setActiveLead(l),
+            className: `cursor-pointer hover:bg-neutral-50/60 ${
+              highlightId === l.id ? 'bg-primary-50/60 ring-2 ring-primary-200 ring-inset' : ''
+            }`,
+          })}
+        />
+      )}
 
       {/* Modals */}
-      <LeaveRequestModal open={createOpen} onClose={() => setCreateOpen(false)} defaultPersonId={currentUser?.id} />
+      <LeaveRequestModal open={createOpen} onClose={() => setCreateOpen(false)} />
       {activeLead && (
         <LeaveDetailDrawer
           lead={activeLead}
@@ -375,98 +482,6 @@ function FilterChip({ active, onClick, label }: { active: boolean; onClick: () =
     >
       {label}
     </button>
-  )
-}
-
-function LeaveTable({
-  list, highlightId, onRowClick,
-}: {
-  list: LeaveRequestItem[]; highlightId: string | null; onRowClick: (l: LeaveRequestItem) => void
-}) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-neutral-50/70 border-b border-neutral-200">
-          <tr className="text-xs font-semibold text-neutral-600 uppercase tracking-wide">
-            <th className="text-left px-4 py-3">Nhân viên</th>
-            <th className="text-left px-4 py-3">Loại</th>
-            <th className="text-left px-4 py-3">Thời gian</th>
-            <th className="text-left px-4 py-3">Lý do</th>
-            <th className="text-left px-4 py-3">Workflow</th>
-            <th className="text-right px-4 py-3">Trạng thái</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-neutral-100">
-          {list.map((l) => {
-            const st = STATUS_META[(l.status || 'PENDING_MANAGER') as LeaveStatus]
-            const type = TYPE_META[l.leaveType] || { label: l.leaveType, tone: 'bg-neutral-50 text-neutral-700 border-neutral-200' }
-            const isHi = highlightId === l.id
-            return (
-              <tr
-                key={l.id}
-                onClick={() => onRowClick(l)}
-                className={`cursor-pointer transition-colors ${
-                  isHi ? 'bg-primary-50/60 ring-2 ring-primary-200 ring-inset' : 'hover:bg-neutral-50/60'
-                }`}
-              >
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">
-                      {(l.personName || l.createdBy || '?').charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-medium text-neutral-900 truncate max-w-[180px]">
-                        {l.personName || l.createdBy || 'N/A'}
-                      </div>
-                      {l.departmentName && (
-                        <div className="text-[11px] text-neutral-500 truncate max-w-[180px]">{l.departmentName}</div>
-                      )}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${type.tone}`}>
-                    {type.label}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="text-xs text-neutral-800 tabular-nums">
-                    {fmtDate(l.startDate)}
-                    {l.endDate && l.endDate !== l.startDate && (
-                      <>
-                        <ArrowRight size={11} className="inline mx-1 text-neutral-400" />
-                        {fmtDate(l.endDate)}
-                      </>
-                    )}
-                  </div>
-                  {l.durationDays != null && (
-                    <div className="text-[10px] text-neutral-500 mt-0.5">
-                      {l.durationDays} ngày
-                    </div>
-                  )}
-                </td>
-                <td className="px-4 py-3 max-w-[220px]">
-                  <div className="text-xs text-neutral-700 line-clamp-2">
-                    {l.reason || <span className="text-neutral-400">—</span>}
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <WorkflowMini lead={l} />
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${st.tone}`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
-                    {st.short}
-                  </span>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
   )
 }
 

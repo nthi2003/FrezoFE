@@ -54,16 +54,48 @@ export const formatRelativeTime = (date: string | Date): string => {
   return formatDate(date)
 }
 
+/**
+ * Hiển thị tiền — chuẩn VN: dấu `.` ngăn nghìn + ký hiệu ₫.
+ * VD: 180000 → "180.000 ₫"
+ */
 export const formatCurrency = (
   amount: number | null | undefined,
   currency = 'VND',
 ): string => {
-  if (amount === null || amount === undefined) return '—'
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return '—'
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
     currency,
     maximumFractionDigits: 0,
   }).format(amount)
+}
+
+/**
+ * Alias hiển thị VND (cùng chuẩn formatCurrency).
+ * Prefer dùng formatCurrency ở UI mới; giữ alias cho code cũ (warehouse, assets…).
+ */
+export const formatVnd = (amount: number | null | undefined): string =>
+  formatCurrency(amount, 'VND')
+
+/**
+ * Format số tiền cho input editable — "180.000" (không kèm ₫).
+ * null / undefined / NaN → '' (khác formatNumber trả '—').
+ */
+export const formatVndInput = (value: number | null | undefined): string => {
+  if (value === null || value === undefined || Number.isNaN(value)) return ''
+  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(value)
+}
+
+/**
+ * Parse chuỗi tiền VN (180.000 / 180,000 / 180000) → số nguyên.
+ * Rỗng hoặc không có chữ số → undefined.
+ */
+export const parseVndInput = (raw: string | null | undefined): number | undefined => {
+  if (raw == null || raw === '') return undefined
+  const digits = String(raw).replace(/\D/g, '')
+  if (!digits) return undefined
+  const n = Number(digits)
+  return Number.isFinite(n) ? n : undefined
 }
 
 /**

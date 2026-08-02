@@ -284,6 +284,17 @@
   }
 }
 
+@keyframes presencePulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.45);
+  }
+  50% {
+    opacity: 0.85;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0);
+  }
+}
+
 /* ===== UTILITY LAYER ===== */
 @layer utilities {
   .text-balance {
@@ -296,6 +307,10 @@
 
   .animate-slide-up {
     animation: slideUp 0.25s ease-out;
+  }
+
+  .animate-presence-pulse {
+    animation: presencePulse 2s ease-in-out infinite;
   }
 
   /* Gradient text */

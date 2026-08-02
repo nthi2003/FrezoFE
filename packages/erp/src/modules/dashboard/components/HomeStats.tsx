@@ -140,7 +140,7 @@ export function HomeStats({ insights }: { insights: Insights }) {
       hint: leaves.pending > 0 ? 'Đang chờ phê duyệt' : 'Không có đơn tồn',
       icon: CalendarClock,
       tone: leaves.pending > 0 ? 'warning' : 'primary',
-      to: '/qlns/leaves',
+      to: '/qlns/time?tab=leaves',
       isLoading: leaves.isLoading,
     })
   }
@@ -185,7 +185,7 @@ export function HomeStats({ insights }: { insights: Insights }) {
         hint: `${hr.attendanceToday}/${hr.headcount} người`,
         icon: UserCheck,
         tone: hr.attendancePct >= 80 ? 'primary' : 'warning',
-        to: '/admin/attendance',
+        to: '/qlns/time?tab=daily',
         isLoading: hr.isLoading,
       },
     )

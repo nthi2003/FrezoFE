@@ -25,7 +25,7 @@ export function useCreateLead() {
   return useMutation({
     mutationFn: (data: LeadRequest) => leadsApi.create(data),
     onSuccess: () => {
-      toast.success('Đã thêm lead')
+      toast.success('Đã thêm khách tiềm năng')
       qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
     },
   })
@@ -36,7 +36,7 @@ export function useUpdateLead() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: LeadRequest }) => leadsApi.update(id, data),
     onSuccess: () => {
-      toast.success('Đã cập nhật lead')
+      toast.success('Đã cập nhật khách tiềm năng')
       qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
     },
   })
@@ -61,7 +61,7 @@ export function useDeleteLead() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
     },
-    onError: () => toast.error('Xoá lead thất bại'),
+    onError: () => toast.error('Xoá khách tiềm năng thất bại'),
   })
 }
 
@@ -124,6 +124,15 @@ export function useDealsByPipeline(pipelineId?: string, status?: DealStatus) {
   })
 }
 
+export function useDealsByCustomer(customerId?: string) {
+  return useQuery({
+    queryKey: ['crm', 'deals', 'customer', customerId],
+    queryFn: () => dealsApi.listByCustomer(customerId!),
+    select: list,
+    enabled: !!customerId,
+  })
+}
+
 export function useDealDetail(id?: string) {
   return useQuery({
     queryKey: ['crm', 'deals', id],
@@ -141,6 +150,7 @@ export function useCreateDeal() {
       toast.success('Đã tạo cơ hội bán')
       qc.invalidateQueries({ queryKey: ['crm', 'deals'] })
     },
+    onError: () => toast.error('Tạo cơ hội bán thất bại'),
   })
 }
 
@@ -151,6 +161,7 @@ export function useMoveDealStage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm', 'deals'] })
     },
+    onError: () => toast.error('Đổi giai đoạn thất bại'),
   })
 }
 
@@ -162,6 +173,7 @@ export function useMarkDealWon() {
       toast.success('Đã chốt cơ hội bán')
       qc.invalidateQueries({ queryKey: ['crm', 'deals'] })
     },
+    onError: () => toast.error('Đánh dấu đã chốt thất bại'),
   })
 }
 
@@ -173,6 +185,7 @@ export function useMarkDealLost() {
       toast.success('Đã đánh dấu cơ hội thất bại')
       qc.invalidateQueries({ queryKey: ['crm', 'deals'] })
     },
+    onError: () => toast.error('Đánh dấu thất bại không thành công'),
   })
 }
 
@@ -267,6 +280,14 @@ export function useCreateInvoice() {
   })
 }
 
+function mutationErrorMessage(err: unknown, fallback: string) {
+  return (
+    (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message
+    || (err as { message?: string })?.message
+    || fallback
+  )
+}
+
 export function useIssueInvoice() {
   const qc = useQueryClient()
   return useMutation({
@@ -274,6 +295,9 @@ export function useIssueInvoice() {
     onSuccess: () => {
       toast.success('Đã phát hành hoá đơn')
       qc.invalidateQueries({ queryKey: ['crm', 'invoices'] })
+    },
+    onError: (err: unknown) => {
+      toast.error(mutationErrorMessage(err, 'Phát hành hoá đơn thất bại'))
     },
   })
 }
@@ -287,17 +311,32 @@ export function usePostInvoiceToGL() {
       qc.invalidateQueries({ queryKey: ['crm', 'invoices'] })
       qc.invalidateQueries({ queryKey: ['accounting'] })
     },
+    onError: (err: unknown) => {
+      toast.error(mutationErrorMessage(err, 'Hạch toán hoá đơn thất bại'))
+    },
   })
 }
 
 export function useRecordPayment() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, amount, note }: { id: string; amount: number; note?: string }) =>
-      invoicesApi.recordPayment(id, amount, note),
+    mutationFn: ({
+      id,
+      amount,
+      paymentAccountCode,
+    }: {
+      id: string
+      amount: number
+      paymentAccountCode?: string
+      /** @deprecated dùng paymentAccountCode — giữ để tương thích call cũ */
+      note?: string
+    }) => invoicesApi.recordPayment(id, amount, paymentAccountCode),
     onSuccess: () => {
       toast.success('Đã ghi nhận thanh toán')
       qc.invalidateQueries({ queryKey: ['crm', 'invoices'] })
+    },
+    onError: (err: unknown) => {
+      toast.error(mutationErrorMessage(err, 'Thu tiền hoá đơn thất bại'))
     },
   })
 }

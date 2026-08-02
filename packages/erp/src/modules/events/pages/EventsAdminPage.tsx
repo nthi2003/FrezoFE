@@ -10,6 +10,9 @@ import {
   Megaphone, Ban, Trash2, Edit3, ArrowLeft, CheckCircle2,
 } from 'lucide-react'
 import { Button, PageHeader, EmptyState, AppModal, Input, Label, ConfirmDialog } from '@frezo/ui'
+import { AppTable } from '@/components/ui/AppTable'
+import type { AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import {
   useCancelEvent,
   useDeleteEvent,
@@ -25,6 +28,12 @@ const STATUS_CHIP: Record<string, string> = {
   DRAFT: 'bg-neutral-100 text-neutral-700',
   PUBLISHED: 'bg-emerald-50 text-emerald-800 border border-emerald-100',
   CANCELLED: 'bg-rose-50 text-rose-700 border border-rose-100',
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  DRAFT: 'Nháp',
+  PUBLISHED: 'Đã xuất bản',
+  CANCELLED: 'Đã hủy',
 }
 
 function fmtDt(s?: string | null) {
@@ -80,10 +89,105 @@ export function EventsAdminPage() {
     )
   }, [events, search])
 
+  const hasFilter = !!search.trim() || status !== 'all'
+  const isFilteredEmpty = !isLoading && filtered.length === 0 && events.length > 0
+  const isFullyEmpty = !isLoading && events.length === 0
+
   const openEdit = (e: EventDto) => {
     setEditing(e)
     setFormOpen(true)
   }
+
+  const columns: AppTableColumn<EventDto>[] = [
+    {
+      key: 'title',
+      title: 'Sự kiện',
+      render: (_, row) => (
+        <button
+          type="button"
+          className="text-left min-w-0"
+          onClick={() => nav(`/admin/events/${row.id}`)}
+        >
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                STATUS_CHIP[row.status] || STATUS_CHIP.DRAFT
+              }`}
+            >
+              {STATUS_LABEL[row.status] || row.status}
+            </span>
+            <span className="font-medium text-neutral-900 truncate">{row.title}</span>
+          </div>
+          <div className="mt-0.5 text-xs text-neutral-500 flex flex-wrap gap-x-3 gap-y-0.5">
+            <span className="tabular-nums">{fmtDt(row.startAt)}</span>
+            {row.location && (
+              <span className="inline-flex items-center gap-0.5">
+                <MapPin size={11} /> {row.location}
+              </span>
+            )}
+            {row.capacity != null && (
+              <span className="inline-flex items-center gap-0.5">
+                <Users size={11} /> {row.registeredCount ?? 0}/{row.capacity}
+              </span>
+            )}
+          </div>
+        </button>
+      ),
+    },
+    {
+      key: 'actions',
+      title: 'Thao tác',
+      align: 'right',
+      width: 280,
+      render: (_, row) => (
+        <div className="flex items-center gap-1.5 justify-end flex-wrap">
+          {row.status === 'DRAFT' && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1"
+              disabled={publish.isPending}
+              onClick={() => publish.mutate(row.id)}
+            >
+              <Megaphone size={12} /> Xuất bản
+            </Button>
+          )}
+          {row.status === 'PUBLISHED' && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1 text-rose-600"
+              disabled={cancel.isPending}
+              onClick={() =>
+                setConfirmAction({ type: 'cancel', id: row.id, title: row.title })
+              }
+            >
+              <Ban size={12} /> Huỷ
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            onClick={() => openEdit(row)}
+          >
+            <Edit3 size={12} /> Sửa
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1 text-rose-600"
+            disabled={del.isPending}
+            onClick={() =>
+              setConfirmAction({ type: 'delete', id: row.id, title: row.title })
+            }
+          >
+            <Trash2 size={12} />
+          </Button>
+        </div>
+      ),
+    },
+  ]
 
   return (
     <div className="p-6 space-y-5 animate-fade-in max-w-6xl mx-auto w-full">
@@ -97,42 +201,51 @@ export function EventsAdminPage() {
           </span>
         }
         description="Sự kiện nội bộ công ty — tạo, publish, RSVP, huỷ. API /events."
-        actions={
-          <>
-            <Button
-              variant="outline"
-              className="gap-1.5"
-              disabled={isFetching}
-              onClick={() => refetch()}
-            >
-              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />{' '}
-              Làm mới
-            </Button>
-            <Button className="gap-1.5" onClick={() => nav('/admin/events/new')}>
-              <Plus size={14} /> Tạo sự kiện
-            </Button>
-          </>
-        }
+        actions={(
+          <Button className="gap-1.5" onClick={() => nav('/admin/events/new')}>
+            <Plus size={14} /> Tạo sự kiện
+          </Button>
+        )}
       />
 
-      <div className="bg-white rounded-xl border border-neutral-200 p-3 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px]">
+      <FilterBar
+        hasActiveFilters={hasFilter}
+        onClear={() => {
+          setSearch('')
+          setStatus('all')
+        }}
+        countLabel={`${filtered.length} sự kiện${hasFilter ? ' (đã lọc)' : ''}`}
+        extra={(
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-9"
+            disabled={isFetching}
+            onClick={() => refetch()}
+          >
+            <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} /> Làm mới
+          </Button>
+        )}
+      >
+        <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search
-            size={15}
+            size={14}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"
           />
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm tiêu đề, địa điểm..."
-            className="w-full h-9 pl-9 pr-9 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white focus:border-primary-300 outline-none text-sm"
+            placeholder="Tìm tiêu đề, địa điểm…"
+            className="w-full h-9 pl-9 pr-9 rounded-md border border-neutral-200 bg-white text-sm focus:border-primary-300 outline-none"
+            aria-label="Tìm sự kiện"
           />
           {search && (
             <button
               type="button"
               onClick={() => setSearch('')}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-neutral-400"
+              aria-label="Xoá tìm kiếm"
             >
               <X size={14} />
             </button>
@@ -143,117 +256,43 @@ export function EventsAdminPage() {
             key={s}
             type="button"
             onClick={() => setStatus(s)}
-            className={`h-8 px-3 rounded-md text-xs font-medium transition ${
+            className={`h-9 px-3 rounded-md text-xs font-medium transition border ${
               status === s
-                ? 'bg-primary-100 text-primary-700'
-                : 'text-neutral-500 hover:bg-neutral-50'
+                ? 'bg-primary-100 text-primary-700 border-primary-200'
+                : 'text-neutral-500 hover:bg-neutral-50 border-transparent'
             }`}
           >
-            {s === 'all' ? 'Tất cả' : s}
+            {s === 'all' ? 'Tất cả' : STATUS_LABEL[s]}
           </button>
         ))}
-      </div>
+      </FilterBar>
 
-      {isLoading ? (
-        <div className="p-16 bg-white rounded-xl border flex flex-col items-center gap-3 text-neutral-400">
-          <Loader2 className="animate-spin text-primary-500" size={22} />
-          <span className="text-sm">Đang tải sự kiện...</span>
-        </div>
-      ) : filtered.length === 0 ? (
+      {isFullyEmpty || isFilteredEmpty ? (
         <div className="bg-white rounded-xl border">
           <EmptyState
             icon={CalendarDays}
-            title="Chưa có sự kiện"
-            description="Tạo sự kiện nội bộ, publish để nhân viên RSVP."
-            action={{ label: 'Tạo sự kiện', onClick: () => nav('/admin/events/new') }}
+            title={isFilteredEmpty ? 'Không có sự kiện khớp bộ lọc' : 'Chưa có sự kiện'}
+            description={
+              isFilteredEmpty
+                ? 'Thử xoá lọc hoặc đổi trạng thái.'
+                : 'Tạo sự kiện nội bộ, xuất bản để nhân viên RSVP.'
+            }
+            action={
+              isFilteredEmpty
+                ? { label: 'Xoá lọc', onClick: () => { setSearch(''); setStatus('all') } }
+                : { label: 'Tạo sự kiện', onClick: () => nav('/admin/events/new') }
+            }
           />
         </div>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((e) => (
-            <div
-              key={e.id}
-              className="bg-white rounded-xl border border-neutral-200 p-4 flex flex-col sm:flex-row sm:items-center gap-3 hover:border-primary-200 transition"
-            >
-              <button
-                type="button"
-                className="flex-1 min-w-0 text-left"
-                onClick={() => nav(`/admin/events/${e.id}`)}
-              >
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span
-                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                      STATUS_CHIP[e.status] || STATUS_CHIP.DRAFT
-                    }`}
-                  >
-                    {e.status}
-                  </span>
-                  <span className="font-semibold text-neutral-900 truncate">
-                    {e.title}
-                  </span>
-                </div>
-                <div className="mt-1 text-xs text-neutral-500 flex flex-wrap gap-x-3 gap-y-1">
-                  <span>{fmtDt(e.startAt)}</span>
-                  {e.location && (
-                    <span className="inline-flex items-center gap-0.5">
-                      <MapPin size={11} /> {e.location}
-                    </span>
-                  )}
-                  {e.capacity != null && (
-                    <span className="inline-flex items-center gap-0.5">
-                      <Users size={11} /> {e.registeredCount ?? 0}/{e.capacity}
-                    </span>
-                  )}
-                </div>
-              </button>
-              <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                {e.status === 'DRAFT' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1"
-                    disabled={publish.isPending}
-                    onClick={() => publish.mutate(e.id)}
-                  >
-                    <Megaphone size={12} /> Publish
-                  </Button>
-                )}
-                {e.status === 'PUBLISHED' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1 text-rose-600"
-                    disabled={cancel.isPending}
-                    onClick={() =>
-                      setConfirmAction({ type: 'cancel', id: e.id, title: e.title })
-                    }
-                  >
-                    <Ban size={12} /> Huỷ
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1"
-                  onClick={() => openEdit(e)}
-                >
-                  <Edit3 size={12} /> Sửa
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1 text-rose-600"
-                  disabled={del.isPending}
-                  onClick={() =>
-                    setConfirmAction({ type: 'delete', id: e.id, title: e.title })
-                  }
-                >
-                  <Trash2 size={12} />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+        <AppTable
+          columns={columns}
+          data={filtered}
+          isLoading={isLoading}
+          density="compact"
+          showSearch={false}
+          onRefresh={() => void refetch()}
+        />
       )}
 
       <EventFormModal
@@ -507,7 +546,7 @@ export function EventDetailAdminPage() {
                 STATUS_CHIP[event.status] || STATUS_CHIP.DRAFT
               }`}
             >
-              {event.status}
+              {STATUS_LABEL[event.status] || event.status}
             </span>
             <span>{fmtDt(event.startAt)}</span>
             {event.location && (
@@ -539,7 +578,7 @@ export function EventDetailAdminPage() {
                 disabled={publish.isPending}
                 onClick={() => publish.mutate(event.id)}
               >
-                <Megaphone size={14} /> Publish
+                <Megaphone size={14} /> Xuất bản
               </Button>
             )}
             {event.status === 'PUBLISHED' && (

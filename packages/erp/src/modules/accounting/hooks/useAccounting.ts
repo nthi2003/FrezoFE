@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { unwrapList, unwrapOne as unwrap } from '@frezo/utils'
 import { toast } from '@/lib/toast'
 import {
-  accountsApi, periodsApi, journalsApi, glApi, settingApi, payrollGlApi,
+  accountsApi, periodsApi, journalsApi, glApi, settingApi, payrollGlApi, vatReportApi,
   type AccountingStandard, type JournalEntryPayload, type PostingSource,
   type AccountingSettingPayload,
 } from '../services/accountingApi'
@@ -140,6 +140,18 @@ export function useJournalDetail(id?: string) {
   })
 }
 
+export function useCreateJournalDraft() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: JournalEntryPayload) => journalsApi.createDraft(data),
+    onSuccess: () => {
+      toast.success('Đã tạo chứng từ nháp')
+      qc.invalidateQueries({ queryKey: ['accounting'] })
+    },
+    onError: () => toast.error('Không thể tạo chứng từ — kiểm tra cân đối Nợ = Có'),
+  })
+}
+
 export function useCreateJournalPost() {
   const qc = useQueryClient()
   return useMutation({
@@ -230,5 +242,16 @@ export function usePostPayrollToGL() {
       qc.invalidateQueries({ queryKey: ['accounting'] })
     },
     onError: () => toast.error('Không thể hạch toán — kiểm tra có bảng lương trong kỳ chưa'),
+  })
+}
+
+// ---------- VAT report (tax declaration stub) ----------
+
+export function useVatReport(year?: number, month?: number) {
+  return useQuery({
+    queryKey: ['accounting', 'vat', year, month],
+    queryFn: () => vatReportApi.summarize(year!, month!),
+    select: unwrap,
+    enabled: !!year && !!month,
   })
 }

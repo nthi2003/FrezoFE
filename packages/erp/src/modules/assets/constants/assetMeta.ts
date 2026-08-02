@@ -6,6 +6,7 @@ import {
   Laptop, Monitor, Smartphone, Printer, Armchair, Car, HardDrive, Package,
   Archive,
 } from 'lucide-react'
+import { formatCurrency } from '@frezo/utils'
 import type { AssetStatus, TransferStatus, TransferType } from '../services/assetApi'
 
 // ---- Status meta ----
@@ -60,7 +61,7 @@ export function getCategoryIcon(code?: string | null): LucideIcon {
   return CATEGORY_ICONS[code] || Package
 }
 
-// ---- Money format (VND compact) ----
+// ---- Money format (VND) — full dùng @frezo/utils; compact giữ B/M/K cho card ----
 
 export function fmtMoney(value?: number | null): string {
   if (value == null) return '—'
@@ -69,14 +70,11 @@ export function fmtMoney(value?: number | null): string {
   if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}B ₫`
   if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M ₫`
   if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K ₫`
-  return `${v.toLocaleString('vi-VN')} ₫`
+  return formatCurrency(v)
 }
 
 export function fmtMoneyFull(value?: number | null): string {
-  if (value == null) return '—'
-  const v = Number(value)
-  if (isNaN(v)) return '—'
-  return v.toLocaleString('vi-VN') + ' ₫'
+  return formatCurrency(value)
 }
 
 // ---- Date format ----

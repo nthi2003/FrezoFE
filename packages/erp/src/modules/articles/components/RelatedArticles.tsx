@@ -38,20 +38,14 @@ export function RelatedArticles({ current, onOpen }: RelatedArticlesProps) {
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 className="flex items-center gap-2 text-base font-semibold text-neutral-900">
-          <span
-            aria-hidden="true"
-            className="h-4 w-1 rounded-full bg-gradient-to-b from-primary-500 to-emerald-400"
-          />
-          Đọc tiếp
-        </h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 className="text-base font-semibold text-neutral-900">Đọc tiếp</h2>
         <span className="text-xs text-neutral-500">Bài viết cùng chuyên mục</span>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {related.map((a, i) => (
-          <ArticleGridCard key={a.id} article={a} onOpen={onOpen} index={i} />
+        {related.map((a) => (
+          <ArticleGridCard key={a.id} article={a} onOpen={onOpen} />
         ))}
       </div>
     </section>

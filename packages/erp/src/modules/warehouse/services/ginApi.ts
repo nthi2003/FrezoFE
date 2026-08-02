@@ -71,6 +71,7 @@ export interface GinConfirmRequest {
   items?: Array<{
     itemId: string
     qtyIssued: number
+    batchId?: string
     batchCode?: string
     locationId?: string
   }>

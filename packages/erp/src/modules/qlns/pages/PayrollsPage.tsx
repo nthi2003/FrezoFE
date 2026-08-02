@@ -1,13 +1,15 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Calculator, CheckCircle, HandCoins, PlusCircle, Plus, Eye,
-  Search, X, ChevronLeft, ChevronRight, CalendarDays, FileSpreadsheet,
-  RefreshCw, AlertTriangle, FileText, Download,
+  Search, X, ChevronLeft, ChevronRight, FileSpreadsheet,
+  RefreshCw, AlertTriangle, FileText, Download, Landmark, CalendarRange,
 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import {
-  Button, AppModal, PageHeader, PageGuideButton, EmptyState, ErrorState, ConfirmDialog,
+  AppModal, Button, PageHeader, PageGuideButton, EmptyState, ErrorState, ConfirmDialog, Select,
+  IconActionButton, AppTooltip,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { usePersonsCombobox } from '../hooks/usePerson'
@@ -17,8 +19,12 @@ import {
 } from '../hooks/usePayroll'
 import { bonusSchema, createPayrollSchema } from '../constants/schema'
 import { usePostPayrollToGL } from '@/modules/accounting/hooks/useAccounting'
-import { Landmark } from 'lucide-react'
 import { PAYROLLS_GUIDE, PAYROLL_STATUS_CONFIG } from '../constants/payrolls.guide'
+import { StatusPipelineStepper } from '../../warehouse/components/StatusPipelineStepper'
+import {
+  ATTENDANCE_PAYROLL_PIPELINE,
+  payrollWorkflowStepIndex,
+} from '../constants/hrWorkflow'
 import { PayslipDrawer } from '../components/PayslipDrawer'
 import {
   PayrollCalculateModal,
@@ -27,6 +33,8 @@ import {
 } from '../components/PayrollCalculateModal'
 import { PayrollApprovalBar } from '../components/PayrollApprovalBar'
 import type { PayrollCalculateItemError } from '../services/payrollApi'
+import { pageRootClass } from '../utils/pageEmbed'
+import { timeHubUrl } from '../utils/qlnsRoutes'
 
 
 // ============================================================
@@ -88,7 +96,15 @@ const STATUS_TABS = [
 // Page
 // ============================================================
 
-export function PayrollsPage() {
+export function PayrollsPage({
+  embedded,
+  onOpenPeriods,
+  onPeriodChange,
+}: {
+  embedded?: boolean
+  onOpenPeriods?: () => void
+  onPeriodChange?: (month: number, year: number) => void
+} = {}) {
   const navigate = useNavigate()
   const [bonusModalOpen, setBonusModalOpen] = useState(false)
   const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -97,6 +113,11 @@ export function PayrollsPage() {
 
   const [periodMonth, setPeriodMonth] = useState<number>(CURRENT_MONTH)
   const [periodYear, setPeriodYear] = useState<number>(CURRENT_YEAR)
+
+  useEffect(() => {
+    onPeriodChange?.(periodMonth, periodYear)
+  }, [periodMonth, periodYear, onPeriodChange])
+
   const [statusTab, setStatusTab] = useState<(typeof STATUS_TABS)[number]['key']>('all')
   /** FR-UX-08: lọc list «Đã tính» vs «Bị skip» (client từ skipBanner). */
   const [calcFilter, setCalcFilter] = useState<'calculated' | 'skipped'>('calculated')
@@ -163,6 +184,17 @@ export function PayrollsPage() {
       .reduce((s, p) => s + (Number(p.totalNet ?? p.netSalary) || 0), 0)
     return { total, draft, confirmed, paid, totalPayout, paidPayout }
   }, [dataList])
+
+  const payrollPipelineIndex = useMemo(
+    () =>
+      payrollWorkflowStepIndex({
+        hasAnyPayroll: stats.total > 0,
+        allPaid: stats.total > 0 && stats.paid === stats.total,
+        anyConfirmed: stats.confirmed > 0 || stats.paid > 0,
+        periodLocked: false,
+      }),
+    [stats],
+  )
 
   const shiftPeriod = useCallback((delta: -1 | 1) => {
     setPeriodMonth((m) => {
@@ -329,6 +361,8 @@ export function PayrollsPage() {
     setStatusTab('all')
   }
 
+  const hasActiveFilters = !!searchText.trim() || statusTab !== 'all'
+
   const isCurrentPeriod = periodMonth === CURRENT_MONTH && periodYear === CURRENT_YEAR
   const periodLabel = `${String(periodMonth).padStart(2, '0')}/${periodYear}`
 
@@ -409,23 +443,23 @@ export function PayrollsPage() {
         const code = getStatusCode(row)
         return (
           <div className="flex items-center justify-end gap-0.5">
-            <IconAction title="Xem phiếu lương" tone="blue" onClick={() => setDetailId(row.id)}>
+            <IconActionButton tooltip="Xem phiếu lương" tone="blue" onClick={() => setDetailId(row.id)}>
               <Eye size={14} />
-            </IconAction>
+            </IconActionButton>
             {code === 'DRAFT' && (
               <>
-                <IconAction title="Thêm thưởng / phụ cấp" tone="amber" onClick={() => handleOpenBonus(row.id)}>
+                <IconActionButton tooltip="Thêm thưởng / phụ cấp" tone="amber" onClick={() => handleOpenBonus(row.id)}>
                   <PlusCircle size={14} />
-                </IconAction>
-                <IconAction title="Chốt lương" tone="blue" onClick={() => confirmPayroll.mutate(row.id)}>
+                </IconActionButton>
+                <IconActionButton tooltip="Chốt lương" tone="blue" onClick={() => confirmPayroll.mutate(row.id)}>
                   <CheckCircle size={14} />
-                </IconAction>
+                </IconActionButton>
               </>
             )}
             {code === 'CONFIRMED' && (
-              <IconAction title="Đánh dấu đã thanh toán" tone="emerald" onClick={() => payPayroll.mutate(row.id)}>
+              <IconActionButton tooltip="Đánh dấu đã thanh toán" tone="emerald" onClick={() => payPayroll.mutate(row.id)}>
                 <HandCoins size={14} />
-              </IconAction>
+              </IconActionButton>
             )}
           </div>
         )
@@ -434,7 +468,8 @@ export function PayrollsPage() {
   ]
 
   return (
-    <div className="p-6 space-y-4 animate-fade-in">
+    <div className={pageRootClass(embedded)}>
+      {!embedded && (
       <PageHeader
         title="Bảng lương"
         description="Vận hành lương theo chu kỳ tháng — Tính → Chốt → Thanh toán."
@@ -457,21 +492,87 @@ export function PayrollsPage() {
               <Calculator size={14} />
               {calculateAll.isPending ? 'Đang tính...' : 'Tính lương kỳ này'}
             </Button>
+            <AppTooltip content="Ghi bút toán tổng hợp Payroll → GL">
+              <Button
+                onClick={() => setGlConfirmOpen(true)}
+                variant="outline"
+                className="gap-1.5"
+                disabled={postPayrollGL.isPending}
+                aria-label="Hạch toán lương sang GL"
+              >
+                <Landmark size={14} />
+                {postPayrollGL.isPending ? 'Đang hạch toán...' : 'Hạch toán → GL'}
+              </Button>
+            </AppTooltip>
+          </>
+        }
+      />
+      )}
+
+      {embedded && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <PageGuideButton guide={PAYROLLS_GUIDE} />
+          {onOpenPeriods && (
+            <AppTooltip content="Khóa/mở kỳ lương và duyệt Approval">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={onOpenPeriods}>
+                <CalendarRange size={14} />
+                Kỳ lương
+              </Button>
+            </AppTooltip>
+          )}
+          <Button
+            onClick={() => setCreateModalOpen(true)}
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            disabled={calculatePerson.isPending}
+          >
+            <Plus size={14} /> Thêm 1 bảng
+          </Button>
+          <Button
+            onClick={handleCalculateAll}
+            size="sm"
+            className="bg-primary-700 hover:bg-primary-800 text-white shadow-sm gap-1.5"
+            disabled={calculateAll.isPending}
+          >
+            <Calculator size={14} />
+            {calculateAll.isPending ? 'Đang tính...' : 'Tính lương kỳ này'}
+          </Button>
+          <AppTooltip content="Ghi bút toán tổng hợp Payroll → GL">
             <Button
               onClick={() => setGlConfirmOpen(true)}
               variant="outline"
+              size="sm"
               className="gap-1.5"
               disabled={postPayrollGL.isPending}
-              title="Ghi bút toán tổng hợp Payroll → GL"
+              aria-label="Hạch toán lương sang GL"
             >
               <Landmark size={14} />
               {postPayrollGL.isPending ? 'Đang hạch toán...' : 'Hạch toán → GL'}
             </Button>
-          </>
+          </AppTooltip>
+        </div>
+      )}
+
+      <StatusPipelineStepper
+        steps={ATTENDANCE_PAYROLL_PIPELINE}
+        currentIndex={payrollPipelineIndex}
+        showInboxLink
+        nextCta={
+          stats.total === 0
+            ? {
+                label: 'Tính lương kỳ này',
+                onClick: handleCalculateAll,
+                disabled: calculateAll.isPending,
+                loading: calculateAll.isPending,
+              }
+            : stats.paid < stats.total
+              ? { label: 'Chấm công & nghỉ phép', href: timeHubUrl() }
+              : null
         }
       />
 
-      <PayrollApprovalBar month={periodMonth} year={periodYear} />
+      {!embedded && <PayrollApprovalBar month={periodMonth} year={periodYear} />}
 
       {/* LNK-02 — banner skip thiếu HĐ sau calculate-all (đã ẩn tài khoản hệ thống) */}
       {skipBanner && skipBanner.skippedCount > 0 && (
@@ -516,14 +617,9 @@ export function PayrollsPage() {
             >
               <FileText size={13} /> HĐLĐ
             </Button>
-            <button
-              type="button"
-              className="p-1.5 rounded-md text-amber-700 hover:bg-amber-100"
-              title="Đóng"
-              onClick={() => setSkipBanner(null)}
-            >
+            <IconActionButton tooltip="Đóng" tone="amber" className="text-amber-700 hover:bg-amber-100" onClick={() => setSkipBanner(null)}>
               <X size={14} />
-            </button>
+            </IconActionButton>
           </div>
         </div>
       )}
@@ -588,129 +684,89 @@ export function PayrollsPage() {
         </div>
       )}
 
-      {/* ── Period bar (gộp period picker + tổng KPI kỳ đang xem) ── */}
-      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-neutral-100 bg-gradient-to-r from-neutral-50 to-white">
-          <button
-            type="button"
-            onClick={() => shiftPeriod(-1)}
-            className="w-8 h-8 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 flex items-center justify-center transition-colors"
-            title="Kỳ trước"
-          >
-            <ChevronLeft size={16} />
-          </button>
-
-          <div className="flex items-center gap-2 flex-1 min-w-[260px]">
-            <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-700 flex items-center justify-center flex-shrink-0">
-              <CalendarDays size={17} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <PeriodInlineSelect
-                  months={MONTH_OPTIONS}
-                  years={YEAR_OPTIONS}
-                  month={periodMonth}
-                  year={periodYear}
-                  onChange={(m, y) => { setPeriodMonth(m); setPeriodYear(y) }}
-                />
-                {isCurrentPeriod && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary-700 bg-primary-100 px-1.5 py-0.5 rounded">
-                    Kỳ hiện tại
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-neutral-500 mt-0.5">
-                {isLoading ? 'Đang tải…' : `${stats.total} bảng lương · Tổng chi trả ${formatVND(stats.totalPayout)}`}
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => shiftPeriod(+1)}
-            className="w-8 h-8 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 flex items-center justify-center transition-colors"
-            title="Kỳ sau"
-          >
-            <ChevronRight size={16} />
-          </button>
-
-          {!isCurrentPeriod && (
-            <button
-              type="button"
-              onClick={goCurrent}
-              className="ml-1 h-8 px-2.5 text-xs font-medium text-primary-700 hover:bg-primary-50 rounded-md border border-primary-200"
-            >
-              ← Về kỳ hiện tại
-            </button>
-          )}
-
-          <div className="h-6 w-px bg-neutral-200 mx-1 hidden md:block" />
-
-          <div className="relative flex-1 min-w-[220px] md:max-w-[320px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <input
-              type="text"
-              placeholder="Tìm nhân viên, mã NV..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="h-8 w-full pl-8 pr-3 text-sm bg-neutral-50 border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300 focus:bg-white transition-all placeholder:text-neutral-400"
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => refetch()}
+      <FilterBar
+        hasActiveFilters={hasActiveFilters}
+        onClear={clearFilters}
+        countLabel={`${filteredList.length} bảng lương${hasActiveFilters ? ' (đã lọc)' : ''} · Kỳ ${periodLabel}`}
+        extra={(
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void refetch()}
+            className="gap-2 h-9"
             disabled={isFetching}
-            className="h-8 w-8 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 flex items-center justify-center disabled:opacity-50 transition-colors"
-            title="Làm mới"
           >
-            <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+            Làm mới
+          </Button>
+        )}
+      >
+        <IconActionButton tooltip="Kỳ trước" className="w-9 h-9 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50" onClick={() => shiftPeriod(-1)}>
+          <ChevronLeft size={16} />
+        </IconActionButton>
+        <PeriodInlineSelect
+          months={MONTH_OPTIONS}
+          years={YEAR_OPTIONS}
+          month={periodMonth}
+          year={periodYear}
+          onChange={(m, y) => { setPeriodMonth(m); setPeriodYear(y) }}
+        />
+        {isCurrentPeriod && (
+          <span className="text-[10px] font-bold uppercase tracking-wider text-primary-700 bg-primary-100 px-1.5 py-0.5 rounded">
+            Kỳ hiện tại
+          </span>
+        )}
+        <IconActionButton tooltip="Kỳ sau" className="w-9 h-9 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50" onClick={() => shiftPeriod(+1)}>
+          <ChevronRight size={16} />
+        </IconActionButton>
+        {!isCurrentPeriod && (
+          <button
+            type="button"
+            onClick={goCurrent}
+            className="h-9 px-2.5 text-xs font-medium text-primary-700 hover:bg-primary-50 rounded-md border border-primary-200"
+          >
+            ← Về kỳ hiện tại
           </button>
+        )}
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="text"
+            placeholder="Tìm nhân viên, mã NV…"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            aria-label="Tìm bảng lương"
+          />
         </div>
-
-        {/* ── Status chip tabs kèm số đếm ── */}
-        <div className="flex flex-wrap items-center gap-1.5 px-4 py-2.5 bg-white">
+        <div className="flex flex-wrap items-center gap-1">
           {STATUS_TABS.map((t) => {
             const active = statusTab === t.key
             const count =
-              t.key === 'all'
-                ? stats.total
-                : t.key === 'DRAFT'
-                  ? stats.draft
-                  : t.key === 'CONFIRMED'
-                    ? stats.confirmed
+              t.key === 'all' ? stats.total
+                : t.key === 'DRAFT' ? stats.draft
+                  : t.key === 'CONFIRMED' ? stats.confirmed
                     : stats.paid
             return (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setStatusTab(t.key)}
-                className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium border transition ${
+                className={`inline-flex items-center gap-1 h-8 px-2 rounded-md text-xs font-medium border transition ${
                   active ? t.toneActive : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
                 }`}
               >
                 {t.label}
-                <span
-                  className={`inline-flex items-center justify-center min-w-[18px] h-4 rounded-full text-[10px] font-bold ${
-                    active ? 'bg-white/25 text-white' : 'bg-neutral-100 text-neutral-500'
-                  }`}
-                >
+                <span className={`inline-flex items-center justify-center min-w-[18px] h-4 rounded-full text-[10px] font-bold ${
+                  active ? 'bg-white/25 text-white' : 'bg-neutral-100 text-neutral-500'
+                }`}>
                   {count}
                 </span>
               </button>
             )
           })}
-          {(searchText || statusTab !== 'all') && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="ml-auto inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition"
-            >
-              <X size={11} /> Xoá lọc
-            </button>
-          )}
         </div>
-      </div>
+      </FilterBar>
 
       {/* ── KPI chi tiết (chỉ hiện khi có data hoặc đang loading) ── */}
       {(stats.total > 0 || isLoading) && (
@@ -794,14 +850,16 @@ export function PayrollsPage() {
           />
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
-          <AppTable
+        <AppTable
             data={filteredList}
             columns={columns as any}
             isLoading={isLoading || calculateAll.isPending}
+            density="compact"
             showSearch={false}
+            pageSize={20}
+            pageSizeOptions={[10, 20, 50, 100]}
+            onRefresh={() => void refetch()}
           />
-        </div>
       )}
 
       {/* ── Modals ── */}
@@ -852,7 +910,7 @@ export function PayrollsPage() {
           defaultValues={{ bonusAmount: 0, reason: '' }}
           onSubmit={handleSubmitBonus}
           fields={[
-            { name: 'bonusAmount', label: 'Số tiền (VNĐ)', type: 'number', colSpan: 3 },
+            { name: 'bonusAmount', label: 'Số tiền (VNĐ)', type: 'currency', colSpan: 3 },
             { name: 'reason',      label: 'Lý do',         placeholder: 'VD: KPI Q3, sinh nhật, dự án A...', colSpan: 3 },
           ]}
           submitText="Xác nhận thêm"
@@ -918,7 +976,7 @@ export function PayrollsPage() {
 // Sub-components
 // ============================================================
 
-/** Period picker inline — 2 native select liền nhau, không popup rườm rà. */
+/** Period picker inline — Select chung `@frezo/ui`. */
 function PeriodInlineSelect({
   months, years, month, year, onChange,
 }: {
@@ -929,26 +987,28 @@ function PeriodInlineSelect({
   onChange: (m: number, y: number) => void
 }) {
   return (
-    <div className="flex items-center gap-1">
-      <select
-        value={month}
-        onChange={(e) => onChange(Number(e.target.value), year)}
-        className="h-7 px-1.5 text-sm font-semibold text-neutral-900 bg-transparent border border-transparent hover:border-neutral-200 focus:border-primary-400 focus:outline-none focus:ring-0 rounded-md cursor-pointer"
-      >
-        {months.map((m) => (
-          <option key={m.value} value={m.value}>{m.label}</option>
-        ))}
-      </select>
+    <div className="flex items-center gap-1.5">
+      <div className="w-[120px]">
+        <Select
+          options={months}
+          value={String(month)}
+          onChange={(v) => onChange(Number(v), year)}
+          placeholder="Tháng"
+          aria-label="Tháng kỳ lương"
+          showSearch={false}
+        />
+      </div>
       <span className="text-neutral-400 text-sm">/</span>
-      <select
-        value={year}
-        onChange={(e) => onChange(month, Number(e.target.value))}
-        className="h-7 px-1.5 text-sm font-semibold text-neutral-900 bg-transparent border border-transparent hover:border-neutral-200 focus:border-primary-400 focus:outline-none focus:ring-0 rounded-md cursor-pointer"
-      >
-        {years.map((y) => (
-          <option key={y.value} value={y.value}>{y.label.replace('Năm ', '')}</option>
-        ))}
-      </select>
+      <div className="w-[100px]">
+        <Select
+          options={years.map((y) => ({ value: y.value, label: y.label.replace('Năm ', '') }))}
+          value={String(year)}
+          onChange={(v) => onChange(month, Number(v))}
+          placeholder="Năm"
+          aria-label="Năm kỳ lương"
+          showSearch={false}
+        />
+      </div>
     </div>
   )
 }
@@ -980,32 +1040,6 @@ function KpiTile({ label, value, hint, tone }: KpiTileProps) {
         )}
       </div>
     </div>
-  )
-}
-
-function IconAction({
-  children, onClick, title, tone,
-}: {
-  children: React.ReactNode
-  onClick: () => void
-  title: string
-  tone: 'blue' | 'amber' | 'emerald' | 'red'
-}) {
-  const toneMap = {
-    blue:    'hover:text-blue-600 hover:bg-blue-50',
-    amber:   'hover:text-amber-600 hover:bg-amber-50',
-    emerald: 'hover:text-emerald-600 hover:bg-emerald-50',
-    red:     'hover:text-red-600 hover:bg-red-50',
-  }
-  return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      className={`p-1.5 text-neutral-400 rounded-md transition-colors ${toneMap[tone]}`}
-    >
-      {children}
-    </button>
   )
 }
 

@@ -1,38 +1,50 @@
 // ============================================================
-// BankReconciliationPage — fuzzy suggestions + lock/reopen
+// BankReconciliationPage — gợi ý khớp + khóa/mở lại sao kê
 // ============================================================
 
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  Upload, Link2, Unlink, Search, Landmark, Loader2, Lock, Unlock,
+  Upload, Link2, Unlink, Search, Landmark, Loader2, Lock, Unlock, HelpCircle,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, ConfirmDialog, Select, AppTooltip } from '@frezo/ui'
 import { formatCurrency, formatDate } from '@frezo/utils'
+import { FilterBar } from '@/components/ui/FilterBar'
 import {
   useBankStatements, useBankStatementLines, useBankSuggestions,
   useMatchBankLine, useUnmatchBankLine,
   useLockBankStatement, useReopenBankStatement,
 } from '../hooks/useBankStatement'
 import type { BankStatementLineDto } from '../services/bankApi'
+import { pageRootClass } from '../utils/pageEmbed'
 import { usePermission } from '@/lib/hooks/usePermission'
 
 type LineFilter = 'unmatched' | 'matched' | 'all'
+type MatchMode = 'exact' | 'fuzzy'
 
-export function BankReconciliationPage() {
+type PendingMatch = {
+  lineId: string
+  journalEntryLineId: string
+  journalCode?: string
+}
+
+export function BankReconciliationPage({ embedded }: { embedded?: boolean } = {}) {
   const nav = useNavigate()
   const [params] = useSearchParams()
   const { data: statements = [], isLoading: loadingStmt } = useBankStatements()
   const canCreate = usePermission('ACCOUNTING.BANK_STATEMENTS.CREATE')
   const canUpdate = usePermission('ACCOUNTING.BANK_STATEMENTS.UPDATE')
 
-  const [statementId, setStatementId] = useState(
-    params.get('statementId') || '',
-  )
+  const [statementId, setStatementId] = useState(params.get('statementId') || '')
   const [lineFilter, setLineFilter] = useState<LineFilter>('unmatched')
   const [search, setSearch] = useState('')
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null)
-  const [mode, setMode] = useState<'exact' | 'fuzzy'>('fuzzy')
+  const [mode, setMode] = useState<MatchMode>('fuzzy')
+
+  const [lockConfirmOpen, setLockConfirmOpen] = useState(false)
+  const [reopenConfirmOpen, setReopenConfirmOpen] = useState(false)
+  const [pendingMatch, setPendingMatch] = useState<PendingMatch | null>(null)
+  const [pendingUnmatchLineId, setPendingUnmatchLineId] = useState<string | null>(null)
 
   useEffect(() => {
     const fromUrl = params.get('statementId')
@@ -71,22 +83,46 @@ export function BankReconciliationPage() {
     if (!q) return lines
     return lines.filter(
       (l) =>
-        l.description.toLowerCase().includes(q) ||
-        String(l.debit).includes(q) ||
-        String(l.credit).includes(q) ||
-        (l.refCode || '').toLowerCase().includes(q),
+        l.description.toLowerCase().includes(q)
+        || String(l.debit).includes(q)
+        || String(l.credit).includes(q)
+        || (l.refCode || '').toLowerCase().includes(q),
     )
   }, [lines, search])
 
   const selectedLine = lines.find((l) => l.id === selectedLineId)
 
+  const hasActiveFilters =
+    lineFilter !== 'unmatched'
+    || mode !== 'fuzzy'
+    || !!search.trim()
+
+  const clearFilters = () => {
+    setLineFilter('unmatched')
+    setMode('fuzzy')
+    setSearch('')
+  }
+
+  const modeLabel = mode === 'fuzzy' ? 'Gần đúng' : 'Khớp chính xác'
+
   if (!loadingStmt && statements.length === 0) {
     return (
-      <div className="p-6 space-y-4">
+      <div className={pageRootClass(embedded)}>
+        {!embedded && (
         <PageHeader
           title="Đối chiếu ngân hàng"
           description="Import sao kê CSV và khớp với bút toán sổ cái."
+          actions={(
+            <span
+              className="inline-flex items-center text-neutral-400 hover:text-primary-600 cursor-help"
+              title="Đối chiếu ngân hàng: khớp dòng sao kê với bút toán đã ghi sổ trên TK 112x."
+              aria-label="Giải thích đối chiếu ngân hàng"
+            >
+              <HelpCircle size={16} strokeWidth={2} />
+            </span>
+          )}
         />
+        )}
         <div className="border rounded-xl bg-white">
           <EmptyState
             icon={Landmark}
@@ -107,55 +143,67 @@ export function BankReconciliationPage() {
   }
 
   return (
-    <div className="p-6 space-y-4 animate-fade-in">
+    <div className={pageRootClass(embedded)}>
+      {!embedded && (
       <PageHeader
         title="Đối chiếu ngân hàng"
-        description="Gợi ý fuzzy ranked theo score % · Match 1-click · Lock statement."
-        actions={
-          <div className="flex gap-2">
+        description="Gợi ý khớp theo điểm tin cậy · Khớp một chạm · Khóa sao kê khi hoàn tất."
+        actions={(
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-flex items-center text-neutral-400 hover:text-primary-600 cursor-help"
+              title="Khớp gần đúng: so sánh mô tả và số tiền theo điểm %. Khớp chính xác: cùng ngày và số tiền."
+              aria-label="Giải thích chế độ khớp"
+            >
+              <HelpCircle size={16} strokeWidth={2} />
+            </span>
             {statementId && !locked && canUpdate && (
               <Button
                 variant="outline"
-                className="gap-1.5"
+                size="sm"
+                className="gap-1.5 h-9"
                 disabled={lockStmt.isPending}
-                onClick={() => lockStmt.mutate(statementId)}
+                onClick={() => setLockConfirmOpen(true)}
               >
-                <Lock size={14} /> Khoá
+                <Lock size={14} /> Khóa sao kê
               </Button>
             )}
             {statementId && locked && canUpdate && (
               <Button
                 variant="outline"
-                className="gap-1.5"
+                size="sm"
+                className="gap-1.5 h-9"
                 disabled={reopenStmt.isPending}
-                onClick={() => reopenStmt.mutate(statementId)}
+                onClick={() => setReopenConfirmOpen(true)}
               >
-                <Unlock size={14} /> Reopen
+                <Unlock size={14} /> Mở lại
               </Button>
             )}
             {canCreate && (
               <Button
-                className="gap-1.5"
+                size="sm"
+                className="gap-1.5 h-9"
                 onClick={() => nav('/accounting/bank-reconciliation/import')}
               >
                 <Upload size={14} /> Import CSV
               </Button>
             )}
           </div>
-        }
+        )}
       />
+      )}
 
       {locked && (
         <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          Sao kê đang LOCKED — không thể match/unmatch. Reopen để tiếp tục.
+          Sao kê đang <b>Đã khóa</b> — không thể khớp / bỏ khớp. Mở lại để tiếp tục.
         </div>
       )}
 
       {active && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Sum label="Tổng import" value={active.importedLines} />
-          <Sum label="Đã match" value={active.matchedCount} tone="emerald" />
-          <Sum label="Chưa match" value={active.unmatchedCount} tone="amber" />
+          <Sum label="Đã khớp" value={active.matchedCount} tone="emerald" />
+          <Sum label="Chưa khớp" value={active.unmatchedCount} tone="amber" />
           <Sum
             label="TK"
             valueLabel={`${active.accountCode || ''} ${active.accountName || ''}`.trim() || '—'}
@@ -163,34 +211,38 @@ export function BankReconciliationPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="h-9 border rounded-md px-3 text-sm bg-white min-w-[220px]"
-          value={statementId}
-          onChange={(e) => {
-            setStatementId(e.target.value)
-            setSelectedLineId(null)
-          }}
-        >
-          {statements.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.fileName || s.id} · {formatDate(s.importedAt)}
-              {(s.lockStatus || '').toUpperCase() === 'LOCKED' ? ' 🔒' : ''}
-            </option>
-          ))}
-        </select>
+      <FilterBar
+        hasActiveFilters={hasActiveFilters}
+        onClear={clearFilters}
+        countLabel={`${filtered.length} dòng${hasActiveFilters ? ' (đã lọc)' : ''}`}
+      >
+        <div className="min-w-[220px]">
+          <Select
+            options={statements.map((s) => ({
+              value: s.id,
+              label: `${s.fileName || s.id} · ${formatDate(s.importedAt)}${(s.lockStatus || '').toUpperCase() === 'LOCKED' ? ' 🔒' : ''}`,
+            }))}
+            value={statementId}
+            onChange={(v) => {
+              setStatementId(v)
+              setSelectedLineId(null)
+            }}
+            placeholder="Chọn sao kê"
+            aria-label="Chọn sao kê"
+          />
+        </div>
         {(['unmatched', 'matched', 'all'] as const).map((f) => (
           <button
             key={f}
             type="button"
             onClick={() => setLineFilter(f)}
-            className={`h-8 px-3 rounded-full text-xs font-semibold border ${
+            className={`h-9 px-3 rounded-md text-xs font-semibold border ${
               lineFilter === f
                 ? 'bg-neutral-900 text-white border-neutral-900'
                 : 'bg-white text-neutral-600 border-neutral-200'
             }`}
           >
-            {f === 'unmatched' ? 'Chưa match' : f === 'matched' ? 'Đã match' : 'Tất cả'}
+            {f === 'unmatched' ? 'Chưa khớp' : f === 'matched' ? 'Đã khớp' : 'Tất cả'}
           </button>
         ))}
         {(['fuzzy', 'exact'] as const).map((m) => (
@@ -198,25 +250,26 @@ export function BankReconciliationPage() {
             key={m}
             type="button"
             onClick={() => setMode(m)}
-            className={`h-8 px-3 rounded-full text-xs font-semibold border ${
+            className={`h-9 px-3 rounded-md text-xs font-semibold border ${
               mode === m
                 ? 'bg-primary-600 text-white border-primary-600'
                 : 'bg-white text-neutral-600 border-neutral-200'
             }`}
           >
-            {m === 'fuzzy' ? 'Fuzzy' : 'Exact'}
+            {m === 'fuzzy' ? 'Gần đúng' : 'Khớp chính xác'}
           </button>
         ))}
         <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
           <input
-            className="w-full h-8 pl-8 pr-2 border rounded-md text-sm"
+            className="w-full h-9 pl-8 pr-2 border rounded-md text-sm bg-white"
             placeholder="Tìm mô tả / số tiền…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            aria-label="Tìm dòng sao kê"
           />
         </div>
-      </div>
+      </FilterBar>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-[420px]">
         <div className="bg-white border rounded-xl overflow-hidden flex flex-col shadow-sm">
@@ -240,7 +293,7 @@ export function BankReconciliationPage() {
                 locked={locked}
                 canUpdate={canUpdate}
                 onSelect={() => setSelectedLineId(l.id)}
-                onUnmatch={() => !locked && unmatch.mutate(l.id)}
+                onUnmatch={() => setPendingUnmatchLineId(l.id)}
               />
             ))}
           </div>
@@ -248,7 +301,7 @@ export function BankReconciliationPage() {
 
         <div className="bg-white border rounded-xl overflow-hidden flex flex-col shadow-sm">
           <div className="px-3 py-2 border-b bg-neutral-50 text-xs font-semibold text-neutral-600">
-            Gợi ý khớp ({mode}) — ranked score %
+            Gợi ý khớp ({modeLabel}) — xếp theo điểm %
             {selectedLine && (
               <span className="font-normal text-neutral-400 ml-1">
                 · {selectedLine.description.slice(0, 40)}
@@ -263,7 +316,7 @@ export function BankReconciliationPage() {
             )}
             {selectedLineId && ranked.length === 0 && (
               <p className="text-sm text-neutral-400 text-center py-10">
-                Không có gợi ý {mode}
+                Không có gợi ý ({modeLabel.toLowerCase()})
               </p>
             )}
             {ranked.map((s) => {
@@ -309,25 +362,28 @@ export function BankReconciliationPage() {
                         {formatCurrency(s.amount)}
                       </div>
                       {canUpdate && (
-                        <Button
-                          size="sm"
-                          className="gap-1 mt-2"
-                          disabled={
-                            locked ||
-                            match.isPending ||
-                            selectedLine?.matchStatus === 'MATCHED'
-                          }
-                          title={locked ? 'Statement LOCKED' : 'Match 1-click'}
-                          onClick={() =>
-                            selectedLineId &&
-                            match.mutate({
-                              lineId: selectedLineId,
-                              journalEntryLineId: s.journalEntryLineId,
-                            })
-                          }
-                        >
-                          <Link2 size={12} /> Match
-                        </Button>
+                        <AppTooltip content={locked ? 'Sao kê đã khóa' : 'Khớp một chạm'}>
+                          <Button
+                            size="sm"
+                            className="gap-1 mt-2"
+                            disabled={
+                              locked
+                              || match.isPending
+                              || selectedLine?.matchStatus === 'MATCHED'
+                            }
+                            aria-label={locked ? 'Sao kê đã khóa' : 'Khớp một chạm'}
+                            onClick={() =>
+                              selectedLineId &&
+                              setPendingMatch({
+                                lineId: selectedLineId,
+                                journalEntryLineId: s.journalEntryLineId,
+                                journalCode: s.journalEntryCode,
+                              })
+                            }
+                          >
+                            <Link2 size={12} /> Khớp
+                          </Button>
+                        </AppTooltip>
                       )}
                     </div>
                   </div>
@@ -337,6 +393,80 @@ export function BankReconciliationPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={lockConfirmOpen}
+        onClose={() => setLockConfirmOpen(false)}
+        onConfirm={() => {
+          if (!statementId) return
+          lockStmt.mutate(statementId, {
+            onSuccess: () => setLockConfirmOpen(false),
+          })
+        }}
+        title="Khóa sao kê?"
+        message="Sau khi khóa, không thể khớp hoặc bỏ khớp dòng. Chỉ mở lại khi cần điều chỉnh."
+        confirmText="Khóa sao kê"
+        cancelText="Huỷ"
+        variant="warning"
+        isLoading={lockStmt.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={reopenConfirmOpen}
+        onClose={() => setReopenConfirmOpen(false)}
+        onConfirm={() => {
+          if (!statementId) return
+          reopenStmt.mutate(statementId, {
+            onSuccess: () => setReopenConfirmOpen(false),
+          })
+        }}
+        title="Mở lại sao kê?"
+        message="Mở lại cho phép khớp / bỏ khớp tiếp. Chỉ dùng khi cần sửa đối chiếu."
+        confirmText="Mở lại"
+        cancelText="Huỷ"
+        isLoading={reopenStmt.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={!!pendingMatch}
+        onClose={() => setPendingMatch(null)}
+        onConfirm={() => {
+          if (!pendingMatch) return
+          match.mutate(
+            {
+              lineId: pendingMatch.lineId,
+              journalEntryLineId: pendingMatch.journalEntryLineId,
+            },
+            { onSuccess: () => setPendingMatch(null) },
+          )
+        }}
+        title="Xác nhận khớp?"
+        message={
+          pendingMatch
+            ? `Liên kết dòng sao kê với chứng từ ${pendingMatch.journalCode || pendingMatch.journalEntryLineId}.`
+            : ''
+        }
+        confirmText="Khớp"
+        cancelText="Huỷ"
+        isLoading={match.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={!!pendingUnmatchLineId}
+        onClose={() => setPendingUnmatchLineId(null)}
+        onConfirm={() => {
+          if (!pendingUnmatchLineId) return
+          unmatch.mutate(pendingUnmatchLineId, {
+            onSuccess: () => setPendingUnmatchLineId(null),
+          })
+        }}
+        title="Bỏ khớp dòng sao kê?"
+        message="Dòng sẽ chuyển về trạng thái chưa khớp. Bạn có thể khớp lại sau."
+        confirmText="Bỏ khớp"
+        cancelText="Huỷ"
+        variant="warning"
+        isLoading={unmatch.isPending}
+      />
     </div>
   )
 }
@@ -382,7 +512,7 @@ function LineRow({
                   : 'text-amber-600'
               }
             >
-              {line.matchStatus === 'MATCHED' ? 'Matched' : 'Unmatched'}
+              {line.matchStatus === 'MATCHED' ? 'Đã khớp' : 'Chưa khớp'}
             </span>
           </div>
         </div>
@@ -404,7 +534,7 @@ function LineRow({
                 onUnmatch()
               }}
             >
-              <Unlink size={10} /> Unmatch
+              <Unlink size={10} /> Bỏ khớp
             </button>
           )}
         </div>

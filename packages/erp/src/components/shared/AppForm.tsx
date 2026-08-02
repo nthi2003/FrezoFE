@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react'
 import {
   Button,
   Input,
+  VndInput,
   Textarea,
   Label,
   Switch,
@@ -18,8 +19,9 @@ import { uploadImage } from '@/lib/upload'
  * AppForm — form CRUD chuẩn Frezo.
  *
  * Mỗi field: { name, label, type?, options?, placeholder?, required?, colSpan?, rows?, description? }
- * - `type`: 'text' (default) | 'number' | 'date' | 'textarea' | 'select' | 'multiselect' | 'switch'
- *            | 'radio' | 'richtext' | 'image'
+ * - `type`: 'text' (default) | 'number' | 'currency' | 'date' | 'textarea' | 'select' | 'multiselect'
+ *            | 'switch' | 'radio' | 'richtext' | 'image'
+ * - `currency`: input tiền VND — hiển thị dấu `.` ngăn nghìn (25.000), lưu số thuần cho API.
  * - `colSpan`: 1 | 2 | 3 — span trong grid 2-col (mặc định 1). `colSpan: 2|3` = full-width.
  * - `rows`: chiều cao textarea (mặc định 4). Chỉ dùng khi `type = 'textarea'`.
  * - `description`: text mô tả nhỏ dưới field (hint).
@@ -135,6 +137,14 @@ export function AppForm({
                 onUpload={f.onUpload}
                 folder={f.folder}
               />
+            ) : f.type === 'currency' ? (
+              <CurrencyField
+                name={f.name}
+                control={control}
+                setValue={setValue}
+                placeholder={f.placeholder}
+                invalid={!!errors[f.name]}
+              />
             ) : (
               <Input
                 id={f.name}
@@ -152,6 +162,8 @@ export function AppForm({
                 placeholder={f.placeholder}
                 aria-invalid={errors[f.name] ? true : undefined}
                 {...register(f.name, { valueAsNumber: f.type === 'number' })}
+                readOnly={f.readOnly}
+                disabled={f.disabled}
               />
             )}
             {f.description && !errors[f.name] && (
@@ -297,6 +309,38 @@ function ImageField({ name, control, setValue, hint, aspectRatio, maxSizeMB, onU
       aspectRatio={aspectRatio}
       maxSizeMB={maxSizeMB}
       onUpload={uploader}
+    />
+  )
+}
+
+function CurrencyField({
+  name,
+  control,
+  setValue,
+  placeholder,
+  invalid,
+}: {
+  name: string
+  control: any
+  setValue: any
+  placeholder?: string
+  invalid?: boolean
+}) {
+  const raw = useWatch({ control, name })
+  const num =
+    typeof raw === 'number'
+      ? raw
+      : raw == null || raw === ''
+        ? undefined
+        : Number(raw)
+
+  return (
+    <VndInput
+      id={name}
+      placeholder={placeholder}
+      aria-invalid={invalid || undefined}
+      value={Number.isFinite(num as number) ? (num as number) : undefined}
+      onChange={(v) => setValue(name, v ?? undefined, { shouldValidate: true, shouldDirty: true })}
     />
   )
 }

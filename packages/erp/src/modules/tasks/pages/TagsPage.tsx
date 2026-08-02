@@ -14,15 +14,20 @@ import {
   Layers, MoreHorizontal, Copy,
 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
+import type { AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
+import { FilterExportDrawer, FilterExportTrigger } from '@/components/shared/FilterExportDrawer'
+import { downloadCsv } from '@/utils/csvExport'
 import {
-  AppModal, Button, PageHeader, EmptyState, ConfirmDialog,
-  Label, Input, Select,
+  AppModal, Button, PageHeader, PageGuideButton, EmptyState, ErrorState, ConfirmDialog,
+  Label, Input, Select, AppTooltip, IconActionButton,
 } from '@frezo/ui'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { useTags, useCreateTag, useUpdateTag, useDeleteTag } from '../hooks/useTicketTag'
 import { tagSchema } from '../constants/schema'
+import { TAGS_GUIDE } from '../constants/tags.guide'
 
 // ============================================================
 // Constants — palette, category config
@@ -157,8 +162,13 @@ interface TagRow {
 type ViewMode = 'grid' | 'table'
 type CategoryFilter = 'all' | CategoryKey | 'none'
 
-export function TagsPage() {
+interface TagsPageProps {
+  embedded?: boolean
+}
+
+export function TagsPage({ embedded = false }: TagsPageProps) {
   const [modalOpen, setModalOpen] = useState(false)
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<TagRow | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<TagRow | null>(null)
 
@@ -166,7 +176,7 @@ export function TagsPage() {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
 
-  const { data: rawData, isLoading, isFetching, refetch } = useTags()
+  const { data: rawData, isLoading, isFetching, isError, refetch } = useTags()
   const createReq = useCreateTag()
   const updateReq = useUpdateTag()
   const deleteReq = useDeleteTag()
@@ -233,198 +243,292 @@ export function TagsPage() {
   }
 
   // ---- Table columns ----
-  const columns = useMemo(() => [
+  const columns: AppTableColumn<TagRow>[] = useMemo(() => [
     {
+      key: 'preview',
       title: 'Xem trước',
-      dataIndex: 'name',
       width: 220,
-      render: (_: unknown, row: TagRow) => (
+      render: (_, row) => (
         <TagChip name={row.name} code={row.code} color={row.color} size="md" />
       ),
     },
     {
+      key: 'code',
       title: 'Mã',
-      dataIndex: 'code',
-      render: (val: string) => (
-        <code className="text-xs font-mono text-neutral-700 bg-neutral-100 px-1.5 py-0.5 rounded">{val || '—'}</code>
+      render: (_, row) => (
+        <code className="text-xs font-mono text-neutral-700 bg-neutral-100 px-1.5 py-0.5 rounded">{row.code || '—'}</code>
       ),
     },
     {
+      key: 'name',
       title: 'Tên',
-      dataIndex: 'name',
-      render: (val: string) => <span className="text-sm text-neutral-900">{val || '—'}</span>,
+      render: (_, row) => <span className="text-sm text-neutral-900">{row.name || '—'}</span>,
     },
     {
+      key: 'category',
       title: 'Danh mục',
-      dataIndex: 'category',
-      render: (val: string) => <CategoryBadge category={val} />,
+      render: (_, row) => <CategoryBadge category={row.category} />,
     },
     {
+      key: 'color',
       title: 'Màu',
-      dataIndex: 'color',
       width: 90,
-      render: (val: string) => (
+      render: (_, row) => (
         <div className="flex items-center gap-2">
           <span
             className="w-5 h-5 rounded-md border border-neutral-200 shrink-0"
-            style={{ backgroundColor: val || '#e5e7eb' }}
+            style={{ backgroundColor: row.color || '#e5e7eb' }}
           />
-          {val && <code className="text-[11px] font-mono text-neutral-500">{val}</code>}
+          {row.color && <code className="text-[11px] font-mono text-neutral-500">{row.color}</code>}
         </div>
       ),
     },
     {
+      key: 'actions',
       title: '',
-      dataIndex: 'id',
       width: 100,
-      render: (_: unknown, row: TagRow) => (
+      align: 'right',
+      render: (_, row) => (
         <div className="flex items-center justify-end gap-0.5">
-          <IconAction title="Copy mã" tone="neutral" onClick={() => {
+          <IconActionButton tooltip="Sao chép mã" tone="neutral" size="sm" onClick={() => {
             navigator.clipboard.writeText(row.code || '')
-            toast.success(`Đã copy "${row.code}"`)
+            toast.success(`Đã sao chép 「${row.code}」`)
           }}>
             <Copy size={14} />
-          </IconAction>
-          <IconAction title="Sửa" tone="blue" onClick={() => handleOpenEdit(row)}>
+          </IconActionButton>
+          <IconActionButton tooltip="Sửa" tone="blue" size="sm" onClick={() => handleOpenEdit(row)}>
             <Pencil size={14} />
-          </IconAction>
-          <IconAction title="Xoá" tone="rose" onClick={() => setConfirmDelete(row)}>
+          </IconActionButton>
+          <IconActionButton tooltip="Xoá" tone="rose" size="sm" onClick={() => setConfirmDelete(row)}>
             <Trash2 size={14} />
-          </IconAction>
+          </IconActionButton>
         </div>
       ),
     },
   ], [handleOpenEdit])
 
-  return (
-    <div className="p-6 space-y-4 animate-fade-in">
-      <PageHeader
-        title="Quản lý thẻ (Tag)"
-        description={`Phân loại ticket/task bằng nhãn màu · ${stats.total} tag${stats.unclassified > 0 ? ` · ${stats.unclassified} chưa phân loại` : ''}`}
-        actions={
-          <Button onClick={handleOpenCreate} className="bg-primary-700 hover:bg-primary-800 text-white gap-1.5">
-            <Plus size={14} /> Thêm tag
-          </Button>
-        }
-      />
+  const hasFilter = !!searchText || categoryFilter !== 'all'
+  const activeFilterCount = (searchText.trim() ? 1 : 0) + (categoryFilter !== 'all' ? 1 : 0)
+  const isFilteredEmpty = !isLoading && !isError && stats.total > 0 && filteredList.length === 0
+  const isFullyEmpty = !isLoading && !isError && stats.total === 0
 
-      {/* ── Toolbar ── */}
-      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-neutral-100 bg-gradient-to-r from-neutral-50 to-white">
-          {/* Search */}
-          <div className="relative flex-1 min-w-[220px] md:max-w-[360px]">
+  const handleExportCsv = () => {
+    downloadCsv(
+      'the-phan-loai.csv',
+      filteredList.map((t) => ({
+        code: t.code,
+        name: t.name,
+        category: t.category
+          ? CATEGORY_CONFIG[t.category as CategoryKey]?.label ?? t.category
+          : 'Chưa phân loại',
+        color: t.color,
+      })),
+      [
+        { key: 'code', label: 'Mã' },
+        { key: 'name', label: 'Tên' },
+        { key: 'category', label: 'Danh mục' },
+        { key: 'color', label: 'Màu' },
+      ],
+    )
+  }
+
+  const categoryFilterChips = (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <CategoryChip
+        active={categoryFilter === 'all'}
+        onClick={() => setCategoryFilter('all')}
+        label="Tất cả"
+        count={stats.total}
+        toneActive="bg-neutral-900 text-white border-neutral-900"
+      />
+      {ALL_CATEGORIES.map((key) => {
+        const cfg = CATEGORY_CONFIG[key]
+        const count = stats.byCategory[key] || 0
+        return (
+          <CategoryChip
+            key={key}
+            active={categoryFilter === key}
+            onClick={() => setCategoryFilter(key)}
+            label={cfg.label}
+            icon={cfg.icon}
+            count={count}
+            tone={cfg.tone}
+          />
+        )
+      })}
+      <CategoryChip
+        active={categoryFilter === 'none'}
+        onClick={() => setCategoryFilter('none')}
+        label="Chưa phân loại"
+        count={stats.unclassified}
+        toneActive="bg-neutral-600 text-white border-neutral-600"
+      />
+    </div>
+  )
+
+  const viewModeToggle = (
+    <div className="inline-flex items-center rounded-md border border-neutral-200 bg-white overflow-hidden">
+      <AppTooltip content="Xem dạng lưới thẻ">
+        <button
+          type="button"
+          onClick={() => setViewMode('grid')}
+          className={`px-2.5 h-8 text-xs font-medium inline-flex items-center gap-1.5 transition ${
+            viewMode === 'grid' ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'
+          }`}
+        >
+          <LayoutGrid size={14} /> Lưới
+        </button>
+      </AppTooltip>
+      <AppTooltip content="Xem dạng bảng">
+        <button
+          type="button"
+          onClick={() => setViewMode('table')}
+          className={`px-2.5 h-8 text-xs font-medium inline-flex items-center gap-1.5 transition border-l border-neutral-200 ${
+            viewMode === 'table' ? 'bg-neutral-900 text-white border-l-neutral-900' : 'text-neutral-600 hover:bg-neutral-50'
+          }`}
+        >
+          <List size={14} /> Bảng
+        </button>
+      </AppTooltip>
+    </div>
+  )
+
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      <PageGuideButton guide={TAGS_GUIDE} />
+      <Button onClick={handleOpenCreate} className="bg-primary-700 hover:bg-primary-800 text-white gap-1.5">
+        <Plus size={14} /> Thêm thẻ
+      </Button>
+    </div>
+  )
+
+  return (
+    <div className={embedded ? 'space-y-4' : 'p-6 space-y-4 animate-fade-in'}>
+      {embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-neutral-600">
+            Nhãn màu cho giao việc · {stats.total} thẻ
+            {stats.unclassified > 0 ? ` · ${stats.unclassified} chưa phân loại` : ''}
+            <span className="ml-2 text-xs text-neutral-400 tabular-nums">
+              {filteredList.length} hiển thị{hasFilter ? ' (đã lọc)' : ''}
+            </span>
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {viewModeToggle}
+            <FilterExportTrigger
+              onClick={() => setFilterDrawerOpen(true)}
+              activeCount={activeFilterCount}
+            />
+            {headerActions}
+          </div>
+        </div>
+      ) : (
+        <PageHeader
+          title="Thẻ phân loại"
+          description={`Nhãn màu cho giao việc · ${stats.total} thẻ${stats.unclassified > 0 ? ` · ${stats.unclassified} chưa phân loại` : ''}`}
+          actions={headerActions}
+        />
+      )}
+
+      {embedded ? (
+        <FilterExportDrawer
+          isOpen={filterDrawerOpen}
+          onClose={() => setFilterDrawerOpen(false)}
+          hasActiveFilters={hasFilter}
+          onClear={clearFilters}
+          onExport={handleExportCsv}
+          exportDisabled={filteredList.length === 0}
+        >
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-neutral-600">Tìm kiếm</label>
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                type="text"
+                placeholder="Tìm theo tên hoặc mã thẻ…"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                className="h-9 w-full pl-8 pr-3 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300 placeholder:text-neutral-400"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-neutral-600">Danh mục thẻ</label>
+            {categoryFilterChips}
+          </div>
+          <div className="pt-2 border-t border-neutral-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => void refetch()}
+              disabled={isFetching}
+            >
+              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+              Làm mới dữ liệu
+            </Button>
+          </div>
+        </FilterExportDrawer>
+      ) : (
+        <FilterBar
+          hasActiveFilters={hasFilter}
+          onClear={clearFilters}
+          countLabel={`${filteredList.length} thẻ${hasFilter ? ' (đã lọc)' : ''}`}
+          extra={
+            <AppTooltip content="Làm mới">
+              <button
+                type="button"
+                onClick={() => void refetch()}
+                disabled={isFetching}
+                className="h-8 w-8 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 flex items-center justify-center disabled:opacity-50"
+                aria-label="Làm mới"
+              >
+                <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+              </button>
+            </AppTooltip>
+          }
+        >
+          <div className="relative flex-1 min-w-[200px] md:max-w-[320px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
             <input
               type="text"
-              placeholder="Tìm theo tên hoặc mã tag..."
+              placeholder="Tìm theo tên hoặc mã thẻ…"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              className="h-8 w-full pl-8 pr-3 text-sm bg-neutral-50 border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300 focus:bg-white transition-all placeholder:text-neutral-400"
+              className="h-9 w-full pl-8 pr-3 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300 placeholder:text-neutral-400"
             />
           </div>
-
-          <div className="h-6 w-px bg-neutral-200 hidden md:block" />
-
-          {/* View mode toggle */}
-          <div className="inline-flex items-center rounded-md border border-neutral-200 bg-white overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setViewMode('grid')}
-              className={`px-2.5 h-8 text-xs font-medium inline-flex items-center gap-1.5 transition ${
-                viewMode === 'grid' ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'
-              }`}
-              title="Xem dạng lưới"
-            >
-              <LayoutGrid size={14} /> Lưới
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={`px-2.5 h-8 text-xs font-medium inline-flex items-center gap-1.5 transition border-l border-neutral-200 ${
-                viewMode === 'table' ? 'bg-neutral-900 text-white border-l-neutral-900' : 'text-neutral-600 hover:bg-neutral-50'
-              }`}
-              title="Xem dạng bảng"
-            >
-              <List size={14} /> Bảng
-            </button>
+          {viewModeToggle}
+          <div className="flex flex-wrap items-center gap-1.5 w-full">
+            {categoryFilterChips}
           </div>
+        </FilterBar>
+      )}
 
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="h-8 w-8 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 flex items-center justify-center disabled:opacity-50 transition-colors ml-auto"
-            title="Làm mới"
-          >
-            <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
-          </button>
-        </div>
-
-        {/* Category chip tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 px-4 py-2.5 bg-white">
-          <CategoryChip
-            active={categoryFilter === 'all'}
-            onClick={() => setCategoryFilter('all')}
-            label="Tất cả"
-            count={stats.total}
-            toneActive="bg-neutral-900 text-white border-neutral-900"
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được thẻ"
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
           />
-          {ALL_CATEGORIES.map((key) => {
-            const cfg = CATEGORY_CONFIG[key]
-            const count = stats.byCategory[key] || 0
-            return (
-              <CategoryChip
-                key={key}
-                active={categoryFilter === key}
-                onClick={() => setCategoryFilter(key)}
-                label={cfg.label}
-                icon={cfg.icon}
-                count={count}
-                tone={cfg.tone}
-              />
-            )
-          })}
-          <CategoryChip
-            active={categoryFilter === 'none'}
-            onClick={() => setCategoryFilter('none')}
-            label="Chưa phân loại"
-            count={stats.unclassified}
-            toneActive="bg-neutral-600 text-white border-neutral-600"
-          />
-
-          {(searchText || categoryFilter !== 'all') && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="ml-auto inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition"
-            >
-              <X size={12} /> Xoá lọc
-            </button>
-          )}
         </div>
-      </div>
-
-      {/* ── Empty state hoặc content ── */}
-      {!isLoading && stats.total === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-neutral-300 py-12">
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="bg-white rounded-xl border border-neutral-200">
           <EmptyState
-            icon={TagIcon}
-            title="Chưa có tag nào"
-            description="Tạo tag đầu tiên để phân loại ticket/task theo mức ưu tiên, phòng ban, kỹ năng hoặc trạng thái."
-            action={
-              <Button onClick={handleOpenCreate} className="bg-primary-700 hover:bg-primary-800 text-white gap-1.5">
-                <Plus size={14} /> Tạo tag đầu tiên
-              </Button>
+            icon={isFilteredEmpty ? Search : TagIcon}
+            title={isFilteredEmpty ? 'Không có thẻ khớp bộ lọc' : 'Chưa có thẻ nào'}
+            description={
+              isFilteredEmpty
+                ? 'Thử bỏ bớt điều kiện tìm kiếm hoặc chọn danh mục khác.'
+                : 'Tạo thẻ đầu tiên để phân loại giao việc theo mức ưu tiên, phòng ban hoặc kỹ năng.'
             }
-          />
-        </div>
-      ) : !isLoading && filteredList.length === 0 ? (
-        <div className="bg-white rounded-xl border border-neutral-200 py-10">
-          <EmptyState
-            icon={Search}
-            title="Không có tag khớp bộ lọc"
-            description="Thử bỏ bớt điều kiện tìm kiếm hoặc chọn danh mục khác."
-            action={<Button variant="outline" onClick={clearFilters}>Xoá bộ lọc</Button>}
+            action={
+              isFilteredEmpty
+                ? { label: 'Xoá bộ lọc', onClick: clearFilters }
+                : { label: 'Tạo thẻ đầu tiên', onClick: handleOpenCreate }
+            }
           />
         </div>
       ) : viewMode === 'grid' ? (
@@ -435,14 +539,14 @@ export function TagsPage() {
           onDelete={(t) => setConfirmDelete(t)}
         />
       ) : (
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
-          <AppTable
-            data={filteredList}
-            columns={columns as any}
-            isLoading={isLoading}
-            showSearch={false}
-          />
-        </div>
+        <AppTable
+          data={filteredList}
+          columns={columns}
+          isLoading={isLoading}
+          showSearch={false}
+          density="compact"
+          onRefresh={() => void refetch()}
+        />
       )}
 
       {/* ── Create / Edit modal ── */}
@@ -460,21 +564,20 @@ export function TagsPage() {
         isSaving={createReq.isPending || updateReq.isPending}
       />
 
-      {/* ── Delete confirm dialog (thay confirm() native) ── */}
       <ConfirmDialog
         isOpen={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
         onConfirm={handleDelete}
-        title={`Xoá tag "${confirmDelete?.name || confirmDelete?.code || '—'}"?`}
+        title={`Xoá thẻ 「${confirmDelete?.name || confirmDelete?.code || '—'}」?`}
         message={
           <span>
-            Hành động này <strong>không thể hoàn tác</strong>. Các ticket/task đang gắn tag này sẽ mất liên kết.
+            Thao tác không thể hoàn tác. Các giao việc đang gắn thẻ này sẽ mất liên kết.
             {(confirmDelete?.usageCount ?? 0) > 0 && (
-              <> Đang có <strong>{confirmDelete!.usageCount} ticket</strong> sử dụng.</>
+              <> Đang có <strong>{confirmDelete!.usageCount} giao việc</strong> sử dụng.</>
             )}
           </span>
         }
-        confirmText="Xoá tag"
+        confirmText="Xoá thẻ"
         variant="danger"
         isLoading={deleteReq.isPending}
       />
@@ -485,32 +588,6 @@ export function TagsPage() {
 // ============================================================
 // Sub-components
 // ============================================================
-
-/** Icon button với tone màu — dùng ở table action column. */
-function IconAction({
-  children, title, tone, onClick,
-}: {
-  children: React.ReactNode
-  title: string
-  tone: 'neutral' | 'blue' | 'rose'
-  onClick: () => void
-}) {
-  const toneMap = {
-    neutral: 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100',
-    blue:    'text-blue-600 hover:text-blue-800 hover:bg-blue-50',
-    rose:    'text-rose-600 hover:text-rose-800 hover:bg-rose-50',
-  }[tone]
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${toneMap}`}
-    >
-      {children}
-    </button>
-  )
-}
 
 /** Chip filter cho category tab bar — tone khác theo category. */
 function CategoryChip({
@@ -635,11 +712,11 @@ function TagCard({ tag, onEdit, onDelete }: {
                   onClick={() => {
                     setMenuOpen(false)
                     navigator.clipboard.writeText(tag.code || '')
-                    toast.success(`Đã copy "${tag.code}"`)
+                    toast.success(`Đã sao chép 「${tag.code}」`)
                   }}
                   className="w-full text-left px-3 py-2 text-xs text-neutral-700 hover:bg-neutral-50 inline-flex items-center gap-2"
                 >
-                  <Copy size={12} /> Copy mã
+                  <Copy size={12} /> Sao chép mã
                 </button>
                 <button
                   type="button"
@@ -742,10 +819,10 @@ function TagFormModal({
     <AppModal
       isOpen={isOpen}
       onClose={onClose}
-      title={item ? 'Chỉnh sửa tag' : 'Tạo tag mới'}
+      title={item ? 'Chỉnh sửa thẻ' : 'Tạo thẻ mới'}
       description={item
-        ? `Cập nhật thông tin cho tag ${item.name || item.code}`
-        : 'Đặt tên, chọn nhóm và màu để phân loại ticket/task rõ ràng hơn.'}
+        ? `Cập nhật thông tin cho thẻ ${item.name || item.code}`
+        : 'Đặt tên, chọn nhóm và màu để phân loại giao việc rõ hơn.'}
       maxWidth="xl"
     >
       <form onSubmit={submit} className="space-y-5">
@@ -753,7 +830,7 @@ function TagFormModal({
         <div className="rounded-xl border border-neutral-200 bg-gradient-to-br from-neutral-50 to-white p-5 flex flex-col items-center gap-3">
           <div className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Xem trước</div>
           <TagChip
-            name={nameValue || 'Tên tag'}
+            name={nameValue || 'Tên thẻ'}
             code={codeValue || 'CODE'}
             color={colorValue}
             size="lg"
@@ -764,16 +841,16 @@ function TagFormModal({
         {/* Name + Code */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label>Tên tag <span className="text-rose-500">*</span></Label>
+            <Label>Tên thẻ <span className="text-rose-500">*</span></Label>
             <Input
               {...register('name')}
-              placeholder="VD: Gấp, Quan trọng, Theo dõi..."
+              placeholder="VD: Gấp, Quan trọng, Theo dõi…"
               autoFocus
             />
             {errors.name && <p className="text-xs text-rose-600">{errors.name.message as string}</p>}
           </div>
           <div className="space-y-1.5">
-            <Label>Mã tag <span className="text-rose-500">*</span></Label>
+            <Label>Mã thẻ <span className="text-rose-500">*</span></Label>
             <div className="relative">
               <Input
                 {...register('code', {
@@ -790,7 +867,7 @@ function TagFormModal({
             </div>
             {errors.code && <p className="text-xs text-rose-600">{errors.code.message as string}</p>}
             {!item && !codeTouched && (
-              <p className="text-[11px] text-neutral-500">Slug không dấu từ tên — bấm để chỉnh tay.</p>
+              <p className="text-[11px] text-neutral-500">Mã gợi ý từ tên — có thể chỉnh tay.</p>
             )}
           </div>
         </div>
@@ -802,11 +879,11 @@ function TagFormModal({
             options={CATEGORY_OPTIONS}
             value={categoryValue || ''}
             onChange={(v) => setValue('category', v || '', { shouldValidate: true })}
-            placeholder="Chọn danh mục để dễ lọc..."
+            placeholder="Chọn danh mục để dễ lọc…"
             showClear
           />
           <p className="text-[11px] text-neutral-500">
-            Nhóm giúp lọc ticket nhanh hơn (VD: mọi tag "Ưu tiên" gom về 1 chỗ).
+            Nhóm giúp lọc giao việc nhanh hơn (VD: mọi thẻ 「Ưu tiên」 gom một chỗ).
           </p>
         </div>
 
@@ -844,13 +921,15 @@ function TagFormModal({
 
           {/* Hex input + native color picker */}
           <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={colorValue || '#94a3b8'}
-              onChange={(e) => setValue('color', e.target.value, { shouldValidate: true })}
-              className="w-10 h-10 rounded-md border border-neutral-200 cursor-pointer p-0.5 bg-white"
-              title="Chọn màu tùy chỉnh"
-            />
+            <AppTooltip content="Chọn màu tùy chỉnh">
+              <input
+                type="color"
+                value={colorValue || '#94a3b8'}
+                onChange={(e) => setValue('color', e.target.value, { shouldValidate: true })}
+                className="w-10 h-10 rounded-md border border-neutral-200 cursor-pointer p-0.5 bg-white"
+                aria-label="Chọn màu tùy chỉnh"
+              />
+            </AppTooltip>
             <Input
               {...register('color')}
               placeholder="#94a3b8"
@@ -861,7 +940,6 @@ function TagFormModal({
                 type="button"
                 onClick={() => setValue('color', '', { shouldValidate: true })}
                 className="h-10 px-3 text-xs text-neutral-500 hover:text-neutral-800 rounded-md hover:bg-neutral-100 inline-flex items-center gap-1"
-                title="Bỏ chọn màu"
               >
                 <X size={14} /> Bỏ chọn
               </button>
@@ -879,7 +957,7 @@ function TagFormModal({
             disabled={isSaving}
             className="bg-primary-700 hover:bg-primary-800 text-white gap-1.5"
           >
-            {isSaving ? 'Đang lưu...' : item ? 'Lưu thay đổi' : 'Tạo tag'}
+            {isSaving ? 'Đang lưu…' : item ? 'Lưu thay đổi' : 'Tạo thẻ'}
           </Button>
         </div>
       </form>

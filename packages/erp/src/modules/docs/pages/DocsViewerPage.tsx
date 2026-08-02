@@ -4,7 +4,7 @@
 
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, BookOpen } from 'lucide-react'
-import { Button, EmptyState, ErrorState, PageHeader } from '@frezo/ui'
+import { Button, EmptyState, ErrorState, PageHeader, Skeleton } from '@frezo/ui'
 import { MarkdownView } from '../components/MarkdownView'
 import { DocsSideNav } from '../components/DocsSideNav'
 import { useHubDocs, useResolvedDoc } from '../hooks/useGuides'
@@ -21,8 +21,10 @@ export function DocsViewerPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 max-w-6xl mx-auto w-full text-sm text-neutral-500">
-        Đang tải tài liệu…
+      <div className="p-6 max-w-6xl mx-auto w-full space-y-4 animate-fade-in">
+        <Skeleton className="h-8 w-72" />
+        <Skeleton className="h-4 w-96 max-w-full" />
+        <Skeleton className="h-64 w-full rounded-xl" />
       </div>
     )
   }
@@ -72,7 +74,7 @@ export function DocsViewerPage() {
         <DocsSideNav activeSlug={doc.slug} docs={list} />
 
         <div className="min-w-0 space-y-4">
-          <article className="bg-white border border-neutral-200 rounded-2xl p-6 sm:p-8 shadow-sm">
+          <article className="bg-white border border-neutral-200 rounded-xl p-6 sm:p-8 shadow-sm">
             <MarkdownView source={doc.body} skipFirstH1 />
           </article>
 

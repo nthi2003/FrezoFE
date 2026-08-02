@@ -1,7 +1,11 @@
-import { useState, useMemo, useCallback } from 'react'
-import { Plus, Trash2, Pencil, Eye, Send, FileText, Variable, X, HelpCircle, ImageIcon, Link } from 'lucide-react'
+import { useMemo, useState, useCallback } from 'react'
+import { Plus, Trash2, Pencil, Eye, Send, FileText, Variable, X, HelpCircle, ImageIcon, Link, Search } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
-import { AppModal, Button, ErrorState } from '@frezo/ui'
+import { FilterBar } from '@/components/ui/FilterBar'
+import {
+  AppModal, Button, EmptyState, ErrorState,
+  PageHeader, PageGuideButton, IconActionButton, AppTooltip, type PageGuideConfig,
+} from '@frezo/ui'
 import { Input } from '@frezo/ui'
 import { Label } from '@frezo/ui'
 import { useForm } from 'react-hook-form'
@@ -19,6 +23,21 @@ import { TiptapEditor } from '@/components/shared/TiptapEditor'
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 
 const SUGGESTED_VARS = ['name', 'email', 'orderId', 'date', 'amount', 'phone', 'address', 'link']
+
+const TEMPLATE_GUIDE: PageGuideConfig = {
+  title: 'Mẫu Email',
+  subtitle: 'Quản lý mẫu email gửi tự động — hỗ trợ biến {{variable}}.',
+  sections: [
+    {
+      heading: 'Biến template',
+      type: 'tips',
+      tips: [
+        'Dùng {{name}}, {{orderId}}… trong tiêu đề và nội dung.',
+        'Bấm Preview để xem trước với giá trị thử.',
+      ],
+    },
+  ],
+}
 
 function extractVars(html: string): string[] {
   const text = html.replace(/<[^>]*>/g, '')
@@ -39,6 +58,7 @@ export function EmailTemplatePage() {
   const [sendRecipients, setSendRecipients] = useState('')
   const [sendParams, setSendParams] = useState('')
   const [showHelp, setShowHelp] = useState(false)
+  const [search, setSearch] = useState('')
 
   const { data, isLoading, isError, refetch, isFetching } = useEmailTemplates()
   const createReq = useCreateEmailTemplate()
@@ -48,6 +68,23 @@ export function EmailTemplatePage() {
   const sendTestReq = useSendTestEmail()
 
   const isEditing = !!editingRecord
+
+  const dataList = useMemo(() => (Array.isArray(data) ? data : []), [data])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return dataList
+    return dataList.filter(
+      (t) =>
+        (t.name || '').toLowerCase().includes(q) ||
+        (t.subject || '').toLowerCase().includes(q) ||
+        (t.description || '').toLowerCase().includes(q),
+    )
+  }, [dataList, search])
+
+  const hasFilter = !!search.trim()
+  const isFilteredEmpty = !isLoading && !isError && dataList.length > 0 && filtered.length === 0
+  const isFullyEmpty = !isLoading && !isError && dataList.length === 0
 
   const { register, handleSubmit, reset, setValue, watch, getValues, formState: { errors } } = useForm({
     resolver: zodResolver(emailTemplateSchema),
@@ -150,17 +187,18 @@ export function EmailTemplatePage() {
       width: 200,
       render: (_: any, row: any) => (
         <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="sm" onClick={() => { setViewId(row.id); setViewModalOpen(true) }} title="Xem">
-            <Eye className="w-3.5 h-3.5 text-blue-500" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => openEdit(row)} title="Sửa">
+          <IconActionButton tooltip="Xem" tone="blue" size="sm" onClick={() => { setViewId(row.id); setViewModalOpen(true) }}>
+            <Eye className="w-3.5 h-3.5" />
+          </IconActionButton>
+          <IconActionButton tooltip="Sửa" size="sm" onClick={() => openEdit(row)}>
             <Pencil className="w-3.5 h-3.5" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => openSend(row.id)} title="Gửi test">
-            <Send className="w-3.5 h-3.5 text-primary-600" />
-          </Button>
-          <Button
-            variant="ghost"
+          </IconActionButton>
+          <IconActionButton tooltip="Gửi test" tone="primary" size="sm" onClick={() => openSend(row.id)}>
+            <Send className="w-3.5 h-3.5" />
+          </IconActionButton>
+          <IconActionButton
+            tooltip="Xóa"
+            tone="red"
             size="sm"
             onClick={() =>
               askConfirm({
@@ -170,29 +208,45 @@ export function EmailTemplatePage() {
                 onConfirm: () => deleteReq.mutate(row.id),
               })
             }
-            title="Xóa"
           >
-            <Trash2 className="w-3.5 h-3.5 text-red-500" />
-          </Button>
+            <Trash2 className="w-3.5 h-3.5" />
+          </IconActionButton>
         </div>
       ),
     },
   ]
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 flex items-center gap-2">
-            <FileText className="text-primary-600" />
-            Mẫu Email
-          </h1>
-          <p className="text-sm text-neutral-500 mt-1">Quản lý mẫu email gửi tự động, hỗ trợ biến <code className="text-xs bg-neutral-100 px-1 rounded">{'{{variable}}'}</code></p>
+    <div className="p-6 space-y-4 animate-fade-in">
+      <PageHeader
+        title="Mẫu Email"
+        description={<>Quản lý mẫu email gửi tự động, hỗ trợ biến <code className="text-xs bg-neutral-100 px-1 rounded">{'{{variable}}'}</code></>}
+        actions={(
+          <div className="flex flex-wrap gap-2 items-center">
+            <PageGuideButton guide={TEMPLATE_GUIDE} />
+            <Button onClick={openCreate} className="gap-2 bg-primary-600 hover:bg-primary-700 text-white">
+              <Plus className="w-4 h-4" /> Thêm mẫu
+            </Button>
+          </div>
+        )}
+      />
+
+      <FilterBar
+        hasActiveFilters={hasFilter}
+        onClear={() => setSearch('')}
+        countLabel={`${filtered.length} mẫu${hasFilter ? ' (đã lọc)' : ''}`}
+      >
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            placeholder="Tìm kiếm mẫu email…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Tìm mẫu email"
+          />
         </div>
-        <Button onClick={openCreate} className="bg-primary-600 hover:bg-primary-700 text-white">
-          <Plus className="w-4 h-4 mr-2" /> Thêm mẫu
-        </Button>
-      </div>
+      </FilterBar>
 
       {isError ? (
         <div className="border rounded-xl bg-white overflow-hidden">
@@ -202,13 +256,32 @@ export function EmailTemplatePage() {
             isRetrying={isFetching}
           />
         </div>
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={FileText}
+            title={isFilteredEmpty ? 'Không có mẫu khớp bộ lọc' : 'Chưa có mẫu email nào'}
+            description={
+              isFilteredEmpty
+                ? 'Thử xoá lọc hoặc đổi từ khoá.'
+                : 'Thêm mẫu đầu tiên cho email tự động.'
+            }
+            action={
+              isFilteredEmpty
+                ? { label: 'Xoá lọc', onClick: () => setSearch('') }
+                : { label: 'Thêm mẫu', onClick: openCreate }
+            }
+          />
+        </div>
       ) : (
         <AppTable
           columns={columns}
-          data={data}
+          data={filtered}
           isLoading={isLoading}
-          showSearch
-          searchPlaceholder="Tìm kiếm mẫu email..."
+          density="compact"
+          showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
           onRefresh={refetch}
         />
       )}
@@ -252,12 +325,9 @@ export function EmailTemplatePage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Label>Nội dung <span className="text-red-500">*</span></Label>
-                <button type="button" onClick={() => setShowHelp(!showHelp)}
-                  className="text-neutral-400 hover:text-primary-600 transition-colors"
-                  title="Hướng dẫn sử dụng"
-                >
+                <IconActionButton tooltip="Hướng dẫn sử dụng" tone="primary" onClick={() => setShowHelp(!showHelp)}>
                   <HelpCircle size={14} />
-                </button>
+                </IconActionButton>
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex gap-1">

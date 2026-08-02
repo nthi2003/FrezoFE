@@ -17,6 +17,8 @@ export interface GrnItemDto {
   id?: string
   grnId?: string
   productId: string
+  productCode?: string
+  productName?: string
   batchId?: string
   qtyExpected?: number
   qtyReceived?: number
@@ -70,6 +72,7 @@ export interface GrnConfirmRequest {
     qtyReceived: number
     batchCode?: string
     locationId?: string
+    expiryDate?: string
   }>
 }
 
@@ -133,4 +136,23 @@ export const grnApi = {
     })
     return typeof res.data === 'string' ? res.data : String(res.data)
   },
+
+  /** Biến động giá nhập NCC theo sản phẩm (từ dòng GRN) */
+  getProductPriceHistory: (productId: string) =>
+    axiosClient
+      .get<ApiResponse<ProductPriceHistoryPoint[]>>(`/warehouse/grn/product/${productId}/price-history`)
+      .then((r) => r.data.data ?? []),
+}
+
+export interface ProductPriceHistoryPoint {
+  date?: string
+  unitCost?: number
+  qty?: number
+  grnId?: string
+  grnCode?: string
+  supplierId?: string
+  supplierName?: string
+  status?: string
+  source?: string
+  batchCode?: string
 }

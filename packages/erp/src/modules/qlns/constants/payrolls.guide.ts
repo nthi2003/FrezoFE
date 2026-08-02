@@ -3,31 +3,27 @@ import type { PageGuideConfig } from '@frezo/ui'
 export const PAYROLLS_GUIDE: PageGuideConfig = {
   title: 'Bảng lương',
   subtitle:
-    'Vận hành lương theo chu kỳ tháng — 3 giai đoạn: Tính → Chốt → Thanh toán. Tracking tiền lương, thưởng, phụ cấp và khấu trừ.',
+    'Bước 3–5 luồng Chấm công & Lương: tổng hợp công → tính lương → duyệt & chi trả.',
+  docHref: '/docs/guide-hr-payroll',
   sections: [
     {
       type: 'steps',
-      heading: 'Chu trình xử lý lương',
+      heading: 'Luồng lương (bước 3–5)',
       steps: [
         {
-          title: 'Tính lương (Draft)',
+          title: 'Tổng hợp công cuối tháng',
           description:
-            'Chọn kỳ lương → "Tính lương toàn bộ" — hệ thống tự lấy lương cơ bản từ hợp đồng ACTIVE, cộng công chấm được, trừ BHXH/BHYT/BHTN.',
+            'Hoàn tất chấm công & duyệt nghỉ ở màn Chấm công — khoá dữ liệu trước khi tính.',
         },
         {
-          title: 'Thêm thưởng / phụ cấp',
+          title: 'Tính lương',
           description:
-            'Với từng bảng lương DRAFT: bấm ➕ để thêm khoản thưởng (KPI, sinh nhật, dự án...) kèm lý do — audit trail giữ nguyên.',
+            'Chọn kỳ → "Tính lương kỳ này" — LCB + phụ cấp − khấu trừ BHXH. Thêm thưởng KPI nếu có.',
         },
         {
-          title: 'Chốt lương (Confirmed)',
+          title: 'Duyệt & chi trả lương',
           description:
-            'Sau khi review & OK: bấm ✅ để chốt. Từ trạng thái này không sửa được nữa — phải huỷ và tính lại nếu sai.',
-        },
-        {
-          title: 'Thanh toán (Paid)',
-          description:
-            'Bấm 💵 khi đã chuyển khoản cho nhân viên. Bảng lương chuyển PAID, không thao tác được nữa. Xuất phiếu để gửi nhân viên qua email.',
+            'Khoá kỳ · Approval → Chốt lương → Đánh dấu đã thanh toán · gửi phiếu lương.',
         },
       ],
     },

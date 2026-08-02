@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Button } from '@frezo/ui'
+import { Button, Select } from '@frezo/ui'
 
 export interface WarehouseFilterSelect {
   id: string
@@ -18,6 +18,7 @@ interface Props {
   extra?: ReactNode
 }
 
+/** Filter bar kho — Select từ `@frezo/ui`, không native `<select>`. */
 export function WarehouseFilterBar({
   selects,
   hasActiveFilters,
@@ -29,20 +30,20 @@ export function WarehouseFilterBar({
     <div className="sticky top-0 z-10 -mx-6 px-6 py-2 bg-neutral-50/95 backdrop-blur border-y border-neutral-200/80">
       <div className="flex flex-wrap gap-2 items-center">
         {selects.map((sel) => (
-          <select
+          <div
             key={sel.id}
-            className="h-9 border rounded-md px-3 text-sm bg-white min-w-[140px]"
+            className="min-w-[140px]"
             style={sel.minWidth ? { minWidth: sel.minWidth } : undefined}
-            value={sel.value}
-            onChange={(e) => sel.onChange(e.target.value)}
-            aria-label={sel.label}
           >
-            {sel.options.map((opt) => (
-              <option key={opt.value || '__all'} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+            <Select
+              options={sel.options}
+              value={sel.value}
+              onChange={sel.onChange}
+              placeholder={sel.label}
+              aria-label={sel.label}
+              showSearch={sel.options.length > 8}
+            />
+          </div>
         ))}
         {extra}
         {hasActiveFilters && onClear && (

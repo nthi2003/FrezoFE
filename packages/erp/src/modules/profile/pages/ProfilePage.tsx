@@ -201,7 +201,7 @@ function ProfileSelfServiceHub({
       key: 'payslip',
       label: 'Phiếu lương / Bảng lương',
       hint: 'Kỳ gần — xem trên web (app Mobile: tab Phiếu lương)',
-      to: '/qlns/payrolls',
+      to: '/qlns/payroll?tab=payrolls',
       icon: Wallet,
       allowed: canPayroll && pathAllowed(menuUrls, '/qlns/payrolls'),
       emptyReason: !canPayroll
@@ -212,7 +212,7 @@ function ProfileSelfServiceHub({
       key: 'leave',
       label: 'Đơn phép của tôi',
       hint: 'Tạo / theo dõi đơn nghỉ — parity tab Nghỉ phép trên Mobile',
-      to: '/qlns/leaves',
+      to: '/qlns/time?tab=leaves',
       icon: CalendarDays,
       allowed: canLeave && pathAllowed(menuUrls, '/qlns/leaves'),
       emptyReason: !canLeave ? 'Không có quyền nghỉ phép' : 'Trang không có trên menu của bạn',
@@ -221,7 +221,7 @@ function ProfileSelfServiceHub({
       key: 'attendance',
       label: 'Công tháng / Chấm công',
       hint: 'Xem công trên web — parity tab Chấm công trên Mobile',
-      to: '/admin/attendance',
+      to: '/qlns/time?tab=daily',
       icon: Clock,
       allowed: canAttendance && pathAllowed(menuUrls, '/admin/attendance'),
       emptyReason: !canAttendance

@@ -7,17 +7,19 @@
 
 import { useState, useMemo } from 'react'
 import {
-  Plus, Edit, Trash2, DollarSign, Search, Filter, X, LayoutGrid, List,
-  TrendingUp, Users, Loader2, AlertTriangle, Building2, Sparkles,
+  Plus, Edit, Trash2, DollarSign, Search, Filter, LayoutGrid, List,
+  TrendingUp, Loader2, AlertTriangle, Building2, Sparkles,
   type LucideIcon,
 } from 'lucide-react'
 import {
-  AppModal, Button, ConfirmDialog, PageHeader, PageGuideButton, Input, Label,
-  type PageGuideConfig,
+  AppModal, Button, ConfirmDialog, PageHeader, PageGuideButton, Input, Label, Select,
+  IconActionButton, type PageGuideConfig,
 } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from '../../qtht/hooks/useCategory'
 import { toast } from 'sonner'
+import { pageRootClass } from '../utils/pageEmbed'
 
 // ============================================================
 // Types
@@ -71,7 +73,7 @@ const CURRENCY_OPTIONS = [
 // ============================================================
 
 const SALARY_GUIDE: PageGuideConfig = {
-  title: 'Bậc lương (Salary Bands)',
+  title: 'Bậc lương',
   subtitle:
     'Khung lương chuẩn theo bậc chức danh — dải Min/Target/Max giúp minh bạch, dễ so sánh khi tuyển & review lương.',
   sections: [
@@ -114,7 +116,7 @@ const SALARY_GUIDE: PageGuideConfig = {
 
 const GROUP = 'SalaryBand'
 
-export function SalaryBandsPage() {
+export function SalaryBandsPage({ embedded }: { embedded?: boolean } = {}) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Band | null>(null)
   const [confirmDel, setConfirmDel] = useState<Band | null>(null)
@@ -166,6 +168,12 @@ export function SalaryBandsPage() {
     const uniqueFns = new Set(bands.map((b) => b.meta.function || 'ALL'))
     return { total: bands.length, active, globalMin, globalMax, functions: uniqueFns.size }
   }, [bands])
+
+  const hasFilter = !!search.trim() || functionFilter !== 'all'
+  const clearFilters = () => {
+    setSearch('')
+    setFunctionFilter('all')
+  }
 
   // ---- Ladder rendering: normalize range for bar widths ----
   const ladderData = useMemo(() => {
@@ -228,7 +236,8 @@ export function SalaryBandsPage() {
   // ============================================================
 
   return (
-    <div className="p-6 space-y-5 animate-fade-in">
+    <div className={pageRootClass(embedded, 'space-y-5')}>
+      {!embedded && (
       <PageHeader
         title="Bậc lương"
         description="Khung lương chuẩn theo bậc chức danh — minh bạch, dễ so sánh, dễ áp vào hợp đồng"
@@ -244,6 +253,7 @@ export function SalaryBandsPage() {
           </>
         }
       />
+      )}
 
       {/* KPI */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -258,26 +268,29 @@ export function SalaryBandsPage() {
         <KpiCard icon={Building2} label="Nhóm chức năng" value={String(stats.functions)} tone="amber" />
       </div>
 
-      {/* Filter bar */}
-      <div className="p-3 bg-white border border-neutral-200 rounded-2xl shadow-sm flex flex-wrap items-center gap-3">
+      <FilterBar
+        hasActiveFilters={hasFilter}
+        onClear={clearFilters}
+        countLabel={`${filtered.length} bậc lương${hasFilter ? ' (đã lọc)' : ''}`}
+      >
         <div className="relative flex-1 min-w-[220px] max-w-md">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm mã, tên bậc lương..."
-            className="h-10 w-full pl-9 pr-3 text-sm bg-neutral-50 border border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:bg-white"
+            placeholder="Tìm mã, tên bậc lương…"
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            aria-label="Tìm bậc lương"
           />
         </div>
-
         <div className="flex items-center gap-1 flex-wrap">
           <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 mr-1 inline-flex items-center gap-1">
-            <Filter size={11} /> Function:
+            <Filter size={11} /> Nhóm chức năng:
           </span>
           <button
             type="button"
             onClick={() => setFunctionFilter('all')}
-            className={`h-7 px-2.5 rounded-full text-xs font-medium border transition ${
+            className={`h-8 px-2.5 rounded-full text-xs font-medium border transition ${
               functionFilter === 'all'
                 ? 'bg-primary-600 text-white border-primary-600'
                 : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
@@ -290,7 +303,7 @@ export function SalaryBandsPage() {
               key={f.value}
               type="button"
               onClick={() => setFunctionFilter(f.value)}
-              className={`h-7 px-2.5 rounded-full text-xs font-medium border transition ${
+              className={`h-8 px-2.5 rounded-full text-xs font-medium border transition ${
                 functionFilter === f.value
                   ? 'bg-primary-600 text-white border-primary-600'
                   : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
@@ -300,18 +313,7 @@ export function SalaryBandsPage() {
             </button>
           ))}
         </div>
-
-        {(search || functionFilter !== 'all') && (
-          <button
-            type="button"
-            onClick={() => { setSearch(''); setFunctionFilter('all') }}
-            className="inline-flex items-center gap-1 h-8 px-2 rounded-md text-xs font-medium text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100"
-          >
-            <X size={12} /> Xoá lọc
-          </button>
-        )}
-
-        <div className="ml-auto flex items-center bg-neutral-100 rounded-lg p-0.5">
+        <div className="flex items-center bg-neutral-100 rounded-lg p-0.5">
           <button
             type="button"
             onClick={() => setView('ladder')}
@@ -319,7 +321,7 @@ export function SalaryBandsPage() {
               view === 'ladder' ? 'bg-white text-primary-700 shadow-sm' : 'text-neutral-500'
             }`}
           >
-            <LayoutGrid size={13} /> Ladder
+            <LayoutGrid size={13} /> Thang bậc
           </button>
           <button
             type="button"
@@ -331,7 +333,7 @@ export function SalaryBandsPage() {
             <List size={13} /> Bảng
           </button>
         </div>
-      </div>
+      </FilterBar>
 
       {/* Content */}
       {isLoading ? (
@@ -369,7 +371,10 @@ export function SalaryBandsPage() {
           <AppTable
             data={filtered as any}
             isLoading={false}
+            density="compact"
             showSearch={false}
+            pageSize={20}
+            pageSizeOptions={[10, 20, 50, 100]}
             columns={[
               {
                 title: 'Mã', dataIndex: 'code', width: 90,
@@ -391,7 +396,7 @@ export function SalaryBandsPage() {
                 ),
               },
               {
-                title: 'Function', dataIndex: 'meta',
+                title: 'Nhóm chức năng', dataIndex: 'meta',
                 render: (m: BandMeta) => (
                   <span className="inline-flex items-center px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider bg-neutral-100 text-neutral-700 border border-neutral-200 rounded">
                     {FUNCTION_LABEL[m.function || 'ALL'] || m.function}
@@ -399,7 +404,7 @@ export function SalaryBandsPage() {
                 ),
               },
               {
-                title: 'Min', dataIndex: 'meta',
+                title: 'Tối thiểu', dataIndex: 'meta',
                 render: (m: BandMeta) => (
                   <span className="tabular-nums font-mono text-sm text-neutral-600">
                     {m.min ? formatMoney(m.min, m.currency) : '—'}
@@ -407,7 +412,7 @@ export function SalaryBandsPage() {
                 ),
               },
               {
-                title: 'Target', dataIndex: 'meta',
+                title: 'Mục tiêu', dataIndex: 'meta',
                 render: (m: BandMeta) => (
                   <span className="tabular-nums font-mono text-sm font-semibold text-primary-700">
                     {m.target ? formatMoney(m.target, m.currency) : '—'}
@@ -415,7 +420,7 @@ export function SalaryBandsPage() {
                 ),
               },
               {
-                title: 'Max', dataIndex: 'meta',
+                title: 'Tối đa', dataIndex: 'meta',
                 render: (m: BandMeta) => (
                   <span className="tabular-nums font-mono text-sm text-neutral-600">
                     {m.max ? formatMoney(m.max, m.currency) : '—'}
@@ -438,20 +443,12 @@ export function SalaryBandsPage() {
                 title: 'Thao tác', dataIndex: 'id', width: 100,
                 render: (_: any, row: any) => (
                   <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleOpenEdit(row)}
-                      className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded transition"
-                      title="Sửa"
-                    >
+                    <IconActionButton tooltip="Sửa" tone="primary" onClick={() => handleOpenEdit(row)}>
                       <Edit size={14} />
-                    </button>
-                    <button
-                      onClick={() => setConfirmDel(row)}
-                      className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
-                      title="Xoá"
-                    >
+                    </IconActionButton>
+                    <IconActionButton tooltip="Xoá" tone="rose" onClick={() => setConfirmDel(row)}>
                       <Trash2 size={14} />
-                    </button>
+                    </IconActionButton>
                   </div>
                 ),
               },
@@ -589,20 +586,12 @@ function LadderView({ ladderData, onEdit, onDelete }: LadderViewProps) {
 
                 {/* Right: actions */}
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  <button
-                    onClick={() => onEdit(b)}
-                    className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded transition"
-                    title="Sửa"
-                  >
+                  <IconActionButton tooltip="Sửa" tone="primary" size="sm" onClick={() => onEdit(b)}>
                     <Edit size={13} />
-                  </button>
-                  <button
-                    onClick={() => onDelete(b)}
-                    className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
-                    title="Xoá"
-                  >
+                  </IconActionButton>
+                  <IconActionButton tooltip="Xoá" tone="rose" size="sm" onClick={() => onDelete(b)}>
                     <Trash2 size={13} />
-                  </button>
+                  </IconActionButton>
                 </div>
               </div>
             </div>
@@ -708,27 +697,25 @@ function BandFormModal({ isOpen, editing, onClose, onSubmit, isSubmitting }: Ban
           </div>
           <div className="space-y-1.5">
             <Label>Nhóm chức năng</Label>
-            <select
+            <Select
+              options={FUNCTION_OPTIONS}
               value={form.function}
-              onChange={(e) => setField('function', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400"
-            >
-              {FUNCTION_OPTIONS.map((f) => (
-                <option key={f.value} value={f.value}>{f.label}</option>
-              ))}
-            </select>
+              onChange={(v) => setField('function', v)}
+              placeholder="Nhóm chức năng"
+              aria-label="Nhóm chức năng"
+              showSearch={false}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Loại tiền</Label>
-            <select
+            <Select
+              options={CURRENCY_OPTIONS}
               value={form.currency}
-              onChange={(e) => setField('currency', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400"
-            >
-              {CURRENCY_OPTIONS.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
+              onChange={(v) => setField('currency', v)}
+              placeholder="Loại tiền"
+              aria-label="Loại tiền"
+              showSearch={false}
+            />
           </div>
         </div>
 

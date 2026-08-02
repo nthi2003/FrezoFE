@@ -2,10 +2,11 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   FileX2, CheckCircle, Plus, FileText, Clock, TrendingUp, AlertTriangle,
-  Search, X, Eye, Filter, type LucideIcon,
+  Search, Eye, Filter, type LucideIcon,
 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
-import { Button, AppModal, PageHeader, PageGuideButton, StatusBadge, Select } from '@frezo/ui'
+import { FilterBar } from '@/components/ui/FilterBar'
+import { Button, AppModal, PageHeader, PageGuideButton, StatusBadge, Select, ConfirmDialog, EmptyState, ErrorState } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { unwrapList } from '@frezo/utils'
@@ -16,6 +17,12 @@ import { toast } from 'sonner'
 import { CONTRACT_STATUS_CONFIG, CONTRACT_STATUS_OPTIONS, type ContractStatus } from '../constants/contractStatus'
 import { CONTRACT_TYPES } from '../constants/templates'
 import { CONTRACTS_GUIDE } from '../constants/contracts.guide'
+import { DIGITAL_CONTRACT_GUIDE } from '../constants/digitalContract.guide'
+import { StatusPipelineStepper } from '../../warehouse/components/StatusPipelineStepper'
+import {
+  DIGITAL_CONTRACT_PIPELINE,
+  digitalContractListStepIndex,
+} from '../../accounting/constants/accountingWorkflow'
 
 const TYPE_OPTIONS = [
   { value: 'ALL', label: '-- Tất cả loại --' },
@@ -27,6 +34,7 @@ export function ContractPage() {
   const queryClient = useQueryClient()
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
   const [selectedContract, setSelectedContract] = useState<any | null>(null)
+  const [approveTarget, setApproveTarget] = useState<any | null>(null)
 
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
@@ -34,7 +42,7 @@ export function ContractPage() {
   const [quickTab, setQuickTab] = useState<'all' | 'pending' | 'active' | 'expiring'>('all')
 
   // ---- Data ----
-  const { data: contractsRaw, isLoading } = useQuery({
+  const { data: contractsRaw, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['contracts', { statusFilter, typeFilter }],
     queryFn: () => contractApi.getAll({
       ...(statusFilter !== 'ALL' ? { status: statusFilter } : {}),
@@ -221,7 +229,7 @@ export function ContractPage() {
             <>
               <button
                 title="Duyệt hợp đồng"
-                onClick={() => approveContract.mutate({ id: row.id })}
+                onClick={() => setApproveTarget(row)}
                 disabled={approveContract.isPending}
                 className="p-1.5 text-neutral-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors disabled:opacity-40"
               >
@@ -244,6 +252,8 @@ export function ContractPage() {
   // ============================================================
   // Render
   // ============================================================
+  const pipelineIndex = digitalContractListStepIndex(contracts)
+
   return (
     <div className="p-6 space-y-5 animate-fade-in">
       <PageHeader
@@ -251,7 +261,8 @@ export function ContractPage() {
         description="Quản lý vòng đời hợp đồng: soạn thảo → duyệt → hiệu lực → gia hạn / kết thúc."
         actions={
           <>
-            <PageGuideButton guide={CONTRACTS_GUIDE} />
+            <PageGuideButton guide={DIGITAL_CONTRACT_GUIDE} />
+            <PageGuideButton guide={CONTRACTS_GUIDE} label="Vòng đời HĐ" />
             <Button
               onClick={() => navigate('/qlns/contract/create')}
               className="gap-2 bg-primary-700 hover:bg-primary-800 text-white shadow-sm"
@@ -262,6 +273,8 @@ export function ContractPage() {
         }
       />
 
+      <StatusPipelineStepper steps={DIGITAL_CONTRACT_PIPELINE} currentIndex={pipelineIndex} />
+
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard icon={FileText} label="Tổng HĐ" value={stats.total} tone="neutral" />
@@ -270,39 +283,39 @@ export function ContractPage() {
         <KpiCard icon={AlertTriangle} label="Sắp hết hạn (30d)" value={stats.expiring} tone="orange" />
       </div>
 
-      {/* Filter bar */}
-      <div className="p-3 bg-white border border-neutral-200 shadow-sm rounded-2xl space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <input
-              type="text"
-              placeholder="Tìm theo mã HĐ, nhân sự, loại..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="h-10 w-full pl-9 pr-3 text-sm bg-neutral-50 border border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:bg-white transition-all placeholder:text-neutral-400"
-            />
-          </div>
-          <div className="w-52">
-            <Select
-              options={CONTRACT_STATUS_OPTIONS}
-              value={statusFilter}
-              onChange={(v) => setStatusFilter(v || 'ALL')}
-              placeholder="Trạng thái"
-            />
-          </div>
-          <div className="w-48">
-            <Select
-              options={TYPE_OPTIONS}
-              value={typeFilter}
-              onChange={(v) => setTypeFilter(v || 'ALL')}
-              placeholder="Loại hợp đồng"
-            />
-          </div>
+      <FilterBar
+        hasActiveFilters={!!hasFilter}
+        onClear={clearFilters}
+        countLabel={`${filteredList.length} hợp đồng${hasFilter ? ' (đã lọc)' : ''}`}
+      >
+        <div className="relative flex-1 min-w-[220px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="text"
+            placeholder="Tìm theo mã HĐ, nhân sự, loại…"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            aria-label="Tìm hợp đồng"
+          />
         </div>
-
-        {/* Quick tabs */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="w-52">
+          <Select
+            options={CONTRACT_STATUS_OPTIONS}
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v || 'ALL')}
+            placeholder="Trạng thái"
+          />
+        </div>
+        <div className="w-48">
+          <Select
+            options={TYPE_OPTIONS}
+            value={typeFilter}
+            onChange={(v) => setTypeFilter(v || 'ALL')}
+            placeholder="Loại hợp đồng"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-1">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mr-1 inline-flex items-center gap-1">
             <Filter size={11} /> Lọc nhanh:
           </span>
@@ -318,44 +331,82 @@ export function ContractPage() {
                 key={t.key}
                 type="button"
                 onClick={() => setQuickTab(t.key)}
-                className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-medium border transition ${
+                className={`inline-flex items-center gap-1 h-8 px-2 rounded-full text-xs font-medium border transition ${
                   active
-                    ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                    ? 'bg-primary-600 text-white border-primary-600'
                     : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
                 }`}
               >
                 {t.label}
-                <span
-                  className={`inline-flex items-center justify-center min-w-[18px] h-4 rounded-full text-[10px] font-bold ${
-                    active ? 'bg-white/20 text-white' : 'bg-neutral-100 text-neutral-500'
-                  }`}
-                >
+                <span className={`inline-flex items-center justify-center min-w-[18px] h-4 rounded-full text-[10px] font-bold ${
+                  active ? 'bg-white/20 text-white' : 'bg-neutral-100 text-neutral-500'
+                }`}>
                   {t.count}
                 </span>
               </button>
             )
           })}
-          {hasFilter && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="ml-auto inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition"
-            >
-              <X size={12} /> Xoá lọc
-            </button>
-          )}
         </div>
-      </div>
+      </FilterBar>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được hợp đồng"
+            message="Kiểm tra kết nối hoặc quyền truy cập rồi thử lại."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : !isLoading && filteredList.length === 0 ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={FileText}
+            title={contracts.length === 0 ? 'Chưa có hợp đồng nào' : 'Không có hợp đồng khớp bộ lọc'}
+            description={
+              contracts.length === 0
+                ? 'Tạo hợp đồng mới để bắt đầu quy trình ký kết.'
+                : 'Thử xoá lọc hoặc đổi điều kiện tìm kiếm.'
+            }
+            action={
+              contracts.length === 0
+                ? { label: 'Tạo hợp đồng', onClick: () => navigate('/qlns/contract/create') }
+                : hasFilter
+                  ? { label: 'Xoá lọc', onClick: clearFilters }
+                  : undefined
+            }
+          />
+        </div>
+      ) : (
         <AppTable
           data={filteredList}
           columns={columns as any}
           isLoading={isLoading}
+          density="compact"
           showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onRefresh={() => void refetch()}
         />
-      </div>
+      )}
+
+      <ConfirmDialog
+        isOpen={!!approveTarget}
+        onClose={() => setApproveTarget(null)}
+        onConfirm={() => {
+          if (!approveTarget?.id) return
+          approveContract.mutate(
+            { id: approveTarget.id },
+            { onSuccess: () => setApproveTarget(null) },
+          )
+        }}
+        title={`Duyệt hợp đồng ${approveTarget?.code || ''}?`}
+        message={`HĐ sẽ chuyển sang hiệu lực cho ${approveTarget?.personName || 'nhân sự'}.`}
+        confirmText="Duyệt"
+        cancelText="Huỷ"
+        variant="warning"
+        isLoading={approveContract.isPending}
+      />
 
       {/* Reject Modal */}
       <AppModal

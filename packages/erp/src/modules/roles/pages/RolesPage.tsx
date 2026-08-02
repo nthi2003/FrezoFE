@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import {
   AppModal, Button, Input, Label, PageHeader, PageGuideButton,
-  StatusBadge, ConfirmDialog, type PageGuideConfig,
+  StatusBadge, ConfirmDialog, Select, IconActionButton, AppTooltip, type PageGuideConfig,
 } from '@frezo/ui'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -115,10 +115,11 @@ export function RolesPage() {
   const { data: roleMenus, isFetching: loadingRoleMenus } = useRoleMenus(selectedRole?.code)
   const saveMenusReq = useSaveRoleMenus()
 
-  const { register, handleSubmit, reset, formState: { errors }, setValue } = useForm<RoleFormValues>({
+  const { register, handleSubmit, reset, formState: { errors }, setValue, watch } = useForm<RoleFormValues>({
     resolver: zodResolver(roleFormSchema),
     defaultValues: { code: '', appCode: 'QTHT', name: '', description: '' },
   })
+  const appCodeValue = watch('appCode')
 
   // ---- Sync menu selection when role menus loaded ----
   useEffect(() => {
@@ -584,30 +585,22 @@ export function RolesPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenClone(selectedRole)}
-                    className="h-8 px-2.5 rounded-lg text-xs font-medium text-neutral-600 hover:text-primary-700 hover:bg-primary-50 border border-neutral-200 inline-flex items-center gap-1"
-                    title="Nhân bản role này với đầy đủ quyền"
-                  >
-                    <Copy size={12} /> Clone
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEdit(selectedRole)}
-                    className="h-8 w-8 rounded-lg text-neutral-500 hover:text-primary-700 hover:bg-primary-50 inline-flex items-center justify-center border border-neutral-200"
-                    title="Sửa thông tin role"
-                  >
+                  <AppTooltip content="Nhân bản role này với đầy đủ quyền">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenClone(selectedRole)}
+                      aria-label="Nhân bản role"
+                      className="h-8 px-2.5 rounded-lg text-xs font-medium text-neutral-600 hover:text-primary-700 hover:bg-primary-50 border border-neutral-200 inline-flex items-center gap-1"
+                    >
+                      <Copy size={12} /> Clone
+                    </button>
+                  </AppTooltip>
+                  <IconActionButton tooltip="Sửa thông tin role" tone="primary" className="h-8 w-8 border border-neutral-200" onClick={() => handleOpenEdit(selectedRole)}>
                     <Edit size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteTarget(selectedRole)}
-                    className="h-8 w-8 rounded-lg text-neutral-500 hover:text-rose-600 hover:bg-rose-50 inline-flex items-center justify-center border border-neutral-200"
-                    title="Xoá role"
-                  >
+                  </IconActionButton>
+                  <IconActionButton tooltip="Xoá role" tone="rose" className="h-8 w-8 border border-neutral-200" onClick={() => setDeleteTarget(selectedRole)}>
                     <Trash2 size={13} />
-                  </button>
+                  </IconActionButton>
                 </div>
               </div>
 
@@ -742,15 +735,19 @@ export function RolesPage() {
             </div>
             <div className="space-y-1.5">
               <Label>App <span className="text-rose-500">*</span></Label>
-              <select
-                {...register('appCode')}
-                disabled={isEditMode}
-                className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:bg-neutral-50 disabled:text-neutral-500"
-              >
-                {APP_OPTIONS.map((a) => (
-                  <option key={a.value} value={a.value}>{a.label}</option>
-                ))}
-              </select>
+              {isEditMode ? (
+                <Input value={APP_OPTIONS.find((a) => a.value === appCodeValue)?.label || appCodeValue} disabled />
+              ) : (
+                <Select
+                  options={APP_OPTIONS}
+                  value={appCodeValue || 'QTHT'}
+                  onChange={(v) => setValue('appCode', v, { shouldValidate: true })}
+                  placeholder="Chọn app"
+                  aria-label="App"
+                  aria-required
+                  showSearch={false}
+                />
+              )}
               {errors.appCode && <p className="text-xs text-rose-600">{errors.appCode.message}</p>}
             </div>
           </div>
@@ -924,30 +921,15 @@ function RoleListItem({ role, selected, dirty, onSelect, onEdit, onClone, onDele
       </button>
       {/* Hover actions */}
       <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onClone() }}
-          className="p-1 rounded text-neutral-400 hover:text-primary-600 hover:bg-white"
-          title="Nhân bản"
-        >
+        <IconActionButton tooltip="Nhân bản" size="sm" className="p-1 rounded hover:bg-white" onClick={(e) => { e.stopPropagation(); onClone() }}>
           <Copy size={11} />
-        </button>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onEdit() }}
-          className="p-1 rounded text-neutral-400 hover:text-primary-600 hover:bg-white"
-          title="Sửa"
-        >
+        </IconActionButton>
+        <IconActionButton tooltip="Sửa" tone="primary" size="sm" className="p-1 rounded hover:bg-white" onClick={(e) => { e.stopPropagation(); onEdit() }}>
           <Edit size={11} />
-        </button>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onDelete() }}
-          className="p-1 rounded text-neutral-400 hover:text-rose-600 hover:bg-white"
-          title="Xoá"
-        >
+        </IconActionButton>
+        <IconActionButton tooltip="Xoá" tone="rose" size="sm" className="p-1 rounded hover:bg-white" onClick={(e) => { e.stopPropagation(); onDelete() }}>
           <Trash2 size={11} />
-        </button>
+        </IconActionButton>
       </div>
     </div>
   )

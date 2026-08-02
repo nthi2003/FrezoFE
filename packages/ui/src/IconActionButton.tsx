@@ -1,0 +1,74 @@
+import * as React from 'react'
+import { cn } from '@frezo/utils'
+
+import { AppTooltip } from './tooltip'
+
+export type IconActionTone =
+  | 'neutral'
+  | 'blue'
+  | 'rose'
+  | 'amber'
+  | 'emerald'
+  | 'red'
+  | 'violet'
+  | 'primary'
+
+export interface IconActionButtonProps
+  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'title'> {
+  /** Tooltip + aria-label (tiếng Việt). Thay native `title=`. */
+  tooltip: string
+  tone?: IconActionTone
+  /** sm = 28×28 (cột thao tác bảng); md = padded (mặc định). */
+  size?: 'sm' | 'md'
+}
+
+const toneClasses: Record<IconActionTone, string> = {
+  neutral: 'text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100',
+  blue: 'text-blue-600 hover:text-blue-800 hover:bg-blue-50',
+  rose: 'text-rose-600 hover:text-rose-800 hover:bg-rose-50',
+  amber: 'text-neutral-400 hover:text-amber-600 hover:bg-amber-50',
+  emerald: 'text-neutral-400 hover:text-emerald-600 hover:bg-emerald-50',
+  red: 'text-neutral-400 hover:text-red-600 hover:bg-red-50',
+  violet: 'text-neutral-400 hover:text-violet-600 hover:bg-violet-50',
+  primary: 'text-neutral-400 hover:text-primary-600 hover:bg-primary-50',
+}
+
+const sizeClasses: Record<'sm' | 'md', string> = {
+  sm: 'w-7 h-7',
+  md: 'p-1.5',
+}
+
+/**
+ * Nút icon-only có tooltip — dùng ở cột thao tác bảng, toolbar hub.
+ *
+ * @example
+ * <IconActionButton tooltip="Sửa" tone="blue" onClick={onEdit}>
+ *   <Pencil size={14} />
+ * </IconActionButton>
+ */
+export function IconActionButton({
+  tooltip,
+  tone = 'neutral',
+  size = 'md',
+  className,
+  children,
+  ...props
+}: IconActionButtonProps) {
+  return (
+    <AppTooltip content={tooltip}>
+      <button
+        type="button"
+        aria-label={tooltip}
+        className={cn(
+          'inline-flex items-center justify-center rounded-md transition-colors',
+          toneClasses[tone],
+          sizeClasses[size],
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </button>
+    </AppTooltip>
+  )
+}

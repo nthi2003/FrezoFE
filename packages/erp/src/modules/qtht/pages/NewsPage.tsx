@@ -1,105 +1,287 @@
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, Pencil, Plus } from 'lucide-react'
+import { Eye, Pencil, Plus, Search, Trash2, Newspaper } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
-import { Button } from '@frezo/ui'
-import { useArticles } from '@/modules/articles/hooks/useArticle'
+import type { AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
+import {
+  Button, ConfirmDialog, EmptyState, ErrorState,
+  PageHeader, PageGuideButton, Select, IconActionButton, type PageGuideConfig,
+} from '@frezo/ui'
+import { useArticles, useDeleteArticle } from '@/modules/articles/hooks/useArticle'
+import { usePermission } from '@/lib/hooks/usePermission'
 
 const STATUS_OPTIONS = [
+  { value: 'ALL', label: 'Tất cả trạng thái' },
   { value: 'DRAFT', label: 'Bản nháp' },
   { value: 'PUBLISHED', label: 'Đã xuất bản' },
   { value: 'ARCHIVED', label: 'Lưu trữ' },
 ]
 
 const TYPE_OPTIONS = [
+  { value: 'ALL', label: 'Tất cả loại' },
   { value: 'news', label: 'Tin tức' },
   { value: 'event', label: 'Sự kiện' },
-  { value: 'blog', label: 'Blog' },
+  { value: 'blog', label: 'Bài viết' },
   { value: 'promotion', label: 'Khuyến mãi' },
   { value: 'recruitment', label: 'Tuyển dụng' },
 ]
 
+const TYPE_LABEL: Record<string, string> = {
+  news: 'Tin tức',
+  event: 'Sự kiện',
+  blog: 'Bài viết',
+  promotion: 'Khuyến mãi',
+  recruitment: 'Tuyển dụng',
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  DRAFT: 'Bản nháp',
+  PUBLISHED: 'Đã xuất bản',
+  ARCHIVED: 'Lưu trữ',
+}
+
+const NEWS_GUIDE: PageGuideConfig = {
+  title: 'Tin tức & Sự kiện',
+  subtitle: 'Danh sách tin tức, bài viết trên hệ thống — xem, sửa hoặc tạo mới.',
+  sections: [
+    {
+      heading: 'Thao tác nhanh',
+      type: 'steps',
+      steps: [
+        { title: 'Thêm mới', description: 'Tạo bài viết mới tại form soạn thảo.' },
+        { title: 'Xem công khai', description: 'Mở tab mới để xem bài đã xuất bản.' },
+      ],
+    },
+  ],
+}
+
 export function NewsPage() {
   const navigate = useNavigate()
-  const { data: rawData, isLoading } = useArticles()
-  const dataList = rawData || []
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [typeFilter, setTypeFilter] = useState('ALL')
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
 
-  const columns = [
-    { title: 'Tiêu đề', dataIndex: 'title', filterType: 'text' as const },
-    { title: 'Loại', dataIndex: 'type', filterType: 'select' as const, filterOptions: TYPE_OPTIONS },
+  const canCreate = usePermission('QTBV.ARTICLES.CREATE')
+  const canUpdate = usePermission('QTBV.ARTICLES.UPDATE')
+  const canDelete = usePermission('QTBV.ARTICLES.DELETE')
+
+  const { data: rawData, isLoading, isError, isFetching, refetch } = useArticles()
+  const deleteReq = useDeleteArticle()
+
+  const dataList = useMemo(
+    () => (Array.isArray(rawData) ? rawData : []) as any[],
+    [rawData],
+  )
+
+  const filtered = useMemo(() => {
+    let rows = dataList
+    if (statusFilter !== 'ALL') {
+      rows = rows.filter((a) => (a.status || 'DRAFT') === statusFilter)
+    }
+    if (typeFilter !== 'ALL') {
+      rows = rows.filter((a) => (a.type || '').toLowerCase() === typeFilter)
+    }
+    const q = search.trim().toLowerCase()
+    if (q) {
+      rows = rows.filter(
+        (a) =>
+          (a.title || '').toLowerCase().includes(q) ||
+          (a.summary || '').toLowerCase().includes(q),
+      )
+    }
+    return rows
+  }, [dataList, search, statusFilter, typeFilter])
+
+  const hasFilter = !!search.trim() || statusFilter !== 'ALL' || typeFilter !== 'ALL'
+  const isFilteredEmpty = !isLoading && !isError && dataList.length > 0 && filtered.length === 0
+  const isFullyEmpty = !isLoading && !isError && dataList.length === 0
+
+  const clearFilters = () => {
+    setSearch('')
+    setStatusFilter('ALL')
+    setTypeFilter('ALL')
+  }
+
+  const columns: AppTableColumn<any>[] = [
+    { key: 'title', title: 'Tiêu đề', dataIndex: 'title' },
     {
-      title: 'Trạng thái', dataIndex: 'status',
-      filterType: 'select' as const, filterOptions: STATUS_OPTIONS,
-      render: (val: string) => {
+      key: 'type',
+      title: 'Loại',
+      dataIndex: 'type',
+      render: (_, row) => (
+        <span className="text-xs text-neutral-600">
+          {TYPE_LABEL[(row.type || '').toLowerCase()] || row.type || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      render: (_, row) => {
+        const val = row.status || 'DRAFT'
         const colorMap: Record<string, string> = {
           DRAFT: 'bg-neutral-100 text-neutral-600',
           PUBLISHED: 'bg-green-50 text-green-700',
           ARCHIVED: 'bg-yellow-50 text-yellow-700',
         }
-        const labelMap: Record<string, string> = {
-          DRAFT: 'Bản nháp',
-          PUBLISHED: 'Đã xuất bản',
-          ARCHIVED: 'Lưu trữ',
-        }
         return (
           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colorMap[val] || 'bg-neutral-100 text-neutral-500'}`}>
-            {labelMap[val] || val}
+            {STATUS_LABEL[val] || val}
           </span>
         )
       },
     },
     {
-      title: 'Ngày tạo', dataIndex: 'createdDate',
-      render: (val: string) => val ? new Date(val).toLocaleDateString('vi-VN') : '---',
+      key: 'createdDate',
+      title: 'Ngày tạo',
+      dataIndex: 'createdDate',
+      render: (_, row) => (row.createdDate ? new Date(row.createdDate).toLocaleDateString('vi-VN') : '—'),
     },
     {
-      title: 'Ngày xuất bản', dataIndex: 'publishedDate',
-      render: (val: string) => val ? new Date(val).toLocaleDateString('vi-VN') : '---',
+      key: 'publishedDate',
+      title: 'Ngày xuất bản',
+      dataIndex: 'publishedDate',
+      render: (_, row) => (row.publishedDate ? new Date(row.publishedDate).toLocaleDateString('vi-VN') : '—'),
     },
     {
-      title: 'Thao tác', dataIndex: 'id',
-      render: (_: any, row: any) => (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Xem bài viết"
-            aria-label="Xem bài viết"
-            onClick={() => window.open(`/bai-viet/${row.id}`, '_blank')}
-          >
-            <Eye className="w-4 h-4 text-blue-600" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Chỉnh sửa bài viết"
-            aria-label="Chỉnh sửa bài viết"
-            onClick={() => navigate(`/admin/article-management/${row.id}/edit`)}
-          >
-            <Pencil className="w-4 h-4 text-neutral-500" />
-          </Button>
+      key: 'actions',
+      title: 'Thao tác',
+      dataIndex: 'id',
+      width: 120,
+      align: 'right',
+      render: (_, row) => (
+        <div className="flex items-center justify-end gap-1">
+          <IconActionButton tooltip="Xem bài viết" tone="blue" onClick={() => window.open(`/bai-viet/${row.id}`, '_blank')}>
+            <Eye className="w-4 h-4" />
+          </IconActionButton>
+          {canUpdate && (
+            <IconActionButton tooltip="Chỉnh sửa bài viết" onClick={() => navigate(`/admin/article-management/${row.id}/edit`)}>
+              <Pencil className="w-4 h-4" />
+            </IconActionButton>
+          )}
+          {canDelete && (
+            <IconActionButton tooltip="Xóa bài viết" tone="red" onClick={() => setDeleteTarget(row)}>
+              <Trash2 className="w-4 h-4" />
+            </IconActionButton>
+          )}
         </div>
       ),
     },
   ]
 
   return (
-    <div className="space-y-6 animate-fade-in p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">Tin tức & Sự kiện</h1>
-          <p className="text-sm text-neutral-500 mt-1">Danh sách tin tức, bài viết trên hệ thống</p>
-        </div>
-        <Button onClick={() => navigate('/qtht/tin-tuc/tao-moi')} className="bg-primary-600 hover:bg-primary-700 text-white">
-          <Plus className="w-4 h-4 mr-2" /> Thêm mới
-        </Button>
-      </div>
+    <div className="p-6 space-y-4 animate-fade-in">
+      <PageHeader
+        title="Tin tức & Sự kiện"
+        description="Danh sách tin tức, bài viết trên hệ thống"
+        actions={(
+          <div className="flex flex-wrap gap-2 items-center">
+            <PageGuideButton guide={NEWS_GUIDE} />
+            {canCreate && (
+              <Button onClick={() => navigate('/qtht/tin-tuc/tao-moi')} className="gap-2 bg-primary-600 hover:bg-primary-700 text-white">
+                <Plus className="w-4 h-4" /> Thêm mới
+              </Button>
+            )}
+          </div>
+        )}
+      />
 
-      <AppTable
-        data={dataList}
-        columns={columns as any}
-        isLoading={isLoading}
-        showSearch={true}
-        searchPlaceholder="Tìm theo tiêu đề, nội dung..."
+      <FilterBar
+        hasActiveFilters={hasFilter}
+        onClear={clearFilters}
+        countLabel={`${filtered.length} bài${hasFilter ? ' (đã lọc)' : ''}`}
+      >
+        <div className="min-w-[150px]">
+          <Select
+            options={STATUS_OPTIONS}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            placeholder="Trạng thái"
+            aria-label="Lọc trạng thái"
+            showSearch={false}
+          />
+        </div>
+        <div className="min-w-[140px]">
+          <Select
+            options={TYPE_OPTIONS}
+            value={typeFilter}
+            onChange={setTypeFilter}
+            placeholder="Loại"
+            aria-label="Lọc loại"
+            showSearch={false}
+          />
+        </div>
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            placeholder="Tìm theo tiêu đề, nội dung…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Tìm bài viết"
+          />
+        </div>
+      </FilterBar>
+
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được tin tức"
+            message="Kiểm tra kết nối hoặc quyền truy cập rồi thử lại."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={Newspaper}
+            title={isFilteredEmpty ? 'Không có bài khớp bộ lọc' : 'Chưa có tin tức nào'}
+            description={
+              isFilteredEmpty
+                ? 'Thử xoá lọc hoặc đổi trạng thái / loại.'
+                : 'Tạo bài viết đầu tiên để bắt đầu.'
+            }
+            action={
+              isFilteredEmpty
+                ? { label: 'Xoá lọc', onClick: clearFilters }
+                : canCreate
+                  ? { label: 'Thêm mới', onClick: () => navigate('/qtht/tin-tuc/tao-moi') }
+                  : undefined
+            }
+          />
+        </div>
+      ) : (
+        <AppTable
+          data={filtered}
+          columns={columns}
+          isLoading={isLoading}
+          density="compact"
+          showSearch={false}
+          pageSize={20}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onRefresh={() => void refetch()}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => {
+          if (!deleteReq.isPending) setDeleteTarget(null)
+        }}
+        onConfirm={() => {
+          if (!deleteTarget) return
+          deleteReq.mutate(deleteTarget.id, { onSettled: () => setDeleteTarget(null) })
+        }}
+        title="Xóa bài viết này?"
+        message={`Bài "${deleteTarget?.title || ''}" sẽ bị xóa. Không thể hoàn tác.`}
+        confirmText="Xóa"
+        cancelText="Huỷ"
+        variant="danger"
+        isLoading={deleteReq.isPending}
       />
     </div>
   )

@@ -26,7 +26,7 @@ export function useCreateGin() {
   return useMutation({
     mutationFn: (body: GinCreateRequest) => ginApi.create(body),
     onSuccess: (gin) => {
-      toast.success(`Đã tạo PXK ${gin?.ginCode || gin?.id || ''}`)
+      toast.success(`Đã tạo phiếu xuất ${gin?.ginCode || gin?.id || ''}`)
       qc.invalidateQueries({ queryKey: ['warehouse', 'gin'] })
     },
     onError: () => toast.error('Tạo phiếu xuất kho thất bại'),
@@ -98,6 +98,6 @@ export function usePrintGin() {
       w.focus()
       setTimeout(() => w.print(), 300)
     },
-    onError: () => toast.error('Không tải được bản in PXK'),
+    onError: () => toast.error('Không tải được bản in phiếu xuất'),
   })
 }

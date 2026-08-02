@@ -2,32 +2,34 @@
 // LeaveRequestModal — Tạo đơn xin nghỉ với UX chuẩn HRIS
 // ------------------------------------------------------------
 // Features:
-//   • Chọn nhân viên (combobox), auto-fetch contractId active
+//   • Nhân viên = person gắn profile đăng nhập (read-only, không chọn tay)
+//   • Auto-fetch contractId active theo person đó
 //   • Chọn loại nghỉ (Annual / Sick / Unpaid / Marriage / ...)
 //   • Date range picker, auto-count business days (skip Sat/Sun)
 //   • Reason textarea + optional attachment URL
-//   • Live preview: "Đơn sẽ gửi tới [QL trực tiếp] → [HR]"
+//   • Preview quy trình: bước từ luồng LEAVE active (/approval/flows), fallback trung tính
 // ============================================================
 
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { CalendarDays, Info, AlertCircle, User as UserIcon, ArrowRight, Loader2 } from 'lucide-react'
 import { AppModal, Button, Select } from '@frezo/ui'
 import { toast } from 'sonner'
 import axiosClient from '@/lib/axios/axiosClient'
-import { usePersonsCombobox } from '../hooks/usePerson'
+import { profileApi } from '@/modules/profile/services/profileApi'
+import { useApprovalFlows } from '@/modules/approval/hooks/useApprovalFlows'
+import { APPROVER_ROLE_OPTIONS, SubjectType } from '@/modules/approval/types'
 import { useCreateLeaveRequest } from '../hooks/useLeave'
 import { LEAVE_TYPES, type LeaveTypeCode } from '../constants/schema'
 
 interface Props {
   open: boolean
   onClose: () => void
-  /** personId mặc định — nếu current user có personId (self-service). */
-  defaultPersonId?: string
 }
 
-export function LeaveRequestModal({ open, onClose, defaultPersonId }: Props) {
+export function LeaveRequestModal({ open, onClose }: Props) {
   // Form state
-  const [personId, setPersonId] = useState(defaultPersonId || '')
   const [contractId, setContractId] = useState('')
   const [contractLoading, setContractLoading] = useState(false)
   const [leaveType, setLeaveType] = useState<LeaveTypeCode>('ANNUAL')
@@ -36,24 +38,48 @@ export function LeaveRequestModal({ open, onClose, defaultPersonId }: Props) {
   const [reason, setReason] = useState('')
   const [attachmentUrl, setAttachmentUrl] = useState('')
 
-  const { options: personOptions, isLoading: personsLoading } = usePersonsCombobox()
+  // personId từ profile đăng nhập (giống AttendancePage / TicketsPage) — không cho chọn tay
+  const { data: profile, isLoading: profileLoading } = useQuery({
+    queryKey: ['profile'],
+    queryFn: profileApi.getProfile,
+    staleTime: 5 * 60 * 1000,
+    enabled: open,
+  })
+  const personId = profile?.personId || ''
+  const personName = profile?.name?.trim() || ''
+
   const createReq = useCreateLeaveRequest()
 
-  // Reset khi modal mở/đóng
+  const { data: approvalFlows = [], isLoading: flowsLoading } = useApprovalFlows()
+  const activeLeaveFlow = useMemo(
+    () => approvalFlows.find((f) => f.subjectType === SubjectType.LEAVE && f.active),
+    [approvalFlows],
+  )
+  const approvalStepLabels = useMemo(() => {
+    if (!activeLeaveFlow?.steps?.length) return []
+    return [...activeLeaveFlow.steps]
+      .sort((a, b) => a.stepOrder - b.stepOrder)
+      .map((s) => {
+        const roleLabel = APPROVER_ROLE_OPTIONS.find((o) => o.value === s.approverRole)?.label
+        return s.label?.trim() || roleLabel || s.approverRole
+      })
+  }, [activeLeaveFlow])
+
+  // Reset khi modal mở
   useEffect(() => {
     if (!open) return
-    setPersonId(defaultPersonId || '')
     setContractId('')
     setLeaveType('ANNUAL')
     setStartDate('')
     setEndDate('')
     setReason('')
     setAttachmentUrl('')
-  }, [open, defaultPersonId])
+  }, [open])
 
-  // Auto-fetch active contract khi đổi person
+  // Auto-fetch HĐ activated+ACTIVE theo person — cùng rule BE LeaveApprovalBridge
+  // Lưu ý: ContractComboboxResponse.value = lương (Integer), KHÔNG phải id combobox.
   useEffect(() => {
-    if (!personId) {
+    if (!open || !personId) {
       setContractId('')
       return
     }
@@ -64,9 +90,18 @@ export function LeaveRequestModal({ open, onClose, defaultPersonId }: Props) {
       .then((res) => {
         if (cancelled) return
         const list: any[] = res.data?.data ?? res.data ?? []
-        // Lấy hợp đồng ACTIVE mới nhất
-        const first = Array.isArray(list) && list.length > 0 ? list[0] : null
-        setContractId(first?.value || first?.id || '')
+        const eligible = (Array.isArray(list) ? list : []).filter((c) => {
+          if (!c?.id) return false
+          const pid = c.personId ?? c.person_id
+          if (pid && pid !== personId) return false
+          const status = String(c.status ?? c.Status ?? '').toUpperCase()
+          // status có trong response → phải ACTIVE; thiếu status → tin BE combobox (đã lọc activated + status)
+          if (status && status !== 'ACTIVE') return false
+          if (c.activated === false || c.activated === 'false') return false
+          return true
+        })
+        const first = eligible[0] ?? null
+        setContractId(first?.id ? String(first.id) : '')
       })
       .catch(() => {
         if (!cancelled) setContractId('')
@@ -75,7 +110,7 @@ export function LeaveRequestModal({ open, onClose, defaultPersonId }: Props) {
         if (!cancelled) setContractLoading(false)
       })
     return () => { cancelled = true }
-  }, [personId])
+  }, [open, personId])
 
   // ---- Computed ----
   const durationDays = useMemo(() => computeBusinessDays(startDate, endDate), [startDate, endDate])
@@ -87,8 +122,12 @@ export function LeaveRequestModal({ open, onClose, defaultPersonId }: Props) {
   // ---- Validation ----
   const errors = useMemo(() => {
     const e: Record<string, string> = {}
-    if (!personId) e.personId = 'Chưa chọn nhân viên'
-    if (!contractId && !contractLoading) e.contractId = 'Nhân viên chưa có hợp đồng đang hoạt động'
+    if (!profileLoading && !personId) {
+      e.personId = 'Tài khoản chưa liên kết hồ sơ nhân sự'
+    }
+    if (personId && !contractId && !contractLoading) {
+      e.contractId = 'Nhân viên chưa có hợp đồng đang hiệu lực (activated + ACTIVE)'
+    }
     if (!startDate) e.startDate = 'Nhập ngày bắt đầu'
     if (!endDate) e.endDate = 'Nhập ngày kết thúc'
     if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
@@ -96,9 +135,9 @@ export function LeaveRequestModal({ open, onClose, defaultPersonId }: Props) {
     }
     if (reason.trim().length < 5) e.reason = 'Lý do tối thiểu 5 ký tự'
     return e
-  }, [personId, contractId, contractLoading, startDate, endDate, reason])
+  }, [profileLoading, personId, contractId, contractLoading, startDate, endDate, reason])
 
-  const canSubmit = Object.keys(errors).length === 0 && !createReq.isPending
+  const canSubmit = Object.keys(errors).length === 0 && !createReq.isPending && !profileLoading
 
   const handleSubmit = () => {
     if (!canSubmit) {
@@ -126,21 +165,29 @@ export function LeaveRequestModal({ open, onClose, defaultPersonId }: Props) {
         {/* Row 1: Nhân viên + Loại nghỉ */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <FormField label="Nhân viên *" error={errors.personId}>
-            <Select
-              options={personOptions}
-              value={personId}
-              onChange={setPersonId}
-              placeholder={personsLoading ? 'Đang tải nhân viên…' : '— Chọn nhân viên —'}
-              showSearch
-              showClear
-            />
+            <div className="w-full h-10 px-3 rounded-lg border border-neutral-200 bg-neutral-50 text-sm flex items-center gap-2 text-neutral-800">
+              {profileLoading ? (
+                <span className="inline-flex items-center gap-1.5 text-neutral-500">
+                  <Loader2 size={14} className="animate-spin" /> Đang tải…
+                </span>
+              ) : (
+                <>
+                  <UserIcon size={14} className="text-neutral-400 shrink-0" />
+                  <span className="truncate font-medium">
+                    {personName || (personId ? `Mã NS: ${personId}` : '— Chưa liên kết nhân sự —')}
+                  </span>
+                </>
+              )}
+            </div>
             {contractLoading && (
               <div className="text-[11px] text-neutral-500 mt-1 inline-flex items-center gap-1">
                 <Loader2 size={11} className="animate-spin" /> Đang tìm hợp đồng...
               </div>
             )}
             {!contractLoading && contractId && (
-              <div className="text-[11px] text-emerald-600 mt-1">✓ Đã liên kết hợp đồng active</div>
+              <div className="text-[11px] text-emerald-600 mt-1">
+                ✓ Đã liên kết hợp đồng đang hiệu lực (activated + ACTIVE)
+              </div>
             )}
             {errors.contractId && (
               <div className="text-[11px] text-rose-600 mt-1 inline-flex items-center gap-1">
@@ -237,23 +284,48 @@ export function LeaveRequestModal({ open, onClose, defaultPersonId }: Props) {
           />
         </FormField>
 
-        {/* Workflow preview */}
+        {/* Workflow preview — từ luồng LEAVE active, không hardcode QL/HR */}
         <div className="rounded-lg bg-neutral-50 border border-neutral-200 p-3">
           <div className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-2 inline-flex items-center gap-1">
             <Info size={11} /> Quy trình duyệt
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            <StepPill label="Bạn gửi đơn" icon={UserIcon} tone="neutral" />
-            <ArrowRight size={12} className="text-neutral-400" />
-            <StepPill label="QL trực tiếp duyệt" icon={UserIcon} tone="amber" />
-            <ArrowRight size={12} className="text-neutral-400" />
-            <StepPill label="HR chốt" icon={UserIcon} tone="blue" />
-            <ArrowRight size={12} className="text-neutral-400" />
-            <StepPill label="Có hiệu lực" icon={CalendarDays} tone="emerald" />
-          </div>
-          <div className="text-[11px] text-neutral-500 mt-2">
-            QL trực tiếp được xác định từ phòng ban của nhân viên. Nếu chưa gán, đơn tự chuyển thẳng cho HR.
-          </div>
+          {flowsLoading ? (
+            <div className="text-[11px] text-neutral-500 inline-flex items-center gap-1.5">
+              <Loader2 size={11} className="animate-spin" /> Đang tải quy trình...
+            </div>
+          ) : approvalStepLabels.length > 0 ? (
+            <>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <StepPill label="Bạn gửi đơn" icon={UserIcon} tone="neutral" />
+                {approvalStepLabels.map((label, i) => (
+                  <Fragment key={`${label}-${i}`}>
+                    <ArrowRight size={12} className="text-neutral-400" />
+                    <StepPill
+                      label={label}
+                      icon={UserIcon}
+                      tone={i % 2 === 0 ? 'amber' : 'blue'}
+                    />
+                  </Fragment>
+                ))}
+                <ArrowRight size={12} className="text-neutral-400" />
+                <StepPill label="Có hiệu lực" icon={CalendarDays} tone="emerald" />
+              </div>
+              <div className="text-[11px] text-neutral-500 mt-2 leading-relaxed">
+                Luồng <strong>{activeLeaveFlow!.name}</strong> đang áp dụng cho đơn nghỉ mới.{' '}
+                <Link to="/approval/flows" className="text-primary-700 hover:underline font-medium">
+                  Cấu hình tại Phê duyệt → Luồng duyệt
+                </Link>
+              </div>
+            </>
+          ) : (
+            <div className="text-[11px] text-neutral-600 leading-relaxed">
+              Đơn sẽ đi theo <strong>quy trình duyệt Nghỉ phép đang kích hoạt</strong> trên hệ thống.
+              Người duyệt và số bước do Admin cấu hình — không cố định trên màn hình này.{' '}
+              <Link to="/approval/flows" className="text-primary-700 hover:underline font-medium">
+                Xem / cấu hình luồng duyệt
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Actions */}

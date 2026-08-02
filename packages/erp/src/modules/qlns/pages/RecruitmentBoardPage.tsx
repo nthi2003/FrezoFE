@@ -8,7 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Briefcase, ChevronLeft, Loader2, Mail, Phone, Star, User, UserCheck,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, ConfirmDialog } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, ConfirmDialog, IconActionButton } from '@frezo/ui'
 import {
   useApplications, useMoveApplication, useHireApplication, useRequisitions,
 } from '../hooks/useRecruitment'
@@ -98,13 +98,9 @@ export function RecruitmentBoardPage() {
       <PageHeader
         title={
           <span className="flex items-center gap-2">
-            <button
-              onClick={() => nav('/qlns/recruitment/requisitions')}
-              className="p-1.5 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition"
-              title="Về danh sách tin tuyển dụng"
-            >
+            <IconActionButton tooltip="Về danh sách tin tuyển dụng" onClick={() => nav('/qlns/recruitment/requisitions')}>
               <ChevronLeft size={18} />
-            </button>
+            </IconActionButton>
             Kanban ứng viên
             {currentReq && (
               <span className="text-sm font-medium text-neutral-500 ml-2">

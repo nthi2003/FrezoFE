@@ -6,7 +6,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Eye, EyeOff, ImagePlus, Link2, Loader2, Save } from 'lucide-react'
-import { Button, EmptyState, Input, Label, PageHeader, Textarea, AppModal } from '@frezo/ui'
+import {
+  Button,
+  EmptyState,
+  Input,
+  Label,
+  PageHeader,
+  Textarea,
+  AppModal,
+  Skeleton,
+} from '@frezo/ui'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/authStore'
 import { usePermission } from '@/lib/hooks/usePermission'
@@ -77,6 +86,7 @@ export function GuideEditorPage() {
   )
 
   const saving = createReq.isPending || updateReq.isPending
+  const canSave = !!payload.slug && !!payload.title && !!payload.body.trim()
 
   const insertAtCursor = (snippet: string) => {
     const el = bodyRef.current
@@ -123,7 +133,7 @@ export function GuideEditorPage() {
   }
 
   const handleSave = () => {
-    if (!payload.slug || !payload.title || !payload.body.trim()) return
+    if (!canSave) return
     if (isNew) {
       createReq.mutate(
         { ...payload, published: false },
@@ -142,7 +152,7 @@ export function GuideEditorPage() {
 
   if (!canManage) {
     return (
-      <div className="p-6 max-w-3xl mx-auto">
+      <div className="p-6 animate-fade-in">
         <EmptyState
           title="Không có quyền soạn hướng dẫn"
           description="Chỉ Admin / BA được chỉnh sửa nội dung hướng dẫn."
@@ -153,21 +163,30 @@ export function GuideEditorPage() {
   }
 
   if (!isNew && isLoading) {
-    return <div className="p-6 text-sm text-neutral-500">Đang tải…</div>
+    return (
+      <div className="p-6 space-y-4 animate-fade-in">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-96 max-w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    )
   }
 
   return (
-    <div className="p-6 animate-fade-in max-w-5xl mx-auto w-full space-y-5">
+    <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
         title={isNew ? 'Thêm hướng dẫn' : 'Sửa hướng dẫn'}
         description="Soạn Markdown · chèn ảnh · xem trước · xuất bản khi sẵn sàng."
         actions={
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="gap-1" onClick={() => nav('/admin/guides')}>
+          <div className="flex flex-wrap gap-2 items-center">
+            <Button variant="outline" className="gap-1.5" onClick={() => nav('/admin/guides')}>
               <ArrowLeft size={14} /> Danh sách
-            </Button>
-            <Button className="gap-1.5" disabled={saving} onClick={handleSave}>
-              <Save size={14} /> {saving ? 'Đang lưu…' : 'Lưu'}
             </Button>
             {!isNew && existing && (
               existing.published ? (
@@ -183,7 +202,7 @@ export function GuideEditorPage() {
                 <Button
                   variant="outline"
                   className="gap-1.5"
-                  disabled={publishReq.isPending || saving}
+                  disabled={publishReq.isPending || saving || !canSave}
                   onClick={() => {
                     updateReq.mutate(
                       { id: id!, data: payload },
@@ -195,13 +214,16 @@ export function GuideEditorPage() {
                 </Button>
               )
             )}
+            <Button className="gap-1.5" disabled={saving || !canSave} onClick={handleSave}>
+              <Save size={14} /> {saving ? 'Đang lưu…' : 'Lưu'}
+            </Button>
           </div>
         }
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="guide-slug">Slug</Label>
+          <Label htmlFor="guide-slug">Slug *</Label>
           <Input
             id="guide-slug"
             value={slug}
@@ -211,7 +233,7 @@ export function GuideEditorPage() {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="guide-title">Tiêu đề</Label>
+          <Label htmlFor="guide-title">Tiêu đề *</Label>
           <Input
             id="guide-title"
             value={title}
@@ -248,14 +270,14 @@ export function GuideEditorPage() {
         </div>
       </div>
 
-      <div className="flex gap-1 border-b border-neutral-200">
+      <div className="inline-flex items-center rounded-md border border-neutral-200 bg-white p-0.5">
         <button
           type="button"
           onClick={() => setTab('edit')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
+          className={`px-3 h-8 text-sm font-medium rounded transition ${
             tab === 'edit'
-              ? 'border-primary-600 text-primary-700'
-              : 'border-transparent text-neutral-500 hover:text-neutral-800'
+              ? 'bg-primary-50 text-primary-700'
+              : 'text-neutral-500 hover:text-neutral-700'
           }`}
         >
           Soạn
@@ -263,10 +285,10 @@ export function GuideEditorPage() {
         <button
           type="button"
           onClick={() => setTab('preview')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
+          className={`px-3 h-8 text-sm font-medium rounded transition ${
             tab === 'preview'
-              ? 'border-primary-600 text-primary-700'
-              : 'border-transparent text-neutral-500 hover:text-neutral-800'
+              ? 'bg-primary-50 text-primary-700'
+              : 'text-neutral-500 hover:text-neutral-700'
           }`}
         >
           Xem trước
@@ -301,7 +323,7 @@ export function GuideEditorPage() {
             >
               <Link2 size={14} /> Chèn URL ảnh
             </Button>
-            <span className="text-[11px] text-neutral-400">
+            <span className="text-xs text-neutral-400">
               PNG/JPG/WebP ≤ 5MB · hiện ở tab Xem trước
             </span>
           </div>
@@ -315,7 +337,7 @@ export function GuideEditorPage() {
           />
         </div>
       ) : (
-        <article className="bg-white border border-neutral-200 rounded-2xl p-6 sm:p-8 shadow-sm min-h-[320px]">
+        <article className="bg-white border border-neutral-200 rounded-xl p-6 min-h-[320px]">
           {body.trim() ? (
             <MarkdownView source={body} skipFirstH1 />
           ) : (

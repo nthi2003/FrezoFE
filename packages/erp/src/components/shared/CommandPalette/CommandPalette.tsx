@@ -17,6 +17,7 @@ import {
   useEntityCommandItems, ENTITY_SECTION_TITLE,
   type EntitySection,
 } from './useEntityCommandItems'
+import { recordRecentNav } from '@/lib/utils/recentNavigation'
 
 // ============================================================
 // Types
@@ -61,7 +62,7 @@ export function CommandPalette({ isOpen, onClose }: Props) {
   // ---- Build command items ----
   const allCommands = useMemo<CommandItem[]>(() => {
     const nav = flattenMenuAsCommands(menuTree, (path) => {
-      recordRecent(path)
+      recordRecentNav(path)
       setRecentIds(loadRecent())
       navigate(path)
       onClose()
@@ -76,7 +77,7 @@ export function CommandPalette({ isOpen, onClose }: Props) {
         icon: Zap,
         keywords: ['ticket', 'task', 'new', 'create', 'tao'],
         action: () => {
-          navigate('/task/tickets')
+          navigate('/task?tab=board')
           onClose()
         },
       },
@@ -575,16 +576,5 @@ function loadRecent(): string[] {
     return Array.isArray(arr) ? arr.slice(0, MAX_RECENT) : []
   } catch {
     return []
-  }
-}
-
-function recordRecent(path: string) {
-  try {
-    const id = `nav:${path}`
-    const current = loadRecent().filter((x) => x !== id)
-    const next = [id, ...current].slice(0, MAX_RECENT)
-    localStorage.setItem(RECENT_KEY, JSON.stringify(next))
-  } catch {
-    // ignore
   }
 }

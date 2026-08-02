@@ -30,13 +30,13 @@ const SHORTCUTS = [
     tone: 'text-rose-700 bg-rose-50 border-rose-200',
   },
   {
-    label: 'Yêu cầu mua',
+    label: 'Yêu cầu mua hàng',
     href: '/warehouse/purchase-requests',
     icon: ClipboardList,
     tone: 'text-amber-800 bg-amber-50 border-amber-200',
   },
   {
-    label: 'Đơn mua',
+    label: 'Đơn mua hàng',
     href: '/warehouse/purchase-orders',
     icon: ShoppingCart,
     tone: 'text-primary-800 bg-primary-50 border-primary-200',
@@ -121,28 +121,28 @@ export function WarehouseDashboardPage() {
     }
     if (kpis.prPending > 0) {
       items.push({
-        label: `${kpis.prPending} PR chờ duyệt`,
+        label: `${kpis.prPending} yêu cầu mua chờ duyệt`,
         href: '/approval/inbox',
         tone: 'text-amber-800',
       })
     }
     if (kpis.grnPending > 0) {
       items.push({
-        label: `${kpis.grnPending} PNK chờ duyệt`,
+        label: `${kpis.grnPending} phiếu nhập chờ duyệt`,
         href: '/warehouse/grn?status=PENDING_APPROVAL',
         tone: 'text-amber-800',
       })
     }
     if (kpis.grnDraft > 0) {
       items.push({
-        label: `${kpis.grnDraft} PNK nháp — cần HĐ NCC & xác nhận`,
+        label: `${kpis.grnDraft} phiếu nhập nháp — cần HĐ NCC & xác nhận`,
         href: '/warehouse/grn?status=DRAFT',
         tone: 'text-emerald-800',
       })
     }
     if (kpis.ginPending > 0) {
       items.push({
-        label: `${kpis.ginPending} PXK chờ duyệt`,
+        label: `${kpis.ginPending} phiếu xuất chờ duyệt`,
         href: '/warehouse/gin?status=PENDING_APPROVAL',
         tone: 'text-violet-800',
       })
@@ -173,8 +173,8 @@ export function WarehouseDashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Cảnh báo mở" value={kpis.openAlerts} />
         <StatCard label="Hết hàng" value={kpis.critical} />
-        <StatCard label="PNK nháp / chờ duyệt" value={`${kpis.grnDraft} / ${kpis.grnPending}`} />
-        <StatCard label="PXK nháp / chờ duyệt" value={`${kpis.ginDraft} / ${kpis.ginPending}`} />
+        <StatCard label="Phiếu nhập nháp / chờ duyệt" value={`${kpis.grnDraft} / ${kpis.grnPending}`} />
+        <StatCard label="Phiếu xuất nháp / chờ duyệt" value={`${kpis.ginDraft} / ${kpis.ginPending}`} />
       </div>
 
       {actionItems.length > 0 && (
@@ -214,9 +214,13 @@ export function WarehouseDashboardPage() {
       </div>
 
       <div className="rounded-xl border bg-white px-4 py-3 text-xs text-neutral-500">
-        Chuẩn Frezo: <strong>Alert → PR → Duyệt → PO → GRN (+ HĐ NCC) → Confirm</strong>
+        Chuẩn Frezo:{' '}
+        <strong>
+          Cảnh báo → Yêu cầu mua → Duyệt → Đơn mua hàng → Phiếu nhập (+ HĐ NCC) →
+          Xác nhận
+        </strong>
         {' · '}
-        Xuất: <strong>GIN (bán / chuyển kho / nội bộ) → Duyệt → Confirm</strong>
+        Xuất: <strong>Phiếu xuất (bán / chuyển kho / nội bộ) → Duyệt → Xác nhận</strong>
         {' · '}
         Chi tiết benchmark:{' '}
         <code className="text-neutral-600">modules/warehouse/WAREHOUSE_BENCHMARK.md</code>

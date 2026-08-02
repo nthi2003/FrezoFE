@@ -1,28 +1,47 @@
 // ============================================================
-// ReorderRulesPage — quy tắc tái nhập kho (FZ-010 / FE-3)
+// ReorderRulesPage — quy tắc tái nhập kho (WarehouseListShell)
 // ============================================================
 
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
-  Plus, Upload, Download, Trash2, FileDown, Package, Loader2,
+  Plus, Upload, Download, Trash2, FileDown, Package,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import {
-  Button, PageHeader, AppModal, EmptyState, ConfirmDialog, PageGuideButton, ErrorState,
-} from '@frezo/ui'
+import { Button, AppModal, ConfirmDialog } from '@frezo/ui'
 import { downloadCsv } from '@/lib/export/toCsv'
+import type { AppTableColumn, BulkAction } from '@/components/ui/AppTable'
 import {
   useReorderRules, useCreateReorderRule, useUpdateReorderRule,
-  useDeleteReorderRule, useImportReorderRules, useWarehouses,
+  useDeleteReorderRule, useImportReorderRules,
 } from '../hooks/useReorderRules'
+import { useWarehouseFilters } from '../hooks/useWarehouseFilters'
 import { REORDER_RULES_GUIDE } from '../constants/reorder-rules.guide'
+import { warehouseSelectLabel } from '../utils/displayUtils'
+import { WarehouseListShell } from '../components/WarehouseListShell'
+import { WarehouseFilterBar } from '../components/WarehouseFilterBar'
+import { WarehouseSelect } from '../components/WarehouseSelect'
+import { ProductCombobox } from '../components/ProductCombobox'
+import { useProducts } from '@/modules/products/hooks/useProduct'
 import type { ReorderRuleDto, ReorderRuleRequest } from '../types'
 
 export function ReorderRulesPage() {
-  const [warehouseId, setWarehouseId] = useState('')
+  const nav = useNavigate()
+  const filters = useWarehouseFilters()
+  const { data: productsRaw } = useProducts()
+  const products = useMemo(() => {
+    const list = productsRaw as Array<{ id: string; code?: string; name?: string }> | undefined
+    return Array.isArray(list) ? list : []
+  }, [productsRaw])
   const [category, setCategory] = useState('')
-  const { data: warehouses = [] } = useWarehouses()
-  const { data: rows = [], isLoading, isError, error, refetch } = useReorderRules(warehouseId || undefined)
+  const {
+    data: rows = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useReorderRules(filters.warehouseId || undefined)
   const create = useCreateReorderRule()
   const update = useUpdateReorderRule()
   const remove = useDeleteReorderRule()
@@ -31,7 +50,6 @@ export function ReorderRulesPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [confirmBulk, setConfirmBulk] = useState<ReorderRuleDto[] | null>(null)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [form, setForm] = useState<ReorderRuleRequest>({
     warehouseId: '',
     productId: '',
@@ -40,8 +58,6 @@ export function ReorderRulesPage() {
     reorderQty: 50,
     active: true,
   })
-
-  const selectedRows = rows.filter((r) => selected.has(r.id))
 
   const categories = useMemo(() => {
     const set = new Set<string>()
@@ -54,18 +70,19 @@ export function ReorderRulesPage() {
     return rows.filter((r) => r.categoryName === category)
   }, [rows, category])
 
-  const toggle = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
+  const stats = useMemo(() => {
+    return [
+      { label: 'Tổng quy tắc', value: rows.length },
+      { label: 'Đang bật', value: rows.filter((r) => r.active).length },
+      { label: 'Tắt', value: rows.filter((r) => !r.active).length },
+    ]
+  }, [rows])
 
-  const toggleAll = () => {
-    if (selected.size === filteredRows.length) setSelected(new Set())
-    else setSelected(new Set(filteredRows.map((r) => r.id)))
+  const hasActiveFilters = Boolean(filters.warehouseId || category)
+
+  const clearFilters = () => {
+    filters.clearFilters()
+    setCategory('')
   }
 
   const exportCsv = (items: ReorderRuleDto[]) => {
@@ -75,8 +92,8 @@ export function ReorderRulesPage() {
       { header: 'Kho', accessor: 'warehouseName' },
       { header: 'Min', accessor: 'minQty' },
       { header: 'Max', accessor: 'maxQty' },
-      { header: 'Reorder', accessor: 'reorderQty' },
-      { header: 'Active', accessor: (r) => (r.active ? 'YES' : 'NO') },
+      { header: 'SL đặt lại', accessor: 'reorderQty' },
+      { header: 'Đang bật', accessor: (r) => (r.active ? 'YES' : 'NO') },
     ])
     toast.success(`Đã xuất ${items.length} quy tắc`)
   }
@@ -91,7 +108,7 @@ export function ReorderRulesPage() {
       onSuccess: () => {
         setModalOpen(false)
         setForm({
-          warehouseId: warehouseId || '',
+          warehouseId: filters.warehouseId || '',
           productId: '',
           minQty: 10,
           maxQty: 100,
@@ -120,196 +137,205 @@ export function ReorderRulesPage() {
     ])
   }
 
-  return (
-    <div className="p-6 space-y-4 animate-fade-in">
-      <PageHeader
-        title="Quy tắc tái nhập"
-        description="Đặt ngưỡng min/max tồn kho — hệ thống cảnh báo khi dưới min."
-        actions={
-          <div className="flex flex-wrap gap-2 items-center">
-            <PageGuideButton guide={REORDER_RULES_GUIDE} />
-            <select
-              className="h-9 border rounded-md px-3 text-sm bg-white"
-              value={warehouseId}
-              onChange={(e) => {
-                setWarehouseId(e.target.value)
-                setSelected(new Set())
-                setCategory('')
-              }}
-            >
-              <option value="">Tất cả kho</option>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
-            {categories.length > 0 && (
-              <select
-                className="h-9 border rounded-md px-3 text-sm bg-white"
-                value={category}
-                onChange={(e) => {
-                  setCategory(e.target.value)
-                  setSelected(new Set())
-                }}
-              >
-                <option value="">Tất cả danh mục</option>
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            )}
-            {selected.size > 0 && (
-              <>
-                <Button
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => exportCsv(selectedRows)}
-                >
-                  <FileDown size={14} /> Export ({selected.size})
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gap-1.5 text-rose-600 border-rose-200 hover:bg-rose-50"
-                  onClick={() => setConfirmBulk(selectedRows)}
-                >
-                  <Trash2 size={14} /> Xoá ({selected.size})
-                </Button>
-              </>
-            )}
-            <Button variant="outline" className="gap-1.5" onClick={downloadTemplate}>
-              <Download size={14} /> Tải template
-            </Button>
-            <Button variant="outline" className="gap-1.5" onClick={() => setImportOpen(true)}>
-              <Upload size={14} /> Import Excel
-            </Button>
-            <Button
-              className="gap-1.5"
-              onClick={() => {
-                setForm((f) => ({ ...f, warehouseId: warehouseId || warehouses[0]?.id || '' }))
-                setModalOpen(true)
-              }}
-            >
-              <Plus size={14} /> Thêm quy tắc
-            </Button>
-          </div>
-        }
-      />
-
-      {isLoading ? (
-        <div className="p-12 text-center">
-          <Loader2 className="w-6 h-6 animate-spin mx-auto text-neutral-400" />
+  const columns: AppTableColumn<ReorderRuleDto>[] = [
+    {
+      key: 'product',
+      title: 'Sản phẩm',
+      render: (_, row) => (
+        <div>
+          <div className="font-medium text-neutral-800">{row.productName || '—'}</div>
+          <div className="text-[11px] font-mono text-neutral-400">{row.productCode}</div>
         </div>
-      ) : isError ? (
-        <div className="border rounded-xl bg-white">
-          <ErrorState
-            title="Không tải được quy tắc"
-            message={(error as Error)?.message || 'Kiểm tra kết nối hoặc thử lại.'}
-            onRetry={() => refetch()}
-          />
-        </div>
-      ) : filteredRows.length === 0 ? (
-        <div className="border rounded-xl bg-white">
-          <EmptyState
-            icon={Package}
-            title={rows.length === 0 ? 'Chưa có quy tắc tái nhập' : 'Không có quy tắc phù hợp bộ lọc'}
-            description={
-              rows.length === 0
-                ? 'Thêm thủ công hoặc Import Excel từ template.'
-                : 'Thử chọn kho / danh mục khác hoặc bấm Thêm quy tắc.'
+      ),
+    },
+    {
+      key: 'warehouse',
+      title: 'Kho',
+      render: (_, row) => row.warehouseName || '—',
+    },
+    {
+      key: 'category',
+      title: 'Danh mục',
+      render: (_, row) => (
+        <span className="text-xs text-neutral-500">{row.categoryName || '—'}</span>
+      ),
+    },
+    {
+      key: 'min',
+      title: 'Min',
+      align: 'right',
+      render: (_, row) => (
+        <InlineQty
+          value={row.minQty}
+          onCommit={(n) => {
+            if (n > row.maxQty) {
+              toast.error('Min phải ≤ Max')
+              return
             }
-            action={{ label: 'Thêm quy tắc', onClick: () => setModalOpen(true) }}
-          />
-        </div>
-      ) : (
-        <div className="overflow-x-auto border rounded-xl bg-white">
-          <div className="px-4 py-2 text-xs text-neutral-500 border-b bg-neutral-50/80">
-            {filteredRows.length} quy tắc
-            {warehouseId || category ? ' (đã lọc)' : ''}
-          </div>
-          <table className="w-full text-sm">
-            <thead className="bg-neutral-50 text-neutral-600 text-left">
-              <tr>
-                <th className="p-3 w-10">
-                  <input
-                    type="checkbox"
-                    checked={selected.size === filteredRows.length && filteredRows.length > 0}
-                    onChange={toggleAll}
-                    aria-label="Chọn tất cả"
-                  />
-                </th>
-                <th className="p-3">Sản phẩm</th>
-                <th className="p-3">Kho</th>
-                <th className="p-3">Danh mục</th>
-                <th className="p-3 text-right">Min</th>
-                <th className="p-3 text-right">Max</th>
-                <th className="p-3 text-right">SL đặt lại</th>
-                <th className="p-3 text-center">TT</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filteredRows.map((row) => (
-                <tr key={row.id} className="hover:bg-neutral-50">
-                  <td className="p-3">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(row.id)}
-                      onChange={() => toggle(row.id)}
-                    />
-                  </td>
-                  <td className="p-3">
-                    <div className="font-medium text-neutral-800">{row.productName || '—'}</div>
-                    <div className="text-[11px] font-mono text-neutral-400">{row.productCode}</div>
-                  </td>
-                  <td className="p-3">{row.warehouseName || '—'}</td>
-                  <td className="p-3 text-xs text-neutral-500">{row.categoryName || '—'}</td>
-                  <td className="p-3 text-right">
-                    <InlineQty
-                      value={row.minQty}
-                      onCommit={(n) => {
-                        if (n > row.maxQty) {
-                          toast.error('Min phải ≤ Max')
-                          return
-                        }
-                        update.mutate({ id: row.id, body: { minQty: n } })
-                      }}
-                    />
-                  </td>
-                  <td className="p-3 text-right">
-                    <InlineQty
-                      value={row.maxQty}
-                      onCommit={(n) => {
-                        if (n < row.minQty) {
-                          toast.error('Max phải ≥ Min')
-                          return
-                        }
-                        update.mutate({ id: row.id, body: { maxQty: n } })
-                      }}
-                    />
-                  </td>
-                  <td className="p-3 text-right tabular-nums font-medium">
-                    {row.reorderQty ?? '—'}
-                  </td>
-                  <td className="p-3 text-center">
-                    <span
-                      className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${
-                        row.active
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : 'bg-neutral-100 text-neutral-500 border-neutral-200'
-                      }`}
-                    >
-                      {row.active ? 'ON' : 'OFF'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            update.mutate({ id: row.id, body: { minQty: n } })
+          }}
+        />
+      ),
+    },
+    {
+      key: 'max',
+      title: 'Max',
+      align: 'right',
+      render: (_, row) => (
+        <InlineQty
+          value={row.maxQty}
+          onCommit={(n) => {
+            if (n < row.minQty) {
+              toast.error('Max phải ≥ Min')
+              return
+            }
+            update.mutate({ id: row.id, body: { maxQty: n } })
+          }}
+        />
+      ),
+    },
+    {
+      key: 'reorderQty',
+      title: 'SL đặt lại',
+      align: 'right',
+      render: (_, row) => (
+        <span className="tabular-nums font-medium">{row.reorderQty ?? '—'}</span>
+      ),
+    },
+    {
+      key: 'active',
+      title: 'Trạng thái',
+      align: 'center',
+      render: (_, row) => (
+        <span
+          className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${
+            row.active
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              : 'bg-neutral-100 text-neutral-500 border-neutral-200'
+          }`}
+        >
+          {row.active ? 'Bật' : 'Tắt'}
+        </span>
+      ),
+    },
+  ]
 
+  const bulkActions: BulkAction<ReorderRuleDto>[] = [
+    {
+      key: 'export',
+      label: 'Xuất CSV',
+      icon: FileDown,
+      onClick: (selected) => exportCsv(selected),
+    },
+    {
+      key: 'delete',
+      label: 'Xoá',
+      icon: Trash2,
+      variant: 'destructive',
+      onClick: (selected) => setConfirmBulk(selected),
+    },
+  ]
+
+  return (
+    <WarehouseListShell
+      title="Quy tắc tái nhập"
+      description="Đặt ngưỡng min/max tồn kho — hệ thống cảnh báo khi dưới min."
+      guide={REORDER_RULES_GUIDE}
+      headerActions={
+        <>
+          <Button variant="outline" onClick={() => nav('/warehouse/stock-alerts')}>
+            Cảnh báo tồn
+          </Button>
+          <Button variant="outline" className="gap-1.5" onClick={downloadTemplate}>
+            <Download size={14} /> Tải mẫu
+          </Button>
+          <Button variant="outline" className="gap-1.5" onClick={() => setImportOpen(true)}>
+            <Upload size={14} /> Nhập Excel
+          </Button>
+          <Button
+            className="gap-1.5 shadow-sm"
+            onClick={() => {
+              setForm((f) => ({
+                ...f,
+                warehouseId: filters.warehouseId || filters.warehouses[0]?.id || '',
+              }))
+              setModalOpen(true)
+            }}
+          >
+            <Plus size={14} /> Thêm quy tắc
+          </Button>
+        </>
+      }
+      stats={stats}
+      filterBar={
+        <WarehouseFilterBar
+          selects={[
+            {
+              id: 'warehouse',
+              label: 'Lọc theo kho',
+              value: filters.warehouseId,
+              onChange: (v) => {
+                filters.setWarehouseId(v)
+                setCategory('')
+              },
+              options: [
+                { value: '', label: 'Tất cả kho' },
+                ...filters.warehouses.map((w) => ({
+                  value: w.id,
+                  label: warehouseSelectLabel(w),
+                })),
+              ],
+            },
+            ...(categories.length > 0
+              ? [
+                  {
+                    id: 'category',
+                    label: 'Danh mục',
+                    value: category,
+                    onChange: setCategory,
+                    options: [
+                      { value: '', label: 'Tất cả danh mục' },
+                      ...categories.map((c) => ({ value: c, label: c })),
+                    ],
+                  },
+                ]
+              : []),
+          ]}
+          hasActiveFilters={hasActiveFilters}
+          onClear={clearFilters}
+          countLabel={`${filteredRows.length} quy tắc${hasActiveFilters ? ' (đã lọc)' : ''}`}
+        />
+      }
+      isLoading={isLoading}
+      isError={isError}
+      error={error}
+      isFetching={isFetching}
+      onRetry={refetch}
+      errorTitle="Không tải được quy tắc tái nhập"
+      totalCount={rows.length}
+      filteredCount={filteredRows.length}
+      emptyIcon={Package}
+      emptyTitle="Chưa có quy tắc tái nhập"
+      emptyDescription="Thêm thủ công hoặc nhập Excel từ mẫu đã tải."
+      emptyAction={{
+        label: 'Thêm quy tắc',
+        onClick: () => {
+          setForm((f) => ({
+            ...f,
+            warehouseId: filters.warehouseId || filters.warehouses[0]?.id || '',
+          }))
+          setModalOpen(true)
+        },
+      }}
+      filteredEmptyTitle="Không có quy tắc phù hợp bộ lọc"
+      filteredEmptyDescription="Thử chọn kho / danh mục khác hoặc bấm Thêm quy tắc."
+      columns={columns}
+      data={filteredRows}
+      onRefresh={refetch}
+      selectable
+      getRowId={(r) => r.id}
+      bulkActions={bulkActions}
+    >
       <AppModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -318,25 +344,21 @@ export function ReorderRulesPage() {
       >
         <div className="space-y-3">
           <Field label="Kho *">
-            <select
-              className="w-full border rounded-md px-3 py-2 text-sm"
+            <WarehouseSelect
+              warehouses={filters.warehouses}
               value={form.warehouseId}
-              onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
-            >
-              <option value="">— Chọn kho —</option>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setForm({ ...form, warehouseId: v })}
+              placeholder="— Chọn kho —"
+              aria-label="Kho"
+            />
           </Field>
-          <Field label="Mã / ID sản phẩm *">
-            <input
-              className="w-full border rounded-md px-3 py-2 text-sm font-mono"
+          <Field label="Sản phẩm *">
+            <ProductCombobox
+              products={products}
               value={form.productId}
-              onChange={(e) => setForm({ ...form, productId: e.target.value })}
-              placeholder="p-01 hoặc SP-001"
+              onChange={(v) => setForm({ ...form, productId: v })}
+              placeholder="Tìm mã / tên SP…"
+              aria-label="Sản phẩm"
             />
           </Field>
           <div className="grid grid-cols-3 gap-3">
@@ -384,8 +406,8 @@ export function ReorderRulesPage() {
       <AppModal
         isOpen={importOpen}
         onClose={() => setImportOpen(false)}
-        title="Import Excel quy tắc"
-        description="Upload file .xlsx / .csv theo template đã tải."
+        title="Nhập Excel quy tắc"
+        description="Tải lên file .xlsx / .csv theo mẫu đã tải."
       >
         <ImportPanel
           onUpload={(file) => {
@@ -402,7 +424,6 @@ export function ReorderRulesPage() {
           if (!confirmBulk) return
           await Promise.allSettled(confirmBulk.map((r) => remove.mutateAsync(r.id)))
           toast.success(`Đã xoá ${confirmBulk.length} quy tắc`)
-          setSelected(new Set())
           setConfirmBulk(null)
         }}
         title={`Xoá ${confirmBulk?.length ?? 0} quy tắc?`}
@@ -411,7 +432,7 @@ export function ReorderRulesPage() {
         confirmText="Xoá"
         cancelText="Huỷ"
       />
-    </div>
+    </WarehouseListShell>
   )
 }
 
@@ -473,7 +494,7 @@ function ImportPanel({
           }}
         />
       </label>
-      {busy && <p className="text-xs text-center text-neutral-500">Đang import…</p>}
+      {busy && <p className="text-xs text-center text-neutral-500">Đang nhập…</p>}
     </div>
   )
 }

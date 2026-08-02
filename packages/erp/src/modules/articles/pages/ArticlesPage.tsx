@@ -10,16 +10,17 @@ import {
   Calendar,
   User as UserIcon,
   Image as ImageIcon,
-  Sparkles,
   CheckCircle2,
   Archive,
   Search,
 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import {
   Button,
   ConfirmDialog,
   EmptyState,
+  ErrorState,
   Input,
   PageHeader,
   PageGuideButton,
@@ -94,7 +95,7 @@ const ARTICLES_GUIDE: PageGuideConfig = {
       type: 'tips',
       tips: [
         'Lọc theo trạng thái để tách nháp / chờ duyệt / đã xuất bản.',
-        'Không thấy nút Duyệt hoặc Xuất bản → bạn không phải người duyệt của bài đó.',
+        'Không thấy nút Duyệt bài viết hoặc Xuất bản → thiếu quyền QTBV.ARTICLES.REVIEW/PUBLISH, hoặc bạn không phải người duyệt được gán trên bài.',
         'Soát chính tả và ảnh trước khi Xuất bản.',
       ],
     },
@@ -243,7 +244,7 @@ export function ArticlesPage() {
   const canUpdate = usePermission('QTBV.ARTICLES.UPDATE')
   const canDelete = usePermission('QTBV.ARTICLES.DELETE')
 
-  const { data: rawData, isLoading } = useArticles()
+  const { data: rawData, isLoading, isError, isFetching, refetch } = useArticles()
   const deleteReq = useDeleteArticle()
 
   // Defensive: rawData thường đã được `select` trong hook chuẩn hoá thành array,
@@ -417,120 +418,113 @@ export function ArticlesPage() {
   const isEmpty = !isLoading && filteredArticles.length === 0
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
-        title="Quản lý Bài viết"
+        title="Quản lý bài viết"
         description="Đăng và điều phối tin tức, bài blog, thông báo nội bộ toàn hệ thống."
         actions={
-          <>
+          <div className="flex flex-wrap gap-2 items-center">
             <PageGuideButton guide={ARTICLES_GUIDE} />
             {canCreate && (
-              <Button
-                onClick={openCreate}
-                className="bg-primary-600 hover:bg-primary-700 text-white h-9"
-              >
-                <Plus className="w-4 h-4 mr-1.5" /> Thêm mới
+              <Button onClick={openCreate} className="gap-2">
+                <Plus size={16} /> Thêm mới
               </Button>
             )}
-          </>
+          </div>
         }
       />
 
-      {/* Toolbar: tabs + search + view toggle */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-white border border-neutral-200 rounded-xl px-3 py-2">
-        {/* Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto">
-          {tabs.map((tab) => {
-            const active = statusFilter === tab.key
-            const count = statusCounts[tab.key] ?? 0
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setStatusFilter(tab.key)}
-                className={`
-                  inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition
-                  ${active
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800'}
-                `}
-              >
-                {tab.label}
-                <span
-                  className={`
-                    inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-semibold tabular-nums
-                    ${active ? 'bg-primary-100 text-primary-700' : 'bg-neutral-100 text-neutral-500'}
-                  `}
-                >
-                  {count}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Search + View toggle */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="relative flex-1 md:flex-initial md:w-64">
-            <Search
-              size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
-            />
-            <Input
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              placeholder="Tìm tiêu đề, tóm tắt, tác giả…"
-              className="h-9 pl-9"
-            />
-          </div>
-          <div className="inline-flex items-center rounded-md border border-neutral-200 bg-neutral-50 p-0.5">
+      <FilterBar
+        hasActiveFilters={!!searchKeyword || statusFilter !== 'ALL'}
+        onClear={() => {
+          setSearchKeyword('')
+          setStatusFilter('ALL')
+        }}
+        countLabel={`${filteredArticles.length} bài${searchKeyword || statusFilter !== 'ALL' ? ' (đã lọc)' : ''}`}
+        selects={[
+          {
+            id: 'status',
+            label: 'Trạng thái',
+            value: statusFilter,
+            onChange: (v) => setStatusFilter(v as ArticleStatus | 'ALL'),
+            options: tabs.map((tab) => ({
+              value: tab.key,
+              label: `${tab.label} (${statusCounts[tab.key] ?? 0})`,
+            })),
+          },
+        ]}
+        extra={(
+          <div className="inline-flex items-center rounded-md border border-neutral-200 bg-white p-0.5">
             <button
               type="button"
               onClick={() => setViewMode('card')}
-              title="Chế độ Card"
-              className={`
-                inline-flex items-center justify-center w-8 h-8 rounded transition
-                ${viewMode === 'card' ? 'bg-white text-primary-700 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}
-              `}
+              title="Chế độ thẻ"
+              aria-label="Chế độ thẻ"
+              className={`inline-flex items-center justify-center w-8 h-8 rounded transition ${
+                viewMode === 'card' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500 hover:text-neutral-700'
+              }`}
             >
               <Grid3x3 size={15} />
             </button>
             <button
               type="button"
               onClick={() => setViewMode('table')}
-              title="Chế độ Bảng"
-              className={`
-                inline-flex items-center justify-center w-8 h-8 rounded transition
-                ${viewMode === 'table' ? 'bg-white text-primary-700 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}
-              `}
+              title="Chế độ bảng"
+              aria-label="Chế độ bảng"
+              className={`inline-flex items-center justify-center w-8 h-8 rounded transition ${
+                viewMode === 'table' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500 hover:text-neutral-700'
+              }`}
             >
               <Rows3 size={15} />
             </button>
           </div>
+        )}
+      >
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
+          />
+          <Input
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            placeholder="Tìm tiêu đề, tóm tắt, tác giả…"
+            className="h-9 pl-8"
+            aria-label="Tìm bài viết"
+          />
         </div>
-      </div>
+      </FilterBar>
 
-      {/* Content */}
-      {isEmpty ? (
-        <EmptyState
-          icon={FileText}
-          title={
-            searchKeyword || statusFilter !== 'ALL'
-              ? 'Không tìm thấy bài viết phù hợp'
-              : 'Chưa có bài viết nào'
-          }
-          description={
-            searchKeyword || statusFilter !== 'ALL'
-              ? 'Thử đổi bộ lọc hoặc từ khóa tìm kiếm.'
-              : 'Tạo bài viết đầu tiên để chia sẻ tin tức và cập nhật cho toàn hệ thống.'
-          }
-          action={
-            !searchKeyword && statusFilter === 'ALL' && canCreate ? (
-              <Button onClick={openCreate} className="bg-primary-600 hover:bg-primary-700 text-white">
-                <Sparkles className="w-4 h-4 mr-1.5" /> Tạo bài viết đầu tiên
-              </Button>
-            ) : undefined
-          }
-        />
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được bài viết"
+            message="Kiểm tra kết nối hoặc quyền truy cập rồi thử lại."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : isEmpty ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={FileText}
+            title={
+              searchKeyword || statusFilter !== 'ALL'
+                ? 'Không có bản ghi phù hợp bộ lọc'
+                : 'Chưa có bài viết nào'
+            }
+            description={
+              searchKeyword || statusFilter !== 'ALL'
+                ? 'Thử đổi bộ lọc hoặc xoá lọc.'
+                : 'Tạo bài viết đầu tiên để chia sẻ tin tức và cập nhật cho toàn hệ thống.'
+            }
+            action={
+              !searchKeyword && statusFilter === 'ALL' && canCreate
+                ? { label: 'Tạo bài viết đầu tiên', onClick: openCreate }
+                : undefined
+            }
+          />
+        </div>
       ) : viewMode === 'card' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {isLoading
@@ -561,10 +555,12 @@ export function ArticlesPage() {
           columns={columns as any}
           isLoading={isLoading}
           showSearch={false}
+          density="compact"
+          loadingRows={6}
+          onRefresh={() => void refetch()}
         />
       )}
 
-      {/* Confirm delete */}
       <ConfirmDialog
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
@@ -572,7 +568,7 @@ export function ArticlesPage() {
         title={`Xóa bài viết "${truncate(deleteTarget?.title, 40) || 'không tiêu đề'}"?`}
         message="Hành động này không thể hoàn tác. Bài viết sẽ bị xóa vĩnh viễn khỏi hệ thống."
         confirmText="Xóa vĩnh viễn"
-        cancelText="Hủy"
+        cancelText="Huỷ"
         variant="danger"
         isLoading={deleteReq.isPending}
       />

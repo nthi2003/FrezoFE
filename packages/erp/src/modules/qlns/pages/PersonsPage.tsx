@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Edit, Trash2, Eye, AlertTriangle, RefreshCw } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import {
   AppModal,
   ConfirmDialog,
@@ -11,10 +12,14 @@ import {
   PageHeader,
   PageGuideButton,
   FlexibleColumnLayout,
+  IconActionButton,
   type PageGuideConfig,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { PersonDetailDrawer } from '../components/PersonDetailDrawer'
+import { StatusPipelineStepper } from '../../warehouse/components/StatusPipelineStepper'
+import { OFFBOARDING_PIPELINE } from '../constants/hrWorkflow'
+import { OFFBOARDING_GUIDE } from '../constants/offboarding.guide'
 
 const PERSONS_GUIDE: PageGuideConfig = {
   title: 'Quản lý Nhân viên (Person)',
@@ -99,8 +104,16 @@ export function PersonsPage() {
 
   // Pagination & Filter States
   const [page, setPage] = useState(1)
-  const [size, setSize] = useState(10)
+  const [size, setSize] = useState(20)
   const [filters, setFilters] = useState<Record<string, any>>({})
+
+  const hasActiveFilters = Object.keys(filters).some(
+    (k) => filters[k] !== undefined && filters[k] !== '' && filters[k] !== 'ALL',
+  )
+  const clearFilters = () => {
+    setFilters({})
+    setPage(1)
+  }
 
   const queryClient = useQueryClient()
 
@@ -299,31 +312,20 @@ export function PersonsPage() {
       title: 'Thao tác', dataIndex: 'id', key: 'actions',
       render: (_: any, row: any) => (
         <div className="flex items-center gap-1">
-          <button
-            title="Xem chi tiết (list|detail)"
+          <IconActionButton
+            tooltip="Xem chi tiết"
+            tone="blue"
+            className={selectedId === row.id ? 'text-primary-700 bg-primary-50' : undefined}
             onClick={() => openDetail(row)}
-            className={`p-1.5 rounded-md transition-colors ${
-              selectedId === row.id
-                ? 'text-primary-700 bg-primary-50'
-                : 'text-neutral-400 hover:text-blue-600 hover:bg-blue-50'
-            }`}
           >
             <Eye size={15} />
-          </button>
-          <button
-            title="Sửa"
-            onClick={() => handleOpenEdit(row)}
-            className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors"
-          >
+          </IconActionButton>
+          <IconActionButton tooltip="Sửa" tone="primary" onClick={() => handleOpenEdit(row)}>
             <Edit size={15} />
-          </button>
-          <button
-            title="Xóa"
-            onClick={() => handleDelete(row)}
-            className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-          >
+          </IconActionButton>
+          <IconActionButton tooltip="Xóa" tone="red" onClick={() => handleDelete(row)}>
             <Trash2 size={15} />
-          </button>
+          </IconActionButton>
         </div>
       ),
     },
@@ -337,6 +339,7 @@ export function PersonsPage() {
         actions={
           <>
             <PageGuideButton guide={PERSONS_GUIDE} />
+            <PageGuideButton guide={OFFBOARDING_GUIDE} label="Nghỉ việc" />
             <Button
               onClick={handleOpenCreate}
               className="gap-2 bg-primary-600 hover:bg-primary-700 text-white h-9"
@@ -345,6 +348,18 @@ export function PersonsPage() {
             </Button>
           </>
         }
+      />
+
+      <StatusPipelineStepper
+        steps={OFFBOARDING_PIPELINE}
+        currentIndex={0}
+        nextCta={{ label: 'Bảng lương quyết toán', href: '/qlns/payroll?tab=payrolls' }}
+      />
+
+      <FilterBar
+        hasActiveFilters={hasActiveFilters}
+        onClear={clearFilters}
+        countLabel={`${totalElements} nhân viên${hasActiveFilters ? ' (đã lọc)' : ''}`}
       />
 
       {/* FR-UX-06 Flexible Column — desktop 40|60; &lt;md 1 cột */}
@@ -366,8 +381,10 @@ export function PersonsPage() {
             data={dataList}
             columns={columns}
             isLoading={isLoading}
+            density="compact"
             pageIndex={page}
             pageSize={size}
+            pageSizeOptions={[10, 20, 50, 100]}
             totalElements={totalElements}
             onPageChange={handlePageChange}
             showSearch={true}
@@ -376,7 +393,6 @@ export function PersonsPage() {
               setFilters(nextFilters)
               setPage(1)
             }}
-            defaultDensity="compact"
             showDensityToggle
           />
         }

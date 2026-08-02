@@ -1,15 +1,17 @@
 // ============================================================
 // BankStatementImportPage — wizard 3 bước (FZ-001 / FE-4)
 // 1. Chọn TK 112x + upload CSV
-// 2. Preview + map cột (auto-detect)
-// 3. Confirm import
+// 2. Xem trước + map cột (auto-detect)
+// 3. Xác nhận import
 // ============================================================
 
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, ChevronRight, ChevronLeft, Check, Landmark } from 'lucide-react'
-import { Button, PageHeader } from '@frezo/ui'
+import { Upload, ChevronRight, ChevronLeft, Check, Landmark, HelpCircle } from 'lucide-react'
+import { Button, PageHeader, Select } from '@frezo/ui'
 import { formatCurrency } from '@frezo/utils'
+import { AppTable } from '@/components/ui/AppTable'
+import type { AppTableColumn } from '@/components/ui/AppTable'
 import { useAccounts } from '../hooks/useAccounting'
 import { useImportBankStatement } from '../hooks/useBankStatement'
 import { parseBankCsv } from '../services/bankApi'
@@ -52,7 +54,7 @@ export function BankStatementImportPage() {
       const text = await f.text()
       const rows = parseBankCsv(text)
       if (rows.length === 0) {
-        setParseError('Không parse được dòng nào — kiểm tra header CSV.')
+        setParseError('Không đọc được dòng nào — kiểm tra header CSV.')
         setPreview([])
         return
       }
@@ -83,16 +85,71 @@ export function BankStatementImportPage() {
     )
   }
 
+  const previewColumns: AppTableColumn<PreviewLine>[] = [
+    {
+      key: 'txnDate',
+      title: 'Ngày',
+      width: 100,
+      render: (_, r) => <span className="font-mono text-xs">{r.txnDate}</span>,
+    },
+    {
+      key: 'description',
+      title: 'Mô tả',
+      render: (_, r) => (
+        <span className="line-clamp-2">{r.description || '—'}</span>
+      ),
+    },
+    {
+      key: 'refCode',
+      title: 'Tham chiếu',
+      width: 88,
+      render: (_, r) => (
+        <span className="font-mono text-neutral-500 text-xs">{r.refCode || '—'}</span>
+      ),
+    },
+    {
+      key: 'debit',
+      title: 'Nợ',
+      align: 'right',
+      width: 96,
+      render: (_, r) => (
+        <span className="tabular-nums font-mono text-xs">
+          {r.debit ? formatCurrency(r.debit) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'credit',
+      title: 'Có',
+      align: 'right',
+      width: 96,
+      render: (_, r) => (
+        <span className="tabular-nums font-mono text-xs text-emerald-700">
+          {r.credit ? formatCurrency(r.credit) : '—'}
+        </span>
+      ),
+    },
+  ]
+
   return (
     <div className="p-6 space-y-4 animate-fade-in max-w-4xl">
       <PageHeader
         title="Import sao kê ngân hàng"
-        description="Wizard 3 bước — CSV, khớp exact amount + date (MVP)."
-        actions={
-          <Button variant="outline" onClick={() => nav('/accounting/bank-reconciliation')}>
-            Quay lại
-          </Button>
-        }
+        description="Quy trình 3 bước — CSV, khớp theo số tiền và ngày giao dịch."
+        actions={(
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-flex items-center text-neutral-400 hover:text-primary-600 cursor-help"
+              title="Import CSV sao kê ngân hàng vào TK 112x để đối chiếu với sổ cái."
+              aria-label="Giải thích import sao kê"
+            >
+              <HelpCircle size={16} strokeWidth={2} />
+            </span>
+            <Button variant="outline" size="sm" className="h-9" onClick={() => nav('/accounting/bank-reconciliation')}>
+              Quay lại
+            </Button>
+          </div>
+        )}
       />
 
       <StepBar step={step} />
@@ -100,26 +157,27 @@ export function BankStatementImportPage() {
       {step === 1 && (
         <div className="bg-white border rounded-xl p-5 space-y-4 shadow-sm">
           <Field label="Tài khoản ngân hàng (112x) *">
-            <select
-              className="w-full border rounded-md px-3 py-2 text-sm"
+            <Select
+              options={[
+                { value: '', label: '— Chọn TK —' },
+                ...bankAccounts.map((a) => ({
+                  value: a.id,
+                  label: `${a.code} · ${a.name}`,
+                })),
+              ]}
               value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-            >
-              <option value="">— Chọn TK —</option>
-              {bankAccounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.code} · {a.name}
-                </option>
-              ))}
-            </select>
+              onChange={setAccountId}
+              placeholder="— Chọn TK —"
+              aria-label="Tài khoản ngân hàng"
+            />
           </Field>
           <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-neutral-200 rounded-xl p-10 cursor-pointer hover:border-primary-300 hover:bg-primary-50/20">
             <Upload size={28} className="text-neutral-400" />
             <span className="text-sm text-neutral-600">
-              {file ? file.name : 'Upload file CSV sao kê'}
+              {file ? file.name : 'Tải lên file CSV sao kê'}
             </span>
             <span className="text-[11px] text-neutral-400">
-              Header gợi ý: date,description,ref,debit,credit,balance
+              Header gợi ý: date, description, ref, debit, credit, balance
             </span>
             <input
               type="file"
@@ -145,44 +203,19 @@ export function BankStatementImportPage() {
       {step === 2 && (
         <div className="bg-white border rounded-xl p-5 space-y-3 shadow-sm">
           <p className="text-sm text-neutral-600">
-            Preview <b>{preview.length}</b> dòng · TK{' '}
+            Xem trước <b>{preview.length}</b> dòng · TK{' '}
             <b>
               {selected?.code} {selected?.name}
             </b>
           </p>
-          <div className="overflow-x-auto border rounded-lg max-h-80">
-            <table className="w-full text-xs">
-              <thead className="bg-neutral-50 sticky top-0">
-                <tr>
-                  <th className="p-2 text-left">Ngày</th>
-                  <th className="p-2 text-left">Mô tả</th>
-                  <th className="p-2 text-left">Ref</th>
-                  <th className="p-2 text-right">Nợ</th>
-                  <th className="p-2 text-right">Có</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {preview.slice(0, 50).map((r, i) => (
-                  <tr key={i}>
-                    <td className="p-2 font-mono">{r.txnDate}</td>
-                    <td className="p-2 max-w-[240px] truncate">{r.description}</td>
-                    <td className="p-2 font-mono text-neutral-500">{r.refCode || '—'}</td>
-                    <td className="p-2 text-right tabular-nums">
-                      {r.debit ? formatCurrency(r.debit) : '—'}
-                    </td>
-                    <td className="p-2 text-right tabular-nums text-emerald-700">
-                      {r.credit ? formatCurrency(r.credit) : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {preview.length > 50 && (
-            <p className="text-[11px] text-neutral-400">
-              Hiển thị 50/{preview.length} dòng
-            </p>
-          )}
+          <AppTable
+            columns={previewColumns}
+            data={preview}
+            density="compact"
+            showSearch={false}
+            pageSize={20}
+            pageSizeOptions={[10, 20, 50, 100]}
+          />
           <div className="flex justify-between pt-2">
             <Button variant="outline" onClick={() => setStep(1)} className="gap-1.5">
               <ChevronLeft size={14} /> Quay lại
@@ -206,7 +239,7 @@ export function BankStatementImportPage() {
                 </li>
                 <li>File: {file?.name}</li>
                 <li>Số dòng: {preview.length}</li>
-                <li>Match tự động: exact amount + date (MVP)</li>
+                <li>Khớp tự động: cùng số tiền và ngày (MVP)</li>
               </ul>
             </div>
           </div>
@@ -231,9 +264,9 @@ export function BankStatementImportPage() {
 
 function StepBar({ step }: { step: Step }) {
   const items = [
-    { n: 1 as const, label: 'Chọn TK + Upload' },
-    { n: 2 as const, label: 'Preview' },
-    { n: 3 as const, label: 'Confirm' },
+    { n: 1 as const, label: 'Chọn TK + Tải lên' },
+    { n: 2 as const, label: 'Xem trước' },
+    { n: 3 as const, label: 'Xác nhận' },
   ]
   return (
     <div className="flex items-center gap-2">

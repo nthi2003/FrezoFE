@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Search, Plus, Edit, Trash2, Eye, List, Users,
   ZoomIn, ZoomOut, Maximize2, ChevronDown, ChevronRight, GitBranch,
-  Building2, X, Filter,
+  Building2, X,
 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import {
@@ -13,6 +13,11 @@ import {
   PageHeader,
   PageGuideButton,
   ConfirmDialog,
+  EmptyState,
+  ErrorState,
+  Select,
+  IconActionButton,
+  AppTooltip,
   type PageGuideConfig,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
@@ -142,7 +147,7 @@ export function DepartmentsPage() {
   }, [])
 
   const queryClient = useQueryClient()
-  const { data: rawData, isLoading } = useDepartments()
+  const { data: rawData, isLoading, isError, isFetching, refetch } = useDepartments()
   const { data: orgList } = useQuery({
     queryKey: ['organizations-combobox'],
     queryFn: () => organizationApi.getCombobox(),
@@ -351,146 +356,140 @@ export function DepartmentsPage() {
   const hasActiveFilters = Boolean(searchQuery.trim()) || statusFilter !== 'all'
 
   return (
-    <div className="space-y-5 animate-fade-in p-6 bg-neutral-50/50 min-h-[calc(100vh-64px)]">
+    <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
-        title="Sơ đồ Tổ chức"
-        description={
-          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span>Quản lý cơ cấu phòng ban, trưởng/phó phòng và phân bổ nhân sự.</span>
-            <span className="text-neutral-300 hidden sm:inline">·</span>
-            <span className="inline-flex items-center gap-2 text-xs text-neutral-500">
-              <span className="tabular-nums">
-                <b className="text-neutral-900">{stats.total}</b> phòng ban
-              </span>
-              <span className="text-neutral-300">/</span>
-              <span className="tabular-nums">
-                <b className="text-emerald-700">{stats.active}</b> hoạt động
-              </span>
-              <span className="text-neutral-300">/</span>
-              <span className="tabular-nums">
-                <b className="text-neutral-900">{stats.people}</b> nhân sự
-              </span>
-            </span>
-          </span>
-        }
+        title="Sơ đồ tổ chức"
+        description="Quản lý cơ cấu phòng ban, trưởng/phó phòng và phân bổ nhân sự."
         actions={
-          <>
+          <div className="flex flex-wrap gap-2 items-center">
             <PageGuideButton guide={DEPARTMENTS_GUIDE} />
-            <Button
-              onClick={() => handleOpenCreate()}
-              className="gap-2 bg-primary-700 hover:bg-primary-800 text-white shadow-sm"
-            >
+            <Button onClick={() => handleOpenCreate()} className="gap-2">
               <Plus size={16} /> Thêm phòng ban
             </Button>
-          </>
+          </div>
         }
       />
 
-      {/* Toolbar */}
-      <div className="p-3 bg-white border border-neutral-200 rounded-2xl shadow-sm flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            type="text"
-            placeholder="Tìm mã, tên, email, tổ chức..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-10 w-full pl-9 pr-3 text-sm bg-neutral-50 border border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:bg-white transition-all placeholder:text-neutral-400"
-          />
-        </div>
+      {!isLoading && !isError && dataList.length > 0 && (
+        <p className="text-xs text-neutral-500 tabular-nums">
+          {stats.total} phòng ban · {stats.active} hoạt động · {stats.people} nhân sự
+        </p>
+      )}
 
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mr-1 inline-flex items-center gap-1">
-            <Filter size={11} /> TT:
-          </span>
-          {([
-            { value: 'all', label: 'Tất cả' },
-            { value: 'ACTIVE', label: 'Hoạt động' },
-            { value: 'INACTIVE', label: 'Ngừng' },
-          ] as const).map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => setStatusFilter(t.value)}
-              className={`h-7 px-2.5 rounded-full text-xs font-medium border transition ${
-                statusFilter === t.value
-                  ? 'bg-primary-600 text-white border-primary-600'
-                  : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
-              }`}
+      <div className="sticky top-0 z-10 -mx-6 px-6 py-2 bg-neutral-50/95 backdrop-blur border-y border-neutral-200/80">
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="relative flex-1 min-w-[200px] max-w-md">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              type="search"
+              placeholder="Tìm mã, tên, email, tổ chức…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9 w-full pl-8 pr-3 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300"
+              aria-label="Tìm phòng ban"
+            />
+          </div>
+
+          <div className="min-w-[140px]">
+            <Select
+              options={[
+                { value: 'all', label: 'Tất cả trạng thái' },
+                { value: 'ACTIVE', label: 'Hoạt động' },
+                { value: 'INACTIVE', label: 'Ngừng' },
+              ]}
+              value={statusFilter}
+              onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+              placeholder="Trạng thái"
+              aria-label="Lọc theo trạng thái"
+              showSearch={false}
+            />
+          </div>
+
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchQuery('')
+                setStatusFilter('all')
+              }}
             >
-              {t.label}
+              <X size={12} className="mr-1" /> Xoá lọc
+            </Button>
+          )}
+
+          <div className="ml-auto flex items-center bg-white border border-neutral-200 rounded-md p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode('tree')}
+              className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
+                viewMode === 'tree' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
+              }`}
+              aria-label="Chế độ cây phòng ban"
+            >
+              <GitBranch size={13} /> Cây phòng ban
             </button>
-          ))}
-        </div>
+            <button
+              type="button"
+              onClick={() => setViewMode('personnel')}
+              className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
+                viewMode === 'personnel' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
+              }`}
+              aria-label="Chế độ sơ đồ nhân sự"
+            >
+              <Users size={13} /> Nhân sự
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
+                viewMode === 'table' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
+              }`}
+              aria-label="Chế độ danh sách"
+            >
+              <List size={13} /> Danh sách
+            </button>
+          </div>
 
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={() => { setSearchQuery(''); setStatusFilter('all') }}
-            className="inline-flex items-center gap-1 h-8 px-2 rounded-md text-xs font-medium text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100"
-          >
-            <X size={12} /> Xoá lọc
-          </button>
-        )}
-
-        <div className="ml-auto flex items-center bg-neutral-100 rounded-lg p-0.5">
-          <button
-            type="button"
-            onClick={() => setViewMode('tree')}
-            className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
-              viewMode === 'tree' ? 'bg-white text-primary-700 shadow-sm' : 'text-neutral-500'
-            }`}
-          >
-            <GitBranch size={13} /> Cây phòng ban
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('personnel')}
-            className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
-              viewMode === 'personnel' ? 'bg-white text-primary-700 shadow-sm' : 'text-neutral-500'
-            }`}
-          >
-            <Users size={13} /> Nhân sự
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('table')}
-            className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
-              viewMode === 'table' ? 'bg-white text-primary-700 shadow-sm' : 'text-neutral-500'
-            }`}
-          >
-            <List size={13} /> Danh sách
-          </button>
+          <span className="text-xs text-neutral-500 tabular-nums">
+            {filteredDataList.length} bản ghi{hasActiveFilters ? ' (đã lọc)' : ''}
+          </span>
         </div>
       </div>
 
-      {/* Content */}
-      {isLoading ? (
-        <div className="p-12 flex items-center justify-center bg-white border border-neutral-200 rounded-2xl">
-          <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được phòng ban"
+            message="Kiểm tra kết nối hoặc quyền truy cập rồi thử lại."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
         </div>
-      ) : filteredDataList.length === 0 ? (
-        <div className="p-12 bg-white border border-neutral-200 rounded-2xl flex flex-col items-center justify-center text-center">
-          <Building2 size={40} className="text-neutral-300 mb-3" />
-          <h3 className="text-base font-semibold text-neutral-700">
-            {dataList.length === 0 ? 'Chưa có phòng ban nào' : 'Không tìm thấy'}
-          </h3>
-          <p className="text-sm text-neutral-500 mt-1 max-w-sm">
-            {dataList.length === 0
-              ? 'Tạo phòng ban đầu tiên để dựng hierarchy tổ chức.'
-              : 'Thử điều chỉnh từ khoá hoặc bộ lọc trạng thái.'}
-          </p>
-          {dataList.length === 0 && (
-            <Button
-              onClick={() => handleOpenCreate()}
-              className="mt-4 gap-2 bg-primary-600 hover:bg-primary-700 text-white"
-            >
-              <Plus size={16} /> Thêm phòng ban đầu tiên
-            </Button>
-          )}
+      ) : !isLoading && filteredDataList.length === 0 ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={Building2}
+            title={dataList.length === 0 ? 'Chưa có phòng ban nào' : 'Không có bản ghi phù hợp bộ lọc'}
+            description={
+              dataList.length === 0
+                ? 'Tạo phòng ban đầu tiên để dựng hierarchy tổ chức.'
+                : 'Thử đổi bộ lọc hoặc xoá lọc.'
+            }
+            action={
+              dataList.length === 0
+                ? { label: 'Thêm phòng ban đầu tiên', onClick: () => handleOpenCreate() }
+                : undefined
+            }
+          />
         </div>
       ) : viewMode === 'tree' ? (
-        <div className="px-3 py-3 bg-white border border-neutral-200 rounded-2xl shadow-sm">
+        isLoading ? (
+          <div className="p-12 flex items-center justify-center bg-white border border-neutral-200 rounded-xl">
+            <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+        <div className="px-3 py-3 bg-white border border-neutral-200 rounded-xl">
           <div className="dept-tree">
             {treeData.map((node: any, idx: number) => (
               <DeptTreeNode
@@ -508,10 +507,11 @@ export function DepartmentsPage() {
             ))}
           </div>
         </div>
+        )
       ) : viewMode === 'personnel' ? (
         <div
           ref={zoomRef}
-          className="w-full overflow-hidden p-10 border border-neutral-200 rounded-2xl bg-white shadow-sm min-h-[450px] relative select-none"
+          className="w-full overflow-hidden p-10 border border-neutral-200 rounded-xl bg-white min-h-[450px] relative select-none"
           style={{ cursor: isPanning.current ? 'grabbing' : 'grab' }}
           onMouseDown={handlePanStart}
           onMouseMove={handlePanMove}
@@ -519,27 +519,25 @@ export function DepartmentsPage() {
           onMouseLeave={handlePanEnd}
         >
           <div className="absolute top-4 right-4 z-10 flex items-center gap-1 bg-white/90 backdrop-blur rounded-lg shadow-sm border border-border p-1.5">
-            <button onClick={() => setScale((s) => Math.min(3, s + 0.2))} className="p-1.5 hover:bg-neutral-100 rounded text-neutral-500 hover:text-neutral-700 transition-colors" title="Phóng to">
+            <IconActionButton tooltip="Phóng to" onClick={() => setScale((s) => Math.min(3, s + 0.2))}>
               <ZoomIn size={16} />
-            </button>
+            </IconActionButton>
             <span className="text-xs font-mono text-neutral-400 min-w-[36px] text-center select-none">{Math.round(scale * 100)}%</span>
-            <button onClick={() => setScale((s) => Math.max(0.1, s - 0.2))} className="p-1.5 hover:bg-neutral-100 rounded text-neutral-500 hover:text-neutral-700 transition-colors" title="Thu nhỏ">
+            <IconActionButton tooltip="Thu nhỏ" onClick={() => setScale((s) => Math.max(0.1, s - 0.2))}>
               <ZoomOut size={16} />
-            </button>
+            </IconActionButton>
             <div className="w-px h-4 bg-neutral-200 mx-0.5" />
-            <button onClick={resetZoom} className="p-1.5 hover:bg-neutral-100 rounded text-neutral-500 hover:text-neutral-700 transition-colors" title="Khôi phục">
+            <IconActionButton tooltip="Khôi phục" onClick={resetZoom}>
               <Maximize2 size={16} />
-            </button>
+            </IconActionButton>
           </div>
 
           {personnelTree.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center h-64">
-              <Users size={36} className="text-neutral-300 mb-3" />
-              <h3 className="text-base font-semibold text-neutral-700">Chưa có nhân sự trên sơ đồ</h3>
-              <p className="text-sm text-neutral-500 mt-1 max-w-sm">
-                Gán nhân viên vào phòng ban (và trưởng phòng nếu có) để hiển thị hierarchy.
-              </p>
-            </div>
+            <EmptyState
+              icon={Users}
+              title="Chưa có nhân sự trên sơ đồ"
+              description="Gán nhân viên vào phòng ban (và trưởng phòng nếu có) để hiển thị hierarchy."
+            />
           ) : (
             <div
               style={{ transform: `scale(${scale}) translate(${panX}px, ${panY}px)`, transformOrigin: '0 0' }}
@@ -552,11 +550,12 @@ export function DepartmentsPage() {
           )}
         </div>
       ) : (
-        <div className="bg-white border border-neutral-200 rounded-2xl shadow-sm overflow-hidden">
-          <AppTable
+        <AppTable
             data={filteredDataList}
-            isLoading={false}
+            isLoading={isLoading}
             showSearch={false}
+            density="compact"
+            loadingRows={6}
             columns={[
               {
                 title: 'Mã',
@@ -613,36 +612,20 @@ export function DepartmentsPage() {
                 width: 160,
                 render: (_: any, row: any) => (
                   <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      title="Xem chi tiết"
-                      onClick={() => setDetailDept(row)}
-                      className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded transition"
-                    >
+                    <IconActionButton tooltip="Xem chi tiết" tone="blue" onClick={() => setDetailDept(row)}>
                       <Eye size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      title="Sửa"
-                      onClick={() => handleOpenEdit(row)}
-                      className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded transition"
-                    >
+                    </IconActionButton>
+                    <IconActionButton tooltip="Sửa" tone="primary" onClick={() => handleOpenEdit(row)}>
                       <Edit size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      title="Xoá"
-                      onClick={() => handleDelete(row)}
-                      className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
-                    >
+                    </IconActionButton>
+                    <IconActionButton tooltip="Xoá" tone="rose" onClick={() => handleDelete(row)}>
                       <Trash2 size={14} />
-                    </button>
+                    </IconActionButton>
                   </div>
                 ),
               },
             ]}
           />
-        </div>
       )}
 
       <AppModal
@@ -782,14 +765,16 @@ function DeptTreeNode({
           )}
         </button>
 
-        <button
-          type="button"
-          onClick={() => onView(node)}
-          className={`w-7 h-7 rounded-md bg-gradient-to-br ${pickTone(node.name)} flex items-center justify-center text-white text-[10px] font-bold shrink-0 ring-1 ring-black/5`}
-          title="Xem chi tiết"
-        >
-          {getInitials(node.name)}
-        </button>
+        <AppTooltip content="Xem chi tiết">
+          <button
+            type="button"
+            onClick={() => onView(node)}
+            aria-label="Xem chi tiết"
+            className={`w-7 h-7 rounded-md bg-gradient-to-br ${pickTone(node.name)} flex items-center justify-center text-white text-[10px] font-bold shrink-0 ring-1 ring-black/5`}
+          >
+            {getInitials(node.name)}
+          </button>
+        </AppTooltip>
 
         <button
           type="button"
@@ -833,33 +818,30 @@ function DeptTreeNode({
         </span>
 
         <div className="flex items-center gap-0.5 shrink-0 opacity-45 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-          <button
-            type="button"
+          <IconActionButton
+            tooltip="Thêm phòng ban con"
+            tone="primary"
+            className="text-neutral-500 hover:text-primary-700 hover:bg-primary-50"
             onClick={(e) => { e.stopPropagation(); onAddChild(node) }}
-            className="p-1.5 text-neutral-500 hover:text-primary-700 hover:bg-primary-50 rounded transition"
-            title="Thêm phòng ban con"
-            aria-label="Thêm phòng ban con"
           >
             <Plus size={13} />
-          </button>
-          <button
-            type="button"
+          </IconActionButton>
+          <IconActionButton
+            tooltip="Sửa"
+            tone="primary"
+            className="text-neutral-500 hover:text-primary-700 hover:bg-primary-50"
             onClick={(e) => { e.stopPropagation(); onEdit(node) }}
-            className="p-1.5 text-neutral-500 hover:text-primary-700 hover:bg-primary-50 rounded transition"
-            title="Sửa"
-            aria-label="Sửa"
           >
             <Edit size={13} />
-          </button>
-          <button
-            type="button"
+          </IconActionButton>
+          <IconActionButton
+            tooltip="Xoá"
+            tone="rose"
+            className="text-neutral-500"
             onClick={(e) => { e.stopPropagation(); onDelete(node) }}
-            className="p-1.5 text-neutral-500 hover:text-rose-600 hover:bg-rose-50 rounded transition"
-            title="Xoá"
-            aria-label="Xoá"
           >
             <Trash2 size={13} />
-          </button>
+          </IconActionButton>
         </div>
       </div>
 

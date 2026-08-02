@@ -8,7 +8,8 @@ import * as z from 'zod'
 export const productFormSchema = z.object({
   // -- Basic --
   name: z.string().min(1, 'Tên sản phẩm không được để trống').max(200, 'Tên tối đa 200 ký tự'),
-  code: z.string().trim().min(1, 'Mã sản phẩm không được để trống').max(30, 'Mã tối đa 30 ký tự'),
+  // Create: ẩn field → FE tự sinh trước khi gọi API. Edit: hiển thị read-only.
+  code: z.string().trim().max(30, 'Mã tối đa 30 ký tự').optional().nullable(),
   category: z.string().min(1, 'Danh mục không được để trống'),
   imageUrl: z.string().optional().nullable(),
 
@@ -24,7 +25,6 @@ export const productFormSchema = z.object({
   expiryAlertDays: z.coerce.number().int().min(0, 'Số ngày phải ≥ 0').optional().nullable(),
 
   // -- Marketing --
-  rating: z.coerce.number().min(0).max(5, 'Rating tối đa 5').optional().nullable(),
   isNew: z.boolean().optional(),
   isActive: z.boolean().optional(),
   description: z.string().max(2000, 'Mô tả tối đa 2000 ký tự').optional().nullable(),

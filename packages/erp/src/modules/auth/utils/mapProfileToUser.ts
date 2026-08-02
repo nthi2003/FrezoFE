@@ -15,12 +15,19 @@ export function mapProfileToUser(
   // Avatar chỉ từ URL server — không giữ cache localStorage khi server không có / đã đổi
   const serverAvatar = resolveAvatarUrl(raw)
 
+  const personIdRaw = raw?.personId ?? prev?.personId
+  const personId =
+    personIdRaw != null && String(personIdRaw).trim() !== ''
+      ? String(personIdRaw)
+      : undefined
+
   return {
     id: String(raw?.id ?? prev?.id ?? ''),
     username: String(raw?.username ?? raw?.userName ?? prev?.username ?? ''),
     email: String(raw?.email ?? prev?.email ?? ''),
     fullName: String(raw?.fullName ?? raw?.name ?? prev?.fullName ?? ''),
     avatar: serverAvatar,
+    personId,
     roles: Array.isArray(raw?.roles)
       ? (raw!.roles as string[])
       : (prev?.roles ?? []),

@@ -4,7 +4,7 @@ import {
   Send, FileText, Mail, ArrowRight, Check, ChevronLeft, ChevronRight,
   HelpCircle, X, Search, AlertTriangle, Settings,
 } from 'lucide-react'
-import { Button, EmptyState, PageHeader } from '@frezo/ui'
+import { Button, EmptyState, PageHeader, Select, IconActionButton } from '@frezo/ui'
 import { Input } from '@frezo/ui'
 import { Label } from '@frezo/ui'
 import { TiptapEditor } from '@/components/shared/TiptapEditor'
@@ -230,12 +230,12 @@ export function EmailComposePage() {
               <h2 className="text-sm font-semibold text-neutral-700 flex items-center gap-1.5">
                 <FileText size={15} /> Mẫu email
               </h2>
-              <button type="button" onClick={() => {
+              <IconActionButton tooltip="Hướng dẫn" tone="primary" onClick={() => {
                 const el = document.getElementById('email-compose-help')
                 if (el) el.classList.toggle('hidden')
-              }} className="text-neutral-400 hover:text-primary-600 transition-colors" title="Hướng dẫn">
+              }}>
                 <HelpCircle size={14} />
-              </button>
+              </IconActionButton>
             </div>
             <div id="email-compose-help" className="hidden p-2.5 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-800 space-y-1">
               <p className="font-medium">Hướng dẫn:</p>
@@ -356,16 +356,25 @@ export function EmailComposePage() {
 
                 <div className="pt-2">
                   <Label className="text-xs text-neutral-500">Hoặc chọn nhóm email</Label>
-                  <select
-                    value={selectedGroupId ?? ''}
-                    onChange={e => { setSelectedGroupId(e.target.value || null); if (e.target.value) setRecipients('') }}
-                    className="w-full h-9 border border-border rounded-md px-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 mt-1"
-                  >
-                    <option value="">-- Chọn nhóm --</option>
-                    {groups?.map((g: any) => (
-                      <option key={g.id} value={g.id}>{g.name} ({g.emails?.length ?? 0} email)</option>
-                    ))}
-                  </select>
+                  <div className="mt-1">
+                    <Select
+                      options={[
+                        { value: '', label: '-- Chọn nhóm --' },
+                        ...(groups ?? []).map((g: any) => ({
+                          value: g.id,
+                          label: `${g.name} (${g.emails?.length ?? 0} email)`,
+                        })),
+                      ]}
+                      value={selectedGroupId ?? ''}
+                      onChange={(v) => {
+                        setSelectedGroupId(v || null)
+                        if (v) setRecipients('')
+                      }}
+                      placeholder="-- Chọn nhóm --"
+                      aria-label="Chọn nhóm email"
+                      showSearch={(groups?.length ?? 0) > 8}
+                    />
+                  </div>
                 </div>
               </div>
 

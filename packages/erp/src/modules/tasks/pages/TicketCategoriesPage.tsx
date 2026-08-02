@@ -1,14 +1,18 @@
 // ============================================================
 // FREZO ERP — TicketCategoriesPage (FR-TASK-CAT)
-// Master danh mục Ticket: list + thêm/sửa/ẩn
+// Master danh mục giao việc: AppTable + FilterBar sticky
 // ============================================================
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { Plus, Pencil, Trash2, Search, RefreshCw, EyeOff, Eye } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, EyeOff, Eye, FolderTree } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
+import type { AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
+import { FilterExportDrawer, FilterExportTrigger } from '@/components/shared/FilterExportDrawer'
+import { downloadCsv } from '@/utils/csvExport'
 import {
-  AppModal, Button, PageHeader, EmptyState, ConfirmDialog,
-  Label, Input, Switch,
+  AppModal, Button, PageHeader, PageGuideButton, EmptyState, ErrorState, ConfirmDialog,
+  Label, Input, Switch, IconActionButton,
 } from '@frezo/ui'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -20,6 +24,7 @@ import {
   useDeleteTicketCategory,
 } from '../hooks/useTicketTag'
 import { ticketCategorySchema, type TicketCategoryFormValues } from '../constants/schema'
+import { CATEGORIES_GUIDE } from '../constants/categories.guide'
 
 interface CategoryRow {
   id: string
@@ -29,7 +34,6 @@ interface CategoryRow {
   active?: boolean | null
 }
 
-/** Auto-suggest slug từ tên: lowercase, bỏ dấu, kebab-case. */
 function suggestCodeFromName(name: string): string {
   if (!name) return ''
   return name
@@ -41,27 +45,34 @@ function suggestCodeFromName(name: string): string {
     .slice(0, 32)
 }
 
-export function TicketCategoriesPage() {
+export function TicketCategoriesPage({ embedded = false }: { embedded?: boolean }) {
   const { data, isLoading, isError, refetch, isFetching } = useTicketCategories()
   const createMut = useCreateTicketCategory()
   const updateMut = useUpdateTicketCategory()
   const deleteMut = useDeleteTicketCategory()
 
   const [searchText, setSearchText] = useState('')
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [selected, setSelected] = useState<CategoryRow | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<CategoryRow | null>(null)
 
+  const allRows = useMemo(
+    () => (Array.isArray(data) ? data : []) as CategoryRow[],
+    [data],
+  )
+
   const list = useMemo(() => {
-    const rows = (Array.isArray(data) ? data : []) as CategoryRow[]
     const q = searchText.trim().toLowerCase()
-    if (!q) return rows
-    return rows.filter(
+    if (!q) return allRows
+    return allRows.filter(
       (r) =>
         (r.name || '').toLowerCase().includes(q) ||
         (r.code || '').toLowerCase().includes(q),
     )
-  }, [data, searchText])
+  }, [allRows, searchText])
+
+  const hasFilter = !!searchText.trim()
 
   const openCreate = () => {
     setSelected(null)
@@ -113,35 +124,36 @@ export function TicketCategoriesPage() {
     }
   }
 
-  const columns = [
+  const columns: AppTableColumn<CategoryRow>[] = [
     {
+      key: 'code',
       title: 'Mã',
-      dataIndex: 'code',
-      render: (val: string) => (
-        <span className="font-mono text-xs text-neutral-700">{val || '—'}</span>
+      render: (_, row) => (
+        <span className="font-mono text-xs text-neutral-700">{row.code || '—'}</span>
       ),
     },
     {
+      key: 'name',
       title: 'Tên',
-      dataIndex: 'name',
-      render: (val: string) => (
-        <span className="font-medium text-neutral-900">{val || '—'}</span>
+      render: (_, row) => (
+        <span className="font-medium text-neutral-900">{row.name || '—'}</span>
       ),
     },
     {
+      key: 'sortOrder',
       title: 'Thứ tự',
-      dataIndex: 'sortOrder',
       width: 90,
-      render: (val: number) => (
-        <span className="tabular-nums text-sm text-neutral-600">{val ?? 0}</span>
+      align: 'right',
+      render: (_, row) => (
+        <span className="tabular-nums text-sm text-neutral-600">{row.sortOrder ?? 0}</span>
       ),
     },
     {
+      key: 'active',
       title: 'Trạng thái',
-      dataIndex: 'active',
       width: 120,
-      render: (val: boolean) =>
-        val ? (
+      render: (_, row) =>
+        row.active ? (
           <span className="inline-flex items-center gap-1 text-xs font-medium text-success-dark bg-success-light px-2 py-0.5 rounded-md border border-success/30">
             Đang dùng
           </span>
@@ -152,98 +164,160 @@ export function TicketCategoriesPage() {
         ),
     },
     {
+      key: 'actions',
       title: '',
-      dataIndex: 'id',
       width: 140,
-      render: (_: string, row: CategoryRow) => (
+      align: 'right',
+      render: (_, row) => (
         <div className="flex items-center justify-end gap-1">
-          <button
-            type="button"
-            className="p-1.5 rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
-            title={row.active ? 'Ẩn khỏi form' : 'Hiện lại trên form'}
+          <IconActionButton
+            tooltip={row.active ? 'Ẩn khỏi form' : 'Hiện lại trên form'}
             onClick={() => handleToggleActive(row)}
           >
             {row.active ? <EyeOff size={14} /> : <Eye size={14} />}
-          </button>
-          <button
-            type="button"
-            className="p-1.5 rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
-            title="Sửa"
-            onClick={() => openEdit(row)}
-          >
+          </IconActionButton>
+          <IconActionButton tooltip="Sửa" onClick={() => openEdit(row)}>
             <Pencil size={14} />
-          </button>
-          <button
-            type="button"
-            className="p-1.5 rounded-md text-danger-dark hover:bg-danger-light"
-            title="Xoá mềm"
-            onClick={() => setDeleteTarget(row)}
-          >
+          </IconActionButton>
+          <IconActionButton tooltip="Ẩn danh mục" tone="rose" onClick={() => setDeleteTarget(row)}>
             <Trash2 size={14} />
-          </button>
+          </IconActionButton>
         </div>
       ),
     },
   ]
 
-  return (
-    <div className="space-y-4">
-      <PageHeader
-        title="Danh mục Ticket"
-        description="Quản lý danh mục giao việc (Lỗi, Tính năng, Hỗ trợ…). Form ticket lấy từ đây — không hardcode."
-        actions={
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className="gap-1.5"
-            >
-              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
-              Làm mới
-            </Button>
-            <Button
-              type="button"
-              onClick={openCreate}
-              className="bg-primary-700 hover:bg-primary-800 text-white gap-1.5"
-            >
-              <Plus size={14} /> Thêm danh mục
-            </Button>
-          </div>
-        }
-      />
+  const isFilteredEmpty = !isLoading && !isError && allRows.length > 0 && list.length === 0
+  const isFullyEmpty = !isLoading && !isError && allRows.length === 0
 
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Tìm theo tên hoặc mã..."
-            className="w-full h-10 pl-9 pr-3 text-sm border border-neutral-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
-          />
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      <PageGuideButton guide={CATEGORIES_GUIDE} />
+      <Button
+        type="button"
+        onClick={openCreate}
+        className="bg-primary-700 hover:bg-primary-800 text-white gap-1.5"
+      >
+        <Plus size={14} /> Thêm danh mục
+      </Button>
+    </div>
+  )
+
+  const searchField = (
+    <div className="relative flex-1 min-w-[220px] max-w-sm">
+      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+      <input
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+        placeholder="Tìm theo tên hoặc mã…"
+        className="w-full h-9 pl-9 pr-3 text-sm border border-neutral-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
+        aria-label="Tìm danh mục"
+      />
+    </div>
+  )
+
+  const handleExportCsv = () => {
+    downloadCsv(
+      'danh-muc-ticket.csv',
+      list.map((r) => ({
+        code: r.code,
+        name: r.name,
+        sortOrder: r.sortOrder ?? 0,
+        active: r.active ? 'Đang dùng' : 'Đã ẩn',
+      })),
+      [
+        { key: 'code', label: 'Mã' },
+        { key: 'name', label: 'Tên' },
+        { key: 'sortOrder', label: 'Thứ tự' },
+        { key: 'active', label: 'Trạng thái' },
+      ],
+    )
+  }
+
+  return (
+    <div className={embedded ? 'space-y-4' : 'p-6 space-y-4 animate-fade-in'}>
+      {embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-neutral-600">
+            Nhóm loại việc trên form giao việc.
+            <span className="ml-2 text-xs text-neutral-400 tabular-nums">
+              {list.length} danh mục{hasFilter ? ' (đã lọc)' : ''}
+            </span>
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <FilterExportTrigger
+              onClick={() => setFilterDrawerOpen(true)}
+              activeCount={hasFilter ? 1 : 0}
+            />
+            {headerActions}
+          </div>
         </div>
-      </div>
+      ) : (
+        <PageHeader
+          title="Danh mục ticket"
+          description="Nhóm loại việc trên form giao việc (Lỗi, Tính năng, Hỗ trợ…)."
+          actions={headerActions}
+        />
+      )}
+
+      {embedded ? (
+        <FilterExportDrawer
+          isOpen={filterDrawerOpen}
+          onClose={() => setFilterDrawerOpen(false)}
+          hasActiveFilters={hasFilter}
+          onClear={() => setSearchText('')}
+          onExport={handleExportCsv}
+          exportDisabled={list.length === 0}
+        >
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-neutral-600">Tìm kiếm</label>
+            {searchField}
+          </div>
+        </FilterExportDrawer>
+      ) : (
+        <FilterBar
+          hasActiveFilters={hasFilter}
+          onClear={() => setSearchText('')}
+          countLabel={`${list.length} danh mục${hasFilter ? ' (đã lọc)' : ''}`}
+        >
+          {searchField}
+        </FilterBar>
+      )}
 
       {isError ? (
-        <EmptyState
-          title="Không tải được danh mục"
-          description="Kiểm tra kết nối hoặc quyền task/ticket-category."
-          action={{ label: 'Thử lại', onClick: () => refetch() }}
-        />
-      ) : !isLoading && list.length === 0 ? (
-        <EmptyState
-          title="Chưa có danh mục"
-          description="Thêm Lỗi / Tính năng / Hỗ trợ hoặc danh mục riêng cho team."
-          action={{ label: 'Thêm danh mục', onClick: openCreate }}
-        />
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được danh mục"
+            message="Kiểm tra kết nối hoặc quyền truy cập."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
+        </div>
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={FolderTree}
+            title={isFilteredEmpty ? 'Không có danh mục khớp bộ lọc' : 'Chưa có danh mục'}
+            description={
+              isFilteredEmpty
+                ? 'Thử xoá tìm kiếm hoặc đổi từ khoá.'
+                : 'Thêm Lỗi / Tính năng / Hỗ trợ hoặc danh mục riêng cho nhóm.'
+            }
+            action={
+              isFilteredEmpty
+                ? { label: 'Xoá lọc', onClick: () => setSearchText('') }
+                : { label: 'Thêm danh mục', onClick: openCreate }
+            }
+          />
+        </div>
       ) : (
         <AppTable
-          columns={columns as any}
-          dataSource={list}
-          rowKey="id"
-          loading={isLoading}
+          columns={columns}
+          data={list}
+          isLoading={isLoading}
+          density="compact"
+          showSearch={false}
+          onRefresh={() => void refetch()}
         />
       )}
 
@@ -265,8 +339,8 @@ export function TicketCategoriesPage() {
         message={
           deleteTarget ? (
             <span>
-              「{deleteTarget.name || deleteTarget.code}」 sẽ bị xoá mềm và không còn trên form.
-              Ticket cũ vẫn giữ mã.
+              「{deleteTarget.name || deleteTarget.code}」 sẽ bị ẩn và không còn trên form tạo việc mới.
+              Việc cũ vẫn giữ mã danh mục.
             </span>
           ) : (
             ''
@@ -340,13 +414,13 @@ function CategoryFormModal({
       isOpen={isOpen}
       onClose={onClose}
       title={item ? 'Sửa danh mục' : 'Thêm danh mục'}
-      description="Tên hiển thị tiếng Việt trên form giao việc. Mã dùng lưu vào ticket."
+      description="Tên hiển thị tiếng Việt trên form giao việc."
       maxWidth="md"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1.5">
           <Label>Tên danh mục <span className="text-rose-500">*</span></Label>
-          <Input {...register('name')} placeholder="VD: Lỗi, Tính năng, Họp nội bộ..." autoFocus />
+          <Input {...register('name')} placeholder="VD: Lỗi, Tính năng, Họp nội bộ…" autoFocus />
           {errors.name && <p className="text-xs text-rose-600">{errors.name.message as string}</p>}
         </div>
 
@@ -354,16 +428,16 @@ function CategoryFormModal({
           <Label>Mã <span className="text-rose-500">*</span></Label>
           <Input
             {...register('code', { onChange: () => setCodeTouched(true) })}
-            placeholder="VD: bug, hop-noi-bo"
+            placeholder="VD: loi, hop-noi-bo"
             className="font-mono"
             disabled={!!item?.id}
           />
           {errors.code && <p className="text-xs text-rose-600">{errors.code.message as string}</p>}
           {!item && !codeTouched && (
-            <p className="text-[11px] text-neutral-500">Slug tự sinh từ tên — bấm để chỉnh tay.</p>
+            <p className="text-[11px] text-neutral-500">Mã gợi ý từ tên — có thể chỉnh tay.</p>
           )}
           {item && (
-            <p className="text-[11px] text-neutral-500">Không đổi mã khi sửa — ticket cũ đang trỏ mã này.</p>
+            <p className="text-[11px] text-neutral-500">Không đổi mã khi sửa — việc cũ đang dùng mã này.</p>
           )}
         </div>
 
@@ -386,14 +460,14 @@ function CategoryFormModal({
 
         <div className="flex justify-end gap-2 pt-3 border-t border-neutral-100">
           <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-            Hủy
+            Huỷ
           </Button>
           <Button
             type="submit"
             disabled={isSaving}
             className="bg-primary-700 hover:bg-primary-800 text-white"
           >
-            {isSaving ? 'Đang lưu...' : item ? 'Lưu thay đổi' : 'Tạo danh mục'}
+            {isSaving ? 'Đang lưu…' : item ? 'Lưu thay đổi' : 'Tạo danh mục'}
           </Button>
         </div>
       </form>

@@ -9,7 +9,7 @@ import {
   type PageGuideConfig,
 } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
-import type { AppTableColumn } from '@/components/ui/AppTable'
+import type { AppTableColumn, BulkAction } from '@/components/ui/AppTable'
 
 interface StatItem {
   label: string
@@ -41,6 +41,11 @@ export interface WarehouseListShellProps<T> {
   columns: AppTableColumn<T>[]
   data: T[]
   onRefresh?: () => void
+  getRowProps?: (row: T, index: number) => React.HTMLAttributes<HTMLTableRowElement>
+  /** Bật cột checkbox chọn nhiều (AppTable selectable) */
+  selectable?: boolean
+  getRowId?: (row: T) => string
+  bulkActions?: BulkAction<T>[]
   children?: ReactNode
 }
 
@@ -68,6 +73,10 @@ export function WarehouseListShell<T>({
   columns,
   data,
   onRefresh,
+  getRowProps,
+  selectable,
+  getRowId,
+  bulkActions,
   children,
 }: WarehouseListShellProps<T>) {
   const displayCount = filteredCount ?? data.length
@@ -131,6 +140,10 @@ export function WarehouseListShell<T>({
           loadingRows={6}
           density="compact"
           onRefresh={onRefresh ? () => void onRefresh() : undefined}
+          getRowProps={getRowProps}
+          selectable={selectable}
+          getRowId={getRowId}
+          bulkActions={bulkActions}
         />
       )}
 

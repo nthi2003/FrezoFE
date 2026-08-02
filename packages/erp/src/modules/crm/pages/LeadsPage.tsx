@@ -3,30 +3,33 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus, Search, ArrowRight, Trash2, Users, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  Button, PageHeader, AppModal, BulkSelectionBar, ConfirmDialog,
+  Button, PageHeader, PageGuideButton, AppModal, ConfirmDialog,
   EmptyState, ErrorState,
 } from '@frezo/ui'
 import { formatDate } from '@frezo/utils'
+import { AppTable } from '@/components/ui/AppTable'
+import type { AppTableColumn, BulkAction } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import {
   useLeads, useCreateLead, useConvertLead, useDeleteLead,
 } from '../hooks/useCrm'
 import type { Lead, LeadStatus } from '../services/crmApi'
-import {
-  useTableSelection, useCheckboxIndeterminate,
-} from '@/lib/table/useTableSelection'
+import { LEADS_GUIDE } from '../constants/leads.guide'
+import { pageRootClass } from '@/modules/accounting/utils/pageEmbed'
+import { crmPipelineHubUrl } from '../utils/crmRoutes'
 
-const STATUS_TABS: Array<{ key: LeadStatus | 'ALL'; label: string; tone: string }> = [
-  { key: 'ALL', label: 'Tất cả', tone: 'bg-neutral-900' },
-  { key: 'NEW', label: 'Mới', tone: 'bg-blue-600' },
-  { key: 'CONTACTED', label: 'Đã liên hệ', tone: 'bg-cyan-600' },
-  { key: 'QUALIFIED', label: 'Đủ điều kiện', tone: 'bg-amber-600' },
-  { key: 'UNQUALIFIED', label: 'Loại', tone: 'bg-neutral-400' },
-  { key: 'CONVERTED', label: 'Đã convert', tone: 'bg-emerald-600' },
+const STATUS_TABS: Array<{ key: LeadStatus | 'ALL'; label: string }> = [
+  { key: 'ALL', label: 'Tất cả' },
+  { key: 'NEW', label: 'Mới' },
+  { key: 'CONTACTED', label: 'Đã liên hệ' },
+  { key: 'QUALIFIED', label: 'Đủ điều kiện' },
+  { key: 'UNQUALIFIED', label: 'Loại' },
+  { key: 'CONVERTED', label: 'Đã chuyển đổi' },
 ]
 
 const LEAD_PATH: LeadStatus[] = ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED']
 
-export function LeadsPage() {
+export function LeadsPage({ embedded }: { embedded?: boolean } = {}) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const statusFromUrl = searchParams.get('status')?.toUpperCase() as LeadStatus | undefined
@@ -58,23 +61,22 @@ export function LeadsPage() {
       (l.companyName || '').toLowerCase().includes(q))
   }, [list, search])
 
-  // ---- Bulk selection ----
-  const selection = useTableSelection<Lead>(filtered, (l) => l.id)
-  const headerCheckboxRef = useCheckboxIndeterminate(selection.someSelected)
+  const hasFilter = !!search.trim() || status !== 'ALL'
+  const isFilteredEmpty = !isLoading && !isError && list.length > 0 && filtered.length === 0
+  const isFullyEmpty = !isLoading && !isError && list.length === 0
 
-  const [bulkRunning, setBulkRunning] = useState<'delete' | null>(null)
+  const [bulkRunning, setBulkRunning] = useState(false)
 
   const runBulkDelete = async () => {
     if (!confirmBulk) return
-    setBulkRunning('delete')
+    setBulkRunning(true)
     const res = await Promise.allSettled(confirmBulk.map((l) => del.mutateAsync(l.id)))
     const ok = res.filter((r) => r.status === 'fulfilled').length
     const fail = res.length - ok
-    if (ok > 0) toast.success(`Đã xoá ${ok} lead`)
-    if (fail > 0) toast.error(`${fail} lead xoá thất bại`)
+    if (ok > 0) toast.success(`Đã xoá ${ok} khách tiềm năng`)
+    if (fail > 0) toast.error(`${fail} bản ghi xoá thất bại`)
     setConfirmBulk(null)
-    selection.clear()
-    setBulkRunning(null)
+    setBulkRunning(false)
   }
 
   const onCreate = () => {
@@ -85,14 +87,124 @@ export function LeadsPage() {
     }})
   }
 
-  return (
-    <div className="p-6 space-y-4">
-      <PageHeader
-        title="Leads"
-        description="Khách hàng tiềm năng — theo dõi và chuyển thành cơ hội bán hàng."
-      />
+  const bulkActions: BulkAction<Lead>[] = [
+    {
+      key: 'delete',
+      label: 'Xoá',
+      icon: Trash2,
+      variant: 'destructive',
+      onClick: (rowsSel) => setConfirmBulk(rowsSel),
+    },
+  ]
 
-      {/* FR-UX-12 Lead→Deal path */}
+  const columns: AppTableColumn<Lead>[] = [
+    {
+      key: 'fullName',
+      title: 'Tên',
+      render: (_, l) => (
+        <button
+          type="button"
+          className="font-medium text-left hover:text-primary-700"
+          onClick={() => setPathLead(l)}
+        >
+          {l.fullName}
+        </button>
+      ),
+    },
+    {
+      key: 'companyName',
+      title: 'Công ty',
+      render: (_, l) => <span className="text-neutral-700">{l.companyName || '—'}</span>,
+    },
+    {
+      key: 'contact',
+      title: 'Liên hệ',
+      render: (_, l) => (
+        <div className="text-neutral-600 text-xs space-y-0.5">
+          {l.phone && <div>{l.phone}</div>}
+          {l.email && <div className="truncate max-w-[180px]" title={l.email}>{l.email}</div>}
+          {!l.phone && !l.email && <span className="text-neutral-400">—</span>}
+        </div>
+      ),
+    },
+    {
+      key: 'source',
+      title: 'Nguồn',
+      render: (_, l) => <span className="text-neutral-600">{l.source || '—'}</span>,
+    },
+    {
+      key: 'score',
+      title: 'Điểm',
+      align: 'center',
+      render: (_, l) => <ScoreBadge score={l.score ?? 0} />,
+    },
+    {
+      key: 'status',
+      title: 'Trạng thái',
+      align: 'center',
+      render: (_, l) => (
+        <span className="inline-flex px-2 py-0.5 rounded-md text-xs border border-neutral-200 bg-neutral-50">
+          {STATUS_TABS.find((s) => s.key === l.status)?.label || l.status}
+        </span>
+      ),
+    },
+    {
+      key: 'createdDate',
+      title: 'Ngày tạo',
+      render: (_, l) => (
+        <span className="text-xs text-neutral-500">
+          {l.createdDate ? formatDate(l.createdDate) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      title: '',
+      align: 'right',
+      width: 120,
+      render: (_, l) =>
+        l.status !== 'CONVERTED' && l.status !== 'UNQUALIFIED' ? (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-success-light text-success-dark border border-success/30 hover:opacity-90"
+            onClick={() => setConvertTarget(l)}
+            title="Chuyển thành cơ hội bán"
+          >
+            Chuyển đổi <ArrowRight size={12} />
+          </button>
+        ) : null,
+    },
+  ]
+
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      <PageGuideButton guide={LEADS_GUIDE} />
+      <Button className="gap-2" onClick={() => setShowCreate(true)}>
+        <Plus size={16} /> Thêm khách tiềm năng
+      </Button>
+    </div>
+  )
+
+  return (
+    <div className={pageRootClass(embedded)}>
+      {embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-neutral-600">
+            Khách tiềm năng — chuyển thành cơ hội bán.
+            <span className="ml-2 text-xs text-neutral-400 tabular-nums">
+              {filtered.length} lead{hasFilter ? ' (đã lọc)' : ''}
+            </span>
+          </p>
+          {headerActions}
+        </div>
+      ) : (
+        <PageHeader
+          title="Khách tiềm năng"
+          description="Theo dõi liên hệ mới và chuyển thành cơ hội bán hàng."
+          actions={headerActions}
+        />
+      )}
+
       <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
         <div className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">
           Lộ trình: Khách tiềm năng → Cơ hội bán
@@ -124,174 +236,101 @@ export function LeadsPage() {
           })}
         </div>
         <p className="text-xs text-neutral-500 mt-2">
-          Chọn khách tiềm năng còn mở → Chuyển đổi để tạo cơ hội bán (điền sẵn) rồi mở bảng Kanban.
+          Chọn khách tiềm năng còn mở → Chuyển đổi để tạo cơ hội bán, rồi mở phễu bán hàng.
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[260px] max-w-md">
+      <FilterBar
+        hasActiveFilters={hasFilter}
+        onClear={() => {
+          setSearch('')
+          setStatus('ALL')
+        }}
+        countLabel={`${filtered.length} bản ghi${hasFilter ? ' (đã lọc)' : ''}`}
+      >
+        <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
           <input
-            className="w-full pl-9 pr-3 py-2 border rounded-md text-sm"
-            placeholder="Tìm theo tên, email, sđt, công ty…"
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            placeholder="Tìm theo tên, email, SĐT, công ty…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            aria-label="Tìm khách tiềm năng"
           />
         </div>
         <div className="flex gap-1 border rounded-md p-0.5 bg-white flex-wrap">
           {STATUS_TABS.map((t) => (
             <button
               key={t.key}
+              type="button"
               onClick={() => setStatus(t.key)}
-              className={`px-3 py-1.5 text-sm rounded whitespace-nowrap ${
-                status === t.key ? `${t.tone} text-white` : 'text-neutral-600 hover:bg-neutral-100'
+              className={`px-2.5 py-1 text-xs rounded whitespace-nowrap ${
+                status === t.key
+                  ? 'bg-neutral-900 text-white'
+                  : 'text-neutral-600 hover:bg-neutral-100'
               }`}
             >
               {t.label}
             </button>
           ))}
         </div>
-        <div className="flex-1" />
-        <Button className="gap-2" onClick={() => setShowCreate(true)}>
-          <Plus size={16} /> Thêm Lead
-        </Button>
-      </div>
+      </FilterBar>
 
       {isError ? (
-        <div className="border rounded-lg bg-white">
+        <div className="border rounded-xl bg-white">
           <ErrorState
-            title="Không tải được leads"
-            onRetry={() => refetch()}
+            title="Không tải được khách tiềm năng"
+            onRetry={() => void refetch()}
             isRetrying={isFetching}
           />
         </div>
-      ) : !isLoading && filtered.length === 0 ? (
-        <div className="border rounded-lg bg-white">
+      ) : isFullyEmpty || isFilteredEmpty ? (
+        <div className="border rounded-xl bg-white">
           <EmptyState
             icon={Users}
-            title="Chưa có lead"
+            title={isFilteredEmpty ? 'Không có bản ghi khớp bộ lọc' : 'Chưa có khách tiềm năng'}
             description={
-              search.trim() || status !== 'ALL'
-                ? 'Không khớp bộ lọc — thử xoá tìm kiếm hoặc chọn «Tất cả».'
-                : 'Thêm lead thủ công hoặc import từ MKT / Facebook.'
+              isFilteredEmpty
+                ? 'Thử xoá tìm kiếm hoặc chọn «Tất cả».'
+                : 'Thêm thủ công hoặc nhập từ marketing / Facebook.'
             }
-            action={{ label: 'Thêm Lead', onClick: () => setShowCreate(true) }}
+            action={
+              isFilteredEmpty
+                ? {
+                    label: 'Xoá lọc',
+                    onClick: () => {
+                      setSearch('')
+                      setStatus('ALL')
+                    },
+                  }
+                : { label: 'Thêm khách tiềm năng', onClick: () => setShowCreate(true) }
+            }
           />
         </div>
       ) : (
-      <div className="overflow-x-auto border rounded-lg bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-neutral-50 text-neutral-600">
-            <tr>
-              <th className="p-3 text-center w-10">
-                <input
-                  ref={headerCheckboxRef}
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-300 cursor-pointer"
-                  checked={selection.allSelected}
-                  onChange={selection.toggleAll}
-                  aria-label="Chọn tất cả lead"
-                />
-              </th>
-              <th className="p-3 text-left font-medium">Tên</th>
-              <th className="p-3 text-left font-medium">Công ty</th>
-              <th className="p-3 text-left font-medium">Liên hệ</th>
-              <th className="p-3 text-left font-medium">Nguồn</th>
-              <th className="p-3 text-center font-medium">Score</th>
-              <th className="p-3 text-center font-medium">Trạng thái</th>
-              <th className="p-3 text-left font-medium">Ngày tạo</th>
-              <th className="p-3 text-right font-medium w-32">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-100">
-            {isLoading && <tr><td colSpan={9} className="p-6 text-center text-neutral-500">Đang tải…</td></tr>}
-            {filtered.map((l: Lead) => {
-              const rowSelected = selection.isSelected(l)
-              return (
-                <tr
-                  key={l.id}
-                  className={rowSelected ? 'bg-primary-50/40 hover:bg-primary-50/60' : 'hover:bg-neutral-50'}
-                >
-                  <td className="p-3 text-center">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-300 cursor-pointer"
-                      checked={rowSelected}
-                      onChange={() => selection.toggleRow(l)}
-                      aria-label={`Chọn lead ${l.fullName}`}
-                    />
-                  </td>
-                  <td
-                    className="p-3 font-medium cursor-pointer hover:text-primary-700"
-                    onClick={() => setPathLead(l)}
-                  >
-                    {l.fullName}
-                  </td>
-                  <td className="p-3 text-neutral-700">{l.companyName || '—'}</td>
-                  <td className="p-3 text-neutral-600">
-                    {l.phone && <div>📞 {l.phone}</div>}
-                    {l.email && <div className="text-xs">✉ {l.email}</div>}
-                  </td>
-                  <td className="p-3 text-neutral-600">{l.source || '—'}</td>
-                  <td className="p-3 text-center">
-                    <ScoreBadge score={l.score ?? 0} />
-                  </td>
-                  <td className="p-3 text-center">
-                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs border border-neutral-200 bg-neutral-50">
-                      {STATUS_TABS.find((s) => s.key === l.status)?.label || l.status}
-                    </span>
-                  </td>
-                  <td className="p-3 text-xs text-neutral-500">{l.createdDate ? formatDate(l.createdDate) : '—'}</td>
-                  <td className="p-3 text-right">
-                    {l.status !== 'CONVERTED' && l.status !== 'UNQUALIFIED' && (
-                      <button
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-                        onClick={() => setConvertTarget(l)}
-                        title="Chuyển thành cơ hội bán"
-                      >
-                        Chuyển đổi <ArrowRight size={12} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+        <AppTable
+          columns={columns}
+          data={filtered}
+          isLoading={isLoading}
+          density="compact"
+          showSearch={false}
+          selectable
+          getRowId={(row) => row.id}
+          bulkActions={bulkActions}
+          onRefresh={() => void refetch()}
+        />
       )}
 
-      {/* Sticky bulk-action bar */}
-      <BulkSelectionBar
-        selectedCount={selection.count}
-        totalCount={filtered.length}
-        onDeselect={selection.clear}
-        actions={
-          <>
-            <Button
-              size="sm"
-              variant="destructive"
-              disabled={bulkRunning !== null}
-              onClick={() => setConfirmBulk(selection.selectedRows)}
-              className="gap-1.5"
-            >
-              <Trash2 size={14} />
-              {bulkRunning === 'delete' ? 'Đang xoá…' : 'Xoá'}
-            </Button>
-          </>
-        }
-      />
-
-      {/* Confirm bulk delete */}
       <ConfirmDialog
         isOpen={!!confirmBulk}
         onClose={() => (bulkRunning ? undefined : setConfirmBulk(null))}
         onConfirm={runBulkDelete}
-        title={`Xoá ${confirmBulk?.length ?? 0} lead?`}
-        message="Các lead đã chọn sẽ bị xoá vĩnh viễn. Thao tác không thể hoàn tác."
+        title={`Xoá ${confirmBulk?.length ?? 0} khách tiềm năng?`}
+        message="Các bản ghi đã chọn sẽ bị xoá vĩnh viễn. Thao tác không thể hoàn tác."
         variant="danger"
         confirmText="Xoá tất cả"
         cancelText="Huỷ"
+        isLoading={bulkRunning}
       />
 
       <ConfirmDialog
@@ -302,31 +341,40 @@ export function LeadsPage() {
           convert.mutate(
             { id: convertTarget.id },
             {
-              onSuccess: (deal: any) => {
+              onSuccess: (res: any) => {
                 setConvertTarget(null)
                 setPathLead(null)
-                const dealId = deal?.id || deal?.data?.id
-                navigate(dealId ? `/crm/deals?dealId=${dealId}` : '/crm/deals')
+                // BE trả ApiResponse<{ dealId }> — không phải Deal entity
+                const dealId =
+                  res?.data?.dealId ||
+                  res?.dealId ||
+                  res?.data?.id ||
+                  res?.id
+                navigate(
+                  dealId
+                    ? `${crmPipelineHubUrl({ tab: 'deals' })}&dealId=${dealId}`
+                    : crmPipelineHubUrl({ tab: 'deals' }),
+                )
               },
             },
           )
         }}
         title="Tạo cơ hội bán từ khách tiềm năng?"
-        message={`Khách tiềm năng "${convertTarget?.fullName || ''}" sẽ được chuyển thành cơ hội bán (điền sẵn) và mở phễu bán hàng.`}
+        message={`「${convertTarget?.fullName || ''}」 sẽ được chuyển thành cơ hội bán và mở phễu bán hàng.`}
         confirmText="Tạo cơ hội"
         cancelText="Huỷ"
         variant="default"
         isLoading={convert.isPending}
       />
 
-      <AppModal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Thêm Lead mới">
+      <AppModal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Thêm khách tiềm năng">
         <div className="space-y-3">
           {[
             ['fullName', 'Họ tên *'],
             ['phone', 'Số điện thoại'],
             ['email', 'Email'],
             ['companyName', 'Công ty'],
-            ['source', 'Nguồn (Facebook / Referral / Web / …)'],
+            ['source', 'Nguồn (Facebook / Giới thiệu / Web / …)'],
           ].map(([f, label]) => (
             <div key={f}>
               <label className="text-sm text-neutral-700 mb-1 block">{label}</label>
@@ -349,29 +397,25 @@ export function LeadsPage() {
   )
 }
 
-// ============================================================
-// Score badge — color theo ngưỡng: >=80 xanh, 50-79 amber, <50 xám
-// ============================================================
 function ScoreBadge({ score }: { score: number }) {
   const cls =
     score >= 80
-      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      ? 'bg-success-light text-success-dark border-success/30'
       : score >= 50
-        ? 'bg-amber-50 text-amber-700 border-amber-200'
+        ? 'bg-warning-light text-warning-dark border-warning/30'
         : 'bg-neutral-100 text-neutral-600 border-neutral-200'
   return (
     <span
-      className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-full text-xs font-bold tabular-nums border ${cls}`}
+      className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-md text-xs font-bold tabular-nums border ${cls}`}
       title={
         score >= 80
-          ? 'Hot lead — nên contact ngay'
+          ? 'Điểm cao — nên liên hệ sớm'
           : score >= 50
-            ? 'Warm lead — nurture'
-            : 'Cold lead — cần thêm data'
+            ? 'Điểm trung bình — cần nuôi dưỡng'
+            : 'Điểm thấp — cần thêm thông tin'
       }
     >
       {score}
     </span>
   )
 }
-

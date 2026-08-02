@@ -37,6 +37,7 @@ export interface ApiLogStats {
 }
 
 export interface ApiLogFilter {
+  /** 1-based — BE ApiLogServiceImpl uses ServiceHelper.createPageable (page - 1). */
   pageNumber?: number
   pageSize?: number
   search?: string

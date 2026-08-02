@@ -1,13 +1,14 @@
 import { useState, useMemo } from 'react'
 import {
-  Plus, Building2, Sprout, Weight, Award, Search, X, LayoutGrid, List,
-  Filter, AlertTriangle, type LucideIcon,
+  Plus, Building2, Sprout, Weight, Award, Search, LayoutGrid, List,
+  AlertTriangle, type LucideIcon,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Button, PageHeader, PageGuideButton, Select, ConfirmDialog, Skeleton,
+  Button, PageHeader, PageGuideButton, Select, ConfirmDialog, Skeleton, EmptyState,
 } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import { categoryApi } from '@/modules/qtht/services/categoryApi'
 import {
   useNccList, useCreateNcc, useUpdateNcc, useDeleteNcc,
@@ -113,6 +114,7 @@ export function NccPage() {
   }
 
   const isSubmitting = createReq.isPending || updateReq.isPending
+  const hasActiveFilters = Boolean(searchText.trim()) || !!classFilter
 
   return (
     <div className="p-6 space-y-5 animate-fade-in">
@@ -168,16 +170,23 @@ export function NccPage() {
         />
       </div>
 
-      {/* Filter bar */}
-      <div className="p-3 bg-white border border-neutral-200 rounded-2xl shadow-sm flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+      <FilterBar
+        hasActiveFilters={hasActiveFilters}
+        onClear={() => {
+          setSearchText('')
+          setClassFilter('')
+        }}
+        countLabel={`${filteredList.length} NCC${hasActiveFilters ? ' (đã lọc)' : ''}`}
+      >
+        <div className="relative flex-1 min-w-[220px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
           <input
             type="text"
-            placeholder="Tìm tên, mã, đại diện, SĐT..."
+            placeholder="Tìm tên, mã, đại diện, SĐT…"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            className="h-10 w-full pl-9 pr-3 text-sm bg-neutral-50 border border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:bg-white transition-all placeholder:text-neutral-400"
+            className="h-9 w-full pl-9 pr-3 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-400"
+            aria-label="Tìm NCC"
           />
         </div>
         <div className="w-56">
@@ -188,41 +197,29 @@ export function NccPage() {
             placeholder="Tất cả phân loại"
           />
         </div>
-        {(searchText || classFilter) && (
-          <button
-            type="button"
-            onClick={() => {
-              setSearchText('')
-              setClassFilter('')
-            }}
-            className="inline-flex items-center gap-1 h-9 px-2.5 rounded-md text-xs font-medium text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition"
-          >
-            <X size={12} /> Xoá lọc
-          </button>
-        )}
-
-        {/* View toggle */}
-        <div className="ml-auto flex items-center bg-neutral-100 rounded-lg p-0.5">
+        <div className="inline-flex items-center rounded-md border border-neutral-200 bg-white p-0.5">
           <button
             type="button"
             onClick={() => setView('grid')}
             className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
-              view === 'grid' ? 'bg-white text-primary-700 shadow-sm' : 'text-neutral-500'
+              view === 'grid' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
             }`}
+            aria-label="Chế độ lưới"
           >
-            <LayoutGrid size={13} /> Grid
+            <LayoutGrid size={13} /> Lưới
           </button>
           <button
             type="button"
             onClick={() => setView('list')}
             className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
-              view === 'list' ? 'bg-white text-primary-700 shadow-sm' : 'text-neutral-500'
+              view === 'list' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
             }`}
+            aria-label="Chế độ bảng"
           >
             <List size={13} /> Bảng
           </button>
         </div>
-      </div>
+      </FilterBar>
 
       {/* Content */}
       {isLoading ? (
@@ -236,21 +233,21 @@ export function NccPage() {
           <div className="p-6"><Skeleton className="h-[400px] rounded-xl" /></div>
         )
       ) : filteredList.length === 0 ? (
-        <div className="p-12 bg-white border border-neutral-200 rounded-2xl flex flex-col items-center justify-center text-center">
-          <Building2 size={40} className="text-neutral-300 mb-3" />
-          <h3 className="text-base font-semibold text-neutral-700">
-            {nccList.length === 0 ? 'Chưa có NCC nào' : 'Không tìm thấy kết quả'}
-          </h3>
-          <p className="text-sm text-neutral-500 mt-1 max-w-sm">
-            {nccList.length === 0
-              ? 'Thêm NCC đầu tiên để bắt đầu quản lý danh bạ nhà cung cấp nông sản.'
-              : 'Thử điều chỉnh bộ lọc hoặc từ khoá tìm kiếm.'}
-          </p>
-          {nccList.length === 0 && (
-            <Button onClick={handleOpenCreate} className="mt-4 gap-2 bg-primary-600 hover:bg-primary-700 text-white">
-              <Plus size={16} /> Thêm NCC đầu tiên
-            </Button>
-          )}
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={Building2}
+            title={nccList.length === 0 ? 'Chưa có NCC nào' : 'Không tìm thấy kết quả'}
+            description={
+              nccList.length === 0
+                ? 'Thêm NCC đầu tiên để bắt đầu quản lý danh bạ nhà cung cấp nông sản.'
+                : 'Thử điều chỉnh bộ lọc hoặc từ khoá tìm kiếm.'
+            }
+            action={
+              nccList.length === 0
+                ? { label: 'Thêm NCC đầu tiên', onClick: handleOpenCreate }
+                : { label: 'Xoá lọc', onClick: () => { setSearchText(''); setClassFilter('') } }
+            }
+          />
         </div>
       ) : view === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -270,6 +267,9 @@ export function NccPage() {
             data={filteredList}
             isLoading={false}
             showSearch={false}
+            density="compact"
+            pageSize={20}
+            pageSizeOptions={[10, 20, 50, 100]}
             columns={[
               {
                 title: 'NCC',

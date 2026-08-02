@@ -1,45 +1,52 @@
 // ============================================================
-// GoodsReceiptNotesPage — danh sách PNK (GRN) — AppTable + hóa đơn NCC
+// GoodsReceiptNotesPage — danh sách phiếu nhập kho — WarehouseListShell
 // ============================================================
 
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PackagePlus, Plus, Eye } from 'lucide-react'
-import { toast } from 'sonner'
-import {
-  Button,
-  PageHeader,
-  EmptyState,
-  ErrorState,
-  AppModal,
-  PageGuideButton,
-  StatCard,
-} from '@frezo/ui'
-import { AppTable } from '@/components/ui/AppTable'
+import { Button } from '@frezo/ui'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { useProducts } from '@/modules/products/hooks/useProduct'
 import { GRN_GUIDE } from '../constants/grn-gin.guide'
-import { useWarehouses } from '../hooks/useReorderRules'
+import { DOC_STATUS_FILTER_OPTIONS } from '../constants/warehouseStatus'
 import { useGrns, useCreateGrn } from '../hooks/useGrn'
+import { usePurchaseOrders } from '../hooks/usePurchaseOrder'
+import { useWarehouseFilters } from '../hooks/useWarehouseFilters'
 import { usePermission } from '@/lib/hooks/usePermission'
 import { GrnGinStatusBadge } from '../components/GrnGinStatusBadge'
-import { formatVnd, parseProductLines } from '../utils/grnGinUtils'
-import { resolveProductTokens } from '../utils/stockTakeUtils'
-import { formatWarehouseLabel } from '../utils/displayUtils'
+import { GrnCreateModal } from '../components/GrnCreateModal'
+import { WarehouseListShell } from '../components/WarehouseListShell'
+import { WarehouseFilterBar } from '../components/WarehouseFilterBar'
+import { formatGrnDate } from '../utils/grnGinUtils'
+import {
+  formatSupplierLabel,
+  formatWarehouseLabel,
+  warehouseSelectLabel,
+} from '../utils/displayUtils'
 import type { GrnDto } from '../services/grnApi'
+import type { PurchaseOrderDto } from '../services/purchaseOrderApi'
 
 export function GoodsReceiptNotesPage() {
   const nav = useNavigate()
-  const [warehouseFilter, setWarehouseFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [searchParams] = useSearchParams()
+  const filters = useWarehouseFilters()
+  const [supplierFilter, setSupplierFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [keyword, setKeyword] = useState('')
+
+  useEffect(() => {
+    const status = searchParams.get('status')
+    if (status) filters.setStatus(status)
+  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const listParams = useMemo(
     () => ({
-      status: statusFilter || undefined,
+      status: filters.status || undefined,
       keyword: keyword.trim() || undefined,
     }),
-    [statusFilter, keyword],
+    [filters.status, keyword],
   )
 
   const {
@@ -49,56 +56,105 @@ export function GoodsReceiptNotesPage() {
     isFetching,
     refetch,
   } = useGrns(listParams)
-  const { data: warehouses = [] } = useWarehouses()
-  const { data: productsRaw } = useProducts()
+  const { data: purchaseOrders = [] } = usePurchaseOrders()
+  const { data: productsRaw, isError: productsError, isLoading: productsLoading } = useProducts()
   const create = useCreateGrn()
   const canCreate = usePermission('WAREHOUSE.GRN.CREATE')
 
   const [open, setOpen] = useState(false)
-  const [warehouseId, setWarehouseId] = useState('')
-  const [purchaseOrderId, setPurchaseOrderId] = useState('')
-  const [supplierId, setSupplierId] = useState('')
-  const [invoiceNo, setInvoiceNo] = useState('')
-  const [invoiceDate, setInvoiceDate] = useState('')
-  const [note, setNote] = useState('')
-  const [linesRaw, setLinesRaw] = useState('')
 
   const products = useMemo(() => {
-    const raw = productsRaw as Array<{ id: string; code?: string; name?: string }> | undefined
-    return Array.isArray(raw) ? raw : []
+    const raw = productsRaw as
+      | Array<{ id: string; code?: string; name?: string; price?: number | null }>
+      | undefined
+    return Array.isArray(raw)
+      ? raw.filter((p) => Boolean(p?.id)).map((p) => ({
+          id: p.id,
+          code: p.code,
+          name: p.name,
+          price: p.price,
+        }))
+      : []
   }, [productsRaw])
 
-  const warehouseOptions = useMemo(
-    () => warehouses as { id: string; name?: string }[],
-    [warehouses],
+  const warehouseOptions = filters.warehouses
+
+  const supplierOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const grn of list) {
+      if (grn.supplierId) {
+        map.set(grn.supplierId, grn.supplierName || grn.supplierId)
+      }
+    }
+    for (const po of purchaseOrders) {
+      if (po.supplierId) {
+        map.set(po.supplierId, po.supplierName || po.supplierId)
+      }
+    }
+    return Array.from(map.entries()).map(([id, label]) => ({ id, label }))
+  }, [list, purchaseOrders])
+
+  const receivablePos = useMemo(
+    () =>
+      (purchaseOrders as PurchaseOrderDto[]).filter((po) => {
+        const st = (po.status || '').toUpperCase()
+        return st === 'CONFIRMED' || st === 'PARTIAL_RECEIVED'
+      }),
+    [purchaseOrders],
   )
 
   const filteredList = useMemo(() => {
-    if (!warehouseFilter) return list
-    return list.filter((grn) => grn.warehouseId === warehouseFilter)
-  }, [list, warehouseFilter])
+    return list.filter((grn) => {
+      if (filters.warehouseId && grn.warehouseId !== filters.warehouseId) return false
+      if (supplierFilter && grn.supplierId !== supplierFilter) return false
+      const docDate = formatGrnDate(grn)
+      if (dateFrom && docDate !== '—' && docDate < dateFrom) return false
+      if (dateTo && docDate !== '—' && docDate > dateTo) return false
+      return true
+    })
+  }, [list, filters.warehouseId, supplierFilter, dateFrom, dateTo])
 
   const stats = useMemo(() => {
-    const total = list.length
-    const draft = list.filter((g) => (g.status || '').toUpperCase() === 'DRAFT').length
-    const pending = list.filter((g) => (g.status || '').toUpperCase() === 'PENDING_APPROVAL').length
-    const approved = list.filter((g) => (g.status || '').toUpperCase() === 'APPROVED').length
-    const confirmed = list.filter((g) => (g.status || '').toUpperCase() === 'CONFIRMED').length
-    return { total, draft, pending, approved, confirmed }
-  }, [list])
+    const base = filters.warehouseId
+      ? list.filter((g) => g.warehouseId === filters.warehouseId)
+      : list
+    return [
+      { label: 'Tổng phiếu', value: base.length },
+      { label: 'Nháp', value: base.filter((g) => (g.status || '').toUpperCase() === 'DRAFT').length },
+      {
+        label: 'Chờ duyệt',
+        value: base.filter((g) => (g.status || '').toUpperCase() === 'PENDING_APPROVAL').length,
+      },
+      {
+        label: 'Đã nhập',
+        value: base.filter((g) => (g.status || '').toUpperCase() === 'CONFIRMED').length,
+      },
+      {
+        label: 'Huỷ',
+        value: base.filter((g) => (g.status || '').toUpperCase() === 'CANCELLED').length,
+      },
+    ]
+  }, [list, filters.warehouseId])
 
   const columns: AppTableColumn<GrnDto>[] = [
     {
       key: 'code',
-      title: 'Mã PNK',
+      title: 'Mã phiếu nhập',
       render: (_, row) => (
         <button
           type="button"
           className="font-mono text-xs text-primary-700 hover:underline text-left"
           onClick={() => nav(`/warehouse/grn/${row.id}`)}
         >
-          {row.grnCode || row.id.slice(0, 8)}
+          {row.grnCode || '—'}
         </button>
+      ),
+    },
+    {
+      key: 'date',
+      title: 'Ngày',
+      render: (_, row) => (
+        <span className="tabular-nums text-sm">{formatGrnDate(row)}</span>
       ),
     },
     {
@@ -110,39 +166,33 @@ export function GoodsReceiptNotesPage() {
     },
     {
       key: 'supplier',
-      title: 'NCC / HĐ',
+      title: 'NCC',
       render: (_, row) => (
-        <div className="text-sm">
-          <div>{row.supplierName || row.supplierId || '—'}</div>
-          {row.invoiceNo && (
-            <div className="text-xs text-neutral-500 font-mono">{row.invoiceNo}</div>
-          )}
-        </div>
+        <span className="text-sm">{formatSupplierLabel(row)}</span>
       ),
     },
     {
       key: 'po',
-      title: 'PO',
+      title: 'Mã đơn mua',
       render: (_, row) => (
         <span className="font-mono text-xs">
-          {row.purchaseOrderCode || row.purchaseOrderId?.slice(0, 8) || '—'}
+          {row.purchaseOrderCode || '—'}
         </span>
       ),
     },
     {
-      key: 'lines',
-      title: 'Dòng',
-      align: 'right',
+      key: 'invoice',
+      title: 'Số HĐ NCC',
       render: (_, row) => (
-        <span className="tabular-nums">{row.items?.length ?? 0}</span>
+        <span className="font-mono text-xs">{row.invoiceNo || '—'}</span>
       ),
     },
     {
-      key: 'value',
-      title: 'Giá trị',
+      key: 'lines',
+      title: 'SL dòng',
       align: 'right',
       render: (_, row) => (
-        <span className="tabular-nums text-sm">{formatVnd(row.totalValue)}</span>
+        <span className="tabular-nums">{row.items?.length ?? 0}</span>
       ),
     },
     {
@@ -168,272 +218,151 @@ export function GoodsReceiptNotesPage() {
     },
   ]
 
-  const resetCreateForm = () => {
-    setWarehouseId(warehouseFilter || warehouseOptions[0]?.id || '')
-    setPurchaseOrderId('')
-    setSupplierId('NCC001')
-    setInvoiceNo('')
-    setInvoiceDate('')
-    setNote('')
-    setLinesRaw('SP001,100,25000')
-  }
+  const openCreateModal = () => setOpen(true)
 
-  const handleCreate = () => {
-    if (!warehouseId || !linesRaw.trim()) return
-    const parsed = parseProductLines(linesRaw)
-    const tokens = parsed.map((p) => p.productId)
-    const { unknown } = resolveProductTokens(tokens.join('\n'), products)
-    if (unknown.length > 0) {
-      toast.error(`Không tìm thấy SP: ${unknown.join(', ')}`)
-      return
-    }
-    const tokenToId = new Map<string, string>()
-    for (const p of products) {
-      if (p.code) tokenToId.set(p.code.toUpperCase(), p.id)
-      tokenToId.set(p.id, p.id)
-    }
-    const items = parsed.map((ln) => ({
-      productId: tokenToId.get(ln.productId.toUpperCase()) || ln.productId,
-      qtyExpected: ln.qty,
-      unitCost: ln.unitCost,
-    }))
-    create.mutate(
-      {
-        warehouseId,
-        purchaseOrderId: purchaseOrderId || undefined,
-        supplierId: supplierId || undefined,
-        invoiceNo: invoiceNo || undefined,
-        invoiceDate: invoiceDate || undefined,
-        note: note || undefined,
-        items,
-      },
-      {
-        onSuccess: (grn) => {
-          setOpen(false)
-          if (grn?.id) nav(`/warehouse/grn/${grn.id}`)
-        },
-      },
-    )
+  const hasActiveFilters = Boolean(
+    filters.warehouseId || filters.status || supplierFilter || dateFrom || dateTo || keyword,
+  )
+
+  const clearFilters = () => {
+    filters.clearFilters()
+    setSupplierFilter('')
+    setDateFrom('')
+    setDateTo('')
+    setKeyword('')
   }
 
   return (
-    <div className="p-6 space-y-4 animate-fade-in">
-      <PageHeader
-        title="Phiếu nhập kho (PNK)"
-        description="Quy trình T3/AMIS: Nháp → Gửi duyệt → Duyệt → Xác nhận nhập (cộng tồn) + hóa đơn NCC."
-        actions={
-          <div className="flex flex-wrap gap-2 items-center">
-            <PageGuideButton guide={GRN_GUIDE} />
-            <Button variant="outline" onClick={() => nav('/warehouse/purchase-orders')}>
-              Từ PO
-            </Button>
-            {canCreate && (
-              <Button
-                className="gap-1.5"
-                onClick={() => {
-                  resetCreateForm()
-                  setOpen(true)
-                }}
-              >
-                <Plus size={14} /> Tạo PNK
-              </Button>
-            )}
-          </div>
-        }
-      />
-
-      {!isLoading && !isError && list.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <StatCard label="Tổng phiếu" value={stats.total} />
-          <StatCard label="Nháp" value={stats.draft} />
-          <StatCard label="Chờ duyệt" value={stats.pending} />
-          <StatCard label="Đã duyệt" value={stats.approved} />
-          <StatCard label="Đã nhập" value={stats.confirmed} />
-        </div>
-      )}
-
-      <div className="sticky top-0 z-10 -mx-6 px-6 py-2 bg-neutral-50/95 backdrop-blur border-y border-neutral-200/80">
-        <div className="flex flex-wrap gap-2 items-center">
-          <select
-            className="h-9 border rounded-md px-3 text-sm bg-white min-w-[140px]"
-            value={warehouseFilter}
-            onChange={(e) => setWarehouseFilter(e.target.value)}
-          >
-            <option value="">Tất cả kho</option>
-            {warehouseOptions.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name || w.id}
-              </option>
-            ))}
-          </select>
-          <select
-            className="h-9 border rounded-md px-3 text-sm bg-white min-w-[140px]"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="DRAFT">Nháp</option>
-            <option value="PENDING_APPROVAL">Chờ duyệt</option>
-            <option value="APPROVED">Đã duyệt</option>
-            <option value="CONFIRMED">Đã nhập</option>
-            <option value="CANCELLED">Đã huỷ</option>
-          </select>
-          <input
-            className="h-9 border rounded-md px-3 text-sm bg-white min-w-[160px]"
-            placeholder="Tìm mã / HĐ NCC…"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-          />
-          {(warehouseFilter || statusFilter || keyword) && (
+    <WarehouseListShell
+      title="Phiếu nhập kho"
+      description="Nháp → Gửi duyệt → Duyệt → Xác nhận nhập kho (+ HĐ NCC khi gắn đơn mua/NCC)."
+      guide={GRN_GUIDE}
+      headerActions={
+        <>
+          <Button variant="outline" onClick={() => nav('/warehouse/purchase-orders')}>
+            Từ đơn mua hàng
+          </Button>
+          {canCreate && (
             <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setWarehouseFilter('')
-                setStatusFilter('')
-                setKeyword('')
-              }}
+              className="gap-2 shadow-sm"
+              onClick={openCreateModal}
             >
-              Xoá lọc
+              <Plus size={16} strokeWidth={2.5} />
+              Tạo phiếu nhập kho
             </Button>
           )}
-          <span className="text-xs text-neutral-500 ml-auto tabular-nums">
-            {filteredList.length} phiếu
-          </span>
-        </div>
-      </div>
-
-      {isError ? (
-        <div className="border rounded-xl bg-white">
-          <ErrorState
-            title="Không tải được phiếu nhập kho"
-            message="Kiểm tra /warehouse/grn và quyền WAREHOUSE.GRN.VIEW."
-            onRetry={() => void refetch()}
-            isRetrying={isFetching}
-          />
-        </div>
-      ) : !isLoading && filteredList.length === 0 ? (
-        <div className="border rounded-xl bg-white">
-          <EmptyState
-            icon={PackagePlus}
-            title={list.length === 0 ? 'Chưa có phiếu nhập kho' : 'Không có phiếu phù hợp'}
-            description="Demo: GRN-DEMO-001 (nháp + PO), GRN-DEMO-003 (đã nhập)."
-            action={
-              canCreate
-                ? {
-                    label: 'Tạo PNK',
-                    onClick: () => {
-                      resetCreateForm()
-                      setOpen(true)
-                    },
-                  }
-                : undefined
-            }
-          />
-        </div>
-      ) : (
-        <AppTable
-          columns={columns}
-          data={filteredList}
-          isLoading={isLoading || isFetching}
-          loadingRows={6}
-          density="compact"
-          onRefresh={() => void refetch()}
-        />
-      )}
-
-      <AppModal isOpen={open} onClose={() => setOpen(false)} title="Tạo phiếu nhập kho" maxWidth="lg">
-        <div className="space-y-3 text-sm">
-          <p className="text-neutral-500 text-xs">
-            Bước 1: Kho, NCC, hóa đơn đầu vào và dòng hàng (mã SP như SP001).
-          </p>
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-neutral-600">Kho nhập *</span>
-            <select
-              className="w-full border rounded-md px-3 py-2"
-              value={warehouseId}
-              onChange={(e) => setWarehouseId(e.target.value)}
-            >
-              <option value="">— Chọn kho —</option>
-              {warehouseOptions.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name || w.id}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-neutral-600">Mã NCC</span>
-              <input
-                className="w-full border rounded-md px-3 py-2 font-mono"
-                placeholder="NCC001"
-                value={supplierId}
-                onChange={(e) => setSupplierId(e.target.value)}
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-neutral-600">PO ID (tuỳ chọn)</span>
-              <input
-                className="w-full border rounded-md px-3 py-2 font-mono text-xs"
-                placeholder="Liên kết đơn mua"
-                value={purchaseOrderId}
-                onChange={(e) => setPurchaseOrderId(e.target.value)}
-              />
-            </label>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-neutral-600">Số hóa đơn NCC</span>
-              <input
-                className="w-full border rounded-md px-3 py-2"
-                placeholder="HD-2026-0012345"
-                value={invoiceNo}
-                onChange={(e) => setInvoiceNo(e.target.value)}
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-neutral-600">Ngày hóa đơn</span>
+        </>
+      }
+      stats={stats}
+      filterBar={
+        <WarehouseFilterBar
+          selects={[
+            {
+              id: 'warehouse',
+              label: 'Lọc kho',
+              value: filters.warehouseId,
+              onChange: filters.setWarehouseId,
+              options: [
+                { value: '', label: 'Tất cả kho' },
+                ...warehouseOptions.map((w) => ({
+                  value: w.id,
+                  label: warehouseSelectLabel(w),
+                })),
+              ],
+            },
+            {
+              id: 'supplier',
+              label: 'NCC',
+              value: supplierFilter,
+              onChange: setSupplierFilter,
+              options: [
+                { value: '', label: 'Tất cả NCC' },
+                ...supplierOptions.map((s) => ({ value: s.id, label: s.label })),
+              ],
+            },
+            {
+              id: 'status',
+              label: 'Trạng thái',
+              value: filters.status,
+              onChange: filters.setStatus,
+              options: DOC_STATUS_FILTER_OPTIONS,
+            },
+          ]}
+          hasActiveFilters={hasActiveFilters}
+          onClear={clearFilters}
+          countLabel={`${filteredList.length} phiếu${hasActiveFilters ? ' (đã lọc)' : ''}`}
+          extra={
+            <>
               <input
                 type="date"
-                className="w-full border rounded-md px-3 py-2"
-                value={invoiceDate}
-                onChange={(e) => setInvoiceDate(e.target.value)}
+                className="h-9 border rounded-md px-3 text-sm bg-white"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                aria-label="Từ ngày"
               />
-            </label>
-          </div>
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-neutral-600">Dòng hàng *</span>
-            <textarea
-              rows={4}
-              className="w-full border rounded-md px-3 py-2 font-mono text-xs"
-              placeholder={'mãSP,sốLượng,đơnGiá\nSP001,100,25000'}
-              value={linesRaw}
-              onChange={(e) => setLinesRaw(e.target.value)}
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-neutral-600">Ghi chú</span>
-            <textarea
-              rows={2}
-              className="w-full border rounded-md px-3 py-2"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </label>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Huỷ
-            </Button>
-            <Button
-              disabled={!warehouseId || !linesRaw.trim() || create.isPending}
-              onClick={handleCreate}
-            >
-              Lưu nháp
-            </Button>
-          </div>
-        </div>
-      </AppModal>
-    </div>
+              <input
+                type="date"
+                className="h-9 border rounded-md px-3 text-sm bg-white"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                aria-label="Đến ngày"
+              />
+              <input
+                className="h-9 border rounded-md px-3 text-sm bg-white min-w-[160px]"
+                placeholder="Tìm mã phiếu / đơn mua / HĐ…"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                aria-label="Tìm kiếm"
+              />
+            </>
+          }
+        />
+      }
+      isLoading={isLoading}
+      isError={isError}
+      isFetching={isFetching}
+      onRetry={refetch}
+      errorTitle="Không tải được phiếu nhập kho"
+      totalCount={list.length}
+      filteredCount={filteredList.length}
+      emptyIcon={PackagePlus}
+      emptyTitle="Chưa có phiếu nhập kho"
+      emptyDescription="Tạo phiếu mới hoặc nhận hàng từ đơn mua hàng."
+      emptyAction={
+        canCreate
+          ? {
+              label: 'Tạo phiếu nhập kho',
+              onClick: openCreateModal,
+            }
+          : undefined
+      }
+      filteredEmptyTitle="Không có phiếu phù hợp bộ lọc"
+      filteredEmptyDescription="Thử đổi kho, NCC, trạng thái hoặc khoảng ngày."
+      columns={columns}
+      data={filteredList}
+      onRefresh={refetch}
+    >
+      <GrnCreateModal
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        warehouseOptions={warehouseOptions}
+        supplierOptions={supplierOptions}
+        receivablePos={receivablePos}
+        products={products}
+        productsError={productsError}
+        productsLoading={productsLoading}
+        defaultWarehouseId={filters.warehouseId}
+        defaultSupplierId={supplierOptions[0]?.id}
+        isPending={create.isPending}
+        onSubmit={(body) =>
+          create.mutate(body, {
+            onSuccess: (grn) => {
+              setOpen(false)
+              if (grn?.id) nav(`/warehouse/grn/${grn.id}`)
+            },
+          })
+        }
+      />
+    </WarehouseListShell>
   )
 }

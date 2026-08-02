@@ -40,7 +40,7 @@ export const REORDER_RULES_GUIDE: PageGuideConfig = {
       tips: [
         'Min — ngưỡng cảnh báo sắp thiếu (phải ≤ Max).',
         'Max — trần tồn mong muốn.',
-        'SL đặt lại — gợi ý số lượng khi tạo PR từ cảnh báo.',
+        'SL đặt lại — gợi ý số lượng khi tạo yêu cầu mua hàng từ cảnh báo.',
       ],
     },
     {

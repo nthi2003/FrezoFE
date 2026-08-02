@@ -46,6 +46,8 @@ import {
   issueTypeLabel,
 } from '../utils/grnGinUtils'
 import { formatWarehouseLabel } from '../utils/displayUtils'
+import { FefoSuggestPanel } from '../components/FefoSuggestPanel'
+import type { FefoBatchSuggestion } from '../services/batchApi'
 
 export function GoodsIssueNoteDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -65,6 +67,8 @@ export function GoodsIssueNoteDetailPage() {
   const [submitOpen, setSubmitOpen] = useState(false)
   const [approveOpen, setApproveOpen] = useState(false)
   const [qtyDrafts, setQtyDrafts] = useState<Record<string, string>>({})
+  const [batchDrafts, setBatchDrafts] = useState<Record<string, string>>({})
+  const [expandedLineId, setExpandedLineId] = useState<string | null>(null)
 
   const productMap = useMemo(() => {
     const list = productsRaw as Array<{ id: string; code?: string; name?: string }> | undefined
@@ -85,6 +89,11 @@ export function GoodsIssueNoteDetailPage() {
       init[ln.id] = String(qty)
     }
     setQtyDrafts(init)
+    const batchInit: Record<string, string> = {}
+    for (const ln of gin.items) {
+      if (ln.id && ln.batchId) batchInit[ln.id] = ln.batchId
+    }
+    setBatchDrafts(batchInit)
   }, [gin?.id, gin?.items])
 
   if (!id) {
@@ -109,7 +118,7 @@ export function GoodsIssueNoteDetailPage() {
     return (
       <div className="p-6 space-y-4">
         <ErrorState
-          title="Không tải được PXK"
+          title="Không tải được phiếu xuất kho"
           message="BE /warehouse/gin/:id"
           onRetry={() => void refetch()}
           isRetrying={isFetching}
@@ -222,7 +231,7 @@ export function GoodsIssueNoteDetailPage() {
         {(isDraft || isPending) && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             {isDraft
-              ? 'PXK nháp — gửi duyệt hoặc xác nhận xuất trực tiếp (nếu có quyền). Tồn chỉ giảm khi Xác nhận xuất.'
+              ? 'Phiếu xuất nháp — gửi duyệt hoặc xác nhận xuất trực tiếp (nếu có quyền). Tồn chỉ giảm khi Xác nhận xuất.'
               : 'Đang chờ duyệt — kế toán/trưởng bộ phận duyệt trước khi thủ kho xác nhận xuất.'}
           </div>
         )}
@@ -287,6 +296,7 @@ export function GoodsIssueNoteDetailPage() {
                   <th className="p-3">Sản phẩm</th>
                   <th className="p-3 text-right">Yêu cầu</th>
                   <th className="p-3 text-right">Xuất</th>
+                  <th className="p-3">Mã lô</th>
                   <th className="p-3 text-right">Đơn giá</th>
                   <th className="p-3 text-right">Thành tiền</th>
                 </tr>
@@ -296,44 +306,90 @@ export function GoodsIssueNoteDetailPage() {
                   const prod = productMap.get(ln.productId)
                   const qty = Number(qtyDrafts[ln.id!] ?? ln.qtyRequested ?? 0)
                   const lineVal = ln.unitCost != null ? qty * ln.unitCost : null
+                  const isExpanded = expandedLineId === ln.id
                   return (
-                    <tr key={ln.id || i}>
-                      <td className="p-3">
-                        <div className="font-mono text-xs text-primary-700">
-                          {prod?.code || ln.productId.slice(0, 8)}
-                        </div>
-                        {prod?.name && (
-                          <div className="text-neutral-600 text-xs">{prod.name}</div>
-                        )}
-                      </td>
-                      <td className="p-3 text-right tabular-nums">
-                        {ln.qtyRequested ?? '—'}
-                      </td>
-                      <td className="p-3 text-right">
-                        {canEditQty && ln.id ? (
-                          <input
-                            type="number"
-                            min={0}
-                            className="w-24 border rounded px-2 py-1 text-sm tabular-nums text-right"
-                            value={qtyDrafts[ln.id] ?? ''}
-                            onChange={(e) =>
-                              setQtyDrafts((d) => ({
-                                ...d,
-                                [ln.id!]: e.target.value,
-                              }))
-                            }
-                          />
-                        ) : (
-                          <span className="tabular-nums">{ln.qtyIssued ?? 0}</span>
-                        )}
-                      </td>
-                      <td className="p-3 text-right tabular-nums">
-                        {formatVnd(ln.unitCost)}
-                      </td>
-                      <td className="p-3 text-right tabular-nums">
-                        {formatVnd(lineVal ?? undefined)}
-                      </td>
-                    </tr>
+                    <>
+                      <tr key={ln.id || String(i)}>
+                        <td className="p-3">
+                          <div className="font-mono text-xs text-primary-700">
+                            {prod?.code || ln.productId.slice(0, 8)}
+                          </div>
+                          {prod?.name && (
+                            <div className="text-neutral-600 text-xs">{prod.name}</div>
+                          )}
+                        </td>
+                        <td className="p-3 text-right tabular-nums">
+                          {ln.qtyRequested ?? '—'}
+                        </td>
+                        <td className="p-3 text-right">
+                          {canEditQty && ln.id ? (
+                            <input
+                              type="number"
+                              min={0}
+                              className="w-24 border rounded px-2 py-1 text-sm tabular-nums text-right"
+                              value={qtyDrafts[ln.id] ?? ''}
+                              onChange={(e) =>
+                                setQtyDrafts((d) => ({
+                                  ...d,
+                                  [ln.id!]: e.target.value,
+                                }))
+                              }
+                            />
+                          ) : (
+                            <span className="tabular-nums">{ln.qtyIssued ?? 0}</span>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          {canEditQty && ln.id ? (
+                            <button
+                              type="button"
+                              className="text-xs text-primary-700 hover:underline font-mono"
+                              onClick={() =>
+                                setExpandedLineId(isExpanded ? null : ln.id!)
+                              }
+                            >
+                              {batchDrafts[ln.id]
+                                ? `${batchDrafts[ln.id].slice(0, 12)}…`
+                                : 'Chọn lô FEFO'}
+                            </button>
+                          ) : (
+                            <span className="font-mono text-xs">
+                              {ln.batchId?.slice(0, 12) || '—'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right tabular-nums">
+                          {formatVnd(ln.unitCost)}
+                        </td>
+                        <td className="p-3 text-right tabular-nums">
+                          {formatVnd(lineVal ?? undefined)}
+                        </td>
+                      </tr>
+                      {isExpanded && ln.id && canEditQty && (
+                        <tr key={`${ln.id}-fefo`}>
+                          <td colSpan={6} className="p-3 bg-neutral-50/80">
+                            <FefoSuggestPanel
+                              warehouseId={gin.warehouseId}
+                              productId={ln.productId}
+                              qty={qty}
+                              selectedBatchId={batchDrafts[ln.id]}
+                              onSelectBatch={(batchId) =>
+                                setBatchDrafts((d) => ({ ...d, [ln.id!]: batchId }))
+                              }
+                              onApplyFefo={(suggestions: FefoBatchSuggestion[]) => {
+                                const first = suggestions[0]
+                                if (first) {
+                                  setBatchDrafts((d) => ({
+                                    ...d,
+                                    [ln.id!]: first.batchId,
+                                  }))
+                                }
+                              }}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   )
                 })}
               </tbody>
@@ -359,7 +415,7 @@ export function GoodsIssueNoteDetailPage() {
           submit.mutate(gin.id, { onSettled: () => setSubmitOpen(false) })
         }
         title="Gửi duyệt phiếu xuất?"
-        message={`PXK ${gin.ginCode} chuyển sang Chờ duyệt.`}
+        message={`Phiếu ${gin.ginCode} chuyển sang Chờ duyệt.`}
         confirmText="Gửi duyệt"
         cancelText="Huỷ"
         variant="warning"
@@ -389,6 +445,7 @@ export function GoodsIssueNoteDetailPage() {
             .map((ln) => ({
               itemId: ln.id!,
               qtyIssued: Number(qtyDrafts[ln.id!] ?? ln.qtyRequested ?? 0),
+              batchId: batchDrafts[ln.id!] || ln.batchId,
             }))
           confirm.mutate(
             { id: gin.id, body: { items } },
@@ -396,7 +453,7 @@ export function GoodsIssueNoteDetailPage() {
           )
         }}
         title="Xác nhận xuất kho?"
-        message={`PXK ${gin.ginCode} sẽ chuyển sang Đã xuất và trừ stock.`}
+        message={`Phiếu ${gin.ginCode} sẽ chuyển sang Đã xuất và trừ stock.`}
         confirmText="Xác nhận xuất"
         cancelText="Huỷ"
         variant="warning"

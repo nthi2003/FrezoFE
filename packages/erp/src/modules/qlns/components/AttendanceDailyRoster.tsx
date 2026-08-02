@@ -3,13 +3,14 @@
 // Theo dõi chấm công toàn công ty theo ngày: filter + bảng + export.
 // ============================================================
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  CalendarDays, MapPin, RefreshCw, AlertTriangle, Download,
+  CalendarDays, MapPin, RefreshCw, AlertTriangle, Download, Search,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import { Button, EmptyState, ErrorState, Select } from '@frezo/ui'
 import { departmentApi } from '@/modules/qtht/services/qthtApi'
 import { usePersonsCombobox } from '../hooks/usePerson'
@@ -31,9 +32,9 @@ function formatCoord(lat?: number | null, lng?: number | null): string | null {
 }
 
 const DAILY_STATUS_OPTIONS = [
-  { value: '', label: 'Tất cả' },
-  { value: 'OK', label: 'Đúng giờ (OK)' },
-  { value: 'LATE', label: 'Đi muộn (LATE)' },
+  { value: '', label: 'Tất cả trạng thái' },
+  { value: 'OK', label: 'Đúng giờ' },
+  { value: 'LATE', label: 'Đi muộn' },
   { value: 'NOT_CHECKED_IN', label: 'Chưa check-in' },
   { value: 'CHECKED_IN', label: 'Đã check-in' },
   { value: 'CHECKED_OUT', label: 'Đã check-out' },
@@ -73,15 +74,15 @@ function GpsCell({ row }: { row: AttendanceDailyRow }) {
   return (
     <div className="flex flex-col gap-1 min-w-[140px]">
       {inCoords && (
-        <span className="inline-flex items-center gap-1 text-xs text-neutral-700 font-mono" title="Check-in GPS">
+        <span className="inline-flex items-center gap-1 text-xs text-neutral-700 font-mono" title="Tọa độ check-in">
           <MapPin size={12} className="text-emerald-600 shrink-0" />
-          In: {inCoords}
+          Vào: {inCoords}
         </span>
       )}
       {outCoords && (
-        <span className="inline-flex items-center gap-1 text-xs text-neutral-700 font-mono" title="Check-out GPS">
+        <span className="inline-flex items-center gap-1 text-xs text-neutral-700 font-mono" title="Tọa độ check-out">
           <MapPin size={12} className="text-rose-500 shrink-0" />
-          Out: {outCoords}
+          Ra: {outCoords}
         </span>
       )}
       <div className="flex flex-wrap gap-1">
@@ -91,7 +92,7 @@ function GpsCell({ row }: { row: AttendanceDailyRow }) {
               inOk ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
             }`}
           >
-            In {inOk ? 'trong vùng' : 'ngoài vùng'}
+            Vào {inOk ? 'trong vùng' : 'ngoài vùng'}
           </span>
         )}
         {outOk != null && (
@@ -100,7 +101,7 @@ function GpsCell({ row }: { row: AttendanceDailyRow }) {
               outOk ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
             }`}
           >
-            Out {outOk ? 'trong vùng' : 'ngoài vùng'}
+            Ra {outOk ? 'trong vùng' : 'ngoài vùng'}
           </span>
         )}
       </div>
@@ -116,6 +117,7 @@ export function AttendanceDailyRoster() {
   const [page, setPage] = useState(1)
   const [size, setSize] = useState(20)
   const [exporting, setExporting] = useState(false)
+  const [rosterSearch, setRosterSearch] = useState('')
 
   const { options: personOptions, isLoading: personsLoading } = usePersonsCombobox()
 
@@ -212,10 +214,29 @@ export function AttendanceDailyRoster() {
     return '—'
   }
 
+  const hasActiveFilters = !!departmentId || !!status || !!personId || !!rosterSearch.trim()
+  const clearFilters = useCallback(() => {
+    setDepartmentId('')
+    setStatus('')
+    setPersonId('')
+    setRosterSearch('')
+    setPage(1)
+  }, [])
+
+  const filteredItems = useMemo(() => {
+    const q = rosterSearch.trim().toLowerCase()
+    if (!q) return items
+    return items.filter((row) => {
+      const name = resolvePersonName(row).toLowerCase()
+      const dept = resolveDepartmentName(row).toLowerCase()
+      return name.includes(q) || dept.includes(q)
+    })
+  }, [items, rosterSearch, personMap, departmentMap, personDeptMap])
+
   const columns: AppTableColumn<AttendanceDailyRow>[] = useMemo(
     () => [
       {
-        title: 'Tên',
+        title: 'Nhân viên',
         dataIndex: 'personName',
         key: 'personName',
         render: (_, row) => (
@@ -229,7 +250,7 @@ export function AttendanceDailyRoster() {
         ),
       },
       {
-        title: 'Phòng',
+        title: 'Phòng ban',
         dataIndex: 'departmentName',
         key: 'departmentName',
         render: (_, row) => (
@@ -237,7 +258,7 @@ export function AttendanceDailyRoster() {
         ),
       },
       {
-        title: 'In',
+        title: 'Check-in',
         dataIndex: 'checkInTime',
         key: 'checkInTime',
         render: (val: string) => (
@@ -245,7 +266,7 @@ export function AttendanceDailyRoster() {
         ),
       },
       {
-        title: 'Out',
+        title: 'Check-out',
         dataIndex: 'checkOutTime',
         key: 'checkOutTime',
         render: (val: string) => (
@@ -253,7 +274,7 @@ export function AttendanceDailyRoster() {
         ),
       },
       {
-        title: 'Status',
+        title: 'Trạng thái',
         dataIndex: 'displayStatus',
         key: 'displayStatus',
         render: (_, row) => {
@@ -317,7 +338,7 @@ export function AttendanceDailyRoster() {
       toast.success('Đã tải roster ngày')
     } catch {
       // ATT-FE-02: CSV client khi BE export chưa sẵn
-      const header = ['Tên', 'Phòng', 'In', 'Out', 'Status', 'GPS', 'Ghi chú']
+      const header = ['Nhân viên', 'Phòng ban', 'Check-in', 'Check-out', 'Trạng thái', 'GPS', 'Ghi chú']
       const rows = items.map((row) => {
         const key = resolveDisplayStatus(row)
         const gps =
@@ -351,84 +372,86 @@ export function AttendanceDailyRoster() {
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="bg-white rounded-xl border border-neutral-200 p-4">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="w-40">
-            <label className="block text-xs font-medium text-neutral-500 mb-1.5">Ngày</label>
-            <input
-              type="date"
-              className="w-full border border-neutral-200 rounded-md px-3 py-2 text-sm"
-              value={date}
-              onChange={(e) => {
-                setDate(e.target.value || todayIso())
-                setPage(1)
-              }}
-            />
-          </div>
-          <div className="w-48">
-            <label className="block text-xs font-medium text-neutral-500 mb-1.5">Phòng ban</label>
-            <Select
-              options={[{ value: '', label: 'Tất cả phòng ban' }, ...departmentOptions]}
-              value={departmentId}
-              onChange={(v) => {
-                setDepartmentId(v)
-                setPage(1)
-              }}
-              showSearch
-              placeholder="Chọn phòng ban..."
-            />
-          </div>
-          <div className="w-44">
-            <label className="block text-xs font-medium text-neutral-500 mb-1.5">Trạng thái</label>
-            <Select
-              options={DAILY_STATUS_OPTIONS}
-              value={status}
-              onChange={(v) => {
-                setStatus(v)
-                setPage(1)
-              }}
-            />
-          </div>
-          <div className="w-56">
-            <label className="block text-xs font-medium text-neutral-500 mb-1.5">
-              Nhân viên{' '}
-              {personOptions.length > 0 && (
-                <span className="text-neutral-400 font-normal">({personOptions.length})</span>
-              )}
-            </label>
-            <Select
-              options={[{ value: '', label: 'Tất cả nhân viên' }, ...personOptions]}
-              value={personId}
-              onChange={(v) => {
-                setPersonId(v)
-                setPage(1)
-              }}
-              showSearch
-              placeholder={personsLoading ? 'Đang tải...' : 'Chọn nhân viên...'}
-            />
-          </div>
-          <div className="flex-1" />
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => void handleExport()}
-            disabled={exporting || isLoading || isError}
-          >
-            <Download size={14} className={exporting ? 'animate-pulse' : ''} />
-            Xuất
-          </Button>
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => refetch()}
-            disabled={isFetching}
-          >
-            <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
-            Làm mới
-          </Button>
+      <FilterBar
+        hasActiveFilters={hasActiveFilters}
+        onClear={clearFilters}
+        countLabel={`${rosterSearch.trim() ? filteredItems.length : total} nhân viên${hasActiveFilters ? ' (đã lọc)' : ''} · ${date}`}
+        extra={(
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 h-9"
+              onClick={() => void handleExport()}
+              disabled={exporting || isLoading || isError}
+            >
+              <Download size={14} className={exporting ? 'animate-pulse' : ''} />
+              Xuất
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 h-9"
+              onClick={() => void refetch()}
+              disabled={isFetching}
+            >
+              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+              Làm mới
+            </Button>
+          </>
+        )}
+      >
+        <input
+          type="date"
+          className="h-9 border border-neutral-200 rounded-md px-3 text-sm bg-white min-w-[140px]"
+          value={date}
+          onChange={(e) => {
+            setDate(e.target.value || todayIso())
+            setPage(1)
+          }}
+          aria-label="Ngày chấm công"
+        />
+        <div className="min-w-[160px]">
+          <Select
+            options={[{ value: '', label: 'Tất cả phòng ban' }, ...departmentOptions]}
+            value={departmentId}
+            onChange={(v) => { setDepartmentId(v); setPage(1) }}
+            showSearch
+            placeholder="Phòng ban"
+            aria-label="Lọc phòng ban"
+          />
         </div>
-      </div>
+        <div className="min-w-[150px]">
+          <Select
+            options={DAILY_STATUS_OPTIONS}
+            value={status}
+            onChange={(v) => { setStatus(v); setPage(1) }}
+            placeholder="Trạng thái"
+            aria-label="Lọc trạng thái"
+            showSearch={false}
+          />
+        </div>
+        <div className="min-w-[180px]">
+          <Select
+            options={[{ value: '', label: 'Tất cả nhân viên' }, ...personOptions]}
+            value={personId}
+            onChange={(v) => { setPersonId(v); setPage(1) }}
+            showSearch
+            placeholder={personsLoading ? 'Đang tải...' : 'Nhân viên'}
+            aria-label="Lọc nhân viên"
+          />
+        </div>
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            placeholder="Tìm nhân viên, phòng ban…"
+            value={rosterSearch}
+            onChange={(e) => setRosterSearch(e.target.value)}
+            aria-label="Tìm roster ngày"
+          />
+        </div>
+      </FilterBar>
 
       {source === 'fallback' && !isError && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -450,30 +473,38 @@ export function AttendanceDailyRoster() {
             isRetrying={isFetching}
           />
         </div>
-      ) : !isLoading && items.length === 0 ? (
+      ) : !isLoading && filteredItems.length === 0 ? (
         <div className="border rounded-xl bg-white">
           <EmptyState
             icon={CalendarDays}
-            title="Không có dữ liệu chấm công ngày này"
-            description="Thử đổi ngày / phòng ban / trạng thái, hoặc đợi nhân viên check-in."
-            action={{ label: 'Làm mới', onClick: () => refetch() }}
+            title={items.length === 0 ? 'Không có dữ liệu chấm công ngày này' : 'Không có bản ghi khớp bộ lọc'}
+            description={
+              items.length === 0
+                ? 'Thử đổi ngày / phòng ban / trạng thái, hoặc đợi nhân viên check-in.'
+                : 'Thử xoá lọc hoặc đổi từ khoá tìm kiếm.'
+            }
+            action={
+              hasActiveFilters
+                ? { label: 'Xoá lọc', onClick: clearFilters }
+                : { label: 'Làm mới', onClick: () => void refetch() }
+            }
           />
         </div>
       ) : (
         <AppTable
-          data={items}
+          data={filteredItems}
           columns={columns}
           isLoading={isLoading}
+          density="compact"
           pageIndex={page}
           pageSize={size}
-          totalElements={total}
+          totalElements={rosterSearch.trim() ? filteredItems.length : total}
           onPageChange={(p, s) => {
             setPage(p)
             setSize(s)
           }}
-          onRefresh={() => refetch()}
-          showSearch
-          searchPlaceholder="Tìm theo tên nhân viên..."
+          onRefresh={() => void refetch()}
+          showSearch={false}
         />
       )}
     </div>

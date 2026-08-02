@@ -6,7 +6,7 @@ import type { PageGuideConfig } from '@frezo/ui'
 export const APPROVAL_FLOWS_GUIDE: PageGuideConfig = {
   title: 'Cấu hình luồng duyệt',
   subtitle:
-    'Gắn draft bước duyệt vào Nghỉ phép / Mua hàng / Lương. Thiết kế quy trình (QTHT) không tự chạy thay trang này.',
+    'Một chỗ duy nhất: gắn draft bước duyệt vào Nghỉ phép / Mua hàng / Lương. Tab Mẫu / Designer chỉ vẽ mẫu — không tự chạy thay tab Luồng đang chạy.',
   docHref: '/docs/guide-approval-flows',
   sections: [
     {
@@ -16,7 +16,7 @@ export const APPROVAL_FLOWS_GUIDE: PageGuideConfig = {
         {
           title: 'Mở hoặc tạo luồng',
           description:
-            'Bấm Tạo luồng mới (hoặc Sửa thẻ sẵn có). Chọn Loại đối tượng = Nghỉ phép.',
+            'Ở tab Luồng đang chạy: bấm Tạo luồng mới (hoặc Sửa). Chọn Loại đối tượng = Nghỉ phép.',
         },
         {
           title: 'Thêm bước duyệt',
@@ -39,7 +39,7 @@ export const APPROVAL_FLOWS_GUIDE: PageGuideConfig = {
       type: 'tips',
       heading: 'Tránh nhầm',
       tips: [
-        'Trang này bật luồng cho đơn thật — khác hẳn Quy Trình Duyệt (chỉ vẽ mẫu).',
+        'Tab Luồng đang chạy bật luồng cho đơn thật — tab Mẫu / Designer chỉ vẽ mẫu.',
         'Badge “Chưa gắn — không tự chạy” = luồng tắt hoặc không phải bản đang dùng.',
         'Duyệt PR xong chưa vào kho; xuất hoá đơn chưa trừ tồn — xem hướng dẫn Đơn hàng & tồn kho.',
         'Thiếu User mang đúng vai trò bước → hệ thống báo lỗi, không tạo phiếu treo.',
@@ -51,7 +51,7 @@ export const APPROVAL_FLOWS_GUIDE: PageGuideConfig = {
       links: [
         { label: 'Cấu hình luồng duyệt (đầy đủ)', href: '/docs/guide-approval-flows' },
         { label: 'Gắn 3 luồng FTECH', href: '/docs/guide-approval-attach' },
-        { label: 'Ba chỗ — đừng lẫn', href: '/docs/guide-workflows' },
+        { label: 'Mẫu / Designer (trong hub)', href: '/approval/flows?tab=templates' },
         { label: 'Đơn hàng & tồn kho', href: '/docs/guide-warehouse-sales' },
         { label: 'Hộp thư duyệt', href: '/approval/inbox' },
       ],
@@ -88,7 +88,7 @@ export const APPROVAL_INBOX_GUIDE: PageGuideConfig = {
         {
           title: 'Thiếu đơn?',
           description:
-            'Kiểm tra bộ lọc trạng thái; hoặc bạn không phải bước duyệt hiện tại. Nếu vừa gửi đơn mà lỗi “không có người duyệt” — admin cần gán Role hoặc sửa /approval/flows. Không cần mở Thiết kế quy trình chỉ để duyệt.',
+            'Kiểm tra bộ lọc trạng thái; hoặc bạn không phải bước duyệt hiện tại. Nếu vừa gửi đơn mà lỗi “không có người duyệt” — admin cần gán Role hoặc sửa Cấu hình luồng duyệt (tab Luồng đang chạy). Không cần mở Designer chỉ để duyệt.',
         },
       ],
     },

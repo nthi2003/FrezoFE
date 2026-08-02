@@ -230,6 +230,23 @@ export const settingApi = {
 
 // ------------------------ Payroll → GL bridge ------------------------
 
+export interface VatReport {
+  year?: number
+  month?: number
+  outputVat?: number
+  inputVat?: number
+  netVat?: number
+  standard?: string
+  note?: string
+}
+
+export const vatReportApi = {
+  summarize: (year: number, month: number) =>
+    axiosClient
+      .get<ApiResponse<VatReport>>('/accounting/tax/vat', { params: { year, month } })
+      .then((r) => r.data),
+}
+
 export const payrollGlApi = {
   postPeriod: (year: number, month: number) =>
     axiosClient

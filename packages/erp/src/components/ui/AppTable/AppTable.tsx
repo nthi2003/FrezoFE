@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
   BulkSelectionBar,
+  AppTooltip,
 } from '@frezo/ui'
 import { Skeleton } from '@frezo/ui'
 import notDataImg from '@/img/mas-cost-not-data.png'
@@ -109,6 +110,9 @@ export interface AppTableProps<T> {
   defaultDensity?: TableDensity
   /** Hiện toggle Compact ↔ Comfortable cạnh filter bar. */
   showDensityToggle?: boolean
+
+  /** Thuộc tính tuỳ chọn gắn lên từng TableRow (VD hover preview). */
+  getRowProps?: (row: T, index: number) => React.HTMLAttributes<HTMLTableRowElement>
 }
 
 export type TableDensity = 'compact' | 'comfortable'
@@ -136,6 +140,7 @@ export function AppTable<T>({
   density: densityProp,
   defaultDensity = 'compact',
   showDensityToggle = false,
+  getRowProps,
 }: AppTableProps<T>) {
   const safeData = Array.isArray(data) ? data : []
   const colKey = (col: AppTableColumn<T>) => col.key ?? (col.dataIndex as string) ?? col.title
@@ -173,7 +178,11 @@ export function AppTable<T>({
   const filterableCols = columns.filter((col) => col.filterType)
   const hasFilterOptions = filterableCols.length > 0
 
-  const isClientSide = !onFilterChange
+  // Server-driven when parent owns paging and/or filters.
+  // Previously only `onFilterChange` flipped this — pages that paginate on the
+  // server via `onPageChange` + `totalElements` (e.g. ApiLogs) were treated as
+  // client-side: total became `data.length` (one page) and the pager stuck at 1 page.
+  const isClientSide = !onPageChange && !onFilterChange
 
   // Client-side filtering logic
   let filteredData = [...safeData]
@@ -555,12 +564,16 @@ export function AppTable<T>({
                 <Filter size={18} className="text-primary-600" />
                 <h3 className="font-bold text-neutral-900 text-lg">Bộ lọc nâng cao</h3>
               </div>
-              <button
-                onClick={() => setShowFiltersPanel(false)}
-                className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-400 hover:text-neutral-600 transition-colors"
-              >
-                <X size={18} />
-              </button>
+              <AppTooltip content="Đóng bộ lọc">
+                <button
+                  type="button"
+                  onClick={() => setShowFiltersPanel(false)}
+                  className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-400 hover:text-neutral-600 transition-colors"
+                  aria-label="Đóng bộ lọc"
+                >
+                  <X size={18} />
+                </button>
+              </AppTooltip>
             </div>
 
             {/* Content */}
@@ -609,7 +622,7 @@ export function AppTable<T>({
                     <input
                       ref={headerCheckboxRef}
                       type="checkbox"
-                      className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-300 cursor-pointer"
+                      className="w-4 h-4 rounded border-neutral-300 accent-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
                       checked={selection.allSelected}
                       onChange={selection.toggleAll}
                       aria-label="Chọn tất cả dòng"
@@ -652,10 +665,18 @@ export function AppTable<T>({
               !isEmpty &&
               displayData.map((row, rowIndex) => {
                 const rowSelected = selectable && selection.isSelected(row)
+                const extraRowProps = getRowProps?.(row, rowIndex) ?? {}
+                const mergedClassName = [
+                  rowSelected ? 'bg-primary-50/40 hover:bg-primary-50/60' : undefined,
+                  extraRowProps.className,
+                ]
+                  .filter(Boolean)
+                  .join(' ') || undefined
                 return (
                   <TableRow
                     key={rowIndex}
-                    className={rowSelected ? 'bg-primary-50/40 hover:bg-primary-50/60' : undefined}
+                    {...extraRowProps}
+                    className={mergedClassName}
                   >
                     {allColumns.map((col) => {
                       if (col.key === '__check') {
@@ -663,7 +684,7 @@ export function AppTable<T>({
                           <TableCell key="__check" style={{ textAlign: 'center' }} className={bodyCellClass}>
                             <input
                               type="checkbox"
-                              className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-2 focus:ring-primary-300 cursor-pointer"
+                              className="w-4 h-4 rounded border-neutral-300 accent-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
                               checked={rowSelected}
                               onChange={(e) => {
                                 e.stopPropagation()
@@ -782,16 +803,20 @@ export function AppTable<T>({
                 dù có ít record. Ẩn nếu pageSizeOptions rỗng. */}
             {pageSizeOptions.length > 0 && (
               <label className="inline-flex items-center gap-1.5 text-neutral-500">
-                <span className="text-xs">Hiển thị</span>
-                <select
-                  value={displayPageSize}
-                  onChange={(e) => handlePageChange(1, Number(e.target.value))}
-                  className="h-8 rounded-lg border border-border bg-surface text-neutral-800 text-xs font-medium px-2 pr-6 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none transition"
-                >
-                  {pageSizeOptions.map((n) => (
-                    <option key={n} value={n}>{n} / trang</option>
-                  ))}
-                </select>
+                <span className="text-xs shrink-0">Hiển thị</span>
+                <div className="w-[110px]">
+                  <Select
+                    options={pageSizeOptions.map((n) => ({
+                      value: String(n),
+                      label: `${n} / trang`,
+                    }))}
+                    value={String(displayPageSize)}
+                    onChange={(v) => handlePageChange(1, Number(v))}
+                    placeholder="Size"
+                    aria-label="Số bản ghi mỗi trang"
+                    showSearch={false}
+                  />
+                </div>
               </label>
             )}
 

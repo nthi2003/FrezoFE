@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react'
 import {
   Plus, Edit, Trash2, Eye, Building2, GitBranch, Search,
-  ChevronRight, ChevronDown, List, X, Filter,
+  ChevronRight, ChevronDown, List, X,
 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import {
   AppModal, Button, ConfirmDialog, PageHeader, PageGuideButton,
+  EmptyState, ErrorState, Select,
+  IconActionButton, AppTooltip,
   type PageGuideConfig,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
@@ -20,9 +22,9 @@ import { OrganizationDetailDrawer } from '../components/OrganizationDetailDrawer
 // ============================================================
 
 const ORGANIZATIONS_GUIDE: PageGuideConfig = {
-  title: 'Cơ cấu Tổ chức',
+  title: 'Cơ cấu tổ chức',
   subtitle:
-    'Cây gia phả pháp nhân — công ty chủ quản, chi nhánh, phòng ban, đối tác. Xem hierarchical để hiểu quan hệ, hoặc bảng để lọc/tìm nhanh.',
+    'Quản lý pháp nhân, chi nhánh và đối tác theo hierarchy. Xem cây để hiểu quan hệ, hoặc bảng để lọc/tìm nhanh.',
   sections: [
     {
       heading: 'Cách sử dụng',
@@ -31,34 +33,34 @@ const ORGANIZATIONS_GUIDE: PageGuideConfig = {
         {
           title: 'Tạo công ty chủ quản',
           description:
-            'Loại = Công ty, Cấp độ = Chủ quản, không có Tổ chức cha. Đây là gốc cây — mọi chi nhánh sẽ trỏ về.',
+            'Loại = Công ty, Cấp độ = Chủ quản, không chọn tổ chức cha. Đây là gốc — mọi chi nhánh sẽ trỏ về.',
         },
         {
           title: 'Thêm chi nhánh / đơn vị con',
           description:
-            'Cấp độ = Chi nhánh, chọn Tổ chức cha là công ty chủ quản. Có thể nesting nhiều tầng.',
+            'Cấp độ = Chi nhánh, chọn tổ chức cha là công ty chủ quản. Có thể lồng nhiều tầng.',
         },
         {
-          title: 'Đối tác / KH / NCC',
+          title: 'Đối tác / khách hàng / nhà cung cấp',
           description:
-            'Đặt Loại tương ứng, không cần parent. Danh mục này dùng chung với module Hợp đồng và Kế toán.',
+            'Đặt loại tương ứng, không cần tổ chức cha. Danh mục dùng chung với Hợp đồng và Kế toán.',
         },
       ],
     },
     {
-      heading: 'Mẹo dùng',
+      heading: 'Mẹo',
       type: 'tips',
       tips: [
-        'Chuyển giữa 2 chế độ Cây / Bảng bằng nút góc phải. Cây trực quan quan hệ, Bảng lọc/tìm mạnh hơn.',
-        'Click vào bất kỳ node/hàng để mở drawer chi tiết 360° — có đầy đủ liên hệ + danh sách đơn vị con.',
-        'Mã tổ chức UPPERCASE, không dấu, dạng ORG001, HN01, CN-DA-NANG. KHÔNG đổi mã sau khi tạo hợp đồng.',
+        'Chuyển Cây / Danh sách bằng nút góc phải. Cây trực quan quan hệ; danh sách lọc/tìm mạnh hơn.',
+        'Click node/hàng để mở drawer chi tiết — liên hệ và đơn vị con.',
+        'Mã tổ chức viết HOA, không dấu (vd. ORG001, HN01). Không đổi mã sau khi đã có hợp đồng.',
       ],
     },
     {
       heading: 'Lưu ý',
       type: 'notes',
       notes:
-        'Không xóa cứng tổ chức đang có hợp đồng / nhân viên / tài sản. Nếu tái cấu trúc → tạo record mới + đánh dấu record cũ là "Đã sáp nhập / Đã giải thể" để giữ audit trail.',
+        'Không xóa tổ chức đang có hợp đồng / nhân viên / tài sản. Tái cấu trúc → tạo bản ghi mới và đánh dấu bản cũ là Đã sáp nhập / Đã giải thể để giữ lịch sử.',
     },
   ],
 }
@@ -101,6 +103,15 @@ const STATUS_LABEL: Record<string, { text: string; className: string }> = {
   LIQUIDATED: { text: 'Đã thanh lý',     className: 'bg-rose-50 text-rose-700 border-rose-200' },
 }
 
+const STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: 'Tất cả trạng thái' },
+  { value: 'ACTIVE', label: 'Hoạt động' },
+  { value: 'INACTIVE', label: 'Ngừng hoạt động' },
+  { value: 'SUSPENDED', label: 'Tạm ngưng' },
+  { value: 'MERGED', label: 'Đã sáp nhập' },
+  { value: 'DISSOLVED', label: 'Đã giải thể' },
+]
+
 const defaultFormValues = {
   code: '', name: '', nameEn: '', shortName: '', taxCode: '',
   email: '', phone: '', website: '', address: '',
@@ -115,21 +126,28 @@ const defaultFormValues = {
 export function OrganizationsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any | null>(null)
+  const [createPrefill, setCreatePrefill] = useState<Partial<typeof defaultFormValues> | null>(null)
   const [detailOrg, setDetailOrg] = useState<any | null>(null)
   const [confirmDel, setConfirmDel] = useState<any | null>(null)
   const [view, setView] = useState<'tree' | 'table'>('tree')
   const [searchText, setSearchText] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
 
-  const { data: rawData, isLoading } = useOrganizations()
+  const { data: rawData, isLoading, isError, isFetching, refetch } = useOrganizations()
   const createReq = useCreateOrganization()
   const updateReq = useUpdateOrganization()
   const deleteReq = useDeleteOrganization()
 
-  const dataList: any[] = Array.isArray(rawData) ? rawData : []
+  const dataList = useMemo(
+    () => (Array.isArray(rawData) ? rawData : []) as any[],
+    [rawData],
+  )
 
   const filteredList = useMemo(() => {
     let list = dataList
+    if (statusFilter !== 'all') list = list.filter((o) => o.status === statusFilter)
+    if (typeFilter !== 'all') list = list.filter((o) => o.type === typeFilter)
     if (searchText.trim()) {
       const q = searchText.toLowerCase().trim()
       list = list.filter((o) =>
@@ -140,14 +158,11 @@ export function OrganizationsPage() {
         (o.taxCode || '').toLowerCase().includes(q),
       )
     }
-    if (typeFilter !== 'all') list = list.filter((o) => o.type === typeFilter)
     return list
-  }, [dataList, searchText, typeFilter])
+  }, [dataList, searchText, typeFilter, statusFilter])
 
-  // Build tree for tree-view
   const treeRoots = useMemo(() => buildTree(filteredList, dataList), [filteredList, dataList])
 
-  // Stats
   const stats = useMemo(() => {
     const total = dataList.length
     const active = dataList.filter((o) => o.status === 'ACTIVE').length
@@ -156,299 +171,311 @@ export function OrganizationsPage() {
     return { total, active, companies, branches }
   }, [dataList])
 
-  // Options for parent select (chỉ hiện những org không phải chính nó & không phải con nó — tránh cycle)
   const parentOptions = useMemo(() => {
     const invalid = selectedItem?.id ? collectDescendants(selectedItem.id, dataList) : new Set<string>()
     return [
-      { value: '', label: '— Không có (root) —' },
+      { value: '', label: '— Không có (công ty chủ quản) —' },
       ...dataList
         .filter((o) => !invalid.has(o.id))
         .map((o) => ({ value: o.id, label: `${o.code} · ${o.name}` })),
     ]
   }, [dataList, selectedItem])
 
-  // ---- Handlers ----
+  const hasActiveFilters =
+    Boolean(searchText.trim()) || typeFilter !== 'all' || statusFilter !== 'all'
+
   const handleOpenCreate = (parentId?: string) => {
     setSelectedItem(null)
+    setCreatePrefill(parentId ? { parentId } : null)
     setModalOpen(true)
-    if (parentId) {
-      // pre-set parent via form default — we'll pass via a state trick
-      setSelectedItem({ __prefillParent: parentId })
-    }
   }
+
   const handleOpenEdit = (org: any) => {
     setDetailOrg(null)
+    setCreatePrefill(null)
     setSelectedItem(org)
     setModalOpen(true)
   }
+
+  const handleCloseModal = () => {
+    setModalOpen(false)
+    setSelectedItem(null)
+    setCreatePrefill(null)
+  }
+
   const handleSubmit = (values: any) => {
     const payload: any = { ...values, status: values.status ? 'ACTIVE' : 'INACTIVE' }
     for (const key of Object.keys(payload)) if (payload[key] === '') payload[key] = null
     payload.level = Number(values.level)
-    delete payload.__prefillParent
     if (selectedItem?.id) {
-      updateReq.mutate({ id: selectedItem.id, data: payload }, { onSuccess: () => setModalOpen(false) })
+      updateReq.mutate({ id: selectedItem.id, data: payload }, { onSuccess: handleCloseModal })
     } else {
-      createReq.mutate(payload, { onSuccess: () => setModalOpen(false) })
+      createReq.mutate(payload, { onSuccess: handleCloseModal })
     }
   }
+
   const handleDelete = () => {
     if (confirmDel?.id) {
       deleteReq.mutate(confirmDel.id, { onSuccess: () => setConfirmDel(null) })
     }
   }
 
-  const formDefaults =
-    selectedItem?.id
-      ? { ...defaultFormValues, ...selectedItem, status: selectedItem.status === 'ACTIVE' }
-      : { ...defaultFormValues, parentId: selectedItem?.__prefillParent || '' }
+  const formDefaults = selectedItem?.id
+    ? { ...defaultFormValues, ...selectedItem, status: selectedItem.status === 'ACTIVE' }
+    : { ...defaultFormValues, ...createPrefill }
 
   const isSubmitting = createReq.isPending || updateReq.isPending
 
-  // ============================================================
-  // Render
-  // ============================================================
   return (
-    <div className="p-6 space-y-5 animate-fade-in">
+    <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
-        title="Cơ cấu Tổ chức"
-        description={
-          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span>Cây gia phả pháp nhân — công ty, chi nhánh, phòng ban và đối tác.</span>
-            <span className="text-neutral-300">·</span>
-            <span className="tabular-nums">
-              <b className="text-neutral-900">{stats.total}</b> tổ chức
-            </span>
-            <span className="text-neutral-300">·</span>
-            <span className="tabular-nums">
-              <b className="text-emerald-700">{stats.active}</b> đang hoạt động
-            </span>
-            <span className="text-neutral-300">·</span>
-            <span className="tabular-nums">
-              <b className="text-neutral-900">{stats.companies}</b> chủ quản
-            </span>
-            <span className="text-neutral-300">/</span>
-            <span className="tabular-nums">
-              <b className="text-neutral-900">{stats.branches}</b> chi nhánh
-            </span>
-          </span>
-        }
+        title="Cơ cấu tổ chức"
+        description="Quản lý pháp nhân, chi nhánh, phòng ban và đối tác theo hierarchy."
         actions={
-          <>
+          <div className="flex flex-wrap gap-2 items-center">
             <PageGuideButton guide={ORGANIZATIONS_GUIDE} />
-            <Button
-              onClick={() => handleOpenCreate()}
-              className="gap-2 bg-primary-700 hover:bg-primary-800 text-white shadow-sm"
-            >
+            <Button onClick={() => handleOpenCreate()} className="gap-2">
               <Plus size={16} /> Thêm tổ chức
             </Button>
-          </>
+          </div>
         }
       />
 
-      {/* Filter + view toggle */}
-      <div className="p-3 bg-white border border-neutral-200 rounded-2xl shadow-sm flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            type="text"
-            placeholder="Tìm mã, tên, email, MST..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            className="h-10 w-full pl-9 pr-3 text-sm bg-neutral-50 border border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 focus:bg-white transition-all placeholder:text-neutral-400"
-          />
-        </div>
+      {!isLoading && !isError && dataList.length > 0 && (
+        <p className="text-xs text-neutral-500 tabular-nums">
+          {stats.total} tổ chức · {stats.active} hoạt động · {stats.companies} chủ quản · {stats.branches} chi nhánh
+        </p>
+      )}
 
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mr-1 inline-flex items-center gap-1">
-            <Filter size={11} /> Loại:
-          </span>
-          {[{ value: 'all', label: 'Tất cả' }, ...TYPE_OPTIONS.slice(0, 6)].map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => setTypeFilter(t.value)}
-              className={`h-7 px-2.5 rounded-full text-xs font-medium border transition ${
-                typeFilter === t.value
-                  ? 'bg-primary-600 text-white border-primary-600'
-                  : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
-              }`}
+      <div className="sticky top-0 z-10 -mx-6 px-6 py-2 bg-neutral-50/95 backdrop-blur border-y border-neutral-200/80">
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="relative flex-1 min-w-[200px] max-w-md">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              type="search"
+              placeholder="Tìm mã, tên, email, mã số thuế…"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="h-9 w-full pl-8 pr-3 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300"
+              aria-label="Tìm tổ chức"
+            />
+          </div>
+
+          <div className="min-w-[140px]">
+            <Select
+              options={[
+                { value: 'all', label: 'Tất cả loại' },
+                ...TYPE_OPTIONS,
+              ]}
+              value={typeFilter}
+              onChange={setTypeFilter}
+              placeholder="Loại"
+              aria-label="Lọc theo loại"
+              showSearch={TYPE_OPTIONS.length > 8}
+            />
+          </div>
+
+          <div className="min-w-[140px]">
+            <Select
+              options={STATUS_FILTER_OPTIONS}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              placeholder="Trạng thái"
+              aria-label="Lọc theo trạng thái"
+              showSearch={false}
+            />
+          </div>
+
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchText('')
+                setTypeFilter('all')
+                setStatusFilter('all')
+              }}
             >
-              {t.label}
+              <X size={12} className="mr-1" /> Xoá lọc
+            </Button>
+          )}
+
+          <div className="ml-auto flex items-center bg-white border border-neutral-200 rounded-md p-0.5">
+            <button
+              type="button"
+              onClick={() => setView('tree')}
+              className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
+                view === 'tree' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
+              }`}
+              aria-label="Chế độ cây gia phả"
+            >
+              <GitBranch size={13} /> Cây gia phả
             </button>
-          ))}
-        </div>
+            <button
+              type="button"
+              onClick={() => setView('table')}
+              className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
+                view === 'table' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
+              }`}
+              aria-label="Chế độ danh sách"
+            >
+              <List size={13} /> Danh sách
+            </button>
+          </div>
 
-        {(searchText || typeFilter !== 'all') && (
-          <button
-            type="button"
-            onClick={() => { setSearchText(''); setTypeFilter('all') }}
-            className="inline-flex items-center gap-1 h-8 px-2 rounded-md text-xs font-medium text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100"
-          >
-            <X size={12} /> Xoá lọc
-          </button>
-        )}
-
-        <div className="ml-auto flex items-center bg-neutral-100 rounded-lg p-0.5">
-          <button
-            type="button"
-            onClick={() => setView('tree')}
-            className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
-              view === 'tree' ? 'bg-white text-primary-700 shadow-sm' : 'text-neutral-500'
-            }`}
-          >
-            <GitBranch size={13} /> Cây gia phả
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('table')}
-            className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
-              view === 'table' ? 'bg-white text-primary-700 shadow-sm' : 'text-neutral-500'
-            }`}
-          >
-            <List size={13} /> Bảng
-          </button>
+          <span className="text-xs text-neutral-500 tabular-nums">
+            {filteredList.length} bản ghi{hasActiveFilters ? ' (đã lọc)' : ''}
+          </span>
         </div>
       </div>
 
-      {/* Content */}
-      {isLoading ? (
-        <div className="p-12 flex items-center justify-center bg-white border border-neutral-200 rounded-2xl">
-          <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : filteredList.length === 0 ? (
-        <div className="p-12 bg-white border border-neutral-200 rounded-2xl flex flex-col items-center justify-center text-center">
-          <Building2 size={40} className="text-neutral-300 mb-3" />
-          <h3 className="text-base font-semibold text-neutral-700">
-            {dataList.length === 0 ? 'Chưa có tổ chức nào' : 'Không tìm thấy'}
-          </h3>
-          <p className="text-sm text-neutral-500 mt-1">
-            {dataList.length === 0
-              ? 'Tạo công ty chủ quản đầu tiên để bắt đầu.'
-              : 'Thử điều chỉnh bộ lọc.'}
-          </p>
-          {dataList.length === 0 && (
-            <Button onClick={() => handleOpenCreate()} className="mt-4 gap-2 bg-primary-600 hover:bg-primary-700 text-white">
-              <Plus size={16} /> Thêm công ty đầu tiên
-            </Button>
-          )}
-        </div>
-      ) : view === 'tree' ? (
-        <div className="px-3 py-3 bg-white border border-neutral-200 rounded-2xl shadow-sm">
-          <div className="org-tree">
-            {treeRoots.map((node, idx) => (
-              <OrgTreeNode
-                key={node.id}
-                node={node}
-                depth={0}
-                isLast={idx === treeRoots.length - 1}
-                onView={setDetailOrg}
-                onEdit={handleOpenEdit}
-                onAddChild={(parent) => handleOpenCreate(parent.id)}
-                onDelete={setConfirmDel}
-              />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white border border-neutral-200 rounded-2xl shadow-sm overflow-hidden">
-          <AppTable
-            data={filteredList}
-            isLoading={false}
-            showSearch={false}
-            columns={[
-              {
-                title: 'Mã', dataIndex: 'code',
-                render: (v: string) => (
-                  <span className="font-mono text-xs font-bold text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded border border-neutral-200">
-                    {v}
-                  </span>
-                ),
-              },
-              {
-                title: 'Tên tổ chức', dataIndex: 'name',
-                render: (_: any, row: any) => (
-                  <button
-                    onClick={() => setDetailOrg(row)}
-                    className="text-left group"
-                  >
-                    <div className="font-semibold text-neutral-800 group-hover:text-primary-700 transition-colors">
-                      {row.name}
-                    </div>
-                    {row.nameEn && (
-                      <div className="text-[11px] text-neutral-400 italic">{row.nameEn}</div>
-                    )}
-                  </button>
-                ),
-              },
-              {
-                title: 'Loại', dataIndex: 'type',
-                render: (v: string) => (
-                  <span className="text-xs">
-                    {TYPE_OPTIONS.find((t) => t.value === v)?.label || v}
-                  </span>
-                ),
-              },
-              { title: 'Email', dataIndex: 'email', render: (v: string) => v || '—' },
-              { title: 'MST', dataIndex: 'taxCode', render: (v: string) => v ? <span className="font-mono text-xs">{v}</span> : '—' },
-              {
-                title: 'Trạng thái', dataIndex: 'status',
-                render: (v: string) => {
-                  const cfg = STATUS_LABEL[v] || STATUS_LABEL.INACTIVE
-                  return (
-                    <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider rounded border ${cfg.className}`}>
-                      {cfg.text}
-                    </span>
-                  )
-                },
-              },
-              {
-                title: 'Thao tác', dataIndex: 'id', width: 160,
-                render: (_: any, row: any) => (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setDetailOrg(row)}
-                      className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded transition"
-                      title="Xem chi tiết"
-                    >
-                      <Eye size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleOpenEdit(row)}
-                      className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded transition"
-                      title="Sửa"
-                    >
-                      <Edit size={14} />
-                    </button>
-                    <button
-                      onClick={() => setConfirmDel(row)}
-                      className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
-                      title="Xoá"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ),
-              },
-            ]}
+      {isError ? (
+        <div className="border rounded-xl bg-white">
+          <ErrorState
+            title="Không tải được tổ chức"
+            message="Kiểm tra kết nối hoặc quyền truy cập rồi thử lại."
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
           />
         </div>
+      ) : !isLoading && filteredList.length === 0 ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={Building2}
+            title={dataList.length === 0 ? 'Chưa có tổ chức nào' : 'Không có bản ghi phù hợp bộ lọc'}
+            description={
+              dataList.length === 0
+                ? 'Tạo công ty chủ quản đầu tiên để bắt đầu.'
+                : 'Thử đổi bộ lọc hoặc xoá lọc.'
+            }
+            action={
+              dataList.length === 0
+                ? { label: 'Thêm công ty đầu tiên', onClick: () => handleOpenCreate() }
+                : undefined
+            }
+          />
+        </div>
+      ) : view === 'tree' ? (
+        isLoading ? (
+          <div className="p-12 flex items-center justify-center bg-white border border-neutral-200 rounded-xl">
+            <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="px-3 py-3 bg-white border border-neutral-200 rounded-xl">
+            <div className="org-tree">
+              {treeRoots.map((node, idx) => (
+                <OrgTreeNode
+                  key={node.id}
+                  node={node}
+                  depth={0}
+                  isLast={idx === treeRoots.length - 1}
+                  onView={setDetailOrg}
+                  onEdit={handleOpenEdit}
+                  onAddChild={(parent) => handleOpenCreate(parent.id)}
+                  onDelete={setConfirmDel}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      ) : (
+        <AppTable
+          data={filteredList}
+          isLoading={isLoading}
+          showSearch={false}
+          density="compact"
+          loadingRows={6}
+          columns={[
+            {
+              title: 'Mã',
+              dataIndex: 'code',
+              render: (v: string) => (
+                <span className="font-mono text-xs font-bold text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded border border-neutral-200">
+                  {v}
+                </span>
+              ),
+            },
+            {
+              title: 'Tên tổ chức',
+              dataIndex: 'name',
+              render: (_: any, row: any) => (
+                <button type="button" onClick={() => setDetailOrg(row)} className="text-left group">
+                  <div className="font-semibold text-neutral-800 group-hover:text-primary-700 transition-colors">
+                    {row.name}
+                  </div>
+                  {row.nameEn && (
+                    <div className="text-[11px] text-neutral-400 italic">{row.nameEn}</div>
+                  )}
+                </button>
+              ),
+            },
+            {
+              title: 'Loại',
+              dataIndex: 'type',
+              render: (v: string) => (
+                <span className="text-xs">
+                  {TYPE_OPTIONS.find((t) => t.value === v)?.label || v}
+                </span>
+              ),
+            },
+            {
+              title: 'Email',
+              dataIndex: 'email',
+              render: (v: string) => v || '—',
+            },
+            {
+              title: 'Mã số thuế',
+              dataIndex: 'taxCode',
+              render: (v: string) => (v ? <span className="font-mono text-xs">{v}</span> : '—'),
+            },
+            {
+              title: 'Trạng thái',
+              dataIndex: 'status',
+              render: (v: string) => {
+                const cfg = STATUS_LABEL[v] || STATUS_LABEL.INACTIVE
+                return (
+                  <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider rounded border ${cfg.className}`}>
+                    {cfg.text}
+                  </span>
+                )
+              },
+            },
+            {
+              title: 'Thao tác',
+              dataIndex: 'id',
+              width: 160,
+              render: (_: any, row: any) => (
+                <div className="flex items-center gap-1">
+                  <IconActionButton tooltip="Xem chi tiết" tone="blue" onClick={() => setDetailOrg(row)}>
+                    <Eye size={14} />
+                  </IconActionButton>
+                  <IconActionButton tooltip="Sửa" tone="primary" onClick={() => handleOpenEdit(row)}>
+                    <Edit size={14} />
+                  </IconActionButton>
+                  <IconActionButton tooltip="Xoá" tone="rose" onClick={() => setConfirmDel(row)}>
+                    <Trash2 size={14} />
+                  </IconActionButton>
+                </div>
+              ),
+            },
+          ]}
+        />
       )}
 
-      {/* ==================== Modals ==================== */}
       <AppModal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={handleCloseModal}
         title={selectedItem?.id ? 'Chỉnh sửa tổ chức' : 'Thêm tổ chức mới'}
-        description={selectedItem?.id ? undefined : 'Điền thông tin để đăng ký pháp nhân/chi nhánh mới.'}
+        description={selectedItem?.id ? undefined : 'Điền thông tin để đăng ký pháp nhân hoặc chi nhánh mới.'}
         maxWidth="4xl"
       >
         <AppForm
+          key={selectedItem?.id || `new-${createPrefill?.parentId || 'root'}`}
           schema={orgSchema}
           defaultValues={formDefaults}
           onSubmit={handleSubmit}
           fields={[
-            { name: 'code', label: 'Mã tổ chức', required: true, placeholder: 'VD: ORG001', description: 'UPPERCASE, không dấu' },
+            { name: 'code', label: 'Mã tổ chức', required: true, placeholder: 'VD: ORG001', description: 'Viết HOA, không dấu' },
             { name: 'name', label: 'Tên tổ chức', required: true, placeholder: 'VD: Công ty TNHH Frezo' },
             { name: 'nameEn', label: 'Tên tiếng Anh', placeholder: 'Frezo Co., Ltd' },
             { name: 'shortName', label: 'Tên viết tắt', placeholder: 'FREZO' },
@@ -466,7 +493,7 @@ export function OrganizationsPage() {
             { name: 'orderIndex', label: 'Thứ tự hiển thị', type: 'number' },
           ]}
           isLoading={isSubmitting}
-          onCancel={() => setModalOpen(false)}
+          onCancel={handleCloseModal}
         />
       </AppModal>
 
@@ -485,11 +512,12 @@ export function OrganizationsPage() {
         isOpen={!!confirmDel}
         onClose={() => setConfirmDel(null)}
         onConfirm={handleDelete}
-        title="Xoá tổ chức"
-        message={confirmDel ? `Xoá tổ chức "${confirmDel.name}"? Không xoá được nếu đang có hợp đồng/nhân viên tham chiếu.` : ''}
+        title={`Xoá tổ chức "${confirmDel?.name || ''}"?`}
+        message="Tổ chức sẽ bị xoá. Không nên xoá nếu đang có hợp đồng hoặc nhân viên tham chiếu — cân nhắc đánh dấu Ngừng hoạt động / Đã giải thể."
         variant="danger"
         confirmText="Xoá"
         cancelText="Huỷ"
+        isLoading={deleteReq.isPending}
       />
     </div>
   )
@@ -520,7 +548,6 @@ function OrgTreeNode({
 
   return (
     <div className={`relative ${isRoot ? '' : 'pl-6'}`}>
-      {/* Connector: vertical + horizontal stub (non-root) */}
       {!isRoot && (
         <>
           <span
@@ -536,7 +563,6 @@ function OrgTreeNode({
         </>
       )}
 
-      {/* Node row */}
       <div
         className={`group relative flex items-center gap-1.5 rounded-md transition-colors ${
           isRoot
@@ -564,14 +590,16 @@ function OrgTreeNode({
           )}
         </button>
 
-        <button
-          type="button"
-          onClick={() => onView(node)}
-          className={`w-7 h-7 rounded-md bg-gradient-to-br ${pickTone(node.name)} flex items-center justify-center text-white text-[10px] font-bold shrink-0 ring-1 ring-black/5`}
-          title="Xem chi tiết"
-        >
-          {getInitials(node.shortName || node.name)}
-        </button>
+        <AppTooltip content="Xem chi tiết">
+          <button
+            type="button"
+            onClick={() => onView(node)}
+            aria-label="Xem chi tiết"
+            className={`w-7 h-7 rounded-md bg-gradient-to-br ${pickTone(node.name)} flex items-center justify-center text-white text-[10px] font-bold shrink-0 ring-1 ring-black/5`}
+          >
+            {getInitials(node.shortName || node.name)}
+          </button>
+        </AppTooltip>
 
         <button
           type="button"
@@ -611,33 +639,30 @@ function OrgTreeNode({
         </span>
 
         <div className="flex items-center gap-0.5 shrink-0 opacity-45 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-          <button
-            type="button"
+          <IconActionButton
+            tooltip="Thêm đơn vị con"
+            tone="primary"
+            className="text-neutral-500 hover:text-primary-700 hover:bg-primary-50"
             onClick={(e) => { e.stopPropagation(); onAddChild(node) }}
-            className="p-1.5 text-neutral-500 hover:text-primary-700 hover:bg-primary-50 rounded transition"
-            title="Thêm đơn vị con"
-            aria-label="Thêm đơn vị con"
           >
             <Plus size={13} />
-          </button>
-          <button
-            type="button"
+          </IconActionButton>
+          <IconActionButton
+            tooltip="Sửa"
+            tone="primary"
+            className="text-neutral-500 hover:text-primary-700 hover:bg-primary-50"
             onClick={(e) => { e.stopPropagation(); onEdit(node) }}
-            className="p-1.5 text-neutral-500 hover:text-primary-700 hover:bg-primary-50 rounded transition"
-            title="Sửa"
-            aria-label="Sửa"
           >
             <Edit size={13} />
-          </button>
-          <button
-            type="button"
+          </IconActionButton>
+          <IconActionButton
+            tooltip="Xoá"
+            tone="rose"
+            className="text-neutral-500"
             onClick={(e) => { e.stopPropagation(); onDelete(node) }}
-            className="p-1.5 text-neutral-500 hover:text-rose-600 hover:bg-rose-50 rounded transition"
-            title="Xoá"
-            aria-label="Xoá"
           >
             <Trash2 size={13} />
-          </button>
+          </IconActionButton>
         </div>
       </div>
 
@@ -665,15 +690,10 @@ function OrgTreeNode({
 // Helpers
 // ============================================================
 
-/**
- * Build tree từ filteredList. Nếu con match nhưng parent không match → tự đưa parent lên root
- * để tránh mất context (mượn từ pattern DepartmentsPage).
- */
 function buildTree(filteredList: any[], allList: any[]): any[] {
   const nodeMap = new Map<string, any>()
   filteredList.forEach((item) => nodeMap.set(item.id, { ...item, children: [] }))
 
-  // Nếu parent nằm ngoài filtered (do search) → include parent for context
   filteredList.forEach((item) => {
     if (item.parentId && !nodeMap.has(item.parentId)) {
       const parent = allList.find((o) => o.id === item.parentId)
@@ -690,7 +710,6 @@ function buildTree(filteredList: any[], allList: any[]): any[] {
     }
   })
 
-  // Sort by orderIndex then name
   const sortTree = (nodes: any[]) => {
     nodes.sort((a, b) => {
       const oi = (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
@@ -703,7 +722,6 @@ function buildTree(filteredList: any[], allList: any[]): any[] {
   return roots
 }
 
-/** Set ID của tổ chức bản thân + tất cả con cháu — tránh tự đặt làm cha (cycle) */
 function collectDescendants(id: string, allList: any[]): Set<string> {
   const set = new Set<string>([id])
   let changed = true
@@ -727,7 +745,6 @@ function getInitials(name?: string): string {
 }
 
 function pickTone(seed?: string): string {
-  // Frezo green SME palette — tránh purple/pink lệch brand
   const tones = [
     'from-emerald-500 to-teal-600',
     'from-primary-500 to-emerald-600',

@@ -5,18 +5,19 @@
 // contract approval, purchase order, ... — chỉ cần truyền `steps` +
 // `currentIndex` + `status`.
 //
-// Layout 2 mode:
+// Layout:
 //   - horizontal (default) — full width, cho trang detail / panel row
-//   - vertical             — compact, cho drawer / sidebar
+//   - vertical             — compact list, cho drawer / sidebar
+//   - progress             — glanceable vertical flow (done / current / left)
 //
 // Visual conventions:
 //   - Bước đã hoàn thành: ✓ (emerald)  + line liền
-//   - Bước đang xử lý:    ● pulse (primary)
-//   - Bước sắp tới:       ○ (neutral)
-//   - Bị từ chối / huỷ:   ✕ (rose)   — tô nguyên stepper theo tone lỗi
+//   - Bước đang xử lý:    ● pulse (primary) / dashed green box (progress)
+//   - Bước sắp tới:       ○ (neutral) / dashed orange connector (progress)
+//   - Bị từ chối / huỷ:   ✕ (rose)
 // ============================================================
 
-import { Check, X, Loader2, Clock, User } from 'lucide-react'
+import { Check, X, Loader2, Clock, User, Flag, MapPin } from 'lucide-react'
 
 export type WorkflowStepStatus = 'DONE' | 'ACTIVE' | 'PENDING' | 'SKIPPED' | 'REJECTED'
 
@@ -41,7 +42,7 @@ export interface WorkflowStepperProps {
   rejected?: boolean
   /** Nếu true → mọi bước còn lại nhoè + thêm badge "Đã huỷ". */
   cancelled?: boolean
-  layout?: 'horizontal' | 'vertical'
+  layout?: 'horizontal' | 'vertical' | 'progress'
   className?: string
 }
 
@@ -61,6 +62,16 @@ export function WorkflowStepper({
     if (i < currentIndex) return 'DONE'
     if (i === currentIndex) return 'ACTIVE'
     return 'PENDING'
+  }
+
+  if (layout === 'progress') {
+    return (
+      <ProgressFlow
+        steps={steps}
+        resolveStatus={resolveStatus}
+        className={className}
+      />
+    )
   }
 
   if (layout === 'vertical') {
@@ -138,6 +149,142 @@ function HorizontalStep({
         />
       )}
     </>
+  )
+}
+
+// ============================================================
+// Progress — glanceable vertical flow (đã duyệt đến đâu)
+// Flag → steps → pin; solid green = done, dashed orange = pending;
+// current step = dashed green box.
+// ============================================================
+
+function ProgressFlow({
+  steps,
+  resolveStatus,
+  className,
+}: {
+  steps: WorkflowStepItem[]
+  resolveStatus: (i: number) => WorkflowStepStatus
+  className?: string
+}) {
+  const statuses = steps.map((_, i) => resolveStatus(i))
+  const allDone = statuses.every((s) => s === 'DONE' || s === 'SKIPPED')
+  const startToFirstDone = statuses[0] === 'DONE' || statuses[0] === 'ACTIVE' || statuses[0] === 'REJECTED'
+
+  return (
+    <div className={`rounded-lg border border-neutral-100 bg-white px-3 py-2.5 ${className || ''}`}>
+      <div className="text-[11px] font-bold text-slate-700 mb-2 tracking-wide">Workflow</div>
+      <ol className="flex flex-col items-center gap-0">
+        <li className="flex flex-col items-center" aria-hidden>
+          <span className="w-7 h-7 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-rose-500">
+            <Flag size={14} fill="currentColor" strokeWidth={1.5} />
+          </span>
+          <Connector done={startToFirstDone} />
+        </li>
+
+        {steps.map((s, i) => {
+          const status = statuses[i]
+          const isLast = i === steps.length - 1
+          const nextStatus = !isLast ? statuses[i + 1] : undefined
+          const connectorDone =
+            status === 'DONE' && (nextStatus === 'DONE' || nextStatus === 'ACTIVE' || nextStatus === 'REJECTED')
+
+          return (
+            <li key={i} className="flex flex-col items-center w-full max-w-[200px]">
+              <ProgressNode step={s} status={status} index={i} />
+              {!isLast && <Connector done={connectorDone} />}
+              {isLast && (
+                <>
+                  <Connector done={allDone} />
+                  <span
+                    className={`w-7 h-7 rounded-full flex items-center justify-center border ${
+                      allDone
+                        ? 'bg-emerald-50 border-emerald-300 text-rose-500'
+                        : 'bg-neutral-50 border-neutral-200 text-rose-400/70'
+                    }`}
+                    title={allDone ? 'Hoàn tất' : 'Chưa hoàn tất'}
+                    aria-label={allDone ? 'Hoàn tất' : 'Chưa hoàn tất'}
+                  >
+                    <MapPin size={14} fill="currentColor" strokeWidth={1.5} />
+                  </span>
+                </>
+              )}
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+}
+
+function ProgressNode({
+  step, status, index,
+}: { step: WorkflowStepItem; status: WorkflowStepStatus; index: number }) {
+  const isActive = status === 'ACTIVE'
+  const isDone = status === 'DONE'
+  const isRejected = status === 'REJECTED'
+
+  return (
+    <div
+      className={`w-full flex flex-col items-center gap-1 px-2.5 py-2 rounded-lg transition ${
+        isActive
+          ? 'border border-dashed border-emerald-500 bg-emerald-50/40 ring-1 ring-emerald-200/60'
+          : isRejected
+            ? 'border border-dashed border-rose-400 bg-rose-50/40'
+            : 'border border-transparent'
+      }`}
+    >
+      <span
+        className={`relative w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+          isDone
+            ? 'bg-emerald-500 text-white'
+            : isActive
+              ? 'bg-primary-500 text-white ring-4 ring-primary-100'
+              : isRejected
+                ? 'bg-rose-500 text-white'
+                : 'bg-neutral-100 text-neutral-400 border border-neutral-200'
+        }`}
+      >
+        {isDone && <Check size={16} strokeWidth={3} />}
+        {isActive && (
+          <>
+            <span className="absolute inset-0 rounded-full bg-primary-400/30 animate-ping" />
+            <User size={15} className="relative" strokeWidth={2} />
+          </>
+        )}
+        {isRejected && <X size={15} strokeWidth={3} />}
+        {(status === 'PENDING' || status === 'SKIPPED') && (
+          <span className="text-[11px]">{index + 1}</span>
+        )}
+      </span>
+      <div className="text-center min-w-0 w-full">
+        <div
+          className={`text-[12px] font-semibold truncate leading-tight ${
+            isActive ? 'text-emerald-800' : isDone ? 'text-neutral-800' : 'text-neutral-500'
+          }`}
+        >
+          {step.label}
+        </div>
+        {step.actor && (
+          <div className="text-[10px] text-neutral-400 truncate mt-0.5">
+            {step.actor.startsWith('@') || step.actor.includes(':') ? step.actor : `@${step.actor}`}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Connector({ done }: { done: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={`block h-5 my-0.5 ${
+        done
+          ? 'w-0.5 bg-emerald-400'
+          : 'w-0 border-l-2 border-dashed border-orange-400'
+      }`}
+    />
   )
 }
 

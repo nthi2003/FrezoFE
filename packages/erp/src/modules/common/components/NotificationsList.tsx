@@ -7,7 +7,7 @@
 import {
   CheckCircle2, AlertCircle, Info, XCircle, Bell, Ticket as TicketIcon,
   UserPlus, UserMinus, RefreshCw, Wallet, HandCoins, CalendarClock,
-  CalendarCheck2, FileText, Zap, Inbox, MessageCircle,
+  CalendarCheck2, FileText, Zap, Inbox, MessageCircle, Package,
   type LucideIcon,
 } from 'lucide-react'
 import { resolveNotificationUrl } from '../utils/resolveNotificationUrl'
@@ -153,9 +153,19 @@ function getTypeConfig(type?: string): { icon: LucideIcon; bg: string; text: str
     LEAD_ASSIGNED: { icon: UserPlus, bg: 'bg-primary-50', text: 'text-primary-700' },
     LEAD_IMPORTED: { icon: CheckCircle2, bg: 'bg-emerald-50', text: 'text-emerald-600' },
     ZALO_MESSAGE: { icon: MessageCircle, bg: 'bg-sky-50', text: 'text-sky-600' },
+    STOCK_ALERT: { icon: Package, bg: 'bg-amber-50', text: 'text-amber-600' },
+    STOCK_LOW: { icon: Package, bg: 'bg-amber-50', text: 'text-amber-600' },
+    STOCK_EXPIRY: { icon: AlertCircle, bg: 'bg-amber-50', text: 'text-amber-600' },
+    LOW_STOCK: { icon: Package, bg: 'bg-amber-50', text: 'text-amber-600' },
+    EXPIRY_SOON: { icon: AlertCircle, bg: 'bg-amber-50', text: 'text-amber-600' },
     URGENT: { icon: Zap, bg: 'bg-rose-100', text: 'text-rose-700' },
   }
-  return map[type || 'INFO'] || map.INFO || { icon: Bell, bg: 'bg-neutral-100', text: 'text-neutral-500' }
+  const t = type || 'INFO'
+  if (map[t]) return map[t]
+  if (t.startsWith('STOCK') || t.includes('STOCK')) {
+    return map.STOCK_ALERT
+  }
+  return map.INFO || { icon: Bell, bg: 'bg-neutral-100', text: 'text-neutral-500' }
 }
 
 function formatWhen(iso?: string): string {

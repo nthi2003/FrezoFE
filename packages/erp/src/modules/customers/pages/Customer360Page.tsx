@@ -1,8 +1,8 @@
 // ============================================================
 // FREZO ERP — Customer 360° Page
 // Trang tổng hợp mọi thông tin về 1 khách hàng: KPI, deals, hoá đơn,
-// hoạt động, hợp đồng, ghi chú. Tất cả filter client-side từ hook list-all
-// hiện có — không cần BE endpoint by-customer.
+// hoạt động, hợp đồng, ghi chú. Deals/invoices: BE list theo customerId;
+// activities vẫn qua activitiesApi.listByCustomer.
 // ============================================================
 
 import { useMemo } from 'react'
@@ -22,8 +22,7 @@ import { CustomerAvatar } from '../components/CustomerAvatar'
 import { useUploadCustomerAvatar } from '../hooks/useCustomer'
 import {
   useInvoices,
-  usePipelines,
-  useDealsByPipeline,
+  useDealsByCustomer,
 } from '../../crm/hooks/useCrm'
 import type {
   Deal, Invoice, InvoiceStatus, DealActivity,
@@ -166,23 +165,15 @@ export function Customer360Page() {
   }
   const canEditCustomer = useAnyPermission(['CUSTOMER.UPDATE', 'CUSTOMER_CUSTOMER_UPDATE', 'CUSTOMER.EXPORT'])
   const canCreateDeal = useAnyPermission(['CRM.DEAL.CREATE', 'CRM_DEAL_CREATE', 'CRM.DEALS.VIEW', 'CRM.LEAD.VIEW'])
-  const canCreateInvoice = useAnyPermission(['CRM.INVOICE.CREATE', 'CRM_INVOICE_CREATE', 'CRM.INVOICE.VIEW'])
+  const canCreateInvoice = useAnyPermission(['CRM.INVOICE.CREATE', 'CRM_INVOICE_CREATE'])
   const uploadAvatarReq = useUploadCustomerAvatar()
 
   const { data: customer, isLoading: loadingCust, isError: custError, refetch, isFetching } = useCustomerDetail(id)
   const { data: activities } = useCustomerActivities(id)
-  const { data: pipelines } = usePipelines()
-  const defaultPipelineId = (pipelines as { id: string; isDefault?: boolean }[] | undefined)
-    ?.find((p) => p.isDefault)?.id
-    ?? (pipelines as { id: string }[] | undefined)?.[0]?.id
-  const { data: allDeals } = useDealsByPipeline(defaultPipelineId)
+  const { data: customerDeals } = useDealsByCustomer(id)
   const { data: allInvoices } = useInvoices()
 
-  // Filter theo customer id — BE list all, client filter
-  const deals = useMemo<Deal[]>(() => {
-    const arr = (allDeals as Deal[] | undefined) ?? []
-    return arr.filter((d) => d.customerId === id)
-  }, [allDeals, id])
+  const deals = useMemo<Deal[]>(() => (customerDeals as Deal[] | undefined) ?? [], [customerDeals])
 
   const invoices = useMemo<Invoice[]>(() => {
     const arr = (allInvoices as Invoice[] | undefined) ?? []
@@ -327,13 +318,22 @@ export function Customer360Page() {
                 <Pencil size={14} /> Sửa
               </Button>
             )}
-            {canCreateDeal && (
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => nav('/crm/deals')}>
+            {canCreateDeal && id && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => nav(`/crm/deals?create=1&customerId=${encodeURIComponent(id)}`)}
+              >
                 <Plus size={14} /> Cơ hội
               </Button>
             )}
-            {canCreateInvoice && (
-              <Button size="sm" className="gap-1.5" onClick={() => nav('/crm/invoices')}>
+            {canCreateInvoice && id && (
+              <Button
+                size="sm"
+                className="gap-1.5"
+                onClick={() => nav(`/crm/invoices?create=1&customerId=${encodeURIComponent(id)}`)}
+              >
                 <Plus size={14} /> Hoá đơn mới
               </Button>
             )}
@@ -376,8 +376,33 @@ export function Customer360Page() {
           activities={acts}
         />
       )}
-      {tab === 'deals' && <DealsTab deals={deals} onGoto={() => nav('/crm/deals')} />}
-      {tab === 'invoices' && <InvoicesTab invoices={invoices} onGoto={() => nav('/crm/invoices')} />}
+      {tab === 'deals' && (
+        <DealsTab
+          deals={deals}
+          onGoto={() =>
+            nav(
+              canCreateDeal && id
+                ? `/crm/deals?create=1&customerId=${encodeURIComponent(id)}`
+                : id
+                  ? `/crm/deals?customerId=${encodeURIComponent(id)}`
+                  : '/crm/deals',
+            )
+          }
+        />
+      )}
+      {tab === 'invoices' && (
+        <InvoicesTab
+          invoices={invoices}
+          canCreate={canCreateInvoice}
+          onGoto={() =>
+            nav(
+              canCreateInvoice && id
+                ? `/crm/invoices?create=1&customerId=${encodeURIComponent(id)}`
+                : '/crm/invoices',
+            )
+          }
+        />
+      )}
       {tab === 'activities' && <ActivitiesTab activities={acts} />}
       {tab === 'documents' && (
         <div className="bg-white rounded-2xl border border-neutral-200/60 p-6">
@@ -696,15 +721,27 @@ function DealsTab({ deals, onGoto }: { deals: Deal[]; onGoto: () => void }) {
 // Tab: Invoices (all)
 // ============================================================
 
-function InvoicesTab({ invoices, onGoto }: { invoices: Invoice[]; onGoto: () => void }) {
+function InvoicesTab({
+  invoices,
+  onGoto,
+  canCreate,
+}: {
+  invoices: Invoice[]
+  onGoto: () => void
+  canCreate?: boolean
+}) {
   if (!invoices.length) {
     return (
       <div className="bg-white rounded-2xl border border-neutral-200/60 p-6">
         <EmptyState
           icon={Receipt}
           title="Chưa có hoá đơn"
-          description="Xuất hoá đơn đầu tiên cho khách hàng để ghi nhận doanh thu."
-          action={{ label: 'Sang trang Hoá đơn', onClick: onGoto }}
+          description="Tạo hoá đơn nháp cho khách hàng, rồi phát hành."
+          action={
+            canCreate
+              ? { label: 'Tạo hoá đơn', onClick: onGoto }
+              : { label: 'Sang trang Hoá đơn', onClick: onGoto }
+          }
         />
       </div>
     )

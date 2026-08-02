@@ -10,7 +10,7 @@ import {
   Bell, CheckCheck, Search, Filter, CircleDot, Sparkles, Zap,
   Inbox, RefreshCw, AlertCircle,
 } from 'lucide-react'
-import { PageHeader, Button, EmptyState } from '@frezo/ui'
+import { PageHeader, Button, EmptyState, Select } from '@frezo/ui'
 import {
   useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead,
 } from '@/modules/common/hooks/useNotification'
@@ -136,18 +136,22 @@ export function NotificationsPage() {
           {availableTypes.length > 0 && (
             <div className="inline-flex items-center gap-2">
               <Filter size={14} className="text-neutral-400" />
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="h-9 rounded-lg border border-neutral-200 bg-white text-sm text-neutral-700 pl-2 pr-6 focus:outline-none focus:ring-2 focus:ring-primary-300"
-              >
-                <option value="ALL">Tất cả loại</option>
-                {availableTypes.map((t) => (
-                  <option key={t} value={t}>
-                    {friendlyTypeLabel(t)}
-                  </option>
-                ))}
-              </select>
+              <div className="min-w-[160px]">
+                <Select
+                  options={[
+                    { value: 'ALL', label: 'Tất cả loại' },
+                    ...availableTypes.map((t) => ({
+                      value: t,
+                      label: friendlyTypeLabel(t),
+                    })),
+                  ]}
+                  value={typeFilter}
+                  onChange={setTypeFilter}
+                  placeholder="Loại thông báo"
+                  aria-label="Lọc loại thông báo"
+                  showSearch={availableTypes.length > 8}
+                />
+              </div>
             </div>
           )}
         </div>

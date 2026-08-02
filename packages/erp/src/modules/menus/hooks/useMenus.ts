@@ -9,6 +9,12 @@ import type { MenuResponseItem, MenuTreeNode } from '../types/menu.types'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/authStore'
 import { applyMenuGroupingFallback } from '../utils/groupMenuTree'
+import { consolidateTaskMenus } from '../utils/consolidateTaskMenus'
+import { consolidateAccountingMenus } from '../utils/consolidateAccountingMenus'
+import { consolidateQlnsMenus } from '../utils/consolidateQlnsMenus'
+import { consolidateCrmMenus } from '../utils/consolidateCrmMenus'
+import { consolidateApprovalMenus } from '../utils/consolidateApprovalMenus'
+import { collectFlatMenuFeUrls } from '../utils/menuUrls'
 
 export function useMenusForUser(username?: string) {
   return useQuery({
@@ -64,10 +70,21 @@ export function useMenus() {
     }
     sortNodes(roots)
 
-    return applyMenuGroupingFallback(roots)
+    return consolidateApprovalMenus(
+      consolidateCrmMenus(
+        consolidateQlnsMenus(
+          consolidateAccountingMenus(consolidateTaskMenus(applyMenuGroupingFallback(roots))),
+        ),
+      ),
+    )
   }, [flatMenus])
 
-  return { menuTree, isLoading }
+  const flatMenuFeUrls = React.useMemo(
+    () => collectFlatMenuFeUrls(flatMenus),
+    [flatMenus],
+  )
+
+  return { menuTree, flatMenuFeUrls, isLoading }
 }
 
 export function useMenu(id: string) {

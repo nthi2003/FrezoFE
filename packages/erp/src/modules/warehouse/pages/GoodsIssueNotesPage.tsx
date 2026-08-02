@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PackageMinus, Plus, Eye } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button, AppModal } from '@frezo/ui'
+import { Button, AppModal, Select } from '@frezo/ui'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { useProducts } from '@/modules/products/hooks/useProduct'
 import { GIN_GUIDE } from '../constants/grn-gin.guide'
@@ -20,6 +20,7 @@ import { usePermission } from '@/lib/hooks/usePermission'
 import { GrnGinStatusBadge } from '../components/GrnGinStatusBadge'
 import { WarehouseListShell } from '../components/WarehouseListShell'
 import { WarehouseFilterBar } from '../components/WarehouseFilterBar'
+import { WarehouseSelect } from '../components/WarehouseSelect'
 import {
   formatVnd,
   issueTypeLabel,
@@ -95,7 +96,7 @@ export function GoodsIssueNotesPage() {
   const columns: AppTableColumn<GinDto>[] = [
     {
       key: 'code',
-      title: 'Mã PXK',
+      title: 'Mã phiếu xuất',
       render: (_, row) => (
         <button
           type="button"
@@ -233,7 +234,7 @@ export function GoodsIssueNotesPage() {
 
   return (
     <WarehouseListShell
-      title="Phiếu xuất kho (PXK)"
+      title="Phiếu xuất kho"
       description="Nháp → Gửi duyệt → Duyệt → Xác nhận xuất (trừ tồn)."
       guide={GIN_GUIDE}
       headerActions={
@@ -245,7 +246,7 @@ export function GoodsIssueNotesPage() {
               setOpen(true)
             }}
           >
-            <Plus size={14} /> Tạo PXK
+            <Plus size={14} /> Tạo phiếu xuất
           </Button>
         ) : undefined
       }
@@ -304,11 +305,11 @@ export function GoodsIssueNotesPage() {
       filteredCount={filteredList.length}
       emptyIcon={PackageMinus}
       emptyTitle="Chưa có phiếu xuất kho"
-      emptyDescription="Tạo PXK — chọn kho, loại xuất và danh sách hàng."
+      emptyDescription="Tạo phiếu xuất — chọn kho, loại xuất và danh sách hàng."
       emptyAction={
         canCreate
           ? {
-              label: 'Tạo PXK',
+              label: 'Tạo phiếu xuất',
               onClick: () => {
                 resetCreateForm()
                 setOpen(true)
@@ -322,6 +323,7 @@ export function GoodsIssueNotesPage() {
       data={filteredList}
       onRefresh={refetch}
     >
+      <AppModal
         isOpen={open}
         onClose={() => setOpen(false)}
         title="Tạo phiếu xuất kho"
@@ -333,32 +335,29 @@ export function GoodsIssueNotesPage() {
           </p>
           <label className="block space-y-1">
             <span className="text-xs font-medium text-neutral-600">Kho xuất *</span>
-            <select
-              className="w-full border rounded-md px-3 py-2"
+            <WarehouseSelect
+              warehouses={warehouseOptions}
               value={warehouseId}
-              onChange={(e) => setWarehouseId(e.target.value)}
-            >
-              <option value="">— Chọn kho —</option>
-              {warehouseOptions.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name || w.id}
-                </option>
-              ))}
-            </select>
+              onChange={setWarehouseId}
+              placeholder="— Chọn kho —"
+              aria-label="Kho xuất"
+            />
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block space-y-1">
               <span className="text-xs font-medium text-neutral-600">Loại xuất</span>
-              <select
-                className="w-full border rounded-md px-3 py-2"
+              <Select
+                options={[
+                  { value: 'SALES', label: 'Xuất bán' },
+                  { value: 'INTERNAL_TRANSFER', label: 'Chuyển kho nội bộ' },
+                  { value: 'DAMAGE_RETURN', label: 'Hủy/hoàn hàng' },
+                  { value: 'ADJUSTMENT', label: 'Điều chỉnh' },
+                ]}
                 value={issueType}
-                onChange={(e) => setIssueType(e.target.value)}
-              >
-                <option value="SALES">Xuất bán</option>
-                <option value="INTERNAL_TRANSFER">Chuyển kho nội bộ</option>
-                <option value="DAMAGE_RETURN">Hủy/hoàn hàng</option>
-                <option value="ADJUSTMENT">Điều chỉnh</option>
-              </select>
+                onChange={setIssueType}
+                showSearch={false}
+                aria-label="Loại xuất"
+              />
             </label>
             <label className="block space-y-1">
               <span className="text-xs font-medium text-neutral-600">Mã khách (tuỳ chọn)</span>
@@ -373,18 +372,13 @@ export function GoodsIssueNotesPage() {
           {issueType === 'INTERNAL_TRANSFER' && (
             <label className="block space-y-1">
               <span className="text-xs font-medium text-neutral-600">Kho đích</span>
-              <select
-                className="w-full border rounded-md px-3 py-2"
+              <WarehouseSelect
+                warehouses={warehouseOptions}
                 value={transferWarehouseId}
-                onChange={(e) => setTransferWarehouseId(e.target.value)}
-              >
-                <option value="">— Kho nhận —</option>
-                {warehouseOptions.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name || w.id}
-                  </option>
-                ))}
-              </select>
+                onChange={setTransferWarehouseId}
+                placeholder="— Kho nhận —"
+                aria-label="Kho đích"
+              />
             </label>
           )}
           <div className="grid grid-cols-2 gap-3">

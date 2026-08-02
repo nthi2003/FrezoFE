@@ -25,7 +25,7 @@ export function WorkflowTemplateGalleryPage() {
     clone.mutate(code, {
       onSuccess: (res) => {
         if (res?.id) nav(`/qtht/workflows/${res.id}/designer`)
-        else nav('/qtht/workflows')
+        else nav('/approval/flows?tab=templates')
       },
     })
   }
@@ -45,7 +45,7 @@ export function WorkflowTemplateGalleryPage() {
             <Button
               variant="outline"
               className="gap-1.5"
-              onClick={() => nav('/qtht/workflows')}
+              onClick={() => nav('/approval/flows?tab=templates')}
             >
               <ArrowLeft size={14} /> Danh sách quy trình
             </Button>
@@ -87,7 +87,7 @@ export function WorkflowTemplateGalleryPage() {
             description="BE trả trống hoặc 404 — FE không mock graph tuyển dụng. Seed template trên BE rồi refresh."
             action={{
               label: 'Về danh sách quy trình',
-              onClick: () => nav('/qtht/workflows'),
+              onClick: () => nav('/approval/flows?tab=templates'),
             }}
           />
         </div>
