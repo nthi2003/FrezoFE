@@ -1,7 +1,5 @@
 // ============================================================
 // FREZO ERP — Notifications Page (/notifications)
-// Trang xem toàn bộ thông báo — filter theo trạng thái/loại,
-// mark-read (đơn/hàng loạt), điều hướng đến entity liên quan.
 // ============================================================
 
 import { useMemo, useState } from 'react'
@@ -12,11 +10,20 @@ import {
 } from 'lucide-react'
 import { PageHeader, Button, EmptyState, Select } from '@frezo/ui'
 import {
-  useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead,
+  useNotifications,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
 } from '@/modules/common/hooks/useNotification'
 import { resolveNotificationUrl } from '@/modules/common/utils/resolveNotificationUrl'
+import {
+  collectNotificationTypes,
+  computeNotificationStats,
+  filterNotifications,
+  getNotificationTypeLabel,
+  isNotificationRead,
+} from '@/modules/common/utils/notificationHelpers'
 import { NotificationsList } from '../components/NotificationsList'
-import type { NotificationItem } from '../components/NotificationsList'
+import type { NotificationItem } from '../types'
 
 type FilterTab = 'all' | 'unread' | 'urgent'
 
@@ -36,53 +43,27 @@ export function NotificationsPage() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('ALL')
 
-  const items = useMemo<NotificationItem[]>(() => {
-    return Array.isArray(data) ? (data as NotificationItem[]) : []
-  }, [data])
+  const items = useMemo<NotificationItem[]>(
+    () => (Array.isArray(data) ? data : []),
+    [data],
+  )
 
-  const filtered = useMemo(() => {
-    let list = items
-    if (tab === 'unread') list = list.filter((n) => !isRead(n))
-    else if (tab === 'urgent') list = list.filter((n) => n.priority === 'URGENT')
+  const filtered = useMemo(
+    () => filterNotifications(items, { tab, type: typeFilter, search }),
+    [items, tab, typeFilter, search],
+  )
 
-    if (typeFilter !== 'ALL') {
-      list = list.filter((n) => (n.type || 'INFO') === typeFilter)
-    }
-
-    if (search.trim()) {
-      const q = search.toLowerCase().trim()
-      list = list.filter((n) => {
-        const hay = [n.title, n.content, n.message, n.senderUsername]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
-        return hay.includes(q)
-      })
-    }
-    return list
-  }, [items, tab, typeFilter, search])
-
-  const stats = useMemo(() => {
-    const total = items.length
-    const unread = items.filter((n) => !isRead(n)).length
-    const urgent = items.filter((n) => n.priority === 'URGENT' && !isRead(n)).length
-    return { total, unread, urgent }
-  }, [items])
-
-  const availableTypes = useMemo(() => {
-    const set = new Set<string>()
-    items.forEach((n) => n.type && set.add(n.type))
-    return Array.from(set).sort()
-  }, [items])
+  const stats = useMemo(() => computeNotificationStats(items), [items])
+  const availableTypes = useMemo(() => collectNotificationTypes(items), [items])
 
   const handleClick = (n: NotificationItem) => {
-    if (!isRead(n) && n.id) markRead.mutate(n.id)
+    if (!isNotificationRead(n) && n.id) markRead.mutate(n.id)
     const url = resolveNotificationUrl(n)
     if (url) navigate(url)
   }
 
   const handleMarkAllRead = () => {
-    const unreadIds = items.filter((n) => !isRead(n) && n.id).map((n) => n.id!)
+    const unreadIds = items.filter((n) => !isNotificationRead(n) && n.id).map((n) => n.id!)
     if (unreadIds.length > 0) markAll.mutate(unreadIds)
   }
 
@@ -113,14 +94,12 @@ export function NotificationsPage() {
         }
       />
 
-      {/* KPI strip */}
       <div className="grid grid-cols-3 gap-3">
         <StatTile icon={Inbox} label="Tổng thông báo" value={stats.total} tone="neutral" />
         <StatTile icon={CircleDot} label="Chưa đọc" value={stats.unread} tone="primary" />
         <StatTile icon={Zap} label="Khẩn chưa đọc" value={stats.urgent} tone="rose" />
       </div>
 
-      {/* Filter toolbar */}
       <div className="p-3 bg-white border border-neutral-200 shadow-sm rounded-2xl space-y-3">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[240px]">
@@ -142,7 +121,7 @@ export function NotificationsPage() {
                     { value: 'ALL', label: 'Tất cả loại' },
                     ...availableTypes.map((t) => ({
                       value: t,
-                      label: friendlyTypeLabel(t),
+                      label: getNotificationTypeLabel(t),
                     })),
                   ]}
                   value={typeFilter}
@@ -156,17 +135,12 @@ export function NotificationsPage() {
           )}
         </div>
 
-        {/* Tabs */}
         <div className="flex flex-wrap items-center gap-2">
           {TABS.map((t) => {
             const Icon = t.icon
             const active = tab === t.key
             const badge =
-              t.key === 'unread'
-                ? stats.unread
-                : t.key === 'urgent'
-                  ? stats.urgent
-                  : stats.total
+              t.key === 'unread' ? stats.unread : t.key === 'urgent' ? stats.urgent : stats.total
             return (
               <button
                 key={t.key}
@@ -193,7 +167,6 @@ export function NotificationsPage() {
         </div>
       </div>
 
-      {/* List */}
       <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
         {isLoading ? (
           <div className="p-8 text-center text-neutral-500">
@@ -231,45 +204,6 @@ export function NotificationsPage() {
     </div>
   )
 }
-
-// ------------------------------------------------------------
-// Helpers
-// ------------------------------------------------------------
-
-function isRead(n: NotificationItem): boolean {
-  return n.isRead === true || n.read === true
-}
-
-function friendlyTypeLabel(type: string): string {
-  const map: Record<string, string> = {
-    SUCCESS: 'Thành công',
-    ERROR: 'Lỗi',
-    WARNING: 'Cảnh báo',
-    INFO: 'Thông tin',
-    TICKET_CREATED: 'Ticket · tạo mới',
-    TICKET_ASSIGNED: 'Ticket · giao việc',
-    TICKET_UNASSIGNED: 'Ticket · huỷ giao',
-    TICKET_ASSIGNED_TO_OTHER: 'Ticket · giao người khác',
-    TICKET_STATUS_CHANGED: 'Ticket · đổi trạng thái',
-    TICKET_COMMENTED: 'Ticket · bình luận',
-    TICKET_RESOLVED: 'Ticket · giải quyết',
-    PAYROLL_CONFIRMED: 'Lương · xác nhận',
-    PAYROLL_PAID: 'Lương · đã trả',
-    PAYROLL_CALCULATED: 'Lương · đã tính',
-    LEAVE_REQUESTED: 'Nghỉ · yêu cầu',
-    LEAVE_APPROVED: 'Nghỉ · duyệt',
-    LEAVE_REJECTED: 'Nghỉ · từ chối',
-    LEAD_NEW: 'Lead mới',
-    LEAD_ASSIGNED: 'Lead · giao việc',
-    LEAD_IMPORTED: 'Lead · import',
-    ZALO_MESSAGE: 'Zalo OA',
-  }
-  return map[type] || type
-}
-
-// ------------------------------------------------------------
-// StatTile
-// ------------------------------------------------------------
 
 function StatTile({
   icon: Icon,

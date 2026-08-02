@@ -7,12 +7,13 @@ import { useAnyPermission } from '@/lib/hooks/usePermission'
 import { useMenus } from '@/modules/menus/hooks/useMenus'
 import { collectFeUrls, hasMenuUnder } from '@/modules/menus/utils/menuUrls'
 import { usePendingApprovalCount, useMyApprovals } from '@/modules/approval/hooks/useApprovals'
-import { useNotifications } from '@/modules/common/hooks/useNotification'
+import { useNotifications, useUnreadNotificationCount } from '@/modules/common/hooks/useNotification'
 import { useTasks } from '@/modules/tasks/hooks/useTask'
 import { useLeaveRequests } from '@/modules/qlns/hooks/useLeave'
 import { SUBJECT_TYPE_LABEL } from '@/modules/approval/types'
 import { resolveNotificationUrl } from '@/modules/common/utils/resolveNotificationUrl'
-import type { NotificationItem } from '@/modules/common/components/NotificationsList'
+import type { NotificationItem } from '@/modules/common/types'
+import { isNotificationRead } from '@/modules/common/utils/notificationHelpers'
 import { formatRelativeTime } from '@/lib/utils/format'
 
 export interface LobbyPendingPill {
@@ -45,6 +46,7 @@ export function useLobbyPending() {
     hasMenuUnder(menuUrls, '/qlns/leaves')
 
   const { data: notifications, isLoading: notifLoading } = useNotifications()
+  const { data: unreadFromApi } = useUnreadNotificationCount()
   const { count: approvalCount, isLoading: approvalLoading } = usePendingApprovalCount()
   const { data: pendingApprovals = [], isLoading: approvalsListLoading } = useMyApprovals('pending')
   const { data: tasksRaw, isLoading: tasksLoading } = useTasks(undefined, { enabled: canSeeTasks })
@@ -53,11 +55,10 @@ export function useLobbyPending() {
   })
 
   const unreadCount = useMemo(() => {
+    if (typeof unreadFromApi === 'number') return unreadFromApi
     const list = Array.isArray(notifications) ? notifications : []
-    return list.filter(
-      (n: { isRead?: boolean; read?: boolean }) => !(n?.isRead === true || n?.read === true),
-    ).length
-  }, [notifications])
+    return list.filter((n) => !isNotificationRead(n)).length
+  }, [unreadFromApi, notifications])
 
   const openTasks = useMemo(() => {
     const list = (tasksRaw as { status?: string }[] | undefined) ?? []
@@ -155,7 +156,7 @@ export function useLobbyPending() {
     }
 
     const notifList = (Array.isArray(notifications) ? notifications : []) as NotificationItem[]
-    for (const n of notifList.filter((x) => !(x.isRead === true || x.read === true)).slice(0, 5)) {
+    for (const n of notifList.filter((x) => !isNotificationRead(x)).slice(0, 5)) {
       const created = n.createdDate || n.createdAt
       items.push({
         id: `notif-${n.id ?? created}`,
