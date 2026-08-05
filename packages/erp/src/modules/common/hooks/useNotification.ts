@@ -4,21 +4,41 @@ import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
 import { notificationApi } from '../services/notificationApi'
 import { resolveNotificationUrl } from '../utils/resolveNotificationUrl'
+import type { NotificationItem } from '../types'
+
+export const NOTIFICATION_QUERY_KEY = ['common', 'notifications'] as const
+export const NOTIFICATION_UNREAD_KEY = ['common', 'notifications', 'unread-count'] as const
+
+function invalidateNotificationQueries(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY })
+  qc.invalidateQueries({ queryKey: NOTIFICATION_UNREAD_KEY })
+}
 
 /**
- * Poll thông báo mỗi 30 giây. Đủ realtime cho ticket/task/leave/payroll workflows
- * (không cần WebSocket client — BE đã push WS nhưng FE hiện tại chưa consume).
- * <p>
+ * Poll thông báo mỗi 30 giây. Đủ realtime cho ticket/task/leave/payroll workflows.
  * Nếu về sau nối WS: đổi `refetchInterval` thành `false` khi socket connected.
  */
 export function useNotifications() {
   return useQuery({
-    queryKey: ['notifications'],
+    queryKey: NOTIFICATION_QUERY_KEY,
     queryFn: notificationApi.getMyNotifications,
-    select: (data: any) => (Array.isArray(data) ? data : data?.data ?? []),
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
-    // Không retry 401 — để UI hiện error rõ, không nuốt auth fail
+    retry: (count, err: unknown) => {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      if (status === 401 || status === 403) return false
+      return count < 2
+    },
+  })
+}
+
+/** Badge count — ưu tiên API unread-count, đồng bộ với BE. */
+export function useUnreadNotificationCount() {
+  return useQuery({
+    queryKey: NOTIFICATION_UNREAD_KEY,
+    queryFn: notificationApi.getUnreadCount,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
     retry: (count, err: unknown) => {
       const status = (err as { response?: { status?: number } })?.response?.status
       if (status === 401 || status === 403) return false
@@ -31,13 +51,12 @@ export function useMarkNotificationRead() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => notificationApi.markAsRead(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: () => invalidateNotificationQueries(qc),
   })
 }
 
 /**
  * Ưu tiên bulk /mark-all-read. Fallback per-id chỉ khi 404/501 (BE cũ).
- * Không nuốt 401/403.
  */
 export function useMarkAllNotificationsRead() {
   const qc = useQueryClient()
@@ -57,15 +76,13 @@ export function useMarkAllNotificationsRead() {
     },
     onSuccess: () => {
       toast.success('Đã đánh dấu tất cả đã đọc')
-      qc.invalidateQueries({ queryKey: ['notifications'] })
+      invalidateNotificationQueries(qc)
     },
     onError: () => toast.error('Không đánh dấu đã đọc được'),
   })
 }
 
-/**
- * Toast realtime khi có notification MỚI (so với snapshot lần poll trước).
- */
+/** Toast realtime khi có notification MỚI (so với snapshot lần poll trước). */
 export function useNotificationRealtimeToast() {
   const { data } = useNotifications()
   const navigate = useNavigate()
@@ -76,13 +93,14 @@ export function useNotificationRealtimeToast() {
     if (!Array.isArray(data)) return
 
     if (!initialisedRef.current) {
-      data.forEach((n: any) => n?.id && seenIdsRef.current.add(n.id))
+      data.forEach((n) => n?.id && seenIdsRef.current.add(n.id))
       initialisedRef.current = true
       return
     }
 
-    const newOnes = data.filter((n: any) => n?.id && !seenIdsRef.current.has(n.id))
-    newOnes.forEach((n: any) => {
+    const newOnes = data.filter((n) => n?.id && !seenIdsRef.current.has(n.id))
+    newOnes.forEach((n: NotificationItem) => {
+      if (!n.id) return
       seenIdsRef.current.add(n.id)
       const isUrgent = n.priority === 'URGENT'
       const title = n.title || 'Thông báo mới'

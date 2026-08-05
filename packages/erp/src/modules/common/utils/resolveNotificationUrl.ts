@@ -2,13 +2,9 @@
 // Resolve notification deep-link → routes Sprint 1–2
 // ============================================================
 
-export interface NotifDeepLinkInput {
-  actionUrl?: string | null
-  link?: string | null
-  type?: string | null
-  entityType?: string | null
-  entityId?: string | null
-}
+import type { NotifDeepLinkInput } from '../types'
+
+export type { NotifDeepLinkInput }
 
 /** Chuẩn hoá path nội bộ (bỏ origin, đảm bảo leading /). */
 function normalizePath(url: string): string {
