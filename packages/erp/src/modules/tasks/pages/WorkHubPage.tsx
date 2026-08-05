@@ -37,18 +37,23 @@ export function WorkHubPage() {
     [searchParams, flatMenuFeUrls],
   )
 
-  const tabs = WORK_TABS.map((t) => ({
-    key: t.key,
-    label: t.label,
-    icon: TAB_ICONS[t.key],
-    hint: t.hint,
-  }))
+  const tabs = useMemo(
+    () =>
+      WORK_TABS.map((t) => ({
+        key: t.key,
+        label: t.label,
+        icon: TAB_ICONS[t.key],
+        hint: t.hint,
+      })),
+    [],
+  )
 
   return (
     <WorkHubLayout
       tabs={tabs}
       tab={tab}
       visibleTabKeys={visibleTabKeys}
+      syncKey={flatMenuFeUrls}
       onResolveTab={(raw) => resolveWorkTab(raw, flatMenuFeUrls)}
     >
       {tab === 'board' && <TicketsPage embedded />}

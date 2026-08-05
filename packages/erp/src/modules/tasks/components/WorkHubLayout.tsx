@@ -16,6 +16,8 @@ type WorkHubLayoutProps = {
   tabs: WorkHubTabDef[]
   tab: WorkTab
   visibleTabKeys: WorkTab[]
+  /** Đổi giá trị này khi nguồn quyền (menu) đổi để chạy lại sync URL. */
+  syncKey?: unknown
   onResolveTab: (raw: string | null) => WorkTab
   children: ReactNode
 }
@@ -24,10 +26,13 @@ export function WorkHubLayout({
   tabs,
   tab,
   visibleTabKeys,
+  syncKey,
   onResolveTab,
   children,
 }: WorkHubLayoutProps) {
   const [searchParams, setSearchParams] = useSearchParams()
+  const onResolveTabRef = useRef(onResolveTab)
+  onResolveTabRef.current = onResolveTab
 
   const visibleTabs = useMemo(
     () => tabs.filter((t) => visibleTabKeys.includes(t.key)),
@@ -35,21 +40,29 @@ export function WorkHubLayout({
   )
 
   const setTab = (next: WorkTab) => {
-    const sp = new URLSearchParams(searchParams)
-    if (next === DEFAULT_WORK_TAB) sp.delete('tab')
-    else sp.set('tab', next)
-    setSearchParams(sp, { replace: true })
+    setSearchParams(
+      (prev) => {
+        const sp = new URLSearchParams(prev)
+        if (next === DEFAULT_WORK_TAB) sp.delete('tab')
+        else sp.set('tab', next)
+        return sp
+      },
+      { replace: true },
+    )
   }
 
   useEffect(() => {
     const raw = searchParams.get('tab')
-    const resolved = onResolveTab(raw)
-    if (raw === resolved && (raw || resolved === DEFAULT_WORK_TAB)) return
+    const resolved = onResolveTabRef.current(raw)
+    const expectedInUrl = resolved === DEFAULT_WORK_TAB ? null : resolved
+    const currentInUrl = raw || null
+    if (currentInUrl === expectedInUrl) return
+
     const sp = new URLSearchParams(searchParams)
-    if (resolved === DEFAULT_WORK_TAB) sp.delete('tab')
-    else sp.set('tab', resolved)
+    if (expectedInUrl === null) sp.delete('tab')
+    else sp.set('tab', expectedInUrl)
     setSearchParams(sp, { replace: true })
-  }, [searchParams, setSearchParams, onResolveTab])
+  }, [searchParams, setSearchParams, syncKey])
 
   if (visibleTabs.length === 0) {
     return (
@@ -69,14 +82,14 @@ export function WorkHubLayout({
         description="Giao việc, theo dõi tiến độ và quản lý task nội bộ — tất cả tại một nơi."
       />
 
-      <div className="flex flex-wrap gap-1 border-b border-neutral-200 bg-white/80 backdrop-blur rounded-t-xl px-2 pt-1">
+      <div className="flex flex-wrap gap-1 border-b border-neutral-200 bg-white/80 backdrop-blur rounded-t-xl px-2 pt-1 overflow-x-auto">
         {visibleTabs.map(({ key, label, icon: Icon, hint }) => {
           const active = tab === key
           const btn = (
             <button
               type="button"
               onClick={() => setTab(key)}
-              className={`inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition -mb-px ${
+              className={`inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition -mb-px whitespace-nowrap ${
                 active
                   ? 'border-primary-600 text-primary-700'
                   : 'border-transparent text-neutral-500 hover:text-neutral-900'
