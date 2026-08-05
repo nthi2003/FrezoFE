@@ -11,7 +11,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Upload, FileSpreadsheet, CheckCircle, XCircle, Loader2, Info,
+  Upload, FileSpreadsheet, Loader2, Info,
   RotateCcw, Download, History, AlertCircle, FileCheck2, ExternalLink,
 } from 'lucide-react'
 import { Button, PageHeader, EmptyState, Input, Label, RowActions } from '@frezo/ui'

@@ -21,6 +21,7 @@ import {
   EmptyState,
   ErrorState,
   ConfirmDialog,
+  FormModal,
   RowActions,
   StatusBadge,
   Select,
@@ -735,26 +736,18 @@ export function RecognitionPage({ embedded }: { embedded?: boolean } = {}) {
         }}
       />
 
-      <AppModal
+      <FormModal
         isOpen={!!rejectTarget}
         onClose={() => setRejectTarget(null)}
         title="Từ chối đổi thưởng"
-        maxWidth="sm"
-      >
-        <div className="space-y-3">
-          <Label>Lý do</Label>
-          <textarea
-            rows={2}
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg resize-none"
-          />
+        size="sm"
+        footer={
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setRejectTarget(null)}>
               Huỷ
             </Button>
             <Button
-              className="bg-red-600 text-white"
+              variant="destructive"
               disabled={reject.isPending}
               onClick={() => {
                 if (!rejectTarget) return
@@ -767,8 +760,18 @@ export function RecognitionPage({ embedded }: { embedded?: boolean } = {}) {
               Từ chối
             </Button>
           </div>
+        }
+      >
+        <div className="space-y-3">
+          <Label>Lý do</Label>
+          <textarea
+            rows={2}
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg resize-none"
+          />
         </div>
-      </AppModal>
+      </FormModal>
     </div>
   )
 }

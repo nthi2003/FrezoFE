@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Plus, Search, RefreshCw, CalendarDays, Filter, CheckCircle2, XCircle,
-  Clock, User, Ban, ArrowRight, Bell,
+  Clock, User, Ban, ArrowRight, Bell, FileWarning, type LucideIcon,
 } from 'lucide-react'
 import {
   Button, PageHeader, EmptyState, ErrorState, PageGuideButton, Select,
@@ -26,6 +26,7 @@ import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { useAuthStore } from '@/stores/authStore'
 import { useLeaveRequests, useMyLeaveRequests } from '../hooks/useLeave'
+import { useMyContract } from '../hooks/useMyContract'
 import type { LeaveRequestItem, LeaveStatus } from '../services/leaveApi'
 import { LEAVE_TYPES, type LeaveTypeCode } from '../constants/schema'
 import { LeaveRequestModal } from '../components/LeaveRequestModal'
@@ -121,10 +122,20 @@ export function LeavesPage({
   }
 
   // ---- Data ----
+  // Tab "Đơn của tôi" query theo contractId của HĐ đang hiệu lực — KHÔNG phải user.id.
+  const isMineTab = tab === 'mine'
+  const myContract = useMyContract()
   const pending = useLeaveRequests()
-  const mine = useMyLeaveRequests(currentUser?.id)
-  const source = tab === 'mine' ? mine : pending
-  const rawList: LeaveRequestItem[] = (source.data as any) || []
+  const mine = useMyLeaveRequests(myContract.contractId || undefined)
+  const source = isMineTab ? mine : pending
+
+  /** Chưa liên kết nhân sự / chưa có HĐ hiệu lực → không gọi API, hiện empty state riêng. */
+  const mineBlocked = isMineTab && !myContract.isLoading && !myContract.hasContract
+  const listLoading = source.isLoading || (isMineTab && myContract.isLoading)
+  const rawList = useMemo<LeaveRequestItem[]>(
+    () => (Array.isArray(source.data) ? source.data : []),
+    [source.data],
+  )
 
   // ---- Client filter ----
   const list = useMemo(() => {
@@ -173,8 +184,8 @@ export function LeavesPage({
     setSearch(''); setTypeFilter('all'); setStatusFilter('all')
   }
   const hasFilter = search || typeFilter !== 'all' || statusFilter !== 'all'
-  const isFilteredEmpty = !source.isLoading && !source.isError && rawList.length > 0 && list.length === 0
-  const isFullyEmpty = !source.isLoading && !source.isError && rawList.length === 0
+  const isFilteredEmpty = !listLoading && !source.isError && rawList.length > 0 && list.length === 0
+  const isFullyEmpty = !listLoading && !source.isError && rawList.length === 0
 
   const createEmptyAction =
     canCreateLeave && !isFilteredEmpty && (tab === 'mine' || tab === 'all' || isFullyEmpty)
@@ -441,7 +452,23 @@ export function LeavesPage({
         </div>
       </FilterBar>
 
-      {source.isError ? (
+      {mineBlocked ? (
+        <div className="border rounded-xl bg-white">
+          <EmptyState
+            icon={FileWarning}
+            title={
+              myContract.hasPerson
+                ? 'Chưa có hợp đồng đang hiệu lực'
+                : 'Tài khoản chưa liên kết hồ sơ nhân sự'
+            }
+            description={
+              myContract.hasPerson
+                ? 'Đơn nghỉ gắn với hợp đồng lao động. Hợp đồng của bạn chưa được kích hoạt (activated + ACTIVE) nên chưa tra được đơn — liên hệ HR để kiểm tra.'
+                : 'Tài khoản của bạn chưa gắn với hồ sơ nhân sự nào nên không có hợp đồng để tra đơn nghỉ. Liên hệ HR để được liên kết.'
+            }
+          />
+        </div>
+      ) : source.isError ? (
         <div className="border rounded-xl bg-white">
           <ErrorState
             title="Không tải được đơn nghỉ"
@@ -481,7 +508,7 @@ export function LeavesPage({
         <AppTable
           columns={columns}
           data={list}
-          isLoading={source.isLoading}
+          isLoading={listLoading}
           density="compact"
           showSearch={false}
           pageSize={20}
@@ -519,7 +546,7 @@ export function LeavesPage({
 function TabButton({
   active, onClick, icon: Icon, label, count, activeColor,
 }: {
-  active: boolean; onClick: () => void; icon: any; label: string; count?: number; activeColor: string
+  active: boolean; onClick: () => void; icon: LucideIcon; label: string; count?: number; activeColor: string
 }) {
   return (
     <button

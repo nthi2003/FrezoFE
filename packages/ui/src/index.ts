@@ -32,10 +32,12 @@ export {
   DialogTitle,
   DialogDescription,
 } from './dialog'
-export { AppModal } from './AppModal'
-export type { AppModalProps } from './AppModal'
-export { FormModal } from './FormModal'
-export type { FormModalProps, FormModalSize } from './FormModal'
+export { FormModal, AppModal } from './FormModal'
+export type {
+  FormModalProps,
+  FormModalSize,
+  AppModalProps,
+} from './FormModal'
 export { FormSection, FormGrid } from './FormSection'
 export type { FormSectionProps, FormGridProps } from './FormSection'
 export { ConfirmDialog } from './ConfirmDialog'

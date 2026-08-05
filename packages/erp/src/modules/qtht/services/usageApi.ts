@@ -7,7 +7,10 @@ export type UsageSummary = {
   uniqueUsersToday: number
   onlineUsers: number
   activeSessions: number
-  onlineWindowMinutes: number
+  /** Cửa sổ coi là online (giây) — BE mặc định 90. */
+  onlineWindowSeconds?: number
+  /** Backward-compat; ưu tiên onlineWindowSeconds. */
+  onlineWindowMinutes?: number
   asOf: string
 }
 
@@ -30,9 +33,11 @@ export type UserSessionRow = {
 }
 
 export const usageApi = {
-  getSummary: () =>
+  getSummary: (onlineSeconds = 90) =>
     axiosClient
-      .get<ApiResponse<UsageSummary>>('/auth/statistic/usage-summary')
+      .get<ApiResponse<UsageSummary>>('/auth/statistic/usage-summary', {
+        params: { onlineSeconds },
+      })
       .then((res) => res.data.data),
 
   getLoginByDay: () =>
@@ -55,11 +60,11 @@ export const usageApi = {
       .post<ApiResponse<{ ok: boolean }>>('/auth/session/heartbeat')
       .then((res) => res.data.data),
 
-  getOnlineCount: (minutes = 5) =>
+  getOnlineCount: (seconds = 90) =>
     axiosClient
       .get<ApiResponse<{ onlineUsers: number; activeSessions: number }>>(
         '/auth/session/online-count',
-        { params: { minutes } },
+        { params: { seconds } },
       )
       .then((res) => res.data.data),
 

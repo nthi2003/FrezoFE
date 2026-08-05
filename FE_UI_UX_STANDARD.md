@@ -70,7 +70,7 @@
 | ❌ Border >1px (trừ focus ring)   | Nặng nề                                                                                  |
 | ❌ Border-radius >12px            | Trông như app tiêu dùng, không enterprise                                                |
 | ❌ Emoji trong UI text (title, label, button, tooltip) | Không professional. Chỉ dùng trong empty state đặc thù nếu có brand duyệt |
-| ❌ Nhiều font                     | Chỉ Inter. Không mix Roboto/SF Pro/Poppins                                              |
+| ❌ Nhiều font                     | Chỉ Be Vietnam Pro. Không mix Roboto/SF Pro/Poppins                                     |
 | ❌ Nhiều màu accent (>3 màu status trên 1 screen) | Nhiễu                                                                    |
 | ❌ Divider bừa bãi (dọc giữa cột, ngang giữa card…) | Dùng SPACING để tách section, không dùng đường kẻ                       |
 
@@ -159,7 +159,7 @@
 
 ### 3.2. Typography Rules
 
-**Font stack (1 font duy nhất):** Inter — đã import trong `packages/erp/src/index.css`.
+**Font stack (1 font duy nhất):** Be Vietnam Pro — self-host qua `@fontsource/be-vietnam-pro`, nạp trong `packages/erp/src/fonts.ts`, khai báo ở `fontFamily.sans` (`packages/erp/tailwind.config.js`) và biến `--font-sans` (`packages/erp/src/index.css`).
 
 **Scale nghiêm ngặt:**
 
@@ -492,7 +492,7 @@ const columns: AppTableColumn<Contract>[] = [
 
 ### 6.6. Toast & Notifications
 
-**Dùng `sonner` qua wrapper `@/lib/toast`.** Toaster đã setup ở `providers.tsx` (position `top-right`, richColors, font Inter).
+**Dùng `sonner` qua wrapper `@/lib/toast`.** Toaster đã setup ở `providers.tsx` (position `top-right`, richColors, font theo `--font-sans`).
 
 ```tsx
 import { toast } from '@/lib/toast'
@@ -802,7 +802,7 @@ axiosClient.get('/api/probe', { skipForbiddenToast: true })
 - [ ] Không gradient, không glass, không shadow >`shadow-card-md`
 - [ ] Không animation dư thừa (parallax, auto-carousel, bounce, glow pulse)
 - [ ] Chỉ dùng semantic token (`bg-primary-*`, `bg-danger`, `text-neutral-*`), không `bg-red-*`/`bg-blue-*`/hex raw
-- [ ] Chỉ font Inter, không mix
+- [ ] Chỉ font Be Vietnam Pro, không mix
 - [ ] Padding/margin theo thang 4px, không `p-[13px]`
 - [ ] Border 1px `border-neutral-200`, không `border-2` (trừ focus ring)
 - [ ] Icon **chỉ** Lucide, size ∈ {14,16,18,20,24}, strokeWidth 1.5

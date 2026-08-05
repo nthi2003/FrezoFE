@@ -1,10 +1,11 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
+import { Fragment, useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Search, Plus, List, Users,
-  ZoomIn, ZoomOut, Maximize2, ChevronDown, ChevronRight, GitBranch,
+  ZoomIn, ZoomOut, Maximize2, ChevronRight, ChevronsDownUp, ChevronsUpDown, GitBranch,
   Building2,
 } from 'lucide-react'
+import { cn } from '@frezo/utils'
 import { AppTable } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import {
@@ -20,7 +21,6 @@ import {
   StatusBadge,
   IconActionButton,
   RowActions,
-  AppTooltip,
   type PageGuideConfig,
   type StatusConfig,
 } from '@frezo/ui'
@@ -93,6 +93,14 @@ const STATUS_CONFIG: Record<string, StatusConfig> = {
   INACTIVE: { label: 'Ngừng', color: 'neutral' },
 }
 
+/** Trạng thái thu gọn của cây được nhớ giữa các lần vào trang. */
+const COLLAPSED_STORAGE_KEY = 'frezo.qtht.departments.collapsed'
+
+/** Bậc thụt lề + toạ độ đường nối của cây (px) — dùng chung cho row và guide line. */
+const TREE_INDENT = 24
+const TREE_PADDING_LEFT = 12
+const guideX = (level: number) => TREE_PADDING_LEFT + level * TREE_INDENT + 12
+
 export function DepartmentsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any | null>(null)
@@ -102,6 +110,15 @@ export function DepartmentsPage() {
   const [viewMode, setViewMode] = useState<'tree' | 'table' | 'personnel'>('tree')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'ACTIVE' | 'INACTIVE'>('all')
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(COLLAPSED_STORAGE_KEY)
+      const parsed = raw ? JSON.parse(raw) : []
+      return new Set<string>(Array.isArray(parsed) ? parsed : [])
+    } catch {
+      return new Set<string>()
+    }
+  })
   const [scale, setScale] = useState(1)
   const [panX, setPanX] = useState(0)
   const [panY, setPanY] = useState(0)
@@ -121,6 +138,23 @@ export function DepartmentsPage() {
     el.addEventListener('wheel', handler, { passive: false })
     return () => el.removeEventListener('wheel', handler)
   }, [viewMode])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(Array.from(collapsedIds)))
+    } catch {
+      /* localStorage bị chặn — chấp nhận mất trạng thái expand */
+    }
+  }, [collapsedIds])
+
+  const handleToggleCollapse = useCallback((id: string) => {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
 
   const handlePanStart = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return
@@ -205,6 +239,21 @@ export function DepartmentsPage() {
     () => buildTree(filteredDataList, dataList),
     [filteredDataList, dataList],
   )
+
+  /** Id của mọi node có phòng con — dùng cho nút mở rộng / thu gọn tất cả. */
+  const branchIds = useMemo(() => {
+    const ids: string[] = []
+    const walk = (nodes: any[]) => {
+      nodes.forEach((n) => {
+        if (n.children?.length) {
+          ids.push(n.id)
+          walk(n.children)
+        }
+      })
+    }
+    walk(treeData)
+    return ids
+  }, [treeData])
 
   const personsByDept = useMemo(() => {
     const map = new Map<string, any[]>()
@@ -351,7 +400,9 @@ export function DepartmentsPage() {
     ? { ...defaultFormValues, ...selectedItem, status: selectedItem.status === 'ACTIVE' }
     : { ...defaultFormValues, ...createPrefill }
 
-  const hasActiveFilters = Boolean(searchQuery.trim()) || statusFilter !== 'all'
+  const isSearching = Boolean(searchQuery.trim())
+  const hasActiveFilters = isSearching || statusFilter !== 'all'
+  const allCollapsed = branchIds.length > 0 && branchIds.every((id) => collapsedIds.has(id))
 
   return (
     <div className="p-6 space-y-4 animate-fade-in">
@@ -472,21 +523,40 @@ export function DepartmentsPage() {
         </div>
       ) : viewMode === 'tree' ? (
         isLoading ? (
-          <div className="px-3 py-3 bg-white border border-neutral-200 rounded-xl space-y-2">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-9 rounded-md" style={{ marginLeft: (i % 3) * 24 }} />
-            ))}
-          </div>
+          <DeptTreeSkeleton />
         ) : (
-        <div className="px-3 py-3 bg-white border border-neutral-200 rounded-xl">
-          <div className="dept-tree">
+        <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-3 py-2 bg-neutral-50 border-b border-neutral-200">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+              Cây phòng ban
+            </span>
+            {branchIds.length > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  setCollapsedIds(allCollapsed ? new Set<string>() : new Set(branchIds))
+                }
+                className="inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-xs font-medium text-neutral-600 hover:text-primary-700 hover:bg-primary-50 transition-colors"
+              >
+                {allCollapsed ? <ChevronsUpDown size={14} /> : <ChevronsDownUp size={14} />}
+                {allCollapsed ? 'Mở rộng tất cả' : 'Thu gọn tất cả'}
+              </button>
+            )}
+          </div>
+
+          <div role="tree" aria-label="Cây phòng ban">
             {treeData.map((node: any, idx: number) => (
               <DeptTreeNode
                 key={node.id}
                 node={node}
                 depth={0}
-                isLast={idx === treeData.length - 1}
-                memberCount={(personsByDept.get(node.id) || []).length}
+                guides={[]}
+                isFirstRow={idx === 0}
+                hasNextSibling={idx < treeData.length - 1}
+                activeId={detailDept?.id}
+                collapsedIds={collapsedIds}
+                forceExpand={isSearching}
+                onToggleCollapse={handleToggleCollapse}
                 personsByDept={personsByDept}
                 onView={setDetailDept}
                 onEdit={handleOpenEdit}
@@ -683,14 +753,22 @@ export function DepartmentsPage() {
 }
 
 // ============================================================
-// Tree Node — connector + indent + actions (mirror OrgTreeNode)
+// Tree Node — row nền trắng, divider mảnh, guide line thể hiện cha–con
 // ============================================================
 
 interface DeptTreeNodeProps {
   node: any
   depth: number
-  isLast: boolean
-  memberCount: number
+  /** guides[i] = tổ tiên ở cấp i còn anh em phía sau ⇒ kẻ đường dọc xuyên row. */
+  guides: boolean[]
+  /** Row đầu tiên của cây — không kẻ divider phía trên. */
+  isFirstRow: boolean
+  hasNextSibling: boolean
+  activeId?: string | null
+  collapsedIds: Set<string>
+  /** Khi đang tìm kiếm, mở hết nhánh để thấy kết quả sâu trong cây. */
+  forceExpand: boolean
+  onToggleCollapse: (id: string) => void
   personsByDept: Map<string, any[]>
   onView: (d: any) => void
   onEdit: (d: any) => void
@@ -699,132 +777,169 @@ interface DeptTreeNodeProps {
 }
 
 function DeptTreeNode({
-  node, depth, isLast, memberCount, personsByDept, onView, onEdit, onAddChild, onDelete,
+  node, depth, guides, isFirstRow, hasNextSibling, activeId, collapsedIds, forceExpand,
+  onToggleCollapse, personsByDept, onView, onEdit, onAddChild, onDelete,
 }: DeptTreeNodeProps) {
-  const [expanded, setExpanded] = useState(depth === 0)
   const hasChildren = Array.isArray(node.children) && node.children.length > 0
+  const expanded = hasChildren && (forceExpand || !collapsedIds.has(node.id))
   const statusCfg = STATUS_CONFIG[node.status || 'ACTIVE'] || STATUS_CONFIG.INACTIVE
-  const isRoot = depth === 0
+  const isActive = activeId === node.id
+  const memberCount = (personsByDept.get(node.id) || []).length
+
+  const meta = [
+    node.organizationName,
+    `${memberCount} nhân sự`,
+    hasChildren ? `${node.children.length} phòng ban con` : null,
+  ].filter(Boolean).join(' · ')
 
   return (
-    <div className={`relative ${isRoot ? '' : 'pl-6'}`}>
-      {!isRoot && (
-        <>
-          <span
-            aria-hidden
-            className={`pointer-events-none absolute left-0 top-0 w-px bg-neutral-300 ${
-              isLast ? 'h-5' : 'bottom-0'
-            }`}
-          />
-          <span
-            aria-hidden
-            className="pointer-events-none absolute left-0 top-5 h-px w-6 bg-neutral-300"
-          />
-        </>
-      )}
-
+    <div role="treeitem" aria-expanded={hasChildren ? expanded : undefined}>
       <div
-        className={`group relative flex items-center gap-1.5 rounded-md transition-colors ${
-          isRoot
-            ? 'bg-primary-50/60 hover:bg-primary-50 border border-primary-100 px-1.5'
-            : 'hover:bg-neutral-50 pr-1'
-        }`}
+        role="button"
+        tabIndex={0}
+        onClick={() => onView(node)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onView(node)
+          }
+        }}
+        style={{ paddingLeft: TREE_PADDING_LEFT + depth * TREE_INDENT }}
+        className={cn(
+          'group relative flex items-center gap-3 pr-3 min-h-[56px] cursor-pointer transition-colors',
+          'outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-300',
+          !isFirstRow && 'border-t border-neutral-100',
+          isActive ? 'bg-primary-50' : 'hover:bg-neutral-50',
+        )}
       >
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            if (hasChildren) setExpanded((v) => !v)
-          }}
-          aria-label={hasChildren ? (expanded ? 'Thu gọn' : 'Mở rộng') : undefined}
-          className={`w-5 h-5 shrink-0 flex items-center justify-center rounded ${
-            hasChildren
-              ? 'text-neutral-500 hover:text-primary-700 hover:bg-primary-100'
-              : 'text-neutral-300 cursor-default'
-          }`}
-        >
-          {hasChildren ? (
-            expanded ? <ChevronDown size={14} strokeWidth={2.25} /> : <ChevronRight size={14} strokeWidth={2.25} />
-          ) : (
-            <span className="w-1.5 h-1.5 rounded-full bg-neutral-300" />
-          )}
-        </button>
+        {guides.map((ancestorHasNext, level) => {
+          const x = guideX(level)
+          if (level < depth - 1) {
+            return ancestorHasNext ? (
+              <span
+                key={level}
+                aria-hidden
+                style={{ left: x }}
+                className="pointer-events-none absolute top-0 bottom-0 w-px bg-neutral-200"
+              />
+            ) : null
+          }
+          return (
+            <Fragment key={level}>
+              <span
+                aria-hidden
+                style={{ left: x }}
+                className={cn(
+                  'pointer-events-none absolute top-0 w-px bg-neutral-200',
+                  ancestorHasNext ? 'bottom-0' : 'h-1/2',
+                )}
+              />
+              <span
+                aria-hidden
+                style={{ left: x }}
+                className="pointer-events-none absolute top-1/2 h-px w-3 bg-neutral-200"
+              />
+            </Fragment>
+          )
+        })}
 
-        <AppTooltip content="Xem chi tiết">
+        {hasChildren && expanded && (
+          <span
+            aria-hidden
+            style={{ left: guideX(depth), top: 'calc(50% + 14px)' }}
+            className="pointer-events-none absolute bottom-0 w-px bg-neutral-200"
+          />
+        )}
+
+        {hasChildren ? (
           <button
             type="button"
-            onClick={() => onView(node)}
-            aria-label="Xem chi tiết"
-            className={`w-7 h-7 rounded-md bg-gradient-to-br ${pickTone(node.name)} flex items-center justify-center text-white text-[10px] font-bold shrink-0 ring-1 ring-black/5`}
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleCollapse(node.id)
+            }}
+            aria-label={expanded ? `Thu gọn ${node.name}` : `Mở rộng ${node.name}`}
+            aria-expanded={expanded}
+            className="relative shrink-0 w-6 h-6 flex items-center justify-center rounded-md text-neutral-400 hover:text-primary-700 hover:bg-primary-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 transition-colors"
           >
-            {getInitials(node.name)}
+            <ChevronRight
+              size={16}
+              strokeWidth={2.25}
+              className={cn('transition-transform duration-150', expanded && 'rotate-90')}
+            />
           </button>
-        </AppTooltip>
+        ) : (
+          <span className="shrink-0 w-6" aria-hidden />
+        )}
 
-        <button
-          type="button"
-          onClick={() => onView(node)}
-          className="flex-1 min-w-0 flex items-center gap-2 py-1.5 pr-1 text-left"
+        <span
+          aria-hidden
+          className={cn(
+            'shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold',
+            avatarTone(node.code || node.name),
+          )}
         >
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-[13px] font-semibold text-neutral-800 truncate group-hover:text-primary-700 transition-colors">
-                {node.name}
-              </span>
-              <span className="text-[10px] font-mono text-neutral-400 shrink-0">
-                {node.code}
-              </span>
-              {isRoot && !node.parentId && (
-                <span className="inline-flex items-center px-1 py-px text-[9px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 rounded shrink-0">
-                  ★ Root
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 mt-px text-[11px] text-neutral-500 min-w-0">
-              {node.organizationName && (
-                <span className="truncate max-w-[160px]">{node.organizationName}</span>
-              )}
-              {node.organizationName && <span className="text-neutral-300">·</span>}
-              <span className="tabular-nums shrink-0">{memberCount} NS</span>
-              {hasChildren && (
-                <>
-                  <span className="text-neutral-300">·</span>
-                  <span className="text-primary-700 font-medium shrink-0">
-                    {node.children.length} phòng con
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-        </button>
+          {getInitials(node.name)}
+        </span>
 
-        <StatusBadge {...statusCfg} className="shrink-0" />
+        <div className="min-w-0 flex-1 py-2">
+          <div className="flex items-baseline gap-1.5 min-w-0">
+            <span
+              className={cn(
+                'truncate text-sm font-semibold transition-colors',
+                isActive ? 'text-primary-800' : 'text-neutral-800 group-hover:text-primary-700',
+              )}
+            >
+              {node.name}
+            </span>
+            {node.code && (
+              <span className="shrink-0 text-xs text-neutral-400">· {node.code}</span>
+            )}
+          </div>
+          {meta && <p className="mt-0.5 truncate text-xs text-neutral-500">{meta}</p>}
+        </div>
+
+        <div className="shrink-0 flex sm:w-[92px] justify-end">
+          <StatusBadge {...statusCfg} />
+        </div>
 
         <RowActions
-          className="shrink-0 opacity-45 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+          align="end"
+          className="hidden sm:flex shrink-0 w-[100px] opacity-70 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
           actions={[
             {
               key: 'add-child',
               icon: Plus,
               tooltip: 'Thêm phòng ban con',
-              tone: 'primary',
               onClick: () => onAddChild(node),
             },
             { kind: 'edit', onClick: () => onEdit(node) },
             { kind: 'delete', onClick: () => onDelete(node) },
           ]}
         />
+
+        <RowActions
+          className="sm:hidden shrink-0"
+          actions={[
+            { kind: 'more', tooltip: 'Xem chi tiết & thao tác', onClick: () => onView(node) },
+          ]}
+        />
       </div>
 
       {hasChildren && expanded && (
-        <div className="mt-0.5">
+        <div role="group">
           {node.children.map((child: any, idx: number) => (
             <DeptTreeNode
               key={child.id}
               node={child}
               depth={depth + 1}
-              isLast={idx === node.children.length - 1}
-              memberCount={(personsByDept.get(child.id) || []).length}
+              guides={[...guides, hasNextSibling]}
+              isFirstRow={false}
+              hasNextSibling={idx < node.children.length - 1}
+              activeId={activeId}
+              collapsedIds={collapsedIds}
+              forceExpand={forceExpand}
+              onToggleCollapse={onToggleCollapse}
               personsByDept={personsByDept}
               onView={onView}
               onEdit={onEdit}
@@ -834,6 +949,31 @@ function DeptTreeNode({
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function DeptTreeSkeleton() {
+  return (
+    <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          style={{ paddingLeft: TREE_PADDING_LEFT + (i % 3) * TREE_INDENT }}
+          className={cn(
+            'flex items-center gap-3 pr-3 min-h-[56px]',
+            i > 0 && 'border-t border-neutral-100',
+          )}
+        >
+          <Skeleton className="w-6 h-6 rounded-md" />
+          <Skeleton className="w-8 h-8 rounded-lg" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-3.5 w-40 rounded" />
+            <Skeleton className="h-3 w-56 rounded" />
+          </div>
+          <Skeleton className="h-5 w-20 rounded-full" />
+        </div>
+      ))}
     </div>
   )
 }
@@ -943,15 +1083,26 @@ function getInitials(name?: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-function pickTone(seed?: string): string {
-  const tones = [
-    'from-emerald-500 to-teal-600',
-    'from-primary-500 to-emerald-600',
-    'from-teal-500 to-emerald-700',
-    'from-emerald-600 to-green-700',
-    'from-lime-600 to-emerald-600',
-    'from-cyan-600 to-teal-700',
-  ]
-  const s = (seed || '?').split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-  return tones[s % tones.length]
+/**
+ * Màu avatar sinh theo hash mã/tên phòng ban — cùng một phòng luôn ra một màu,
+ * các phòng khác nhau dễ phân biệt khi lướt cây.
+ */
+const AVATAR_TONES = [
+  'bg-emerald-100 text-emerald-700',
+  'bg-teal-100 text-teal-700',
+  'bg-sky-100 text-sky-700',
+  'bg-indigo-100 text-indigo-700',
+  'bg-violet-100 text-violet-700',
+  'bg-amber-100 text-amber-800',
+  'bg-rose-100 text-rose-700',
+  'bg-cyan-100 text-cyan-700',
+]
+
+function avatarTone(seed?: string): string {
+  const s = seed || '?'
+  let hash = 0
+  for (let i = 0; i < s.length; i += 1) {
+    hash = (hash * 31 + s.charCodeAt(i)) % 100000
+  }
+  return AVATAR_TONES[hash % AVATAR_TONES.length]
 }

@@ -2,12 +2,15 @@ export type { NotificationItem, NotificationPriority, NotifDeepLinkInput } from 
 
 export {
   useNotifications,
+  useNotificationsPage,
   useUnreadNotificationCount,
+  useNotificationStats,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
   useNotificationRealtimeToast,
   NOTIFICATION_QUERY_KEY,
   NOTIFICATION_UNREAD_KEY,
+  NOTIFICATION_PAGE_KEY,
 } from './hooks/useNotification'
 
 export { notificationApi } from './services/notificationApi'

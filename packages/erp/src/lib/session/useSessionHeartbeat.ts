@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react'
 import { usageApi } from '@/modules/qtht/services/usageApi'
 import { useAuthStore } from '@/stores/authStore'
 
-const INTERVAL_MS = 90_000
+/** Ping khi tab visible — đủ dày để cửa sổ online ~90s luôn có heartbeat. */
+const INTERVAL_MS = 25_000
 
 /** Ping session heartbeat khi tab visible — cập nhật lastActiveTime trên BE. */
 export function useSessionHeartbeat() {

@@ -5,9 +5,10 @@ import { toast } from 'sonner'
 export function useUsageSummary(options?: { enabled?: boolean; refetchInterval?: number }) {
   return useQuery({
     queryKey: ['usage_summary'],
-    queryFn: usageApi.getSummary,
+    queryFn: () => usageApi.getSummary(90),
     enabled: options?.enabled ?? true,
-    refetchInterval: options?.refetchInterval ?? 60_000,
+    /** Poll khi đang mở trang usage — gần realtime, không poll global. */
+    refetchInterval: options?.refetchInterval ?? 12_000,
   })
 }
 

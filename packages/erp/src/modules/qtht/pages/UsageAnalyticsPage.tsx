@@ -8,10 +8,11 @@ import {
   Activity, Users, LogIn, Monitor, RefreshCw, ShieldOff, Eye, Route,
 } from 'lucide-react'
 import {
-  PageHeader, Button, EmptyState, ErrorState, ConfirmDialog, PageGuideButton, RowActions,
+  PageHeader, Button, ErrorState, ConfirmDialog, PageGuideButton, RowActions,
   type PageGuideConfig,
 } from '@frezo/ui'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
+import { LoginTrendChart } from '../components/LoginTrendChart'
 import {
   useUsageSummary,
   useLoginByDayMap,
@@ -31,7 +32,7 @@ const GUIDE: PageGuideConfig = {
       steps: [
         { title: 'Đăng nhập hôm nay', description: 'Số lần login SUCCESS trong ngày (một người có thể login nhiều lần).' },
         { title: 'User unique', description: 'Số tài khoản khác nhau đã login thành công hôm nay.' },
-        { title: 'Online', description: 'User có heartbeat trong 5 phút gần nhất (tab đang mở).' },
+        { title: 'Online', description: 'User có tab ERP đang mở và gửi heartbeat trong ~90 giây gần nhất.' },
         { title: 'Pageview', description: 'Mỗi lần đổi màn hình trong ERP được ghi (không lưu nội dung form).' },
       ],
     },
@@ -54,6 +55,18 @@ function formatDt(iso?: string) {
   }
 }
 
+function formatAsOf(iso?: string) {
+  if (!iso) return null
+  try {
+    // BE trả LocalDateTime (không timezone) — parse như local.
+    const d = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T'))
+    if (Number.isNaN(d.getTime())) return null
+    return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  } catch {
+    return null
+  }
+}
+
 export function UsageAnalyticsPage() {
   const [tab, setTab] = useState<'overview' | 'sessions'>('overview')
   const [pageViewDays, setPageViewDays] = useState(1)
@@ -67,10 +80,10 @@ export function UsageAnalyticsPage() {
 
   const chartDays = useMemo(() => {
     const map = loginByDay.data || {}
-    return Object.entries(map).map(([date, count]) => ({ date, count: Number(count) || 0 }))
+    return Object.entries(map)
+      .map(([date, count]) => ({ date, count: Number(count) || 0 }))
+      .sort((a, b) => a.date.localeCompare(b.date))
   }, [loginByDay.data])
-
-  const maxLogin = Math.max(1, ...chartDays.map((d) => d.count))
 
   const sessionRows: UserSessionRow[] = sessions.data?.content || []
 
@@ -122,6 +135,10 @@ export function UsageAnalyticsPage() {
 
   const s = summary.data
   const isError = summary.isError && !s
+  const onlineWindowSec = s?.onlineWindowSeconds
+    ?? (s?.onlineWindowMinutes ? s.onlineWindowMinutes * 60 : 90)
+  const onlineHint = `Online trong ${onlineWindowSec} giây gần nhất`
+  const asOfLabel = formatAsOf(s?.asOf)
 
   return (
     <div className="space-y-5">
@@ -151,7 +168,7 @@ export function UsageAnalyticsPage() {
       {isError ? (
         <ErrorState
           title="Không tải được thống kê"
-          description="Thử lại hoặc kiểm tra quyền Admin / QTHT."
+          message="Thử lại hoặc kiểm tra quyền Admin / QTHT."
           onRetry={() => summary.refetch()}
         />
       ) : (
@@ -175,8 +192,11 @@ export function UsageAnalyticsPage() {
               icon={Activity}
               label="Đang online"
               value={s?.onlineUsers ?? '—'}
-              hint={`Heartbeat ≤ ${s?.onlineWindowMinutes ?? 5} phút`}
+              emptyLabel={s?.onlineUsers === 0 ? '0 người online' : undefined}
+              hint={onlineHint}
+              subHint={asOfLabel ? `Cập nhật lúc ${asOfLabel}` : undefined}
               tone="amber"
+              animateValue
             />
             <KpiCard
               icon={Monitor}
@@ -209,36 +229,12 @@ export function UsageAnalyticsPage() {
 
           {tab === 'overview' && (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              {/* Login chart */}
-              <section className="rounded-xl border border-neutral-200 bg-white p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-bold text-neutral-800">Đăng nhập 30 ngày</h2>
-                  <span className="text-[11px] text-neutral-400">SUCCESS / ngày</span>
-                </div>
-                {loginByDay.isError ? (
-                  <EmptyState icon={LogIn} title="Không tải được chart" description="Thử làm mới trang." />
-                ) : chartDays.length === 0 ? (
-                  <EmptyState icon={LogIn} title="Chưa có dữ liệu login" description="Sau khi user đăng nhập sẽ hiện tại đây." />
-                ) : (
-                  <div className="flex items-end gap-0.5 h-36">
-                    {chartDays.map((d) => (
-                      <div key={d.date} className="flex-1 min-w-0 flex flex-col items-center justify-end h-full group relative">
-                        <div
-                          className="w-full max-w-[10px] rounded-t bg-emerald-400/80 group-hover:bg-emerald-500 transition-all"
-                          style={{ height: `${Math.max(4, (d.count / maxLogin) * 100)}%` }}
-                          title={`${d.date}: ${d.count}`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {chartDays.length > 0 && (
-                  <div className="mt-2 flex justify-between text-[10px] text-neutral-400 font-mono">
-                    <span>{chartDays[0]?.date?.slice(5)}</span>
-                    <span>{chartDays[chartDays.length - 1]?.date?.slice(5)}</span>
-                  </div>
-                )}
-              </section>
+              <LoginTrendChart
+                data={chartDays}
+                isLoading={loginByDay.isLoading}
+                isError={loginByDay.isError}
+                onRetry={() => void loginByDay.refetch()}
+              />
 
               {/* Pageview tops */}
               <section className="rounded-xl border border-neutral-200 bg-white p-4 space-y-4">
@@ -329,13 +325,16 @@ export function UsageAnalyticsPage() {
 }
 
 function KpiCard({
-  icon: Icon, label, value, hint, tone,
+  icon: Icon, label, value, hint, subHint, emptyLabel, tone, animateValue,
 }: {
   icon: typeof Activity
   label: string
   value: string | number
   hint?: string
+  subHint?: string
+  emptyLabel?: string
   tone: 'emerald' | 'blue' | 'amber' | 'violet'
+  animateValue?: boolean
 }) {
   const tones = {
     emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
@@ -343,6 +342,7 @@ function KpiCard({
     amber: 'bg-amber-50 text-amber-600 border-amber-100',
     violet: 'bg-violet-50 text-violet-600 border-violet-100',
   }
+  const display = emptyLabel && value === 0 ? emptyLabel : value
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-4 flex gap-3 items-start">
       <div className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${tones[tone]}`}>
@@ -350,8 +350,16 @@ function KpiCard({
       </div>
       <div className="min-w-0">
         <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{label}</div>
-        <div className="text-2xl font-bold text-neutral-900 tabular-nums leading-tight mt-0.5">{value}</div>
+        <div
+          key={String(value)}
+          className={`text-2xl font-bold text-neutral-900 tabular-nums leading-tight mt-0.5 ${
+            animateValue ? 'transition-all duration-300 ease-out' : ''
+          } ${typeof display === 'string' && display.includes('người') ? 'text-lg' : ''}`}
+        >
+          {display}
+        </div>
         {hint && <div className="text-[11px] text-neutral-400 mt-0.5">{hint}</div>}
+        {subHint && <div className="text-[10px] text-neutral-400 tabular-nums">{subHint}</div>}
       </div>
     </div>
   )

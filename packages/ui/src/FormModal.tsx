@@ -13,36 +13,51 @@ import { ConfirmDialog } from './ConfirmDialog'
 
 export type FormModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full'
 
+/** @deprecated Dùng `size` — giữ để tương thích call-site cũ. */
+export type LegacyModalWidth =
+  | 'sm'
+  | 'md'
+  | 'lg'
+  | 'xl'
+  | '2xl'
+  | '3xl'
+  | '4xl'
+  | '5xl'
+  | '6xl'
+
 export interface FormModalProps {
   isOpen: boolean
   onClose: () => void
   /** Title sticky header. */
   title: string
   /** Subtitle dưới title. */
-  description?: string
+  description?: ReactNode
   children: ReactNode
   /**
    * Size preset:
-   * - sm ≈ 28rem, md ≈ 36rem, lg ≈ 48rem, xl ≈ 64rem, full ≈ 90vw
+   * - sm ≈ 28rem, md ≈ 36rem, lg ≈ 48rem, xl ≈ 64rem, full ≈ 96vw
    */
   size?: FormModalSize
-  /** Footer tùy chỉnh — nếu truyền sẽ ghi đè footer chuẩn cancel/submit. */
+  /** @deprecated Dùng `size`. */
+  maxWidth?: LegacyModalWidth
+  /** Footer sticky tùy chỉnh — ghi đè footer chuẩn Hủy/Lưu. */
   footer?: ReactNode
-  /** Hiện footer chuẩn (Hủy + Lưu). Default true khi không có `footer`. */
+  /**
+   * Ép hiện footer chuẩn. Mặc định chỉ hiện khi có `onSubmit` hoặc `formId`
+   * (call-site tự render nút trong body sẽ không bị footer thừa).
+   */
   showFooter?: boolean
   cancelText?: string
   submitText?: string
-  /** Gắn với `<form id={formId}>` khi nút submit nằm ngoài form. */
+  /** Gắn nút submit với `<form id={formId}>` nằm trong body. */
   formId?: string
   onSubmit?: () => void | Promise<void>
   isSubmitting?: boolean
   /** Disable nút submit (invalid / !dirty). */
   submitDisabled?: boolean
-  /** Nút phụ bên trái nhóm cancel/submit. */
+  /** Nút phụ căn trái trong footer. */
   extraActions?: ReactNode
-  /**
-   * Form đã sửa — ESC / X / backdrop sẽ hỏi xác nhận trước khi đóng.
-   */
+  /** Form đã sửa — ESC / X / backdrop sẽ hỏi xác nhận trước khi đóng. */
   dirty?: boolean
   /** Ẩn icon trên nút footer. */
   hideFooterIcons?: boolean
@@ -53,17 +68,24 @@ function isSelectDropdownTarget(target: EventTarget | null) {
   return target instanceof Element && !!target.closest('[data-frezo-select-dropdown]')
 }
 
-const SIZE_CLASS: Record<FormModalSize, string> = {
+const SIZE_CLASS: Record<FormModalSize | LegacyModalWidth, string> = {
   sm: 'max-w-md',
-  md: 'max-w-xl sm:min-w-[min(100%,28rem)]',
+  md: 'max-w-xl sm:min-w-[min(100%,32rem)]',
   lg: 'max-w-3xl sm:min-w-[min(100%,48rem)]',
   xl: 'max-w-5xl sm:min-w-[min(100%,64rem)]',
   full: 'max-w-[min(96rem,96vw)] w-[96vw]',
+  '2xl': 'max-w-2xl sm:min-w-[min(100%,42rem)]',
+  '3xl': 'max-w-3xl sm:min-w-[min(100%,48rem)]',
+  '4xl': 'max-w-4xl sm:min-w-[min(100%,56rem)]',
+  '5xl': 'max-w-5xl sm:min-w-[min(100%,64rem)]',
+  '6xl': 'max-w-6xl sm:min-w-[min(100%,72rem)]',
 }
 
 /**
- * FormModal — modal form chuẩn Frezo (header sticky + body scroll + footer sticky).
- * Học layout từ mẫu "Thêm mới thông tin cá nhân"; màu brand theo token Frezo (primary xanh).
+ * FormModal — modal chung của Frezo: header sticky (title + divider + nút X),
+ * body scroll, footer sticky căn phải (Hủy outline + Lưu solid brand).
+ *
+ * Dùng kèm `FormSection` + `FormGrid` cho form nhiều khối.
  */
 export function FormModal({
   isOpen,
@@ -71,7 +93,8 @@ export function FormModal({
   title,
   description,
   children,
-  size = 'lg',
+  size,
+  maxWidth = '2xl',
   footer,
   showFooter,
   cancelText = 'Hủy',
@@ -86,7 +109,9 @@ export function FormModal({
   className,
 }: FormModalProps) {
   const [discardOpen, setDiscardOpen] = useState(false)
-  const useDefaultFooter = showFooter ?? footer == null
+  const widthKey = size ?? maxWidth
+  const useDefaultFooter =
+    showFooter ?? (footer == null && (onSubmit != null || formId != null))
 
   const requestClose = useCallback(() => {
     if (isSubmitting) return
@@ -96,10 +121,6 @@ export function FormModal({
     }
     onClose()
   }, [dirty, isSubmitting, onClose])
-
-  const handleOpenChange = (open: boolean) => {
-    if (!open) requestClose()
-  }
 
   const handleSubmitClick = () => {
     if (onSubmit) void onSubmit()
@@ -140,21 +161,16 @@ export function FormModal({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && requestClose()}>
         <DialogContent
           className={cn(
-            SIZE_CLASS[size],
+            SIZE_CLASS[widthKey] ?? SIZE_CLASS['2xl'],
             'flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-xl p-0 shadow-card-md',
-            'motion-reduce:data-[state=open]:animate-none motion-reduce:data-[state=closed]:animate-none',
             className,
           )}
           onPointerDownOutside={(e) => {
             if (isSelectDropdownTarget(e.target)) e.preventDefault()
-            if (isSubmitting) e.preventDefault()
-            if (dirty) {
-              e.preventDefault()
-              requestClose()
-            }
+            if (isSubmitting || dirty) e.preventDefault()
           }}
           onInteractOutside={(e) => {
             if (isSelectDropdownTarget(e.target)) e.preventDefault()
@@ -212,3 +228,8 @@ export function FormModal({
     </>
   )
 }
+
+/** @deprecated Dùng `FormModal` — alias giữ tương thích call-site cũ. */
+export const AppModal = FormModal
+/** @deprecated Dùng `FormModalProps`. */
+export type AppModalProps = FormModalProps

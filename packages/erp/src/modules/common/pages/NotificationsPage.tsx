@@ -2,26 +2,25 @@
 // FREZO ERP — Notifications Page (/notifications)
 // ============================================================
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Bell, CheckCheck, Search, Filter, CircleDot, Sparkles, Zap,
-  Inbox, RefreshCw, AlertCircle,
+  Inbox, RefreshCw, AlertCircle, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { PageHeader, Button, EmptyState, Select } from '@frezo/ui'
 import {
-  useNotifications,
+  useNotificationsPage,
+  useNotificationStats,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
 } from '@/modules/common/hooks/useNotification'
 import { resolveNotificationUrl } from '@/modules/common/utils/resolveNotificationUrl'
 import {
-  collectNotificationTypes,
-  computeNotificationStats,
-  filterNotifications,
   getNotificationTypeLabel,
   isNotificationRead,
 } from '@/modules/common/utils/notificationHelpers'
+import { NOTIFICATION_TYPE_LABELS } from '@/modules/common/constants/notificationTypes'
 import { NotificationsList } from '../components/NotificationsList'
 import type { NotificationItem } from '../types'
 
@@ -33,28 +32,70 @@ const TABS: Array<{ key: FilterTab; label: string; icon: typeof Bell }> = [
   { key: 'urgent', label: 'Khẩn', icon: Zap },
 ]
 
+const PAGE_SIZE_OPTIONS = [10, 20, 50]
+const DEFAULT_PAGE_SIZE = 20
+
 export function NotificationsPage() {
   const navigate = useNavigate()
-  const { data, isLoading, isError, error, refetch, isFetching } = useNotifications()
   const markRead = useMarkNotificationRead()
   const markAll = useMarkAllNotificationsRead()
+  const { data: statsData } = useNotificationStats()
 
   const [tab, setTab] = useState<FilterTab>('all')
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('ALL')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
-  const items = useMemo<NotificationItem[]>(
-    () => (Array.isArray(data) ? data : []),
-    [data],
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedSearch(search.trim()), 300)
+    return () => window.clearTimeout(t)
+  }, [search])
+
+  useEffect(() => {
+    setPage(1)
+  }, [tab, typeFilter, debouncedSearch])
+
+  const listParams = useMemo(
+    () => ({
+      page,
+      size: pageSize,
+      tab,
+      type: typeFilter === 'ALL' ? undefined : typeFilter,
+      search: debouncedSearch || undefined,
+    }),
+    [page, pageSize, tab, typeFilter, debouncedSearch],
   )
 
-  const filtered = useMemo(
-    () => filterNotifications(items, { tab, type: typeFilter, search }),
-    [items, tab, typeFilter, search],
+  const { data, isLoading, isError, error, refetch, isFetching } = useNotificationsPage(listParams)
+
+  const items = data?.items ?? []
+  const totalElements = data?.total ?? 0
+  const totalPages = Math.max(1, data?.totalPages ?? 1)
+
+  // Clamp nếu filter làm giảm số trang
+  useEffect(() => {
+    if (data && data.totalPages > 0 && page > data.totalPages) {
+      setPage(data.totalPages)
+    }
+  }, [data, page])
+
+  const stats = useMemo(
+    () => ({
+      total: statsData?.total ?? 0,
+      unread: statsData?.count ?? 0,
+      urgent: statsData?.urgent ?? 0,
+    }),
+    [statsData],
   )
 
-  const stats = useMemo(() => computeNotificationStats(items), [items])
-  const availableTypes = useMemo(() => collectNotificationTypes(items), [items])
+  const availableTypes = useMemo(() => Object.keys(NOTIFICATION_TYPE_LABELS).sort(), [])
+
+  const handlePageChange = (nextPage: number, nextSize: number) => {
+    setPageSize(nextSize)
+    setPage(Math.max(1, nextPage))
+  }
 
   const handleClick = (n: NotificationItem) => {
     if (!isNotificationRead(n) && n.id) markRead.mutate(n.id)
@@ -63,9 +104,11 @@ export function NotificationsPage() {
   }
 
   const handleMarkAllRead = () => {
-    const unreadIds = items.filter((n) => !isNotificationRead(n) && n.id).map((n) => n.id!)
-    if (unreadIds.length > 0) markAll.mutate(unreadIds)
+    if (stats.unread > 0) markAll.mutate([])
   }
+
+  const rangeFrom = totalElements === 0 ? 0 : Math.min((page - 1) * pageSize + 1, totalElements)
+  const rangeTo = Math.min(page * pageSize, totalElements)
 
   return (
     <div className="p-6 space-y-4 animate-fade-in">
@@ -112,27 +155,25 @@ export function NotificationsPage() {
             />
           </div>
 
-          {availableTypes.length > 0 && (
-            <div className="inline-flex items-center gap-2">
-              <Filter size={14} className="text-neutral-400" />
-              <div className="min-w-[160px]">
-                <Select
-                  options={[
-                    { value: 'ALL', label: 'Tất cả loại' },
-                    ...availableTypes.map((t) => ({
-                      value: t,
-                      label: getNotificationTypeLabel(t),
-                    })),
-                  ]}
-                  value={typeFilter}
-                  onChange={setTypeFilter}
-                  placeholder="Loại thông báo"
-                  aria-label="Lọc loại thông báo"
-                  showSearch={availableTypes.length > 8}
-                />
-              </div>
+          <div className="inline-flex items-center gap-2">
+            <Filter size={14} className="text-neutral-400" />
+            <div className="min-w-[160px]">
+              <Select
+                options={[
+                  { value: 'ALL', label: 'Tất cả loại' },
+                  ...availableTypes.map((t) => ({
+                    value: t,
+                    label: getNotificationTypeLabel(t),
+                  })),
+                ]}
+                value={typeFilter}
+                onChange={setTypeFilter}
+                placeholder="Loại thông báo"
+                aria-label="Lọc loại thông báo"
+                showSearch={availableTypes.length > 8}
+              />
             </div>
-          )}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -185,7 +226,7 @@ export function NotificationsPage() {
             }
             action={{ label: 'Thử lại', onClick: () => refetch() }}
           />
-        ) : filtered.length === 0 ? (
+        ) : items.length === 0 ? (
           <EmptyState
             icon={Sparkles}
             title={
@@ -198,7 +239,87 @@ export function NotificationsPage() {
             description="Thông báo mới sẽ xuất hiện ở đây khi có ticket, hoá đơn hay cập nhật liên quan."
           />
         ) : (
-          <NotificationsList items={filtered} onItemClick={handleClick} />
+          <>
+            <NotificationsList items={items} onItemClick={handleClick} />
+            {/* Pagination footer — cùng pattern AppTable */}
+            {totalElements > 0 && (
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-4 py-2 text-sm border-t border-neutral-100">
+                <div className="text-neutral-500 flex items-center gap-1.5 flex-wrap">
+                  <span>Hiển thị</span>
+                  <span className="font-medium text-neutral-900">{rangeFrom}</span>
+                  <span>–</span>
+                  <span className="font-medium text-neutral-900">{rangeTo}</span>
+                  <span>của</span>
+                  <span className="font-medium text-neutral-900">{totalElements}</span>
+                  <span>bản ghi</span>
+                </div>
+
+                <div className="flex items-center gap-3 flex-wrap">
+                  <label className="inline-flex items-center gap-1.5 text-neutral-500">
+                    <span className="text-xs shrink-0">Hiển thị</span>
+                    <div className="w-[110px]">
+                      <Select
+                        options={PAGE_SIZE_OPTIONS.map((n) => ({
+                          value: String(n),
+                          label: `${n} / trang`,
+                        }))}
+                        value={String(pageSize)}
+                        onChange={(v) => handlePageChange(1, Number(v))}
+                        placeholder="Size"
+                        aria-label="Số bản ghi mỗi trang"
+                        showSearch={false}
+                      />
+                    </div>
+                  </label>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(1, pageSize)}
+                      disabled={page <= 1}
+                      title="Trang đầu"
+                      className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-surface text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft size={14} />
+                      <ChevronLeft size={14} className="-ml-2.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(page - 1, pageSize)}
+                      disabled={page <= 1}
+                      title="Trang trước"
+                      className="flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-surface text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span className="px-2 min-w-[70px] text-center text-neutral-700 text-xs">
+                      Trang <b className="text-neutral-900">{page}</b> /{' '}
+                      <b className="text-neutral-900">{totalPages}</b>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(page + 1, pageSize)}
+                      disabled={page >= totalPages}
+                      title="Trang sau"
+                      className="flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-surface text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(totalPages, pageSize)}
+                      disabled={page >= totalPages}
+                      title="Trang cuối"
+                      className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-surface text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronRight size={14} />
+                      <ChevronRight size={14} className="-ml-2.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

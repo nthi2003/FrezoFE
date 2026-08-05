@@ -2,26 +2,34 @@ import { useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
-import { notificationApi } from '../services/notificationApi'
+import {
+  notificationApi,
+  type NotificationListParams,
+} from '../services/notificationApi'
 import { resolveNotificationUrl } from '../utils/resolveNotificationUrl'
 import type { NotificationItem } from '../types'
 
 export const NOTIFICATION_QUERY_KEY = ['common', 'notifications'] as const
 export const NOTIFICATION_UNREAD_KEY = ['common', 'notifications', 'unread-count'] as const
+export const NOTIFICATION_PAGE_KEY = ['common', 'notifications', 'page'] as const
 
 function invalidateNotificationQueries(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY })
   qc.invalidateQueries({ queryKey: NOTIFICATION_UNREAD_KEY })
+  qc.invalidateQueries({ queryKey: NOTIFICATION_PAGE_KEY })
 }
+
+export type { NotificationListParams } from '../services/notificationApi'
 
 /**
  * Poll thông báo mỗi 30 giây. Đủ realtime cho ticket/task/leave/payroll workflows.
+ * Bell / panel / lobby — không truyền size → BE trả hết (1 trang).
  * Nếu về sau nối WS: đổi `refetchInterval` thành `false` khi socket connected.
  */
 export function useNotifications() {
   return useQuery({
     queryKey: NOTIFICATION_QUERY_KEY,
-    queryFn: notificationApi.getMyNotifications,
+    queryFn: () => notificationApi.getMyNotifications(),
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
     retry: (count, err: unknown) => {
@@ -32,11 +40,42 @@ export function useNotifications() {
   })
 }
 
-/** Badge count — ưu tiên API unread-count, đồng bộ với BE. */
+/** Trang /notifications — phân trang + giữ filter/tab. */
+export function useNotificationsPage(params: NotificationListParams) {
+  return useQuery({
+    queryKey: [...NOTIFICATION_PAGE_KEY, params],
+    queryFn: () => notificationApi.getMyNotificationsPage(params),
+    placeholderData: (prev) => prev,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    retry: (count, err: unknown) => {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      if (status === 401 || status === 403) return false
+      return count < 2
+    },
+  })
+}
+
+/** Badge count — số chưa đọc (number). */
 export function useUnreadNotificationCount() {
   return useQuery({
     queryKey: NOTIFICATION_UNREAD_KEY,
     queryFn: notificationApi.getUnreadCount,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    retry: (count, err: unknown) => {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      if (status === 401 || status === 403) return false
+      return count < 2
+    },
+  })
+}
+
+/** Stats trang /notifications: total / unread (count) / urgent unread. */
+export function useNotificationStats() {
+  return useQuery({
+    queryKey: [...NOTIFICATION_UNREAD_KEY, 'stats'] as const,
+    queryFn: notificationApi.getNotificationStats,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
     retry: (count, err: unknown) => {

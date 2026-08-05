@@ -45,7 +45,7 @@ export function AppProviders() {
           richColors
           toastOptions={{
             style: {
-              fontFamily: 'Inter, system-ui, sans-serif',
+              fontFamily: 'var(--font-sans)',
               fontSize: '14px',
             },
           }}

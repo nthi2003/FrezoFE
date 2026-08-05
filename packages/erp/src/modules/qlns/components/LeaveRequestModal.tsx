@@ -2,8 +2,8 @@
 // LeaveRequestModal — Tạo đơn xin nghỉ với UX chuẩn HRIS
 // ------------------------------------------------------------
 // Features:
-//   • Nhân viên = person gắn profile đăng nhập (read-only, không chọn tay)
-//   • Auto-fetch contractId active theo person đó
+//   • Nhân viên = person gắn profile đăng nhập; HR/QL duyệt được thì chọn người khác
+//   • contractId resolve qua useMyContract / useActiveContractId (không dùng user.id)
 //   • Chọn loại nghỉ (Annual / Sick / Unpaid / Marriage / ...)
 //   • Date range picker, auto-count business days (skip Sat/Sun)
 //   • Reason textarea + optional attachment URL
@@ -13,14 +13,16 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays, Info, AlertCircle, User as UserIcon, ArrowRight, Loader2 } from 'lucide-react'
+import { CalendarDays, Info, AlertCircle, User as UserIcon, ArrowRight, Loader2, type LucideIcon } from 'lucide-react'
 import { FormModal, FormSection, FormGrid, Select } from '@frezo/ui'
 import { toast } from 'sonner'
-import axiosClient from '@/lib/axios/axiosClient'
-import { profileApi } from '@/modules/profile/services/profileApi'
+import { unwrapList } from '@frezo/utils'
+import { useAnyPermission } from '@/lib/hooks/usePermission'
 import { useApprovalFlows } from '@/modules/approval/hooks/useApprovalFlows'
 import { APPROVER_ROLE_OPTIONS, SubjectType } from '@/modules/approval/types'
 import { useCreateLeaveRequest } from '../hooks/useLeave'
+import { useMyContract, useActiveContractId } from '../hooks/useMyContract'
+import { personApi } from '../services/personApi'
 import { LEAVE_TYPES, type LeaveTypeCode } from '../constants/schema'
 
 interface Props {
@@ -28,25 +30,61 @@ interface Props {
   onClose: () => void
 }
 
+interface PersonRow {
+  value?: string
+  id?: string
+  code?: string
+  label?: string
+  name?: string
+  fullName?: string
+}
+
 export function LeaveRequestModal({ open, onClose }: Props) {
   // Form state
-  const [contractId, setContractId] = useState('')
-  const [contractLoading, setContractLoading] = useState(false)
+  const [selectedPersonId, setSelectedPersonId] = useState('')
   const [leaveType, setLeaveType] = useState<LeaveTypeCode>('ANNUAL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [reason, setReason] = useState('')
   const [attachmentUrl, setAttachmentUrl] = useState('')
 
-  // personId từ profile đăng nhập (giống AttendancePage / TicketsPage) — không cho chọn tay
-  const { data: profile, isLoading: profileLoading } = useQuery({
-    queryKey: ['profile'],
-    queryFn: profileApi.getProfile,
+  // Hồ sơ + HĐ đang hiệu lực của chính mình
+  const {
+    personId: myPersonId,
+    personName: myPersonName,
+    contractId: myContractId,
+    isLoading: myContractLoading,
+  } = useMyContract({ enabled: open })
+
+  // HR / người duyệt nghỉ được tạo đơn hộ nhân viên khác
+  const canPickPerson = useAnyPermission(['LEAVE.APPROVE', 'APPROVALS.APPROVE'])
+
+  const { data: personRows = [], isLoading: personsLoading } = useQuery({
+    queryKey: ['persons_combobox', undefined],
+    queryFn: () => personApi.getCombobox(),
+    select: unwrapList as unknown as (raw: unknown) => PersonRow[],
+    enabled: open && canPickPerson,
     staleTime: 5 * 60 * 1000,
-    enabled: open,
   })
-  const personId = profile?.personId || ''
-  const personName = profile?.name?.trim() || ''
+  const personOptions = useMemo(
+    () =>
+      personRows.map((p) => ({
+        value: p.value ?? p.id ?? p.code ?? '',
+        label: p.label ?? p.name ?? p.fullName ?? p.value ?? '',
+      })),
+    [personRows],
+  )
+
+  const isSelf = !selectedPersonId || selectedPersonId === myPersonId
+  const personId = isSelf ? myPersonId : selectedPersonId
+  const personName = isSelf
+    ? myPersonName
+    : personOptions.find((o) => o.value === selectedPersonId)?.label ?? ''
+
+  // HĐ của người khác — chỉ query khi HR thực sự chọn người khác
+  const otherContract = useActiveContractId(isSelf ? undefined : selectedPersonId, { enabled: open })
+  const contractId = isSelf ? myContractId : otherContract.data ?? ''
+  const contractLoading = isSelf ? myContractLoading : otherContract.isLoading
 
   const createReq = useCreateLeaveRequest()
 
@@ -68,49 +106,13 @@ export function LeaveRequestModal({ open, onClose }: Props) {
   // Reset khi modal mở
   useEffect(() => {
     if (!open) return
-    setContractId('')
+    setSelectedPersonId('')
     setLeaveType('ANNUAL')
     setStartDate('')
     setEndDate('')
     setReason('')
     setAttachmentUrl('')
   }, [open])
-
-  // Auto-fetch HĐ activated+ACTIVE theo person — cùng rule BE LeaveApprovalBridge
-  // Lưu ý: ContractComboboxResponse.value = lương (Integer), KHÔNG phải id combobox.
-  useEffect(() => {
-    if (!open || !personId) {
-      setContractId('')
-      return
-    }
-    let cancelled = false
-    setContractLoading(true)
-    axiosClient
-      .get('/qlns/contract/combobox', { params: { personId, status: 'ACTIVE' } })
-      .then((res) => {
-        if (cancelled) return
-        const list: any[] = res.data?.data ?? res.data ?? []
-        const eligible = (Array.isArray(list) ? list : []).filter((c) => {
-          if (!c?.id) return false
-          const pid = c.personId ?? c.person_id
-          if (pid && pid !== personId) return false
-          const status = String(c.status ?? c.Status ?? '').toUpperCase()
-          // status có trong response → phải ACTIVE; thiếu status → tin BE combobox (đã lọc activated + status)
-          if (status && status !== 'ACTIVE') return false
-          if (c.activated === false || c.activated === 'false') return false
-          return true
-        })
-        const first = eligible[0] ?? null
-        setContractId(first?.id ? String(first.id) : '')
-      })
-      .catch(() => {
-        if (!cancelled) setContractId('')
-      })
-      .finally(() => {
-        if (!cancelled) setContractLoading(false)
-      })
-    return () => { cancelled = true }
-  }, [open, personId])
 
   // ---- Computed ----
   const durationDays = useMemo(() => computeBusinessDays(startDate, endDate), [startDate, endDate])
@@ -122,11 +124,15 @@ export function LeaveRequestModal({ open, onClose }: Props) {
   // ---- Validation ----
   const errors = useMemo(() => {
     const e: Record<string, string> = {}
-    if (!profileLoading && !personId) {
-      e.personId = 'Tài khoản chưa liên kết hồ sơ nhân sự'
+    if (!contractLoading && !personId) {
+      e.personId = isSelf
+        ? 'Tài khoản chưa liên kết hồ sơ nhân sự'
+        : 'Chọn nhân viên xin nghỉ'
     }
     if (personId && !contractId && !contractLoading) {
-      e.contractId = 'Nhân viên chưa có hợp đồng đang hiệu lực (activated + ACTIVE)'
+      e.contractId = isSelf
+        ? 'Bạn chưa có hợp đồng đang hiệu lực (activated + ACTIVE)'
+        : 'Nhân viên này chưa có hợp đồng đang hiệu lực (activated + ACTIVE)'
     }
     if (!startDate) e.startDate = 'Nhập ngày bắt đầu'
     if (!endDate) e.endDate = 'Nhập ngày kết thúc'
@@ -135,9 +141,9 @@ export function LeaveRequestModal({ open, onClose }: Props) {
     }
     if (reason.trim().length < 5) e.reason = 'Lý do tối thiểu 5 ký tự'
     return e
-  }, [profileLoading, personId, contractId, contractLoading, startDate, endDate, reason])
+  }, [isSelf, personId, contractId, contractLoading, startDate, endDate, reason])
 
-  const canSubmit = Object.keys(errors).length === 0 && !createReq.isPending && !profileLoading
+  const canSubmit = Object.keys(errors).length === 0 && !createReq.isPending && !contractLoading
 
   const handleSubmit = () => {
     if (!canSubmit) {
@@ -172,23 +178,44 @@ export function LeaveRequestModal({ open, onClose }: Props) {
       submitText="Gửi đơn"
     >
       <div className="space-y-6">
-        <FormSection title="Thông tin đơn" description="Nhân viên lấy từ hồ sơ đăng nhập; loại nghỉ và thời gian bắt buộc.">
+        <FormSection
+          title="Thông tin đơn"
+          description={
+            canPickPerson
+              ? 'Mặc định là bạn — HR có thể tạo đơn hộ nhân viên khác.'
+              : 'Nhân viên lấy từ hồ sơ đăng nhập; loại nghỉ và thời gian bắt buộc.'
+          }
+        >
           <FormGrid cols={3}>
             <FormField label="Nhân viên *" error={errors.personId}>
-              <div className="w-full h-10 px-3 rounded-lg border border-neutral-200 bg-neutral-50 text-sm flex items-center gap-2 text-neutral-800">
-                {profileLoading ? (
-                  <span className="inline-flex items-center gap-1.5 text-neutral-500">
-                    <Loader2 size={14} className="animate-spin" /> Đang tải…
-                  </span>
-                ) : (
-                  <>
-                    <UserIcon size={14} className="text-neutral-400 shrink-0" />
-                    <span className="truncate font-medium">
-                      {personName || (personId ? `Mã NS: ${personId}` : '— Chưa liên kết nhân sự —')}
+              {canPickPerson ? (
+                <Select
+                  options={[
+                    { value: '', label: myPersonName ? `${myPersonName} (tôi)` : 'Chính tôi' },
+                    ...personOptions.filter((o) => o.value && o.value !== myPersonId),
+                  ]}
+                  value={selectedPersonId}
+                  onChange={(v) => setSelectedPersonId(v || '')}
+                  placeholder={personsLoading ? 'Đang tải nhân viên…' : 'Chọn nhân viên'}
+                  showSearch
+                  aria-label="Nhân viên xin nghỉ"
+                />
+              ) : (
+                <div className="w-full h-10 px-3 rounded-lg border border-neutral-200 bg-neutral-50 text-sm flex items-center gap-2 text-neutral-800">
+                  {myContractLoading ? (
+                    <span className="inline-flex items-center gap-1.5 text-neutral-500">
+                      <Loader2 size={14} className="animate-spin" /> Đang tải…
                     </span>
-                  </>
-                )}
-              </div>
+                  ) : (
+                    <>
+                      <UserIcon size={14} className="text-neutral-400 shrink-0" />
+                      <span className="truncate font-medium">
+                        {personName || (personId ? `Mã NS: ${personId}` : '— Chưa liên kết nhân sự —')}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
               {contractLoading && (
                 <div className="text-[11px] text-neutral-500 mt-1 inline-flex items-center gap-1">
                   <Loader2 size={11} className="animate-spin" /> Đang tìm hợp đồng...
@@ -376,7 +403,7 @@ function FormField({
 
 function StepPill({
   label, icon: Icon, tone,
-}: { label: string; icon: any; tone: 'neutral' | 'amber' | 'blue' | 'emerald' }) {
+}: { label: string; icon: LucideIcon; tone: 'neutral' | 'amber' | 'blue' | 'emerald' }) {
   const cls = {
     neutral: 'bg-white border-neutral-300 text-neutral-700',
     amber: 'bg-amber-50 border-amber-200 text-amber-700',

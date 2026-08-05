@@ -14,6 +14,10 @@ export interface ProfileInfo {
   jobTitle?: string
   orgId?: string
   isAdmin?: boolean
+  /** HĐ đang hiệu lực do BE resolve sẵn — dùng cho leave-request (`useMyContract`). */
+  contractId?: string
+  contractCode?: string
+  jobPosition?: string
 }
 
 export interface LoginHistoryItem {
