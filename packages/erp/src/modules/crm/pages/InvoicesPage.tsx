@@ -54,7 +54,7 @@ const STATUS_TONE: Record<InvoiceStatus, string> = {
 }
 
 const STATUS_LABEL: Record<InvoiceStatus, string> = {
-  DRAFT: 'Nháp',
+  DRAFT: 'Bản nháp',
   ISSUED: 'Đã phát hành',
   PARTIALLY_PAID: 'Trả một phần',
   PAID: 'Đã thanh toán',
@@ -549,7 +549,7 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
     },
     {
       key: 'salespersonUsername',
-      title: 'Sale / HH',
+      title: 'NV bán / Hoa hồng',
       render: (_, inv) => (
         <div className="text-xs">
           <div className="font-mono text-neutral-700">{inv.salespersonUsername || '—'}</div>
@@ -652,7 +652,7 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
               {
                 key: 'issue',
                 icon: Send,
-                tooltip: 'Phát hành hoá đơn nháp',
+                tooltip: 'Phát hành hoá đơn bản nháp',
                 tone: 'blue',
                 hidden: !canIssue,
                 disabled: issue.isPending,
@@ -853,7 +853,7 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
         isOpen={showCreate}
         onClose={closeCreate}
         title="Tạo hoá đơn"
-        description="Tạo hoá đơn nháp (DRAFT). Phát hành và thu tiền ở bước sau."
+        description="Tạo hoá đơn bản nháp. Phát hành và thu tiền ở bước sau."
         maxWidth="3xl"
       >
         <div className="space-y-4">
@@ -910,19 +910,19 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1 block">Sale phụ trách (username)</Label>
+              <Label className="mb-1 block">Nhân viên bán (tên đăng nhập)</Label>
               <Select
                 options={saleOptions}
                 value={form.salespersonUsername}
                 onChange={(v) => setForm({ ...form, salespersonUsername: v || '' })}
-                placeholder="Trống = lấy từ Deal"
+                placeholder="Trống = lấy từ cơ hội bán"
                 showSearch={saleOptions.length > 5}
                 showClear
-                aria-label="Sale phụ trách"
+                aria-label="Nhân viên bán"
               />
             </div>
             <div>
-              <Label className="mb-1 block">% hoa hồng (override)</Label>
+              <Label className="mb-1 block">% hoa hồng (ghi đè)</Label>
               <Select
                 options={commissionRateOptions}
                 value={form.commissionRuleId}
@@ -939,7 +939,7 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
                 placeholder="Trống = dùng mức đã cài"
                 showSearch={commissionRateOptions.length > 5}
                 showClear
-                aria-label="Phần trăm hoa hồng override"
+                aria-label="Phần trăm hoa hồng ghi đè"
               />
             </div>
           </div>
@@ -968,7 +968,7 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
                       products={products}
                       value={line.productId}
                       onChange={(productId) => selectLineProduct(idx, productId)}
-                      placeholder="Chọn SP *"
+                      placeholder="Chọn sản phẩm *"
                       className="w-full"
                       showSearch
                       showClear

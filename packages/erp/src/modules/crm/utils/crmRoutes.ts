@@ -42,7 +42,7 @@ export const CRM_SALES_TABS: {
 }[] = [
   { key: 'quotes', label: 'Báo giá', hint: 'Theo dõi báo giá gửi khách', menuUrls: ['/crm/quotes'] },
   { key: 'invoices', label: 'Hóa đơn', hint: 'Hoá đơn bán & thu tiền', menuUrls: ['/crm/invoices'] },
-  { key: 'commissions', label: 'Hoa hồng', hint: 'Cài % theo sale · phát sinh theo đơn', menuUrls: ['/crm/sales', '/crm/invoices'] },
+  { key: 'commissions', label: 'Hoa hồng', hint: 'Cài % theo nhân viên bán · phát sinh theo đơn', menuUrls: ['/crm/sales', '/crm/invoices'] },
 ]
 
 export const CRM_ALL_LEGACY_URLS = [

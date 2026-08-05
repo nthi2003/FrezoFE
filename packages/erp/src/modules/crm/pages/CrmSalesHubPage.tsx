@@ -39,7 +39,7 @@ export function CrmSalesHubPage() {
   return (
     <CrmHubLayout
       title="Đơn bán & thu"
-      description="Báo giá, hoá đơn và hoa hồng sale — theo dõi doanh thu từ CRM."
+      description="Báo giá, hoá đơn và hoa hồng bán hàng — theo dõi doanh thu từ CRM."
       tabs={tabs}
       tab={tab}
       visibleTabKeys={visibleTabKeys}

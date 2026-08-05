@@ -25,23 +25,23 @@ import {
 } from '../hooks/useCrm'
 
 const GUIDE: PageGuideConfig = {
-  title: 'Hoa hồng sale',
-  subtitle: 'Cài mức % theo từng sale — đơn (HĐ) tự tính hoa hồng theo doanh số đã thu.',
+  title: 'Hoa hồng bán hàng',
+  subtitle: 'Cài mức % theo từng nhân viên bán — hoá đơn tự tính hoa hồng theo doanh số đã thu.',
   sections: [
     {
       heading: 'Cách hoạt động',
       type: 'steps',
       steps: [
-        { title: 'Cài mức mặc định', description: 'Dòng username = * là % áp dụng cho mọi sale chưa có cấu hình riêng.' },
-        { title: 'Cài theo sale', description: 'Thêm username sale + % riêng (vd sale A 7%, sale B 3%).' },
-        { title: 'Gắn trên hoá đơn', description: 'Khi tạo HĐ chọn sale / override %. Thu tiền → hệ thống ghi bản ghi hoa hồng.' },
-        { title: 'Theo dõi', description: 'Dashboard: số đơn + tổng SL hàng + tiền hoa hồng theo từng sale.' },
+        { title: 'Cài mức mặc định', description: 'Dòng tên đăng nhập = * là % áp dụng cho mọi nhân viên bán chưa có cấu hình riêng.' },
+        { title: 'Cài theo nhân viên bán', description: 'Thêm tên đăng nhập + % riêng (ví dụ nhân viên A 7%, nhân viên B 3%).' },
+        { title: 'Gắn trên hoá đơn', description: 'Khi tạo hoá đơn chọn nhân viên bán / ghi đè %. Thu tiền → hệ thống ghi bản ghi hoa hồng.' },
+        { title: 'Theo dõi', description: 'Bảng tổng hợp: số đơn + tổng số lượng hàng + tiền hoa hồng theo từng nhân viên bán.' },
       ],
     },
     {
       heading: 'Công thức',
       type: 'notes',
-      notes: 'Hoa hồng = số tiền đã thu trên HĐ × (ratePercent / 100). Không thay phiếu lương — duyệt/chi trả thủ công trên tab phát sinh.',
+      notes: 'Hoa hồng = số tiền đã thu trên hoá đơn × (% hoa hồng / 100). Không thay phiếu lương — duyệt/chi trả thủ công trên tab phát sinh.',
     },
   ],
 }
@@ -50,7 +50,7 @@ const STATUS_LABEL: Record<string, string> = {
   PENDING: 'Chờ duyệt',
   APPROVED: 'Đã duyệt',
   PAID: 'Đã trả',
-  VOID: 'Huỷ',
+  VOID: 'Đã huỷ',
 }
 
 export function CommissionsPage({ embedded }: { embedded?: boolean } = {}) {
@@ -72,7 +72,7 @@ export function CommissionsPage({ embedded }: { embedded?: boolean } = {}) {
   const ruleColumns: AppTableColumn<CommissionRule>[] = [
     {
       key: 'salespersonUsername',
-      title: 'Sale',
+      title: 'Nhân viên bán',
       render: (_, r) => (
         <span className="font-mono text-sm font-semibold text-neutral-800">
           {r.salespersonUsername === '*' ? '* (mặc định)' : r.salespersonUsername}
@@ -81,16 +81,16 @@ export function CommissionsPage({ embedded }: { embedded?: boolean } = {}) {
     },
     {
       key: 'ratePercent',
-      title: '% HH',
+      title: '% hoa hồng',
       align: 'right',
       render: (_, r) => <span className="tabular-nums font-bold text-emerald-700">{Number(r.ratePercent).toFixed(2)}%</span>,
     },
     {
       key: 'active',
-      title: 'TT',
+      title: 'Trạng thái',
       render: (_, r) => (
         <span className={`text-xs font-semibold ${r.active !== false ? 'text-emerald-600' : 'text-neutral-400'}`}>
-          {r.active !== false ? 'Bật' : 'Tắt'}
+          {r.active !== false ? 'Đang hiệu lực' : 'Tắt'}
         </span>
       ),
     },
@@ -121,12 +121,12 @@ export function CommissionsPage({ embedded }: { embedded?: boolean } = {}) {
   const entryColumns: AppTableColumn<CommissionEntry>[] = [
     {
       key: 'invoiceCode',
-      title: 'HĐ',
+      title: 'Hoá đơn',
       render: (_, e) => <span className="font-mono text-sm font-semibold text-primary-700">{e.invoiceCode || e.invoiceId}</span>,
     },
     {
       key: 'salespersonUsername',
-      title: 'Sale',
+      title: 'Nhân viên bán',
       render: (_, e) => <span className="font-mono text-xs">{e.salespersonUsername}</span>,
     },
     {
@@ -159,7 +159,7 @@ export function CommissionsPage({ embedded }: { embedded?: boolean } = {}) {
     },
     {
       key: 'status',
-      title: 'TT',
+      title: 'Trạng thái',
       render: (_, e) => (
         <span className="text-xs font-semibold text-neutral-600">{STATUS_LABEL[e.status] || e.status}</span>
       ),
@@ -207,8 +207,8 @@ export function CommissionsPage({ embedded }: { embedded?: boolean } = {}) {
       {!embedded && (
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-neutral-900">Hoa hồng sale</h1>
-            <p className="text-sm text-neutral-500">Cấu hình % theo sale · tự tính trên hoá đơn</p>
+            <h1 className="text-lg font-bold text-neutral-900">Hoa hồng bán hàng</h1>
+            <p className="text-sm text-neutral-500">Cấu hình % theo nhân viên bán · tự tính trên hoá đơn</p>
           </div>
           <PageGuideButton guide={GUIDE} />
         </div>
@@ -221,22 +221,22 @@ export function CommissionsPage({ embedded }: { embedded?: boolean } = {}) {
 
       {/* KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Kpi icon={Percent} label="HH tổng" value={formatCurrency(Number(d?.totalCommission ?? 0))} tone="emerald" />
-        <Kpi icon={Receipt} label="Số đơn (HĐ)" value={String(d?.totalInvoices ?? 0)} tone="blue" />
+        <Kpi icon={Percent} label="Tổng hoa hồng" value={formatCurrency(Number(d?.totalCommission ?? 0))} tone="emerald" />
+        <Kpi icon={Receipt} label="Số hoá đơn" value={String(d?.totalInvoices ?? 0)} tone="blue" />
         <Kpi icon={Package} label="Tổng SL hàng" value={Number(d?.totalQuantity ?? 0).toLocaleString('vi-VN')} tone="amber" />
-        <Kpi icon={Users} label="Số sale" value={String(d?.salespersonCount ?? 0)}
+        <Kpi icon={Users} label="Số NV bán" value={String(d?.salespersonCount ?? 0)}
           hint={`Mặc định ${Number(d?.defaultRatePercent ?? 5).toFixed(1)}%`} tone="violet" />
       </div>
 
       {/* By salesperson */}
       {(d?.bySalesperson?.length ?? 0) > 0 && (
         <section className="rounded-xl border border-neutral-200 bg-white p-4">
-          <h2 className="text-sm font-bold text-neutral-800 mb-3">Theo từng sale (số đơn + hoa hồng)</h2>
+          <h2 className="text-sm font-bold text-neutral-800 mb-3">Theo từng nhân viên bán (số đơn + hoa hồng)</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[11px] uppercase text-neutral-400 border-b">
-                  <th className="py-2 pr-3">Sale</th>
+                  <th className="py-2 pr-3">Nhân viên bán</th>
                   <th className="py-2 pr-3 text-right">Số đơn</th>
                   <th className="py-2 pr-3 text-right">SL hàng</th>
                   <th className="py-2 pr-3 text-right">Doanh số</th>
@@ -299,7 +299,7 @@ export function CommissionsPage({ embedded }: { embedded?: boolean } = {}) {
         rulesQ.isError ? (
           <ErrorState title="Không tải cấu hình" onRetry={() => rulesQ.refetch()} />
         ) : rules.length === 0 ? (
-          <EmptyState icon={Percent} title="Chưa có mức hoa hồng" description="Thêm mức mặc định (*) hoặc theo từng sale." />
+          <EmptyState icon={Percent} title="Chưa có mức hoa hồng" description="Thêm mức mặc định (*) hoặc theo từng nhân viên bán." />
         ) : (
           <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
             <AppTable
@@ -341,11 +341,11 @@ export function CommissionsPage({ embedded }: { embedded?: boolean } = {}) {
         isOpen={showRule}
         onClose={() => setShowRule(false)}
         title="Cài mức hoa hồng"
-        description="Nhập username sale hoặc * cho mức mặc định toàn công ty."
+        description="Nhập tên đăng nhập nhân viên bán hoặc * cho mức mặc định toàn công ty."
       >
         <div className="space-y-3">
           <div>
-            <Label className="mb-1 block">Username sale (* = mặc định)</Label>
+            <Label className="mb-1 block">Tên đăng nhập (* = mặc định)</Label>
             <input
               className="w-full border rounded-md px-3 py-2 text-sm font-mono"
               value={ruleForm.salespersonUsername}

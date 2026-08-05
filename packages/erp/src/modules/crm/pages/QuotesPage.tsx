@@ -14,13 +14,13 @@ import { pageRootClass } from '@/modules/accounting/utils/pageEmbed'
 
 const QUOTES_GUIDE: PageGuideConfig = {
   title: 'Báo giá',
-  subtitle: 'Theo dõi báo giá từ nháp → gửi → duyệt / từ chối.',
+  subtitle: 'Theo dõi báo giá từ bản nháp → gửi → duyệt / từ chối.',
   sections: [
     {
       heading: 'Luồng trạng thái',
       type: 'steps',
       steps: [
-        { title: 'Nháp', description: 'Báo giá mới tạo, chưa gửi khách.' },
+        { title: 'Bản nháp', description: 'Báo giá mới tạo, chưa gửi khách.' },
         { title: 'Đã gửi', description: 'Khách đang xem xét — có thể duyệt hoặc từ chối.' },
         { title: 'Được duyệt / Bị từ chối', description: 'Kết thúc vòng đời báo giá.' },
       ],
@@ -67,7 +67,7 @@ const STATUS_TONE: Record<QuoteStatus, string> = {
 }
 
 const STATUS_LABEL: Record<QuoteStatus, string> = {
-  DRAFT: 'Nháp', SENT: 'Đã gửi', ACCEPTED: 'Được duyệt', REJECTED: 'Bị từ chối', EXPIRED: 'Hết hạn',
+  DRAFT: 'Bản nháp', SENT: 'Đã gửi', ACCEPTED: 'Được duyệt', REJECTED: 'Bị từ chối', EXPIRED: 'Hết hạn',
 }
 
 type ConfirmAction = { id: string; code: string; status: QuoteStatus; next: QuoteStatus }
@@ -127,7 +127,7 @@ export function QuotesPage({ embedded }: { embedded?: boolean } = {}) {
   const columns: AppTableColumn<Quote>[] = [
     {
       key: 'code',
-      title: 'Mã BG',
+      title: 'Mã báo giá',
       render: (_, q) => (
         <span className="font-mono font-semibold text-blue-700">{q.code}</span>
       ),

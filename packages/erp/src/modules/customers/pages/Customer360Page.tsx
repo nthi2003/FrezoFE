@@ -118,11 +118,23 @@ function Customer360Kpi({ label, value, icon: Icon, tone, hint }: Customer360Kpi
 // ============================================================
 
 const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
-  DRAFT: 'Nháp',
+  DRAFT: 'Bản nháp',
   ISSUED: 'Đã phát hành',
   PARTIALLY_PAID: 'Trả một phần',
   PAID: 'Đã thanh toán',
   VOID: 'Đã huỷ',
+}
+
+const DEAL_STATUS_LABEL: Record<string, string> = {
+  OPEN: 'Đang mở',
+  STALLED: 'Đang đứng',
+  WON: 'Đã chốt',
+  LOST: 'Thất bại',
+}
+
+function dealStatusLabel(status?: string) {
+  if (!status) return '—'
+  return DEAL_STATUS_LABEL[status.toUpperCase()] || status
 }
 
 const INVOICE_STATUS_TONE: Record<InvoiceStatus, string> = {
@@ -293,10 +305,10 @@ export function Customer360Page() {
           />
         }
         kpi={[
-          { label: 'Doanh thu YTD', value: formatCurrency(revenueYTD) },
+          { label: 'Doanh thu năm nay', value: formatCurrency(revenueYTD) },
           { label: 'Cơ hội đang mở', value: String(openDealsCount) },
           {
-            label: 'HĐ quá hạn',
+            label: 'Hoá đơn quá hạn',
             value: String(overdueInvoices.length),
           },
           {
@@ -625,7 +637,7 @@ function DealRow({ deal }: { deal: Deal }) {
         <div className="text-sm font-bold text-emerald-700 tabular-nums">
           {formatCurrency(deal.amount)}
         </div>
-        <div className="text-[10px] text-neutral-400">{deal.status}</div>
+        <div className="text-[10px] text-neutral-400">{dealStatusLabel(deal.status)}</div>
       </div>
     </div>
   )
@@ -706,7 +718,7 @@ function DealsTab({ deals, onGoto }: { deals: Deal[]; onGoto: () => void }) {
               </td>
               <td className="p-3 text-center">
                 <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] border border-neutral-200 bg-neutral-50">
-                  {d.status}
+                  {dealStatusLabel(d.status)}
                 </span>
               </td>
             </tr>
@@ -736,7 +748,7 @@ function InvoicesTab({
         <EmptyState
           icon={Receipt}
           title="Chưa có hoá đơn"
-          description="Tạo hoá đơn nháp cho khách hàng, rồi phát hành."
+          description="Tạo hoá đơn bản nháp cho khách hàng, rồi phát hành."
           action={
             canCreate
               ? { label: 'Tạo hoá đơn', onClick: onGoto }
@@ -804,7 +816,7 @@ function ActivitiesTab({ activities }: { activities: DealActivity[] }) {
         <EmptyState
           icon={Activity}
           title="Chưa có hoạt động"
-          description="Ghi nhận cuộc gọi, email, cuộc họp với khách hàng để track quan hệ."
+          description="Ghi nhận cuộc gọi, email, cuộc họp với khách hàng để theo dõi quan hệ."
         />
       </div>
     )

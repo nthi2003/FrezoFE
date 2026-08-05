@@ -7,7 +7,7 @@ import { useInvoiceDetail } from '../hooks/useCrm'
 import type { InvoiceStatus } from '../services/crmApi'
 
 const STATUS_LABEL: Record<InvoiceStatus, string> = {
-  DRAFT: 'Nháp',
+  DRAFT: 'Bản nháp',
   ISSUED: 'Đã phát hành',
   PARTIALLY_PAID: 'Trả một phần',
   PAID: 'Đã thanh toán',
@@ -103,7 +103,7 @@ export function InvoicePrintPreviewModal({ invoiceId, open, onClose }: Props) {
                 {inv.issuedDate && (
                   <div>Phát hành: {formatDate(inv.issuedDate)}</div>
                 )}
-                {inv.dueDate && <div>Hạn TT: {formatDate(inv.dueDate)}</div>}
+                {inv.dueDate && <div>Hạn thanh toán: {formatDate(inv.dueDate)}</div>}
               </div>
             </div>
 
