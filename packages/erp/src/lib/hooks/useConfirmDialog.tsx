@@ -42,11 +42,6 @@ export function useConfirmDialog() {
     setState(opts)
   }, [])
 
-  const close = useCallback(() => {
-    if (loading) return
-    setState(null)
-  }, [loading])
-
   const handleConfirm = useCallback(async () => {
     if (!state) return
     setLoading(true)

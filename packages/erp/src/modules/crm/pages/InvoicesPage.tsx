@@ -1121,8 +1121,9 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
           if (!postTarget) return
           const code = postTarget.code
           try {
-            const res: any = await post.mutateAsync(postTarget.id)
-            const data = res?.data ?? res
+            const res = await post.mutateAsync(postTarget.id)
+            const raw = res as PostInvoiceResult | { data?: PostInvoiceResult }
+            const data = ('data' in raw && raw.data ? raw.data : raw) as PostInvoiceResult
             const journalEntryId =
               data?.journalEntryId ??
               data?.glJournalEntryId ??
@@ -1138,14 +1139,10 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
                 : 'Đã hạch toán sổ cái thành công.'),
             })
             setPostTarget(null)
-          } catch (err: any) {
-            // Giữ ConfirmDialog mở để retry
-            const msg =
-              err?.response?.data?.message ||
-              err?.message ||
-              'Hạch toán thất bại. Kiểm tra kỳ kế toán / ánh xạ tài khoản.'
-            toast.error(msg)
-            throw Object.assign(err instanceof Error ? err : new Error(msg), { message: msg })
+          } catch (err) {
+            // Giữ ConfirmDialog mở để user retry
+            toast.error(getPostErrorMessage(err))
+            throw err
           }
         }}
         title="Hạch toán vào sổ cái?"
