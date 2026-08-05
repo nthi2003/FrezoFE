@@ -117,6 +117,79 @@ const fbApi = {
       axiosClient.post(`/mkt/affiliate/${code}/convert`, null, { params: { value } })
         .then(r => r.data?.data ?? r.data),
   },
+  ads: {
+    list: (params?: { platform?: string; status?: string }) =>
+      axiosClient.get('/mkt/ads', { params }).then(r => r.data?.data ?? r.data),
+    get: (id: string) =>
+      axiosClient.get(`/mkt/ads/${id}`).then(r => r.data?.data ?? r.data),
+    create: (data: any) =>
+      axiosClient.post('/mkt/ads', data).then(r => r.data?.data ?? r.data),
+    update: (id: string, data: any) =>
+      axiosClient.put(`/mkt/ads/${id}`, data).then(r => r.data?.data ?? r.data),
+    delete: (id: string) =>
+      axiosClient.delete(`/mkt/ads/${id}`).then(r => r.data?.data ?? r.data),
+    dashboard: () =>
+      axiosClient.get('/mkt/ads/dashboard').then(r => r.data?.data ?? r.data),
+  },
+  insights: {
+    dashboard: () =>
+      axiosClient.get('/mkt/insights/dashboard').then(r => r.data?.data ?? r.data),
+  },
+  comments: {
+    list: (params?: { status?: string }) =>
+      axiosClient.get('/mkt/comments', { params }).then(r => r.data?.data ?? r.data),
+    create: (data: any) =>
+      axiosClient.post('/mkt/comments', data).then(r => r.data?.data ?? r.data),
+    update: (id: string, data: any) =>
+      axiosClient.put(`/mkt/comments/${id}`, data).then(r => r.data?.data ?? r.data),
+    delete: (id: string) =>
+      axiosClient.delete(`/mkt/comments/${id}`).then(r => r.data?.data ?? r.data),
+    moderate: (id: string, action: string, replyText?: string) =>
+      axiosClient.post(`/mkt/comments/${id}/moderate`, null, { params: { action, replyText } })
+        .then(r => r.data?.data ?? r.data),
+    dashboard: () =>
+      axiosClient.get('/mkt/comments/dashboard').then(r => r.data?.data ?? r.data),
+    listRules: () =>
+      axiosClient.get('/mkt/comments/rules').then(r => r.data?.data ?? r.data),
+    createRule: (data: any) =>
+      axiosClient.post('/mkt/comments/rules', data).then(r => r.data?.data ?? r.data),
+    updateRule: (id: string, data: any) =>
+      axiosClient.put(`/mkt/comments/rules/${id}`, data).then(r => r.data?.data ?? r.data),
+    deleteRule: (id: string) =>
+      axiosClient.delete(`/mkt/comments/rules/${id}`).then(r => r.data?.data ?? r.data),
+  },
+  reviews: {
+    list: (params?: { status?: string; platform?: string }) =>
+      axiosClient.get('/mkt/reviews', { params }).then(r => r.data?.data ?? r.data),
+    create: (data: any) =>
+      axiosClient.post('/mkt/reviews', data).then(r => r.data?.data ?? r.data),
+    update: (id: string, data: any) =>
+      axiosClient.put(`/mkt/reviews/${id}`, data).then(r => r.data?.data ?? r.data),
+    delete: (id: string) =>
+      axiosClient.delete(`/mkt/reviews/${id}`).then(r => r.data?.data ?? r.data),
+    reply: (id: string, replyText: string) =>
+      axiosClient.post(`/mkt/reviews/${id}/reply`, null, { params: { replyText } })
+        .then(r => r.data?.data ?? r.data),
+    dashboard: () =>
+      axiosClient.get('/mkt/reviews/dashboard').then(r => r.data?.data ?? r.data),
+  },
+  live: {
+    list: (params?: { status?: string }) =>
+      axiosClient.get('/mkt/live', { params }).then(r => r.data?.data ?? r.data),
+    create: (data: any) =>
+      axiosClient.post('/mkt/live', data).then(r => r.data?.data ?? r.data),
+    update: (id: string, data: any) =>
+      axiosClient.put(`/mkt/live/${id}`, data).then(r => r.data?.data ?? r.data),
+    delete: (id: string) =>
+      axiosClient.delete(`/mkt/live/${id}`).then(r => r.data?.data ?? r.data),
+    markNotified: (id: string) =>
+      axiosClient.post(`/mkt/live/${id}/notify`).then(r => r.data?.data ?? r.data),
+    updateStatus: (id: string, status: string) =>
+      axiosClient.post(`/mkt/live/${id}/status`, null, { params: { status } })
+        .then(r => r.data?.data ?? r.data),
+    dashboard: () =>
+      axiosClient.get('/mkt/live/dashboard').then(r => r.data?.data ?? r.data),
+  },
 }
 
 export default fbApi

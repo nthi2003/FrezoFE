@@ -35,6 +35,10 @@ interface Props {
   onDragEnd?: () => void
   onComment?: () => void
   onDelete?: () => void
+  /** QL duyệt hoàn thành (RESOLVED → CLOSED) */
+  onApproveReview?: () => void
+  /** QL trả lại (RESOLVED → IN_PROGRESS) */
+  onRejectReview?: () => void
   priorityMeta?: { color?: string; name?: string }
   assigneeName?: string
   assigneeAvatarUrl?: string
@@ -65,6 +69,8 @@ export function TicketCard({
   onDragEnd,
   onComment,
   onDelete,
+  onApproveReview,
+  onRejectReview,
   priorityMeta,
   assigneeName,
   assigneeAvatarUrl,
@@ -137,6 +143,11 @@ export function TicketCard({
           {isMine && (
             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${TAG_TONE_CLASS.primary}`}>
               Của tôi
+            </span>
+          )}
+          {ticket.pendingReview && (
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${TAG_TONE_CLASS.warning}`}>
+              Chờ duyệt
             </span>
           )}
         </div>
@@ -332,6 +343,39 @@ export function TicketCard({
           )}
         </div>
       </div>
+
+      {(onApproveReview || onRejectReview) && (
+        <div
+          className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/60"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {onRejectReview && (
+            <button
+              type="button"
+              className="flex-1 text-[11px] font-semibold px-2 py-1.5 rounded-md border border-warning/40 text-warning-dark bg-warning-light/50 hover:bg-warning-light"
+              onClick={(e) => {
+                e.stopPropagation()
+                onRejectReview()
+              }}
+            >
+              Trả lại
+            </button>
+          )}
+          {onApproveReview && (
+            <button
+              type="button"
+              className="flex-1 text-[11px] font-semibold px-2 py-1.5 rounded-md border border-success/40 text-success-dark bg-success-light/60 hover:bg-success-light"
+              onClick={(e) => {
+                e.stopPropagation()
+                onApproveReview()
+              }}
+            >
+              Duyệt
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

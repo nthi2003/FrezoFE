@@ -4,12 +4,7 @@
 
 import { useMemo, useState } from 'react'
 import { Scale, Plus, CheckCircle2 } from 'lucide-react'
-import {
-  Button,
-  ConfirmDialog,
-  PageGuideButton,
-  Select,
-} from '@frezo/ui'
+import { Button, ConfirmDialog, Select } from '@frezo/ui'
 import { useProducts } from '@/modules/products/hooks/useProduct'
 import { WarehouseListShell } from '../components/WarehouseListShell'
 import { ProductCombobox } from '../components/ProductCombobox'
@@ -38,50 +33,53 @@ export function ShrinkagePage() {
   const { data: rows = [], isLoading, isError, refetch, isFetching } =
     useShrinkageList(warehouseId ? { warehouseId } : undefined)
 
+  const warehouseList = Array.isArray(warehouses) ? warehouses : []
+  const shrinkageRows = Array.isArray(rows) ? rows : []
+
   const [showForm, setShowForm] = useState(false)
 
   const columns: AppTableColumn<ShrinkageDto>[] = [
     {
       key: 'code',
-      header: 'Mã phiếu',
-      render: (r) => (
+      title: 'Mã phiếu',
+      render: (_, r) => (
         <span className="font-mono text-xs text-primary-700">
-          {r.shrinkageCode || r.id.slice(0, 8)}
+          {r?.shrinkageCode || r?.id?.slice(0, 8) || '—'}
         </span>
       ),
     },
     {
       key: 'warehouse',
-      header: 'Kho',
-      render: (r) => r.warehouseName || r.warehouseId,
+      title: 'Kho',
+      render: (_, r) => r?.warehouseName || r?.warehouseId || '—',
     },
     {
       key: 'status',
-      header: 'Trạng thái',
-      render: (r) => (
+      title: 'Trạng thái',
+      render: (_, r) => (
         <span
           className={`text-xs font-semibold px-2 py-0.5 rounded ${
-            r.status === 'CONFIRMED'
+            r?.status === 'CONFIRMED'
               ? 'bg-emerald-50 text-emerald-700'
-              : r.status === 'DRAFT'
+              : r?.status === 'DRAFT'
                 ? 'bg-amber-50 text-amber-700'
                 : 'bg-neutral-100 text-neutral-600'
           }`}
         >
-          {r.status}
+          {r?.status || '—'}
         </span>
       ),
     },
     {
       key: 'lines',
-      header: 'Dòng',
-      render: (r) => r.lines?.length ?? 0,
+      title: 'Dòng',
+      render: (_, r) => r?.lines?.length ?? 0,
     },
     {
       key: 'actions',
-      header: '',
-      render: (r) =>
-        r.status === 'DRAFT' ? (
+      title: '',
+      render: (_, r) =>
+        r?.status === 'DRAFT' && r?.id ? (
           <Button size="sm" variant="outline" onClick={() => setConfirmId(r.id)}>
             Xác nhận
           </Button>
@@ -98,22 +96,19 @@ export function ShrinkagePage() {
         description="SHRINK / DAMAGE / EXPIRED — trừ tồn lô, không qua GIN bán."
         guide={SHRINKAGE_GUIDE}
         headerActions={
-          <div className="flex gap-2 items-center">
-            <PageGuideButton guide={SHRINKAGE_GUIDE} />
-            <Button className="gap-1" onClick={() => setShowForm((v) => !v)}>
-              <Plus size={14} /> {showForm ? 'Đóng form' : 'Ghi hao hụt'}
-            </Button>
-          </div>
+          <Button className="gap-1" onClick={() => setShowForm((v) => !v)}>
+            <Plus size={14} /> {showForm ? 'Đóng form' : 'Ghi hao hụt'}
+          </Button>
         }
         filterBar={
           <div className="min-w-[180px]">
             <WarehouseSelect
-              warehouses={warehouses}
+              warehouses={warehouseList}
               value={warehouseId}
               onChange={setWarehouseId}
               emptyOption={{ label: 'Tất cả kho' }}
               placeholder="Tất cả kho"
-              showSearch={warehouses.length > 8}
+              showSearch={warehouseList.length > 8}
               aria-label="Lọc theo kho"
             />
           </div>
@@ -122,12 +117,12 @@ export function ShrinkagePage() {
         isError={isError}
         isFetching={isFetching}
         onRetry={() => void refetch()}
-        totalCount={rows.length}
+        totalCount={shrinkageRows.length}
         emptyIcon={Scale}
         emptyTitle="Chưa có phiếu hao hụt"
         emptyDescription="Bấm Ghi hao hụt để ghi nhận co hụt, dập hoặc quá hạn."
         columns={columns}
-        data={rows}
+        data={shrinkageRows}
         onRefresh={() => void refetch()}
       >
         {showForm && <ShrinkageCreateForm onDone={() => setShowForm(false)} />}
@@ -170,13 +165,15 @@ function ShrinkageCreateForm({ onDone }: { onDone: () => void }) {
     warehouseId && productId ? { warehouseId, productId } : undefined,
   )
 
+  const warehouseList = Array.isArray(warehouses) ? warehouses : []
+
   const productOptions = useMemo(() => {
     const list = productsRaw as Array<{ id: string; code?: string; name?: string }> | undefined
     return Array.isArray(list) ? list : []
   }, [productsRaw])
 
-  const availableBatches = batches.filter(
-    (b) => (b.qtyOnHand ?? 0) > 0 && b.status === 'ACTIVE',
+  const availableBatches = (Array.isArray(batches) ? batches : []).filter(
+    (b) => (b?.qtyOnHand ?? 0) > 0 && b?.status === 'ACTIVE',
   )
 
   const selectedBatch = availableBatches.find((b) => b.id === batchId)
@@ -215,7 +212,7 @@ function ShrinkageCreateForm({ onDone }: { onDone: () => void }) {
         <label className="space-y-1">
           <span className="text-xs text-neutral-500">Kho *</span>
           <WarehouseSelect
-            warehouses={warehouses}
+            warehouses={warehouseList}
             value={warehouseId}
             onChange={(v) => {
               setWarehouseId(v)
@@ -251,7 +248,7 @@ function ShrinkageCreateForm({ onDone }: { onDone: () => void }) {
               },
               ...availableBatches.map((b) => ({
                 value: b.id,
-                label: `${b.batchCode} · HSD ${b.expiryDate || '—'} · Tồn ${b.qtyOnHand}`,
+                label: `${b?.batchCode || '—'} · HSD ${b?.expiryDate || '—'} · Tồn ${b?.qtyOnHand ?? 0}`,
               })),
             ]}
             value={batchId}

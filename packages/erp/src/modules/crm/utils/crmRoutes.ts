@@ -1,4 +1,4 @@
-﻿// CRM module — hub paths, tab gating (FE consolidation, BE menus unchanged)
+// CRM module — hub paths, tab gating (FE consolidation, BE menus unchanged)
 
 export const CRM_PIPELINE_HUB_PATH = '/crm'
 export const CRM_SALES_HUB_PATH = '/crm/sales'
@@ -21,7 +21,7 @@ export const CRM_SALES_MENU_URLS = [
 ] as const
 
 export type PipelineTab = 'leads' | 'deals' | 'meetings'
-export type SalesTab = 'quotes' | 'invoices'
+export type SalesTab = 'quotes' | 'invoices' | 'commissions'
 
 export const CRM_PIPELINE_TABS: {
   key: PipelineTab
@@ -42,6 +42,7 @@ export const CRM_SALES_TABS: {
 }[] = [
   { key: 'quotes', label: 'Báo giá', hint: 'Theo dõi báo giá gửi khách', menuUrls: ['/crm/quotes'] },
   { key: 'invoices', label: 'Hóa đơn', hint: 'Hoá đơn bán & thu tiền', menuUrls: ['/crm/invoices'] },
+  { key: 'commissions', label: 'Hoa hồng', hint: 'Cài % theo sale · phát sinh theo đơn', menuUrls: ['/crm/sales', '/crm/invoices'] },
 ]
 
 export const CRM_ALL_LEGACY_URLS = [

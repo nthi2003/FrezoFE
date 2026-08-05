@@ -13,7 +13,7 @@ const COLUMNS = [
   { key: 'RESOLVED', label: 'Đã giải quyết', headerBg: 'bg-success-light', headerText: 'text-success-dark', countClass: 'bg-success text-white' },
 ] as const
 
-const DONE_STATUSES = new Set(['RESOLVED', 'CLOSED'])
+const DONE_STATUSES = new Set(['CLOSED'])
 
 interface TaskBoardWidgetProps {
   /** true = chỉ ticket assignee = person hiện tại */

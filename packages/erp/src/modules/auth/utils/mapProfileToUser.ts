@@ -6,14 +6,25 @@ export type RawAuthProfile = Record<string, unknown>
 
 /**
  * Bind UserProfile từ response API.
- * Avatar luôn lấy từ URL server (avatarUrl/imageUrl/…); không giữ avatar cache cũ khi server đã có URL mới / đã xoá.
+ * Avatar lấy từ URL server (avatarUrl/imageUrl/…); khi server không trả URL thì giữ prev (cache login)
+ * để Header không mất ảnh trong lúc chờ / giữa các lần sync.
  */
 export function mapProfileToUser(
   raw: RawAuthProfile | null | undefined,
   prev?: UserProfile | null,
 ): UserProfile {
-  // Avatar chỉ từ URL server — không giữ cache localStorage khi server không có / đã đổi
   const serverAvatar = resolveAvatarUrl(raw)
+  // Có URL server → dùng; không có → giữ prev (đã persist sau login); chỉ xoá khi raw rõ ràng null avatar fields
+  const hasAvatarField =
+    raw != null &&
+    ('avatarUrl' in raw ||
+      'imageUrl' in raw ||
+      'photoUrl' in raw ||
+      'photo' in raw ||
+      'avatar' in raw)
+  const avatar =
+    serverAvatar ??
+    (hasAvatarField ? undefined : resolveAvatarUrl(prev) ?? prev?.avatar)
 
   const personIdRaw = raw?.personId ?? prev?.personId
   const personId =
@@ -26,7 +37,7 @@ export function mapProfileToUser(
     username: String(raw?.username ?? raw?.userName ?? prev?.username ?? ''),
     email: String(raw?.email ?? prev?.email ?? ''),
     fullName: String(raw?.fullName ?? raw?.name ?? prev?.fullName ?? ''),
-    avatar: serverAvatar,
+    avatar,
     personId,
     roles: Array.isArray(raw?.roles)
       ? (raw!.roles as string[])

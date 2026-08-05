@@ -59,7 +59,6 @@ import { useLandingConfig, useUpdateLandingConfig } from '../hooks/useLandingCon
 import {
   useArticles,
   useCreateArticle,
-  useUpdateArticle,
   useDeleteArticle,
 } from '@/modules/articles/hooks/useArticle'
 import {
@@ -844,7 +843,6 @@ function ArticlesTab() {
   const navigate = useNavigate()
   const { askConfirm, confirmDialog } = useConfirmDialog()
   const { data: rawData, isLoading } = useArticles()
-  const updateReq = useUpdateArticle()
   const deleteReq = useDeleteArticle()
   const createReq = useCreateArticle()
   const canPublish = usePermission('QTBV.ARTICLES.PUBLISH')
@@ -864,16 +862,22 @@ function ArticlesTab() {
     })
   }, [rawData, typeFilter, statusFilter])
 
-  /** Chỉ unpublish / publish khi đã qua duyệt — không bypass WAITING_APPROVAL bằng UPDATE. */
+  /** Không bypass duyệt bằng UPDATE status — mở editor / dùng nút Xuất bản trên bài Đã duyệt. */
   const quickPublish = (row: any) => {
     if (!canPublish) return
-    if (row.status === 'WAITING_APPROVAL') return
-    const next = row.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED'
-    if (next === 'PUBLISHED' && row.status !== 'APPROVED' && row.status !== 'PUBLISHED') {
-      toast.error('Bài cần được duyệt trước khi xuất bản nhanh.')
+    if (row.status === 'WAITING_APPROVAL') {
+      toast.error('Bài đang chờ duyệt — không thể xuất bản nhanh.')
       return
     }
-    updateReq.mutate({ id: row.id, data: { ...row, status: next } })
+    if (row.status === 'PUBLISHED') {
+      toast.info('Bài đã xuất bản. Mở trình soạn để chỉnh hoặc gỡ (nếu có).')
+      return
+    }
+    if (row.status !== 'APPROVED') {
+      toast.error('Bài cần được duyệt trước khi xuất bản. Mở trình soạn để gửi duyệt / duyệt.')
+      return
+    }
+    navigate(`/admin/article-management/${row.id}/edit`)
   }
 
   const duplicate = (row: any) => {
@@ -949,18 +953,13 @@ function ArticlesTab() {
       render: (_: any, row: any) => (
         <div className="flex items-center gap-1">
           <Can permission="QTBV.ARTICLES.PUBLISH">
-            {(row.status === 'PUBLISHED' || row.status === 'APPROVED') && (
+            {row.status === 'APPROVED' && (
               <IconActionButton
-                tooltip={row.status === 'PUBLISHED' ? 'Chuyển về nháp' : 'Xuất bản nhanh'}
-                tone={row.status === 'PUBLISHED' ? 'amber' : 'emerald'}
+                tooltip="Mở trình soạn để xuất bản"
+                tone="emerald"
                 onClick={() => quickPublish(row)}
-                disabled={updateReq.isPending}
               >
-                {row.status === 'PUBLISHED' ? (
-                  <XCircle size={16} />
-                ) : (
-                  <CheckCircle2 size={16} />
-                )}
+                <CheckCircle2 size={16} />
               </IconActionButton>
             )}
           </Can>

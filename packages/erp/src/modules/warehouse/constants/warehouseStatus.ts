@@ -47,13 +47,21 @@ export const STOCK_TAKE_STATUS_CONFIG: Record<string, StatusConfig> = {
   CANCELLED: { label: 'Đã huỷ', color: 'danger' },
 }
 
-export type WarehouseStatusKind = 'doc' | 'pr' | 'po' | 'stockTake'
+/** Stock batch / lot — ACTIVE / DEPLETED / EXPIRED */
+export const BATCH_STATUS_CONFIG: Record<string, StatusConfig> = {
+  ACTIVE: { label: 'Còn hàng', color: 'success' },
+  DEPLETED: { label: 'Đã hết', color: 'neutral' },
+  EXPIRED: { label: 'Hết hạn', color: 'danger' },
+}
+
+export type WarehouseStatusKind = 'doc' | 'pr' | 'po' | 'stockTake' | 'batch'
 
 const CONFIG_BY_KIND: Record<WarehouseStatusKind, Record<string, StatusConfig>> = {
   doc: DOC_STATUS_CONFIG,
   pr: PR_STATUS_CONFIG,
   po: PO_STATUS_CONFIG,
   stockTake: STOCK_TAKE_STATUS_CONFIG,
+  batch: BATCH_STATUS_CONFIG,
 }
 
 export function resolveWarehouseStatus(
@@ -142,4 +150,11 @@ export const STOCK_TAKE_STATUS_FILTER_OPTIONS = [
 export const GIN_ISSUE_TYPE_FILTER_OPTIONS = [
   { value: '', label: 'Tất cả loại xuất' },
   ...GIN_ISSUE_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+]
+
+export const BATCH_STATUS_FILTER_OPTIONS = [
+  { value: '', label: 'Tất cả trạng thái' },
+  { value: 'ACTIVE', label: 'Còn hàng' },
+  { value: 'DEPLETED', label: 'Đã hết' },
+  { value: 'EXPIRED', label: 'Hết hạn' },
 ]

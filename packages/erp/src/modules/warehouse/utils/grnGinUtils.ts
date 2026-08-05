@@ -63,6 +63,16 @@ export function formatGrnDate(row: { createdDate?: string; receivedAt?: string }
   return String(raw).slice(0, 10)
 }
 
+export function formatGinDate(row: {
+  createdDate?: string
+  issuedAt?: string
+  documentDate?: string
+}) {
+  const raw = row.issuedAt || row.documentDate || row.createdDate
+  if (!raw) return '—'
+  return String(raw).slice(0, 10)
+}
+
 export function computeGinLineStats(items: GinItemDto[] = []) {
   let totalQty = 0
   let totalValue = 0

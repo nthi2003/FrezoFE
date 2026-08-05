@@ -57,13 +57,17 @@ export function useUpdateAttendance() {
 /**
  * Check-in cho user hiện tại. Payload có thể chứa personId, contractId, tọa độ GPS
  * (nếu browser cho phép) và note. Backend tự set attendanceDate = hôm nay nếu bỏ trống.
+ *
+ * @param opts.skipSuccessToast — khi caller tự show UxEventPopup từ popupEvent
  */
-export function useCheckIn() {
+export function useCheckIn(opts?: { skipSuccessToast?: boolean }) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data: any) => attendanceApi.checkIn(data),
     onSuccess: () => {
-      toast.success('Đã check-in thành công!')
+      if (!opts?.skipSuccessToast) {
+        toast.success('Đã check-in thành công!')
+      }
       queryClient.invalidateQueries({ queryKey: ['attendance'] })
       queryClient.invalidateQueries({ queryKey: ['attendance', 'today'] })
       queryClient.invalidateQueries({ queryKey: ['attendance', 'my-month'] })

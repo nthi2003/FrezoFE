@@ -1,14 +1,17 @@
 import { useState, useMemo } from 'react'
 import {
-  Plus, Edit, Trash2, Eye, Building2, GitBranch, Search,
-  ChevronRight, ChevronDown, List, X,
+  Plus, Edit, Trash2, Eye, Building2, GitBranch,
+  ChevronRight, ChevronDown, List, Search,
+  CheckCircle, AlertCircle, Power,
+  type LucideIcon,
 } from 'lucide-react'
-import { AppTable } from '@/components/ui/AppTable'
+import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import {
   AppModal, Button, ConfirmDialog, PageHeader, PageGuideButton,
   EmptyState, ErrorState, Select,
-  IconActionButton, AppTooltip,
-  type PageGuideConfig,
+  IconActionButton, AppTooltip, StatusBadge, actionIconTone,
+  type PageGuideConfig, type StatusConfig,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import {
@@ -93,14 +96,14 @@ const SCALE_OPTIONS = [
   { value: 'CORPORATION', label: 'Tập đoàn' },
 ]
 
-const STATUS_LABEL: Record<string, { text: string; className: string }> = {
-  ACTIVE:     { text: 'Hoạt động',       className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  INACTIVE:   { text: 'Ngừng hoạt động', className: 'bg-neutral-100 text-neutral-500 border-neutral-200' },
-  SUSPENDED:  { text: 'Tạm ngưng',       className: 'bg-amber-50 text-amber-700 border-amber-200' },
-  MERGED:     { text: 'Đã sáp nhập',     className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  ACQUIRED:   { text: 'Đã mua lại',      className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  DISSOLVED:  { text: 'Đã giải thể',     className: 'bg-rose-50 text-rose-700 border-rose-200' },
-  LIQUIDATED: { text: 'Đã thanh lý',     className: 'bg-rose-50 text-rose-700 border-rose-200' },
+const STATUS_CONFIG: Record<string, StatusConfig & { icon?: LucideIcon }> = {
+  ACTIVE:     { label: 'Hoạt động',       color: 'success', icon: CheckCircle },
+  INACTIVE:   { label: 'Ngừng hoạt động', color: 'neutral', icon: Power },
+  SUSPENDED:  { label: 'Tạm ngưng',       color: 'warning', icon: AlertCircle },
+  MERGED:     { label: 'Đã sáp nhập',     color: 'info',    icon: GitBranch },
+  ACQUIRED:   { label: 'Đã mua lại',      color: 'info',    icon: GitBranch },
+  DISSOLVED:  { label: 'Đã giải thể',     color: 'danger',  icon: AlertCircle },
+  LIQUIDATED: { label: 'Đã thanh lý',     color: 'danger',  icon: AlertCircle },
 }
 
 const STATUS_FILTER_OPTIONS = [
@@ -183,6 +186,14 @@ export function OrganizationsPage() {
 
   const hasActiveFilters =
     Boolean(searchText.trim()) || typeFilter !== 'all' || statusFilter !== 'all'
+  const isFullyEmpty = !isLoading && !isError && dataList.length === 0
+  const isFilteredEmpty = !isLoading && !isError && dataList.length > 0 && filteredList.length === 0
+
+  const clearFilters = () => {
+    setSearchText('')
+    setTypeFilter('all')
+    setStatusFilter('all')
+  }
 
   const handleOpenCreate = (parentId?: string) => {
     setSelectedItem(null)
@@ -226,6 +237,100 @@ export function OrganizationsPage() {
 
   const isSubmitting = createReq.isPending || updateReq.isPending
 
+  const columns: AppTableColumn<any>[] = [
+    {
+      key: 'code',
+      title: 'Mã',
+      dataIndex: 'code',
+      render: (v: string) => (
+        <span className="font-mono text-xs font-bold text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded border border-neutral-200">
+          {v}
+        </span>
+      ),
+    },
+    {
+      key: 'name',
+      title: 'Tên tổ chức',
+      dataIndex: 'name',
+      render: (_: any, row: any) => (
+        <button type="button" onClick={() => setDetailOrg(row)} className="text-left group">
+          <div className="font-semibold text-neutral-800 group-hover:text-primary-700 transition-colors">
+            {row.name}
+          </div>
+          {row.nameEn && (
+            <div className="text-[11px] text-neutral-400 italic">{row.nameEn}</div>
+          )}
+        </button>
+      ),
+    },
+    {
+      key: 'type',
+      title: 'Loại',
+      dataIndex: 'type',
+      render: (v: string) => (
+        <span className="text-xs text-neutral-600">
+          {TYPE_OPTIONS.find((t) => t.value === v)?.label || v || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'email',
+      title: 'Email',
+      dataIndex: 'email',
+      render: (v: string) => v || '—',
+    },
+    {
+      key: 'taxCode',
+      title: 'Mã số thuế',
+      dataIndex: 'taxCode',
+      render: (v: string) => (v ? <span className="font-mono text-xs">{v}</span> : '—'),
+    },
+    {
+      key: 'status',
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      render: (v: string) => {
+        const cfg = STATUS_CONFIG[v] || STATUS_CONFIG.INACTIVE
+        return <StatusBadge {...cfg} />
+      },
+    },
+    {
+      key: 'actions',
+      title: 'Thao tác',
+      dataIndex: 'id',
+      width: 120,
+      align: 'right',
+      render: (_: any, row: any) => (
+        <div className="flex items-center justify-end gap-1">
+          <IconActionButton
+            tooltip="Xem chi tiết"
+            tone={actionIconTone.view}
+            size="sm"
+            onClick={() => setDetailOrg(row)}
+          >
+            <Eye size={14} />
+          </IconActionButton>
+          <IconActionButton
+            tooltip="Sửa"
+            tone={actionIconTone.edit}
+            size="sm"
+            onClick={() => handleOpenEdit(row)}
+          >
+            <Edit size={14} />
+          </IconActionButton>
+          <IconActionButton
+            tooltip="Xoá"
+            tone={actionIconTone.delete}
+            size="sm"
+            onClick={() => setConfirmDel(row)}
+          >
+            <Trash2 size={14} />
+          </IconActionButton>
+        </div>
+      ),
+    },
+  ]
+
   return (
     <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
@@ -234,7 +339,10 @@ export function OrganizationsPage() {
         actions={
           <div className="flex flex-wrap gap-2 items-center">
             <PageGuideButton guide={ORGANIZATIONS_GUIDE} />
-            <Button onClick={() => handleOpenCreate()} className="gap-2">
+            <Button
+              onClick={() => handleOpenCreate()}
+              className="gap-2 bg-primary-600 hover:bg-primary-700 text-white h-9"
+            >
               <Plus size={16} /> Thêm tổ chức
             </Button>
           </div>
@@ -247,60 +355,12 @@ export function OrganizationsPage() {
         </p>
       )}
 
-      <div className="sticky top-0 z-10 -mx-6 px-6 py-2 bg-neutral-50/95 backdrop-blur border-y border-neutral-200/80">
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="relative flex-1 min-w-[200px] max-w-md">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <input
-              type="search"
-              placeholder="Tìm mã, tên, email, mã số thuế…"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="h-9 w-full pl-8 pr-3 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300"
-              aria-label="Tìm tổ chức"
-            />
-          </div>
-
-          <div className="min-w-[140px]">
-            <Select
-              options={[
-                { value: 'all', label: 'Tất cả loại' },
-                ...TYPE_OPTIONS,
-              ]}
-              value={typeFilter}
-              onChange={setTypeFilter}
-              placeholder="Loại"
-              aria-label="Lọc theo loại"
-              showSearch={TYPE_OPTIONS.length > 8}
-            />
-          </div>
-
-          <div className="min-w-[140px]">
-            <Select
-              options={STATUS_FILTER_OPTIONS}
-              value={statusFilter}
-              onChange={setStatusFilter}
-              placeholder="Trạng thái"
-              aria-label="Lọc theo trạng thái"
-              showSearch={false}
-            />
-          </div>
-
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setSearchText('')
-                setTypeFilter('all')
-                setStatusFilter('all')
-              }}
-            >
-              <X size={12} className="mr-1" /> Xoá lọc
-            </Button>
-          )}
-
-          <div className="ml-auto flex items-center bg-white border border-neutral-200 rounded-md p-0.5">
+      <FilterBar
+        hasActiveFilters={hasActiveFilters}
+        onClear={clearFilters}
+        countLabel={`${filteredList.length} bản ghi${hasActiveFilters ? ' (đã lọc)' : ''}`}
+        extra={
+          <div className="flex items-center bg-white border border-neutral-200 rounded-md p-0.5">
             <button
               type="button"
               onClick={() => setView('tree')}
@@ -308,6 +368,7 @@ export function OrganizationsPage() {
                 view === 'tree' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
               }`}
               aria-label="Chế độ cây gia phả"
+              aria-pressed={view === 'tree'}
             >
               <GitBranch size={13} /> Cây gia phả
             </button>
@@ -318,16 +379,50 @@ export function OrganizationsPage() {
                 view === 'table' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
               }`}
               aria-label="Chế độ danh sách"
+              aria-pressed={view === 'table'}
             >
               <List size={13} /> Danh sách
             </button>
           </div>
-
-          <span className="text-xs text-neutral-500 tabular-nums">
-            {filteredList.length} bản ghi{hasActiveFilters ? ' (đã lọc)' : ''}
-          </span>
+        }
+      >
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="search"
+            placeholder="Tìm mã, tên, email, mã số thuế…"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="h-9 w-full pl-8 pr-3 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300"
+            aria-label="Tìm tổ chức"
+          />
         </div>
-      </div>
+
+        <div className="min-w-[140px]">
+          <Select
+            options={[
+              { value: 'all', label: 'Tất cả loại' },
+              ...TYPE_OPTIONS,
+            ]}
+            value={typeFilter}
+            onChange={setTypeFilter}
+            placeholder="Loại"
+            aria-label="Lọc theo loại"
+            showSearch={TYPE_OPTIONS.length > 8}
+          />
+        </div>
+
+        <div className="min-w-[140px]">
+          <Select
+            options={STATUS_FILTER_OPTIONS}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            placeholder="Trạng thái"
+            aria-label="Lọc theo trạng thái"
+            showSearch={false}
+          />
+        </div>
+      </FilterBar>
 
       {isError ? (
         <div className="border rounded-xl bg-white">
@@ -338,20 +433,20 @@ export function OrganizationsPage() {
             isRetrying={isFetching}
           />
         </div>
-      ) : !isLoading && filteredList.length === 0 ? (
+      ) : isFullyEmpty || isFilteredEmpty ? (
         <div className="border rounded-xl bg-white">
           <EmptyState
             icon={Building2}
-            title={dataList.length === 0 ? 'Chưa có tổ chức nào' : 'Không có bản ghi phù hợp bộ lọc'}
+            title={isFullyEmpty ? 'Chưa có tổ chức nào' : 'Không có bản ghi phù hợp bộ lọc'}
             description={
-              dataList.length === 0
+              isFullyEmpty
                 ? 'Tạo công ty chủ quản đầu tiên để bắt đầu.'
                 : 'Thử đổi bộ lọc hoặc xoá lọc.'
             }
             action={
-              dataList.length === 0
+              isFullyEmpty
                 ? { label: 'Thêm công ty đầu tiên', onClick: () => handleOpenCreate() }
-                : undefined
+                : { label: 'Xoá lọc', onClick: clearFilters }
             }
           />
         </div>
@@ -381,84 +476,14 @@ export function OrganizationsPage() {
       ) : (
         <AppTable
           data={filteredList}
+          columns={columns}
           isLoading={isLoading}
           showSearch={false}
-          density="compact"
-          loadingRows={6}
-          columns={[
-            {
-              title: 'Mã',
-              dataIndex: 'code',
-              render: (v: string) => (
-                <span className="font-mono text-xs font-bold text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded border border-neutral-200">
-                  {v}
-                </span>
-              ),
-            },
-            {
-              title: 'Tên tổ chức',
-              dataIndex: 'name',
-              render: (_: any, row: any) => (
-                <button type="button" onClick={() => setDetailOrg(row)} className="text-left group">
-                  <div className="font-semibold text-neutral-800 group-hover:text-primary-700 transition-colors">
-                    {row.name}
-                  </div>
-                  {row.nameEn && (
-                    <div className="text-[11px] text-neutral-400 italic">{row.nameEn}</div>
-                  )}
-                </button>
-              ),
-            },
-            {
-              title: 'Loại',
-              dataIndex: 'type',
-              render: (v: string) => (
-                <span className="text-xs">
-                  {TYPE_OPTIONS.find((t) => t.value === v)?.label || v}
-                </span>
-              ),
-            },
-            {
-              title: 'Email',
-              dataIndex: 'email',
-              render: (v: string) => v || '—',
-            },
-            {
-              title: 'Mã số thuế',
-              dataIndex: 'taxCode',
-              render: (v: string) => (v ? <span className="font-mono text-xs">{v}</span> : '—'),
-            },
-            {
-              title: 'Trạng thái',
-              dataIndex: 'status',
-              render: (v: string) => {
-                const cfg = STATUS_LABEL[v] || STATUS_LABEL.INACTIVE
-                return (
-                  <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider rounded border ${cfg.className}`}>
-                    {cfg.text}
-                  </span>
-                )
-              },
-            },
-            {
-              title: 'Thao tác',
-              dataIndex: 'id',
-              width: 160,
-              render: (_: any, row: any) => (
-                <div className="flex items-center gap-1">
-                  <IconActionButton tooltip="Xem chi tiết" tone="blue" onClick={() => setDetailOrg(row)}>
-                    <Eye size={14} />
-                  </IconActionButton>
-                  <IconActionButton tooltip="Sửa" tone="primary" onClick={() => handleOpenEdit(row)}>
-                    <Edit size={14} />
-                  </IconActionButton>
-                  <IconActionButton tooltip="Xoá" tone="rose" onClick={() => setConfirmDel(row)}>
-                    <Trash2 size={14} />
-                  </IconActionButton>
-                </div>
-              ),
-            },
-          ]}
+          defaultDensity="comfortable"
+          showDensityToggle
+          pageSize={10}
+          pageSizeOptions={[10]}
+          onRefresh={() => void refetch()}
         />
       )}
 
@@ -542,7 +567,7 @@ function OrgTreeNode({
 }: OrgTreeNodeProps) {
   const [expanded, setExpanded] = useState(depth === 0)
   const hasChildren = Array.isArray(node.children) && node.children.length > 0
-  const statusCfg = STATUS_LABEL[node.status || 'ACTIVE'] || STATUS_LABEL.ACTIVE
+  const statusCfg = STATUS_CONFIG[node.status || 'ACTIVE'] || STATUS_CONFIG.ACTIVE
   const typeLabel = TYPE_OPTIONS.find((t) => t.value === node.type)?.label || node.type
   const isRoot = depth === 0
 
@@ -634,31 +659,29 @@ function OrgTreeNode({
           </div>
         </button>
 
-        <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded border shrink-0 ${statusCfg.className}`}>
-          {statusCfg.text}
-        </span>
+        <StatusBadge {...statusCfg} compact />
 
         <div className="flex items-center gap-0.5 shrink-0 opacity-45 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
           <IconActionButton
             tooltip="Thêm đơn vị con"
-            tone="primary"
-            className="text-neutral-500 hover:text-primary-700 hover:bg-primary-50"
+            tone={actionIconTone.edit}
+            size="sm"
             onClick={(e) => { e.stopPropagation(); onAddChild(node) }}
           >
             <Plus size={13} />
           </IconActionButton>
           <IconActionButton
             tooltip="Sửa"
-            tone="primary"
-            className="text-neutral-500 hover:text-primary-700 hover:bg-primary-50"
+            tone={actionIconTone.edit}
+            size="sm"
             onClick={(e) => { e.stopPropagation(); onEdit(node) }}
           >
             <Edit size={13} />
           </IconActionButton>
           <IconActionButton
             tooltip="Xoá"
-            tone="rose"
-            className="text-neutral-500"
+            tone={actionIconTone.delete}
+            size="sm"
             onClick={(e) => { e.stopPropagation(); onDelete(node) }}
           >
             <Trash2 size={13} />

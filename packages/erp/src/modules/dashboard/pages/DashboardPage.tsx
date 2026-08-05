@@ -293,7 +293,7 @@ export function DashboardPage() {
 
   const tasks = (tasksRaw as { status?: string }[] | undefined) ?? []
   const tasksFallbackIncomplete = useMemo(
-    () => tasks.filter((t) => t.status !== 'DONE').length,
+    () => tasks.filter((t) => t.status !== 'DONE' && t.status !== 'CLOSED' && t.status !== 'CANCELLED').length,
     [tasks],
   )
 
@@ -409,7 +409,7 @@ export function DashboardPage() {
           onClick={() => nav('/task')}
           hint={
             hasSummaryPending
-              ? (incompleteTaskCount > 0 ? 'Toàn hệ thống · chưa DONE' : 'Không còn task tồn')
+              ? (incompleteTaskCount > 0 ? 'Toàn hệ thống · chưa đóng' : 'Không còn task tồn')
               : totalTaskCount > 0
                 ? `${incompleteTaskCount} trong ${totalTaskCount}`
                 : 'Chưa có task'

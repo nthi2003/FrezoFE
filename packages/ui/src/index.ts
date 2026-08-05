@@ -121,5 +121,5 @@ export {
 } from './tooltip'
 export type { AppTooltipProps } from './tooltip'
 
-export { IconActionButton } from './IconActionButton'
+export { IconActionButton, actionIconTone } from './IconActionButton'
 export type { IconActionButtonProps, IconActionTone } from './IconActionButton'

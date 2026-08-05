@@ -38,9 +38,32 @@ export function useUpdateTicketStatus() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => ticketApi.updateStatus(id, status),
-    onSuccess: () => {
-      toast.success('Cập nhật trạng thái thành công')
+    onSuccess: (_data, vars) => {
+      toast.success(
+        vars.status === 'RESOLVED'
+          ? 'Đã gửi hoàn thành — chờ quản lý duyệt'
+          : 'Cập nhật trạng thái thành công',
+      )
       queryClient.invalidateQueries({ queryKey: ['tickets'] })
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Không cập nhật được trạng thái')
+    },
+  })
+}
+
+/** Người giao / admin duyệt hoặc trả lại ticket RESOLVED. */
+export function useReviewTicket() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, approved, note }: { id: string; approved: boolean; note?: string }) =>
+      ticketApi.review(id, { approved, note }),
+    onSuccess: (_data, vars) => {
+      toast.success(vars.approved ? 'Đã duyệt và đóng ticket' : 'Đã trả lại ticket cho người xử lý')
+      queryClient.invalidateQueries({ queryKey: ['tickets'] })
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Không duyệt được ticket')
     },
   })
 }

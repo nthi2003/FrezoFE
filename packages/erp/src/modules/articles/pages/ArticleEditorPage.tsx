@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft, Save, Loader2, Trash2, FileText, Calendar as CalendarIcon,
   Tag as TagIcon, User as UserIcon, Image as ImageIcon, Info, Send, Archive,
-  CheckCircle2,
+  CheckCircle2, Globe, Building2,
 } from 'lucide-react'
 import {
   Button,
@@ -46,6 +46,7 @@ import { Can, PermissionButton } from '@/lib/permissions'
 import { useAuthStore } from '@/stores/authStore'
 import { personApi } from '@/modules/qlns/services/personApi'
 import { organizationApi } from '@/modules/qtht/services/qthtApi'
+import { toast } from 'sonner'
 
 // ============================================================
 // Config
@@ -78,9 +79,20 @@ const TYPE_OPTIONS = [
   { value: 'OTHER', label: 'Khác' },
 ]
 
+const PUBLISH_SCOPE_OPTIONS = [
+  {
+    value: 'INTERNAL',
+    label: 'Nội bộ (intranet)',
+  },
+  {
+    value: 'PUBLIC',
+    label: 'Công khai (landing)',
+  },
+]
+
 const EDITOR_GUIDE: PageGuideConfig = {
   title: 'Soạn bài viết',
-  subtitle: 'Tạo nháp — hệ thống tự cấp mã bài. Gửi duyệt khi sẵn sàng.',
+  subtitle: 'Một form cho tin nội bộ và bài công khai. Chọn phạm vi xuất bản rồi gửi duyệt.',
   docHref: '/docs/guide-articles',
   sections: [
     {
@@ -92,16 +104,18 @@ const EDITOR_GUIDE: PageGuideConfig = {
           description: 'Hai ô bắt buộc. Không cần nhập mã bài — hệ thống tự tạo sau khi lưu.',
         },
         {
-          title: 'Chọn người duyệt (tuỳ chọn)',
-          description: 'Chọn quản lý sẽ nhận bài khi bạn bấm Gửi duyệt.',
+          title: 'Chọn phạm vi xuất bản',
+          description:
+            'Nội bộ → hiển thị trên /bai-viet (nhân viên). Công khai → landing + intranet sau khi xuất bản.',
         },
         {
-          title: 'Lưu nháp',
-          description: 'Bấm Lưu nháp. Mã bài hiện ở thanh trên / sidebar (chỉ xem hoặc sao chép).',
+          title: 'Chọn người duyệt',
+          description: 'Bắt buộc trước khi Gửi duyệt. Chỉ người này được Duyệt / Xuất bản.',
         },
         {
-          title: 'Gửi duyệt khi sẵn sàng',
-          description: 'Bấm Gửi duyệt. Người duyệt sẽ thấy bài ở trạng thái Chờ duyệt.',
+          title: 'Lưu nháp → Gửi duyệt → Duyệt → Xuất bản',
+          description:
+            'DRAFT → WAITING_APPROVAL → APPROVED → PUBLISHED. Từ chối về REJECTED (sửa rồi gửi lại).',
         },
       ],
     },
@@ -167,6 +181,8 @@ export function ArticleEditorPage() {
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [leaveConfirm, setLeaveConfirm] = useState<null | (() => void)>(null)
+  const [rejectNote, setRejectNote] = useState('')
+  const [rejectOpen, setRejectOpen] = useState(false)
 
   const initial = useMemo(() => {
     const anyData = raw as any
@@ -216,6 +232,7 @@ export function ArticleEditorPage() {
   const authorId = (useWatch({ control, name: 'authorId' }) as string) || ''
   const organizationId = (useWatch({ control, name: 'organizationId' }) as string) || ''
   const managerId = (useWatch({ control, name: 'managerId' }) as string) || ''
+  const publishScope = (useWatch({ control, name: 'publishScope' }) as string) || 'INTERNAL'
 
   useEffect(() => {
     if (isEdit && initial) {
@@ -289,6 +306,10 @@ export function ArticleEditorPage() {
 
   const handleSubmitForApproval = () => {
     if (!id || !canSubmit) return
+    if (!managerId) {
+      toast.error('Chọn người duyệt trước khi gửi duyệt')
+      return
+    }
     submitReq.mutate(id)
   }
 
@@ -299,7 +320,25 @@ export function ArticleEditorPage() {
 
   const handleReview = (approved: boolean) => {
     if (!id || !canReview || !canActAsArticleApprover) return
-    reviewReq.mutate({ id, approved })
+    if (!approved) {
+      setRejectNote('')
+      setRejectOpen(true)
+      return
+    }
+    reviewReq.mutate({ id, approved: true })
+  }
+
+  const confirmReject = () => {
+    if (!id) return
+    reviewReq.mutate(
+      { id, approved: false, note: rejectNote.trim() || undefined },
+      {
+        onSuccess: () => {
+          setRejectOpen(false)
+          setRejectNote('')
+        },
+      },
+    )
   }
 
   const handlePublish = () => {
@@ -593,9 +632,45 @@ export function ArticleEditorPage() {
                     <StatusBadge {...statusCfg} />
                   </div>
                 </SidebarField>
+                {status === 'REJECTED' && initial?.rejectNote && (
+                  <SidebarField label="Lý do từ chối">
+                    <p className="text-xs text-danger leading-relaxed bg-red-50 border border-red-100 rounded-md px-2 py-1.5">
+                      {initial.rejectNote}
+                    </p>
+                  </SidebarField>
+                )}
+                <SidebarField
+                  label="Phạm vi xuất bản"
+                  hint="Nội bộ = intranet. Công khai = landing + intranet sau khi xuất bản."
+                >
+                  <Select
+                    options={PUBLISH_SCOPE_OPTIONS}
+                    value={publishScope}
+                    onChange={(v) => {
+                      if (!canEditContent) return
+                      setValue('publishScope', v || 'INTERNAL', {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      })
+                    }}
+                    placeholder="-- Chọn phạm vi --"
+                    disabled={!canEditContent}
+                  />
+                  <p className="mt-1.5 text-[11px] text-neutral-500 flex items-center gap-1">
+                    {publishScope === 'PUBLIC' ? (
+                      <>
+                        <Globe size={11} /> Hiện trên website công khai
+                      </>
+                    ) : (
+                      <>
+                        <Building2 size={11} /> Chỉ nhân viên đăng nhập (/bai-viet)
+                      </>
+                    )}
+                  </p>
+                </SidebarField>
                 <SidebarField
                   label="Người duyệt"
-                  hint="Chọn quản lý nhận bài khi gửi duyệt."
+                  hint="Bắt buộc trước khi gửi duyệt."
                 >
                   <Select
                     options={managerOptions}
@@ -752,6 +827,54 @@ export function ArticleEditorPage() {
         cancelText="Ở lại"
         variant="warning"
       />
+
+      {rejectOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white shadow-xl border border-neutral-200 p-5 space-y-4">
+            <div>
+              <h3 className="text-base font-semibold text-neutral-900">Từ chối bài viết</h3>
+              <p className="mt-1 text-sm text-neutral-500">
+                Có thể ghi lý do để tác giả sửa và gửi lại.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-neutral-600">Lý do từ chối</Label>
+              <Input
+                value={rejectNote}
+                onChange={(e) => setRejectNote(e.target.value)}
+                placeholder="Ví dụ: cần bổ sung ảnh / sửa chính tả…"
+                className="h-9"
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setRejectOpen(false)
+                  setRejectNote('')
+                }}
+                disabled={reviewReq.isPending}
+              >
+                Hủy
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-danger border-danger/30 hover:bg-red-50"
+                onClick={confirmReject}
+                disabled={reviewReq.isPending}
+              >
+                {reviewReq.isPending ? (
+                  <Loader2 size={14} className="mr-1.5 animate-spin" />
+                ) : null}
+                Xác nhận từ chối
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

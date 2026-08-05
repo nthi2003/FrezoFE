@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Target, Star } from 'lucide-react'
+import { Target, Star, Gift } from 'lucide-react'
 import { useMenus } from '@/modules/menus/hooks/useMenus'
 import { QlnsHubLayout } from '../components/QlnsHubLayout'
 import {
@@ -11,13 +11,15 @@ import {
 } from '../utils/qlnsRoutes'
 import { OkrsPage } from './OkrsPage'
 import { PerformanceReviewsPage } from './PerformanceReviewsPage'
+import { RecognitionPage } from './RecognitionPage'
 
 const TAB_ICONS = {
   okrs: Target,
   reviews: Star,
+  recognition: Gift,
 } as const
 
-/** Wave 2 hub — stub embeds legacy pages. */
+/** Wave 2 hub — OKR · Reviews · Ghi nhận (token). */
 export function PerformanceHubPage() {
   const [searchParams] = useSearchParams()
   const { flatMenuFeUrls } = useMenus()
@@ -42,7 +44,7 @@ export function PerformanceHubPage() {
   return (
     <QlnsHubLayout
       title="Hiệu suất"
-      description="OKR, mục tiêu và đánh giá hiệu suất nhân viên."
+      description="OKR, đánh giá hiệu suất và ghi nhận đóng góp bằng token."
       tabs={tabs}
       tab={tab}
       visibleTabKeys={visibleTabKeys}
@@ -50,8 +52,9 @@ export function PerformanceHubPage() {
       syncKey={flatMenuFeUrls}
       onResolveTab={(raw) => resolvePerformanceTab(raw, flatMenuFeUrls)}
     >
-      {tab === 'okrs' && <OkrsPage />}
-      {tab === 'reviews' && <PerformanceReviewsPage />}
+      {tab === 'okrs' && <OkrsPage embedded />}
+      {tab === 'reviews' && <PerformanceReviewsPage embedded />}
+      {tab === 'recognition' && <RecognitionPage embedded />}
     </QlnsHubLayout>
   )
 }

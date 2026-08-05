@@ -1,10 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { batchApi } from '../services/batchApi'
+import { batchApi, type BatchListParams } from '../services/batchApi'
 
-export function useBatches(params?: {
-  warehouseId?: string
-  productId?: string
-}) {
+export function useBatches(params?: BatchListParams) {
   return useQuery({
     queryKey: ['warehouse', 'batches', params],
     queryFn: () => batchApi.list(params),

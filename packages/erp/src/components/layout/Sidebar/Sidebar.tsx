@@ -117,7 +117,7 @@ function RailFlyout({
       onMouseEnter={onKeepOpen}
       onMouseLeave={onRequestClose}
       style={{ top, left: anchor.right + 8, maxHeight: FLYOUT_MAX_HEIGHT }}
-      className="fixed z-50 w-56 animate-fade-in overflow-y-auto rounded-lg border border-sidebar-border bg-sidebar-bg p-1.5 shadow-card-md scrollbar-thin"
+      className="fixed z-50 w-56 animate-fade-in overflow-y-auto rounded-lg border border-sidebar-border bg-sidebar-bg p-1.5 shadow-card-md sidebar-scrollbar"
     >
       <div className="px-2 py-1.5 text-2xs font-semibold uppercase tracking-wider text-sidebar-text">
         {node.name}
@@ -371,7 +371,7 @@ export function Sidebar() {
     >
       <div
         className={`
-        flex items-center justify-center h-[60px] px-4 border-b border-sidebar-border relative
+        flex items-center justify-center h-[60px] px-4 border-b border-sidebar-border relative shrink-0
       `}
       >
         {!sidebarCollapsed && (
@@ -417,7 +417,7 @@ export function Sidebar() {
 
       <nav
         className={`
-          flex-1 overflow-y-auto scrollbar-thin
+          flex-1 min-h-0 overflow-y-auto overflow-x-hidden sidebar-scrollbar
           ${
             sidebarCollapsed
               ? 'flex flex-col items-center gap-1.5 py-3 px-0'
@@ -461,8 +461,8 @@ export function Sidebar() {
       <div
         className={
           sidebarCollapsed
-            ? 'flex flex-col items-center gap-1.5 px-0 py-3'
-            : 'px-2 pb-1 space-y-0.5'
+            ? 'flex flex-col items-center gap-1.5 px-0 py-3 shrink-0'
+            : 'px-2 pb-1 space-y-0.5 shrink-0'
         }
       >
         <button
@@ -515,7 +515,7 @@ export function Sidebar() {
         </button>
       </div>
 
-      <div className="border-t border-sidebar-border p-2">
+      <div className="border-t border-sidebar-border p-2 shrink-0">
         <div
           className={`
           flex items-center gap-3 p-2 rounded-lg

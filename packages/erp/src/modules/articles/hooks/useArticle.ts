@@ -153,8 +153,8 @@ export function useSubmitArticle() {
 export function useReviewArticle() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, approved }: { id: string; approved: boolean }) =>
-      articleApi.review(id, { approved }),
+    mutationFn: ({ id, approved, note }: { id: string; approved: boolean; note?: string }) =>
+      articleApi.review(id, { approved, note }),
     onSuccess: (_res, vars) => {
       toast.success(vars.approved ? 'Đã duyệt bài viết' : 'Đã từ chối bài viết')
       qc.invalidateQueries({ queryKey: ['articles'] })

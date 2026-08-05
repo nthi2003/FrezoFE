@@ -108,17 +108,17 @@ export function PrCreateModal({
 
   const productMap = useMemo(() => {
     const map = new Map<string, PrProductOption>()
-    for (const p of products) {
+    for (const p of products ?? []) {
       if (p?.id) map.set(p.id, p)
     }
     return map
   }, [products])
 
-  const hasProductOptions = products.some((p) => !!p?.id)
+  const hasProductOptions = (products ?? []).some((p) => !!p?.id)
 
   const supplierSelectOptions = useMemo(
     () =>
-      supplierOptions.map((s) => ({
+      (supplierOptions ?? []).map((s) => ({
         value: s.id,
         label: s.label,
       })),

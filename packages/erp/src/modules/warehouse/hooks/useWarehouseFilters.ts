@@ -18,10 +18,10 @@ export function useWarehouseFilters(options: UseWarehouseFiltersOptions = {}) {
   const [status, setStatus] = useState('')
   const { data: warehouses = [] } = useWarehouses()
 
-  const warehouseOptions = useMemo(
-    () => warehouses as Array<{ id: string; name?: string; code?: string }>,
-    [warehouses],
-  )
+  const warehouseOptions = useMemo(() => {
+    const list = warehouses as Array<{ id: string; name?: string; code?: string }> | undefined
+    return Array.isArray(list) ? list.filter((w) => Boolean(w?.id)) : []
+  }, [warehouses])
 
   const hasActiveFilters = Boolean(warehouseId || status)
 

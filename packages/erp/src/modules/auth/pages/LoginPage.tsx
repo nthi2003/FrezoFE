@@ -4,6 +4,7 @@
 // ============================================================
 
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Eye, EyeOff, Loader2, AlertCircle, LogIn, ShieldCheck, Settings2, X,
   Globe, Server, Database, Monitor, Lock, WifiOff, ShieldAlert, ServerCrash,
@@ -36,6 +37,7 @@ function FloatingParticles() {
 }
 
 export function LoginPage() {
+  const nav = useNavigate()
   const { login, isLoading, isError, error } = useLogin()
   const [showPassword, setShowPassword] = useState(false)
   const [form, setForm] = useState({ username: '', password: '' })
@@ -359,7 +361,13 @@ export function LoginPage() {
             <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-5" noValidate>
 
               {/* Rich error card — icon + title + hint + optional forgot-password action */}
-              {authError && <AuthErrorCard error={authError} countdown={retryCountdown} />}
+              {authError && (
+                <AuthErrorCard
+                  error={authError}
+                  countdown={retryCountdown}
+                  onForgotPassword={() => nav('/forgot-password')}
+                />
+              )}
 
               {/* Username */}
               <div className="space-y-1.5">
@@ -492,7 +500,11 @@ export function LoginPage() {
                   </div>
                   <span className="text-xs text-neutral-500 group-hover:text-neutral-700 transition-colors select-none">Ghi nhớ đăng nhập</span>
                 </label>
-                <button type="button" className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors duration-200">
+                <button
+                  type="button"
+                  onClick={() => nav('/forgot-password')}
+                  className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors duration-200"
+                >
                   Quên mật khẩu?
                 </button>
               </div>
@@ -658,7 +670,13 @@ const SEVERITY_ICON: Record<AuthError['severity'], typeof AlertCircle> = {
   server:  ServerCrash,
 }
 
-function AuthErrorCard({ error, countdown }: { error: AuthError; countdown: number }) {
+function AuthErrorCard({
+  error, countdown, onForgotPassword,
+}: {
+  error: AuthError
+  countdown: number
+  onForgotPassword?: () => void
+}) {
   const styles = SEVERITY_STYLES[error.severity]
   const Icon = SEVERITY_ICON[error.severity]
 
@@ -682,6 +700,7 @@ function AuthErrorCard({ error, countdown }: { error: AuthError; countdown: numb
         {error.showForgotPassword && (
           <button
             type="button"
+            onClick={onForgotPassword}
             className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 transition-colors"
           >
             <KeyRound size={14} /> Đặt lại mật khẩu <ArrowRight size={14} />

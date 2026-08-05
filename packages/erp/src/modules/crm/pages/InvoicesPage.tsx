@@ -75,6 +75,8 @@ type CreateForm = {
   issuedDate: string
   dueDate: string
   notes: string
+  salespersonUsername: string
+  commissionRatePercent: string
   items: LineDraft[]
 }
 
@@ -101,6 +103,8 @@ function emptyCreateForm(customerId = '', customerName = ''): CreateForm {
     issuedDate: todayIso(),
     dueDate: '',
     notes: '',
+    salespersonUsername: '',
+    commissionRatePercent: '',
     items: [emptyLine()],
   }
 }
@@ -428,6 +432,10 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
         issuedDate: form.issuedDate || undefined,
         dueDate: form.dueDate || undefined,
         notes: form.notes.trim() || undefined,
+        salespersonUsername: form.salespersonUsername.trim() || undefined,
+        commissionRatePercent: form.commissionRatePercent.trim()
+          ? Number(form.commissionRatePercent)
+          : undefined,
         status: 'DRAFT',
         items: result.items,
       },
@@ -477,6 +485,21 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
       align: 'right',
       render: (_, inv) => (
         <span className="font-mono tabular-nums">{formatCurrency(inv.total)}</span>
+      ),
+    },
+    {
+      key: 'salespersonUsername',
+      title: 'Sale / HH',
+      render: (_, inv) => (
+        <div className="text-xs">
+          <div className="font-mono text-neutral-700">{inv.salespersonUsername || '—'}</div>
+          {inv.commissionAmount != null && (
+            <div className="text-emerald-700 tabular-nums">
+              {formatCurrency(Number(inv.commissionAmount))}
+              {inv.commissionRatePercent != null ? ` (${Number(inv.commissionRatePercent).toFixed(1)}%)` : ''}
+            </div>
+          )}
+        </div>
       ),
     },
     {
@@ -826,6 +849,31 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
                 className="w-full border rounded-md px-3 py-2 text-sm"
                 value={form.dueDate}
                 onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="mb-1 block">Sale phụ trách (username)</Label>
+              <input
+                className="w-full border rounded-md px-3 py-2 text-sm font-mono"
+                placeholder="vd: sale01 — trống = lấy từ Deal"
+                value={form.salespersonUsername}
+                onChange={(e) => setForm({ ...form, salespersonUsername: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block">% hoa hồng (override)</Label>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.01}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                placeholder="Trống = dùng mức đã cài"
+                value={form.commissionRatePercent}
+                onChange={(e) => setForm({ ...form, commissionRatePercent: e.target.value })}
               />
             </div>
           </div>

@@ -8,8 +8,12 @@ export const sessionApi = {
     axiosClient.get<ApiResponse<any>>('/auth/session/active/paged', { params }).then(res => res.data),
   revoke: (id: string) =>
     axiosClient.post<ApiResponse<any>>(`/auth/session/revoke/${id}`).then(res => res.data),
-  revokeAll: () =>
-    axiosClient.post<ApiResponse<any>>('/auth/session/revoke-all').then(res => res.data),
+  revokeAll: (currentSessionId: string) =>
+    axiosClient.post<ApiResponse<any>>('/auth/session/revoke-all', null, {
+      params: { currentSessionId },
+    }).then(res => res.data),
   getCount: () =>
     axiosClient.get<ApiResponse<any>>('/auth/session/count').then(res => res.data),
+  heartbeat: () =>
+    axiosClient.post<ApiResponse<{ ok: boolean }>>('/auth/session/heartbeat').then(res => res.data.data),
 }

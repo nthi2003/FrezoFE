@@ -46,3 +46,16 @@ export function useDeleteTask() {
     },
   })
 }
+
+export function useReviewTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, approved, note }: { id: string; approved: boolean; note?: string }) =>
+      taskApi.review(id, { approved, note }),
+    onSuccess: (_data, vars) => {
+      toast.success(vars.approved ? 'Đã duyệt và đóng công việc' : 'Đã trả lại công việc')
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+    },
+    onError: (error: any) => toast.error(error?.response?.data?.message || 'Không duyệt được công việc'),
+  })
+}

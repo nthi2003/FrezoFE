@@ -256,6 +256,9 @@ export interface Invoice {
   status: InvoiceStatus
   glJournalEntryId?: string
   notes?: string
+  salespersonUsername?: string
+  commissionRatePercent?: number
+  commissionAmount?: number
   items?: InvoiceItem[]
 }
 
@@ -305,3 +308,72 @@ export const invoicesApi = {
       })
       .then((r) => r.data),
 }
+
+// -------- Commissions (hoa hồng sale) --------
+export interface CommissionRule {
+  id: string
+  salespersonUsername: string
+  ratePercent: number
+  active?: boolean
+  note?: string
+}
+
+export interface CommissionEntry {
+  id: string
+  invoiceId: string
+  invoiceCode?: string
+  dealId?: string
+  salespersonUsername: string
+  baseAmount: number
+  ratePercent: number
+  commissionAmount: number
+  itemQuantity?: number
+  status: 'PENDING' | 'APPROVED' | 'PAID' | 'VOID' | string
+  accruedAt?: string
+  notes?: string
+}
+
+export interface CommissionDashboard {
+  totalCommission: number
+  totalInvoices: number
+  totalQuantity: number
+  salespersonCount: number
+  defaultRatePercent: number
+  bySalesperson: {
+    salespersonUsername: string
+    invoiceCount: number
+    totalCommission: number
+    totalBase: number
+    totalQuantity: number
+  }[]
+}
+
+export const commissionsApi = {
+  dashboard: () =>
+    axiosClient.get<ApiResponse<CommissionDashboard>>('/crm/commissions/dashboard').then((r) => r.data.data),
+  listRules: () =>
+    axiosClient.get<ApiResponse<CommissionRule[]>>('/crm/commissions/rules').then((r) => r.data.data),
+  upsertRule: (data: { salespersonUsername: string; ratePercent: number; active?: boolean; note?: string }) =>
+    axiosClient.post<ApiResponse<CommissionRule>>('/crm/commissions/rules', data).then((r) => r.data.data),
+  deleteRule: (id: string) =>
+    axiosClient.delete<ApiResponse<void>>(`/crm/commissions/rules/${id}`).then((r) => r.data),
+  resolveRate: (salespersonUsername?: string) =>
+    axiosClient
+      .get<ApiResponse<{ ratePercent: number }>>('/crm/commissions/resolve-rate', {
+        params: salespersonUsername ? { salespersonUsername } : {},
+      })
+      .then((r) => r.data.data),
+  listEntries: (salespersonUsername?: string) =>
+    axiosClient
+      .get<ApiResponse<CommissionEntry[]>>('/crm/commissions/entries', {
+        params: salespersonUsername ? { salespersonUsername } : {},
+      })
+      .then((r) => r.data.data),
+  approve: (id: string) =>
+    axiosClient.patch<ApiResponse<CommissionEntry>>(`/crm/commissions/entries/${id}/approve`).then((r) => r.data.data),
+  markPaid: (id: string) =>
+    axiosClient.patch<ApiResponse<CommissionEntry>>(`/crm/commissions/entries/${id}/mark-paid`).then((r) => r.data.data),
+  voidEntry: (id: string) =>
+    axiosClient.patch<ApiResponse<CommissionEntry>>(`/crm/commissions/entries/${id}/void`).then((r) => r.data.data),
+}
+

@@ -46,7 +46,11 @@ export function FefoSuggestPanel({
     )
   }
 
-  if (isError || !data?.suggestions?.length) {
+  const suggestions = (Array.isArray(data?.suggestions) ? data.suggestions : []).filter(
+    (s): s is FefoBatchSuggestion => Boolean(s?.batchId),
+  )
+
+  if (isError || suggestions.length === 0) {
     return (
       <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
         Không có lô tồn cho SP này tại kho.
@@ -54,8 +58,7 @@ export function FefoSuggestPanel({
     )
   }
 
-  const suggestions = data.suggestions
-  const allocated = data.allocatedQty ?? 0
+  const allocated = data?.allocatedQty ?? 0
   const ok = allocated >= qty
 
   return (
@@ -96,7 +99,7 @@ export function FefoSuggestPanel({
                     onChange={() => onSelectBatch(s.batchId)}
                   />
                 </td>
-                <td className="py-1.5 pr-2 font-mono">{s.batchCode}</td>
+                <td className="py-1.5 pr-2 font-mono">{s.batchCode || '—'}</td>
                 <td className="py-1.5 pr-2">{s.expiryDate || '—'}</td>
                 <td className="py-1.5 pr-2 text-right tabular-nums">
                   {s.qtyAvailable}

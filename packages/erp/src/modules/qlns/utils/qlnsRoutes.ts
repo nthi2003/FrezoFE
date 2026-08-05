@@ -16,6 +16,7 @@ export const QLNS_ALL_LEGACY_URLS = [
   '/admin/attendance',
   '/qlns/okrs',
   '/qlns/performance-reviews',
+  '/qlns/recognition',
   '/qlns/onboarding',
   '/qlns/offboarding',
   '/qlns/recruitment/requisitions',
@@ -32,12 +33,12 @@ export const QLNS_PEOPLE_MENU_URLS = [
   '/qlns/recruitment/requisitions',
   '/qlns/recruitment/board',
 ] as const
-export const QLNS_PERFORMANCE_MENU_URLS = ['/qlns/okrs', '/qlns/performance-reviews'] as const
+export const QLNS_PERFORMANCE_MENU_URLS = ['/qlns/okrs', '/qlns/performance-reviews', '/qlns/recognition'] as const
 
 export type TimeTab = 'overview' | 'daily' | 'records' | 'leaves'
 export type PayrollTab = 'payrolls' | 'bands'
 export type PeopleTab = 'persons' | 'contracts' | 'onboarding' | 'offboarding' | 'recruitment'
-export type PerformanceTab = 'okrs' | 'reviews'
+export type PerformanceTab = 'okrs' | 'reviews' | 'recognition'
 
 export const DEFAULT_TIME_TAB: TimeTab = 'daily'
 export const DEFAULT_PAYROLL_TAB: PayrollTab = 'payrolls'
@@ -87,6 +88,7 @@ export const PERFORMANCE_TABS: {
 }[] = [
   { key: 'okrs', label: 'OKR', menuUrls: ['/qlns/okrs'], hint: 'Mục tiêu & KPI (trước: /qlns/okrs)' },
   { key: 'reviews', label: 'Đánh giá', menuUrls: ['/qlns/performance-reviews'], hint: 'Review hiệu suất (trước: /qlns/performance-reviews)' },
+  { key: 'recognition', label: 'Ghi nhận', menuUrls: ['/qlns/recognition'], hint: 'Tặng token & đổi thưởng (trước: /qlns/recognition)' },
 ]
 
 export const PAYROLL_PERIODS_DRAWER_KEY = 'periods'
@@ -138,8 +140,10 @@ export function canAccessPeopleTab(tab: PeopleTab, menuUrls: Set<string>): boole
   return hasAnyExactMenuUrl(menuUrls, def.menuUrls)
 }
 
-export function canAccessPerformanceTab(_tab: PerformanceTab, menuUrls: Set<string>): boolean {
-  return canAccessPerformanceHub(menuUrls)
+export function canAccessPerformanceTab(tab: PerformanceTab, menuUrls: Set<string>): boolean {
+  const def = PERFORMANCE_TABS.find((t) => t.key === tab)
+  if (!def) return false
+  return hasAnyExactMenuUrl(menuUrls, def.menuUrls)
 }
 
 export function canAccessPayrollPeriodsDrawer(menuUrls: Set<string>): boolean {
@@ -211,6 +215,13 @@ export function payrollHubUrl(params?: { tab?: PayrollTab; drawer?: string }): s
   return qs ? `${QLNS_PAYROLL_HUB_PATH}?${qs}` : QLNS_PAYROLL_HUB_PATH
 }
 
+export function performanceHubUrl(params?: { tab?: PerformanceTab }): string {
+  const sp = new URLSearchParams()
+  if (params?.tab && params.tab !== DEFAULT_PERFORMANCE_TAB) sp.set('tab', params.tab)
+  const qs = sp.toString()
+  return qs ? `${QLNS_PERFORMANCE_HUB_PATH}?${qs}` : QLNS_PERFORMANCE_HUB_PATH
+}
+
 export function canAccessQlnsHubPathname(pathname: string, menuFeUrls: string[]): boolean {
   const path = pathname.replace(/\/+$/, '') || '/'
   const menuUrls = new Set(menuFeUrls.map(normalizeUrl))
@@ -242,8 +253,9 @@ export function canAccessQlnsHubPathname(pathname: string, menuFeUrls: string[])
     path === QLNS_PERFORMANCE_HUB_PATH
     || path === '/qlns/okrs'
     || path === '/qlns/performance-reviews'
+    || path === '/qlns/recognition'
   ) {
-    return canAccessPerformanceHub(menuUrls)
+    return canAccessPerformanceHub(menuUrls) || hasExactMenuUrl(menuUrls, '/qlns/recognition')
   }
 
   return false

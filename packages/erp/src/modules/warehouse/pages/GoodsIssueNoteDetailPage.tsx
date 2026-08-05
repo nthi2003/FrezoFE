@@ -2,27 +2,17 @@
 // GoodsIssueNoteDetailPage — object page PXK + pipeline duyệt/xuất
 // ============================================================
 
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
-  ArrowLeft,
   CheckCircle2,
-  Loader2,
   PackageMinus,
   Printer,
   Send,
   ShieldCheck,
   XCircle,
 } from 'lucide-react'
-import {
-  Button,
-  PageHeader,
-  EmptyState,
-  ErrorState,
-  ConfirmDialog,
-  StatCard,
-  PageGuideButton,
-} from '@frezo/ui'
+import { Button, ConfirmDialog, PageGuideButton } from '@frezo/ui'
 import { useProducts } from '@/modules/products/hooks/useProduct'
 import {
   useGin,
@@ -39,15 +29,34 @@ import {
   ginStepIndex,
 } from '../components/StatusPipelineStepper'
 import { GrnGinStatusBadge } from '../components/GrnGinStatusBadge'
+import { WarehouseDetailShell } from '../components/WarehouseDetailShell'
+import { FefoSuggestPanel } from '../components/FefoSuggestPanel'
 import { GIN_GUIDE } from '../constants/grn-gin.guide'
 import {
   computeGinLineStats,
+  formatGinDate,
   formatVnd,
   issueTypeLabel,
 } from '../utils/grnGinUtils'
-import { formatWarehouseLabel } from '../utils/displayUtils'
-import { FefoSuggestPanel } from '../components/FefoSuggestPanel'
+import { formatProductLabel, formatWarehouseLabel } from '../utils/displayUtils'
 import type { FefoBatchSuggestion } from '../services/batchApi'
+import type { GinItemDto } from '../services/ginApi'
+
+function lineProductLabel(
+  ln: GinItemDto,
+  productMap: Map<string, { code?: string; name?: string }>,
+) {
+  const prod = productMap.get(ln.productId)
+  if (prod) return formatProductLabel({ ...prod, productId: ln.productId })
+  return ln.productId
+}
+
+function lineProductCode(
+  ln: GinItemDto,
+  productMap: Map<string, { code?: string; name?: string }>,
+) {
+  return productMap.get(ln.productId)?.code || ln.productId
+}
 
 export function GoodsIssueNoteDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -96,48 +105,14 @@ export function GoodsIssueNoteDetailPage() {
     setBatchDrafts(batchInit)
   }, [gin?.id, gin?.items])
 
-  if (!id) {
-    return (
-      <EmptyState
-        icon={PackageMinus}
-        title="Thiếu ID"
-        description="/warehouse/gin/:id"
-      />
-    )
-  }
-
-  if (isLoading) {
-    return (
-      <div className="p-12 text-center">
-        <Loader2 className="w-6 h-6 animate-spin mx-auto text-neutral-400" />
-      </div>
-    )
-  }
-
-  if (isError || !gin) {
-    return (
-      <div className="p-6 space-y-4">
-        <ErrorState
-          title="Không tải được phiếu xuất kho"
-          message="BE /warehouse/gin/:id"
-          onRetry={() => void refetch()}
-          isRetrying={isFetching}
-        />
-        <div className="flex justify-center">
-          <Button variant="outline" onClick={() => nav('/warehouse/gin')}>
-            Quay lại danh sách
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  const st = (gin.status || '').toUpperCase()
+  const st = (gin?.status || '').toUpperCase()
   const isDraft = st === 'DRAFT'
   const isPending = st === 'PENDING_APPROVAL'
   const isApproved = st === 'APPROVED'
-  const canEditQty = isDraft || isApproved
-  const lineStats = computeGinLineStats(gin.items || [])
+  const isConfirmed = st === 'CONFIRMED'
+  const isCancelled = st === 'CANCELLED'
+  const canEditQty = (isDraft || isApproved) && !isCancelled
+  const lineStats = computeGinLineStats(gin?.items || [])
 
   const nextCta =
     isDraft && canUpdate
@@ -163,33 +138,69 @@ export function GoodsIssueNoteDetailPage() {
             }
           : null
 
+  const handleConfirm = () => {
+    if (!gin) return
+    const items = (gin.items || [])
+      .filter((ln) => ln.id)
+      .map((ln) => ({
+        itemId: ln.id!,
+        qtyIssued: Number(qtyDrafts[ln.id!] ?? ln.qtyRequested ?? 0),
+        batchId: batchDrafts[ln.id!] || ln.batchId,
+      }))
+    confirm.mutate(
+      { id: gin.id, body: { items } },
+      { onSettled: () => setConfirmOpen(false) },
+    )
+  }
+
   return (
-    <div className="pb-8 animate-fade-in">
-      <div className="sticky top-0 z-20 bg-neutral-50/95 backdrop-blur border-b border-neutral-200/80 px-6 py-4 space-y-3">
-        <PageHeader
-          title={gin.ginCode || gin.id}
-          description={
-            <>
-              {formatWarehouseLabel(gin)}
-              {' · '}
-              {issueTypeLabel(gin.issueType)}
-              {' · '}
-              <GrnGinStatusBadge status={gin.status} />
-            </>
-          }
-          actions={
+    <>
+      <WarehouseDetailShell
+        missingIdTitle={!id ? 'Thiếu ID phiếu xuất' : undefined}
+        missingIdDescription={!id ? '/warehouse/gin/:id' : undefined}
+        missingIcon={!id ? PackageMinus : undefined}
+        breadcrumb={
+          gin
+            ? [
+                { label: 'Kho', onClick: () => nav('/warehouse') },
+                { label: 'Phiếu xuất kho', onClick: () => nav('/warehouse/gin') },
+                { label: gin.ginCode || id! },
+              ]
+            : undefined
+        }
+        title={gin?.ginCode || id || '—'}
+        subtitle={
+          gin
+            ? `${formatWarehouseLabel(gin)} · ${issueTypeLabel(gin.issueType)} · ${formatGinDate(gin)}`
+            : undefined
+        }
+        statusBadge={gin ? <GrnGinStatusBadge status={gin.status} /> : undefined}
+        kpi={
+          gin
+            ? [
+                { label: 'Tổng SL', value: lineStats.totalQty },
+                { label: 'Số dòng', value: lineStats.lineCount },
+                {
+                  label: 'Giá trị',
+                  value: formatVnd(gin.totalValue ?? lineStats.totalValue),
+                },
+                ...(gin.issuedAt
+                  ? [{ label: 'Ngày xuất', value: String(gin.issuedAt).slice(0, 10) }]
+                  : []),
+              ]
+            : undefined
+        }
+        actions={
+          gin ? (
             <div className="flex flex-wrap gap-2 items-center">
               <PageGuideButton guide={GIN_GUIDE} />
-              <Button variant="outline" className="gap-1" onClick={() => nav('/warehouse/gin')}>
-                <ArrowLeft size={14} /> Danh sách
-              </Button>
               <Button
                 variant="outline"
-                className="gap-1"
+                className="gap-1 no-print"
                 disabled={print.isPending}
                 onClick={() => print.mutate(gin.id)}
               >
-                <Printer size={14} /> In
+                <Printer size={14} /> In phiếu
               </Button>
               {isDraft && canUpdate && (
                 <Button className="gap-1" onClick={() => setSubmitOpen(true)}>
@@ -216,206 +227,224 @@ export function GoodsIssueNoteDetailPage() {
                 </Button>
               )}
             </div>
-          }
-        />
-
-        <StatusPipelineStepper
-          steps={GIN_PIPELINE}
-          currentIndex={ginStepIndex(st)}
-          nextCta={nextCta}
-          showInboxLink={isPending}
-        />
-      </div>
-
-      <div className="px-6 pt-4 space-y-4 max-w-5xl">
-        {(isDraft || isPending) && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            {isDraft
-              ? 'Phiếu xuất nháp — gửi duyệt hoặc xác nhận xuất trực tiếp (nếu có quyền). Tồn chỉ giảm khi Xác nhận xuất.'
-              : 'Đang chờ duyệt — kế toán/trưởng bộ phận duyệt trước khi thủ kho xác nhận xuất.'}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-xl border bg-white p-4 space-y-2 text-sm">
-            <h3 className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">
-              Chứng từ xuất
-            </h3>
-            <dl className="grid grid-cols-[120px_1fr] gap-1">
-              <dt className="text-neutral-500">Số CT/HĐ</dt>
-              <dd className="font-mono">{gin.documentNo || '—'}</dd>
-              <dt className="text-neutral-500">Ngày CT</dt>
-              <dd>{gin.documentDate || '—'}</dd>
-              <dt className="text-neutral-500">Khách hàng</dt>
-              <dd>{gin.customerName || gin.customerId || '—'}</dd>
-              {gin.transferWarehouseName && (
-                <>
-                  <dt className="text-neutral-500">Kho đích</dt>
-                  <dd>{gin.transferWarehouseName}</dd>
-                </>
-              )}
-              {gin.approvedBy && (
-                <>
-                  <dt className="text-neutral-500">Người duyệt</dt>
-                  <dd>{gin.approvedBy}</dd>
-                </>
-              )}
-            </dl>
-          </div>
-          <div className="grid grid-cols-2 gap-3 content-start">
-            <StatCard label="Dòng hàng" value={lineStats.lineCount} />
-            <StatCard label="Tổng SL" value={lineStats.totalQty} />
-            <StatCard
-              label="Giá trị"
-              value={formatVnd(gin.totalValue ?? lineStats.totalValue)}
+          ) : undefined
+        }
+        isLoading={isLoading}
+        isError={isError || (!isLoading && !gin)}
+        isFetching={isFetching}
+        onRetry={refetch}
+        errorTitle="Không tải được phiếu xuất kho"
+        backHref="/warehouse/gin"
+        backLabel="Danh sách phiếu xuất kho"
+        pipeline={
+          gin ? (
+            <StatusPipelineStepper
+              steps={GIN_PIPELINE}
+              currentIndex={ginStepIndex(st)}
+              nextCta={nextCta}
+              showInboxLink={isPending}
             />
-            {gin.issuedAt && (
-              <StatCard
-                label="Ngày xuất"
-                value={String(gin.issuedAt).slice(0, 10)}
-              />
+          ) : undefined
+        }
+        alert={
+          gin && (isDraft || isPending) ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {isDraft
+                ? 'Phiếu xuất nháp — gửi duyệt hoặc xác nhận xuất trực tiếp (nếu có quyền). Tồn chỉ giảm khi Xác nhận xuất.'
+                : 'Đang chờ duyệt — kế toán/trưởng bộ phận duyệt trước khi thủ kho xác nhận xuất.'}
+            </div>
+          ) : undefined
+        }
+      >
+        {gin && (
+          <>
+            {/* Thông tin chứng từ */}
+            <section className="rounded-xl border bg-white overflow-hidden">
+              <div className="px-4 py-2 text-xs font-semibold text-neutral-500 uppercase tracking-wide border-b bg-neutral-50/80">
+                Thông tin chứng từ
+              </div>
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <dl className="space-y-2">
+                  <div className="grid grid-cols-[120px_1fr] gap-1">
+                    <dt className="text-neutral-500">Loại xuất</dt>
+                    <dd className="font-medium">{issueTypeLabel(gin.issueType)}</dd>
+                  </div>
+                  <div className="grid grid-cols-[120px_1fr] gap-1">
+                    <dt className="text-neutral-500">Số CT/HĐ</dt>
+                    <dd className="font-mono">{gin.documentNo || '—'}</dd>
+                  </div>
+                  <div className="grid grid-cols-[120px_1fr] gap-1">
+                    <dt className="text-neutral-500">Ngày CT</dt>
+                    <dd>{gin.documentDate || '—'}</dd>
+                  </div>
+                </dl>
+                <dl className="space-y-2">
+                  <div className="grid grid-cols-[120px_1fr] gap-1">
+                    <dt className="text-neutral-500">Khách hàng</dt>
+                    <dd>{gin.customerName || gin.customerId || '—'}</dd>
+                  </div>
+                  {gin.transferWarehouseName && (
+                    <div className="grid grid-cols-[120px_1fr] gap-1">
+                      <dt className="text-neutral-500">Kho đích</dt>
+                      <dd>{gin.transferWarehouseName}</dd>
+                    </div>
+                  )}
+                  {gin.approvedBy && (
+                    <div className="grid grid-cols-[120px_1fr] gap-1">
+                      <dt className="text-neutral-500">Người duyệt</dt>
+                      <dd>{gin.approvedBy}</dd>
+                    </div>
+                  )}
+                  {gin.note && (
+                    <div className="grid grid-cols-[120px_1fr] gap-1">
+                      <dt className="text-neutral-500">Ghi chú</dt>
+                      <dd>{gin.note}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            </section>
+
+            {/* Dòng hàng */}
+            <section className="bg-white border rounded-xl overflow-hidden">
+              <div className="px-4 py-2 text-xs font-semibold text-neutral-500 uppercase tracking-wide border-b bg-neutral-50/80 flex justify-between">
+                <span>Dòng hàng</span>
+                <span className="font-normal normal-case">{gin.items?.length ?? 0} dòng</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-neutral-50 text-neutral-600 text-left text-xs">
+                    <tr>
+                      <th className="p-3 w-8">#</th>
+                      <th className="p-3">Sản phẩm</th>
+                      <th className="p-3 text-right">SL yêu cầu</th>
+                      <th className="p-3 text-right">SL xuất</th>
+                      <th className="p-3">Mã lô</th>
+                      <th className="p-3 text-right">Đơn giá</th>
+                      <th className="p-3 text-right">Thành tiền</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {(gin.items || []).filter(Boolean).map((ln, i) => {
+                      const qty = Number(qtyDrafts[ln.id!] ?? ln.qtyRequested ?? 0)
+                      const lineVal = ln.unitCost != null ? qty * ln.unitCost : null
+                      const isExpanded = expandedLineId === ln.id
+                      return (
+                        <Fragment key={ln.id || `${ln.productId}-${i}`}>
+                          <tr className="hover:bg-neutral-50/60">
+                            <td className="p-3 text-neutral-400 tabular-nums">{i + 1}</td>
+                            <td className="p-3">
+                              <div className="font-medium text-neutral-800 text-sm">
+                                {lineProductLabel(ln, productMap)}
+                              </div>
+                              <div className="text-[11px] font-mono text-neutral-400">
+                                {lineProductCode(ln, productMap)}
+                              </div>
+                            </td>
+                            <td className="p-3 text-right tabular-nums text-neutral-700">
+                              {ln.qtyRequested ?? '—'}
+                            </td>
+                            <td className="p-3 text-right">
+                              {canEditQty && ln.id ? (
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step="any"
+                                  aria-label={`SL xuất ${lineProductCode(ln, productMap)}`}
+                                  className="w-24 border rounded px-2 py-1 text-sm tabular-nums text-right focus:ring-2 focus:ring-primary-400 outline-none"
+                                  value={qtyDrafts[ln.id] ?? ''}
+                                  onChange={(e) =>
+                                    setQtyDrafts((d) => ({
+                                      ...d,
+                                      [ln.id!]: e.target.value,
+                                    }))
+                                  }
+                                />
+                              ) : (
+                                <span className="tabular-nums">
+                                  {isConfirmed ? (ln.qtyIssued ?? 0) : qty}
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3">
+                              {canEditQty && ln.id ? (
+                                <button
+                                  type="button"
+                                  className="text-xs text-primary-700 hover:underline font-mono"
+                                  onClick={() =>
+                                    setExpandedLineId(isExpanded ? null : ln.id!)
+                                  }
+                                >
+                                  {batchDrafts[ln.id]
+                                    ? `${batchDrafts[ln.id].slice(0, 12)}…`
+                                    : 'Chọn lô FEFO'}
+                                </button>
+                              ) : (
+                                <span className="font-mono text-xs">
+                                  {ln.batchId?.slice(0, 12) || '—'}
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 text-right tabular-nums">
+                              {formatVnd(ln.unitCost)}
+                            </td>
+                            <td className="p-3 text-right tabular-nums">
+                              {formatVnd(lineVal ?? undefined)}
+                            </td>
+                          </tr>
+                          {isExpanded && ln.id && canEditQty && (
+                            <tr>
+                              <td colSpan={7} className="p-3 bg-neutral-50/80">
+                                <FefoSuggestPanel
+                                  warehouseId={gin.warehouseId}
+                                  productId={ln.productId}
+                                  qty={qty}
+                                  selectedBatchId={batchDrafts[ln.id]}
+                                  onSelectBatch={(batchId) =>
+                                    setBatchDrafts((d) => ({ ...d, [ln.id!]: batchId }))
+                                  }
+                                  onApplyFefo={(suggestions: FefoBatchSuggestion[]) => {
+                                    const first = suggestions[0]
+                                    if (first) {
+                                      setBatchDrafts((d) => ({
+                                        ...d,
+                                        [ln.id!]: first.batchId,
+                                      }))
+                                    }
+                                  }}
+                                />
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {isPending && (
+              <p className="text-xs text-neutral-500">
+                Hoặc duyệt qua{' '}
+                <Link to="/approval/inbox" className="text-primary-700 hover:underline">
+                  Hộp thư duyệt
+                </Link>
+                .
+              </p>
             )}
-          </div>
-        </div>
-
-        {gin.note && (
-          <div className="rounded-lg border bg-white px-4 py-3 text-sm">
-            <span className="text-neutral-500">Ghi chú: </span>
-            {gin.note}
-          </div>
+          </>
         )}
-
-        <div className="bg-white border rounded-xl overflow-hidden">
-          <div className="px-4 py-2 text-xs text-neutral-500 border-b bg-neutral-50/80">
-            {gin.items?.length ?? 0} dòng hàng
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-neutral-50 text-neutral-600 text-left text-xs">
-                <tr>
-                  <th className="p-3">Sản phẩm</th>
-                  <th className="p-3 text-right">Yêu cầu</th>
-                  <th className="p-3 text-right">Xuất</th>
-                  <th className="p-3">Mã lô</th>
-                  <th className="p-3 text-right">Đơn giá</th>
-                  <th className="p-3 text-right">Thành tiền</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {(gin.items || []).map((ln, i) => {
-                  const prod = productMap.get(ln.productId)
-                  const qty = Number(qtyDrafts[ln.id!] ?? ln.qtyRequested ?? 0)
-                  const lineVal = ln.unitCost != null ? qty * ln.unitCost : null
-                  const isExpanded = expandedLineId === ln.id
-                  return (
-                    <>
-                      <tr key={ln.id || String(i)}>
-                        <td className="p-3">
-                          <div className="font-mono text-xs text-primary-700">
-                            {prod?.code || ln.productId.slice(0, 8)}
-                          </div>
-                          {prod?.name && (
-                            <div className="text-neutral-600 text-xs">{prod.name}</div>
-                          )}
-                        </td>
-                        <td className="p-3 text-right tabular-nums">
-                          {ln.qtyRequested ?? '—'}
-                        </td>
-                        <td className="p-3 text-right">
-                          {canEditQty && ln.id ? (
-                            <input
-                              type="number"
-                              min={0}
-                              className="w-24 border rounded px-2 py-1 text-sm tabular-nums text-right"
-                              value={qtyDrafts[ln.id] ?? ''}
-                              onChange={(e) =>
-                                setQtyDrafts((d) => ({
-                                  ...d,
-                                  [ln.id!]: e.target.value,
-                                }))
-                              }
-                            />
-                          ) : (
-                            <span className="tabular-nums">{ln.qtyIssued ?? 0}</span>
-                          )}
-                        </td>
-                        <td className="p-3">
-                          {canEditQty && ln.id ? (
-                            <button
-                              type="button"
-                              className="text-xs text-primary-700 hover:underline font-mono"
-                              onClick={() =>
-                                setExpandedLineId(isExpanded ? null : ln.id!)
-                              }
-                            >
-                              {batchDrafts[ln.id]
-                                ? `${batchDrafts[ln.id].slice(0, 12)}…`
-                                : 'Chọn lô FEFO'}
-                            </button>
-                          ) : (
-                            <span className="font-mono text-xs">
-                              {ln.batchId?.slice(0, 12) || '—'}
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3 text-right tabular-nums">
-                          {formatVnd(ln.unitCost)}
-                        </td>
-                        <td className="p-3 text-right tabular-nums">
-                          {formatVnd(lineVal ?? undefined)}
-                        </td>
-                      </tr>
-                      {isExpanded && ln.id && canEditQty && (
-                        <tr key={`${ln.id}-fefo`}>
-                          <td colSpan={6} className="p-3 bg-neutral-50/80">
-                            <FefoSuggestPanel
-                              warehouseId={gin.warehouseId}
-                              productId={ln.productId}
-                              qty={qty}
-                              selectedBatchId={batchDrafts[ln.id]}
-                              onSelectBatch={(batchId) =>
-                                setBatchDrafts((d) => ({ ...d, [ln.id!]: batchId }))
-                              }
-                              onApplyFefo={(suggestions: FefoBatchSuggestion[]) => {
-                                const first = suggestions[0]
-                                if (first) {
-                                  setBatchDrafts((d) => ({
-                                    ...d,
-                                    [ln.id!]: first.batchId,
-                                  }))
-                                }
-                              }}
-                            />
-                          </td>
-                        </tr>
-                      )}
-                    </>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {isPending && (
-          <p className="text-xs text-neutral-500">
-            Hoặc duyệt qua{' '}
-            <Link to="/approval/inbox" className="text-primary-700 hover:underline">
-              Hộp thư duyệt
-            </Link>
-            .
-          </p>
-        )}
-      </div>
+      </WarehouseDetailShell>
 
       <ConfirmDialog
         isOpen={submitOpen}
         onClose={() => !submit.isPending && setSubmitOpen(false)}
         onConfirm={() =>
-          submit.mutate(gin.id, { onSettled: () => setSubmitOpen(false) })
+          gin && submit.mutate(gin.id, { onSettled: () => setSubmitOpen(false) })
         }
         title="Gửi duyệt phiếu xuất?"
-        message={`Phiếu ${gin.ginCode} chuyển sang Chờ duyệt.`}
+        message={`Phiếu ${gin?.ginCode} chuyển sang Chờ duyệt.`}
         confirmText="Gửi duyệt"
         cancelText="Huỷ"
         variant="warning"
@@ -426,7 +455,7 @@ export function GoodsIssueNoteDetailPage() {
         isOpen={approveOpen}
         onClose={() => !approve.isPending && setApproveOpen(false)}
         onConfirm={() =>
-          approve.mutate(gin.id, { onSettled: () => setApproveOpen(false) })
+          gin && approve.mutate(gin.id, { onSettled: () => setApproveOpen(false) })
         }
         title="Duyệt phiếu xuất kho?"
         message="Sau khi duyệt, thủ kho có thể xác nhận xuất và trừ tồn."
@@ -439,21 +468,9 @@ export function GoodsIssueNoteDetailPage() {
       <ConfirmDialog
         isOpen={confirmOpen}
         onClose={() => !confirm.isPending && setConfirmOpen(false)}
-        onConfirm={() => {
-          const items = (gin.items || [])
-            .filter((ln) => ln.id)
-            .map((ln) => ({
-              itemId: ln.id!,
-              qtyIssued: Number(qtyDrafts[ln.id!] ?? ln.qtyRequested ?? 0),
-              batchId: batchDrafts[ln.id!] || ln.batchId,
-            }))
-          confirm.mutate(
-            { id: gin.id, body: { items } },
-            { onSettled: () => setConfirmOpen(false) },
-          )
-        }}
+        onConfirm={handleConfirm}
         title="Xác nhận xuất kho?"
-        message={`Phiếu ${gin.ginCode} sẽ chuyển sang Đã xuất và trừ stock.`}
+        message={`Phiếu ${gin?.ginCode} sẽ chuyển sang Đã xuất và trừ stock.`}
         confirmText="Xác nhận xuất"
         cancelText="Huỷ"
         variant="warning"
@@ -464,7 +481,7 @@ export function GoodsIssueNoteDetailPage() {
         isOpen={cancelOpen}
         onClose={() => !cancel.isPending && setCancelOpen(false)}
         onConfirm={() =>
-          cancel.mutate({ id: gin.id }, { onSettled: () => setCancelOpen(false) })
+          gin && cancel.mutate({ id: gin.id }, { onSettled: () => setCancelOpen(false) })
         }
         title="Huỷ phiếu xuất kho?"
         message="Chỉ huỷ khi chưa xác nhận xuất."
@@ -473,6 +490,6 @@ export function GoodsIssueNoteDetailPage() {
         variant="danger"
         isLoading={cancel.isPending}
       />
-    </div>
+    </>
   )
 }

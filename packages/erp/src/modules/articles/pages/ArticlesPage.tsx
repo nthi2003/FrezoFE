@@ -38,18 +38,21 @@ import {
 // Constants
 // ============================================================
 
-type ArticleStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+type ArticleStatus =
+  | 'DRAFT'
+  | 'WAITING_APPROVAL'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'PUBLISHED'
+  | 'DELETED'
 
-const STATUS_OPTIONS: { value: ArticleStatus; label: string }[] = [
-  { value: 'DRAFT', label: 'Bản nháp' },
-  { value: 'PUBLISHED', label: 'Đã xuất bản' },
-  { value: 'ARCHIVED', label: 'Lưu trữ' },
-]
-
-const STATUS_CONFIG: Record<ArticleStatus, StatusConfig> = {
+const STATUS_CONFIG: Record<string, StatusConfig> = {
   DRAFT: { label: 'Bản nháp', color: 'neutral', icon: FileText },
+  WAITING_APPROVAL: { label: 'Chờ duyệt', color: 'warning', icon: FileText },
+  APPROVED: { label: 'Đã duyệt', color: 'success', icon: CheckCircle2 },
+  REJECTED: { label: 'Từ chối', color: 'danger', icon: Archive },
   PUBLISHED: { label: 'Đã xuất bản', color: 'success', icon: CheckCircle2 },
-  ARCHIVED: { label: 'Lưu trữ', color: 'warning', icon: Archive },
+  DELETED: { label: 'Đã xóa', color: 'neutral', icon: Archive },
 }
 
 const TYPE_OPTIONS = [
@@ -66,7 +69,7 @@ const TYPE_LABEL: Record<string, string> = Object.fromEntries(
 
 const ARTICLES_GUIDE: PageGuideConfig = {
   title: 'Quản lý Bài viết',
-  subtitle: 'Tạo nháp, gửi duyệt rồi xuất bản tin nội bộ. Hệ thống tự cấp mã bài.',
+  subtitle: 'Gộp tin nội bộ + bài công khai. Chọn phạm vi khi soạn, rồi gửi duyệt trước khi xuất bản.',
   docHref: '/docs/guide-articles',
   sections: [
     {
@@ -76,7 +79,7 @@ const ARTICLES_GUIDE: PageGuideConfig = {
         {
           title: 'Bấm Thêm mới',
           description:
-            'Nhập tiêu đề và nội dung (bắt buộc). Có thể thêm tóm tắt, ảnh đại diện, người duyệt.',
+            'Nhập tiêu đề và nội dung. Chọn phạm vi: Nội bộ (/bai-viet) hoặc Công khai (landing).',
         },
         {
           title: 'Lưu nháp',
@@ -86,7 +89,7 @@ const ARTICLES_GUIDE: PageGuideConfig = {
         {
           title: 'Gửi duyệt → Duyệt → Xuất bản',
           description:
-            'Người viết bấm Gửi duyệt. Người duyệt bấm Duyệt (hoặc Từ chối), rồi Xuất bản khi bài Đã duyệt.',
+            'Người viết bấm Gửi duyệt (bắt buộc chọn người duyệt). Người duyệt bấm Duyệt / Từ chối, rồi Xuất bản khi Đã duyệt.',
         },
       ],
     },
@@ -94,9 +97,9 @@ const ARTICLES_GUIDE: PageGuideConfig = {
       heading: 'Mẹo sử dụng',
       type: 'tips',
       tips: [
-        'Lọc theo trạng thái để tách nháp / chờ duyệt / đã xuất bản.',
-        'Không thấy nút Duyệt bài viết hoặc Xuất bản → thiếu quyền QTBV.ARTICLES.REVIEW/PUBLISH, hoặc bạn không phải người duyệt được gán trên bài.',
-        'Soát chính tả và ảnh trước khi Xuất bản.',
+        'Lọc theo trạng thái hoặc phạm vi (nội bộ / công khai).',
+        'Không thấy nút Duyệt / Xuất bản → thiếu quyền hoặc bạn không phải người duyệt được gán.',
+        'Menu Tin tức nội bộ cũ đã gộp vào trang này.',
       ],
     },
     {
@@ -163,8 +166,11 @@ function ArticleCard({ article, onEdit, onDelete, canUpdate, canDelete }: Articl
             <ImageIcon size={36} strokeWidth={1.4} />
           </div>
         )}
-        <div className="absolute top-2 left-2 flex items-center gap-1.5">
+        <div className="absolute top-2 left-2 flex items-center gap-1.5 flex-wrap">
           <StatusBadge {...statusCfg} />
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/90 text-neutral-700 border border-neutral-200">
+            {article.publishScope === 'PUBLIC' ? 'Công khai' : 'Nội bộ'}
+          </span>
           {article.type && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/90 text-neutral-700 border border-neutral-200">
               {TYPE_LABEL[article.type] || article.type}
@@ -238,6 +244,7 @@ export function ArticlesPage() {
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
   const [statusFilter, setStatusFilter] = useState<ArticleStatus | 'ALL'>('ALL')
+  const [scopeFilter, setScopeFilter] = useState<'ALL' | 'INTERNAL' | 'PUBLIC'>('ALL')
   const [searchKeyword, setSearchKeyword] = useState('')
 
   const canCreate = usePermission('QTBV.ARTICLES.CREATE')
@@ -260,7 +267,14 @@ export function ArticlesPage() {
 
   // Counts by status — dùng cho tab bar
   const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { ALL: allArticles.length, DRAFT: 0, PUBLISHED: 0, ARCHIVED: 0 }
+    const counts: Record<string, number> = {
+      ALL: allArticles.length,
+      DRAFT: 0,
+      WAITING_APPROVAL: 0,
+      APPROVED: 0,
+      REJECTED: 0,
+      PUBLISHED: 0,
+    }
     allArticles.forEach((a) => {
       const s = a.status || 'DRAFT'
       counts[s] = (counts[s] || 0) + 1
@@ -272,6 +286,10 @@ export function ArticlesPage() {
   const filteredArticles = useMemo(() => {
     return allArticles.filter((a) => {
       if (statusFilter !== 'ALL' && (a.status || 'DRAFT') !== statusFilter) return false
+      if (scopeFilter !== 'ALL') {
+        const scope = a.publishScope === 'PUBLIC' ? 'PUBLIC' : 'INTERNAL'
+        if (scope !== scopeFilter) return false
+      }
       if (searchKeyword) {
         const k = searchKeyword.toLowerCase()
         const hay = `${a.title || ''} ${a.summary || ''} ${a.authorName || ''} ${a.authorId || ''}`.toLowerCase()
@@ -279,7 +297,7 @@ export function ArticlesPage() {
       }
       return true
     })
-  }, [allArticles, statusFilter, searchKeyword])
+  }, [allArticles, statusFilter, scopeFilter, searchKeyword])
 
   const openCreate = () => navigate('/admin/article-management/new')
   const openEdit = (row: any) => navigate(`/admin/article-management/${row.id}/edit`)
@@ -353,6 +371,16 @@ export function ArticlesPage() {
       },
     },
     {
+      title: 'Phạm vi',
+      dataIndex: 'publishScope',
+      width: 110,
+      render: (val: string) => (
+        <span className="text-xs text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded">
+          {val === 'PUBLIC' ? 'Công khai' : 'Nội bộ'}
+        </span>
+      ),
+    },
+    {
       title: 'Tác giả',
       dataIndex: 'authorName',
       width: 180,
@@ -411,8 +439,10 @@ export function ArticlesPage() {
   const tabs: { key: ArticleStatus | 'ALL'; label: string }[] = [
     { key: 'ALL', label: 'Tất cả' },
     { key: 'PUBLISHED', label: 'Đã xuất bản' },
+    { key: 'WAITING_APPROVAL', label: 'Chờ duyệt' },
+    { key: 'APPROVED', label: 'Đã duyệt' },
     { key: 'DRAFT', label: 'Bản nháp' },
-    { key: 'ARCHIVED', label: 'Lưu trữ' },
+    { key: 'REJECTED', label: 'Từ chối' },
   ]
 
   const isEmpty = !isLoading && filteredArticles.length === 0
@@ -421,7 +451,7 @@ export function ArticlesPage() {
     <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
         title="Quản lý bài viết"
-        description="Đăng và điều phối tin tức, bài blog, thông báo nội bộ toàn hệ thống."
+        description="Một nơi quản lý tin nội bộ và bài công khai — chọn phạm vi khi soạn, duyệt rồi xuất bản."
         actions={
           <div className="flex flex-wrap gap-2 items-center">
             <PageGuideButton guide={ARTICLES_GUIDE} />
@@ -435,12 +465,13 @@ export function ArticlesPage() {
       />
 
       <FilterBar
-        hasActiveFilters={!!searchKeyword || statusFilter !== 'ALL'}
+        hasActiveFilters={!!searchKeyword || statusFilter !== 'ALL' || scopeFilter !== 'ALL'}
         onClear={() => {
           setSearchKeyword('')
           setStatusFilter('ALL')
+          setScopeFilter('ALL')
         }}
-        countLabel={`${filteredArticles.length} bài${searchKeyword || statusFilter !== 'ALL' ? ' (đã lọc)' : ''}`}
+        countLabel={`${filteredArticles.length} bài${searchKeyword || statusFilter !== 'ALL' || scopeFilter !== 'ALL' ? ' (đã lọc)' : ''}`}
         selects={[
           {
             id: 'status',
@@ -451,6 +482,17 @@ export function ArticlesPage() {
               value: tab.key,
               label: `${tab.label} (${statusCounts[tab.key] ?? 0})`,
             })),
+          },
+          {
+            id: 'scope',
+            label: 'Phạm vi',
+            value: scopeFilter,
+            onChange: (v) => setScopeFilter(v as 'ALL' | 'INTERNAL' | 'PUBLIC'),
+            options: [
+              { value: 'ALL', label: 'Tất cả phạm vi' },
+              { value: 'INTERNAL', label: 'Nội bộ' },
+              { value: 'PUBLIC', label: 'Công khai' },
+            ],
           },
         ]}
         extra={(

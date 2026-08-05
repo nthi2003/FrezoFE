@@ -189,3 +189,263 @@ export function useDeleteAffiliateLink() {
     },
   })
 }
+
+// ============================================================
+// ADS
+// ============================================================
+export function useAdCampaigns(params?: { platform?: string; status?: string }) {
+  return useQuery({
+    queryKey: ['mkt', 'ads', params],
+    queryFn: () => fbApi.ads.list(params),
+    staleTime: 30_000,
+  })
+}
+
+export function useAdsDashboard() {
+  return useQuery({
+    queryKey: ['mkt', 'ads', 'dashboard'],
+    queryFn: () => fbApi.ads.dashboard(),
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateAdCampaign() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: any) => fbApi.ads.create(data),
+    onSuccess: () => {
+      toast.success('Đã tạo chiến dịch Ads')
+      qc.invalidateQueries({ queryKey: ['mkt', 'ads'] })
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Tạo thất bại'),
+  })
+}
+
+export function useUpdateAdCampaign() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (params: { id: string; data: any }) => fbApi.ads.update(params.id, params.data),
+    onSuccess: () => {
+      toast.success('Đã cập nhật chiến dịch')
+      qc.invalidateQueries({ queryKey: ['mkt', 'ads'] })
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Cập nhật thất bại'),
+  })
+}
+
+export function useDeleteAdCampaign() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => fbApi.ads.delete(id),
+    onSuccess: () => {
+      toast.success('Đã xoá chiến dịch')
+      qc.invalidateQueries({ queryKey: ['mkt', 'ads'] })
+    },
+  })
+}
+
+// ============================================================
+// INSIGHTS
+// ============================================================
+export function useMktInsights() {
+  return useQuery({
+    queryKey: ['mkt', 'insights', 'dashboard'],
+    queryFn: () => fbApi.insights.dashboard(),
+    staleTime: 30_000,
+  })
+}
+
+// ============================================================
+// COMMENTS
+// ============================================================
+export function useModeratedComments(params?: { status?: string }) {
+  return useQuery({
+    queryKey: ['mkt', 'comments', params],
+    queryFn: () => fbApi.comments.list(params),
+    staleTime: 30_000,
+  })
+}
+
+export function useCommentRules() {
+  return useQuery({
+    queryKey: ['mkt', 'comments', 'rules'],
+    queryFn: () => fbApi.comments.listRules(),
+    staleTime: 30_000,
+  })
+}
+
+export function useCommentsDashboard() {
+  return useQuery({
+    queryKey: ['mkt', 'comments', 'dashboard'],
+    queryFn: () => fbApi.comments.dashboard(),
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateComment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: any) => fbApi.comments.create(data),
+    onSuccess: () => {
+      toast.success('Đã thêm comment')
+      qc.invalidateQueries({ queryKey: ['mkt', 'comments'] })
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Thêm thất bại'),
+  })
+}
+
+export function useCreateCommentRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: any) => fbApi.comments.createRule(data),
+    onSuccess: () => {
+      toast.success('Đã tạo rule')
+      qc.invalidateQueries({ queryKey: ['mkt', 'comments'] })
+    },
+  })
+}
+
+export function useDeleteCommentRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => fbApi.comments.deleteRule(id),
+    onSuccess: () => {
+      toast.success('Đã xoá rule')
+      qc.invalidateQueries({ queryKey: ['mkt', 'comments'] })
+    },
+  })
+}
+
+export function useModerateComment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (params: { id: string; action: string; replyText?: string }) =>
+      fbApi.comments.moderate(params.id, params.action, params.replyText),
+    onSuccess: () => {
+      toast.success('Đã áp dụng kiểm duyệt')
+      qc.invalidateQueries({ queryKey: ['mkt', 'comments'] })
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Thao tác thất bại'),
+  })
+}
+
+export function useDeleteComment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => fbApi.comments.delete(id),
+    onSuccess: () => {
+      toast.success('Đã xoá')
+      qc.invalidateQueries({ queryKey: ['mkt', 'comments'] })
+    },
+  })
+}
+
+// ============================================================
+// REVIEWS
+// ============================================================
+export function usePageReviews(params?: { status?: string; platform?: string }) {
+  return useQuery({
+    queryKey: ['mkt', 'reviews', params],
+    queryFn: () => fbApi.reviews.list(params),
+    staleTime: 30_000,
+  })
+}
+
+export function useReviewsDashboard() {
+  return useQuery({
+    queryKey: ['mkt', 'reviews', 'dashboard'],
+    queryFn: () => fbApi.reviews.dashboard(),
+    staleTime: 30_000,
+  })
+}
+
+export function useCreatePageReview() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: any) => fbApi.reviews.create(data),
+    onSuccess: () => {
+      toast.success('Đã thêm đánh giá')
+      qc.invalidateQueries({ queryKey: ['mkt', 'reviews'] })
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Thêm thất bại'),
+  })
+}
+
+export function useReplyPageReview() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (params: { id: string; replyText: string }) =>
+      fbApi.reviews.reply(params.id, params.replyText),
+    onSuccess: () => {
+      toast.success('Đã trả lời đánh giá')
+      qc.invalidateQueries({ queryKey: ['mkt', 'reviews'] })
+    },
+  })
+}
+
+export function useDeletePageReview() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => fbApi.reviews.delete(id),
+    onSuccess: () => {
+      toast.success('Đã xoá đánh giá')
+      qc.invalidateQueries({ queryKey: ['mkt', 'reviews'] })
+    },
+  })
+}
+
+// ============================================================
+// LIVE
+// ============================================================
+export function useLivestreamEvents(params?: { status?: string }) {
+  return useQuery({
+    queryKey: ['mkt', 'live', params],
+    queryFn: () => fbApi.live.list(params),
+    staleTime: 30_000,
+  })
+}
+
+export function useLiveDashboard() {
+  return useQuery({
+    queryKey: ['mkt', 'live', 'dashboard'],
+    queryFn: () => fbApi.live.dashboard(),
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateLivestream() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: any) => fbApi.live.create(data),
+    onSuccess: () => {
+      toast.success('Đã tạo lịch livestream')
+      qc.invalidateQueries({ queryKey: ['mkt', 'live'] })
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Tạo thất bại'),
+  })
+}
+
+export function useDeleteLivestream() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => fbApi.live.delete(id),
+    onSuccess: () => {
+      toast.success('Đã xoá lịch live')
+      qc.invalidateQueries({ queryKey: ['mkt', 'live'] })
+    },
+  })
+}
+
+export function useLivestreamAction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (params: { id: string; action: 'notify' | 'status'; status?: string }) => {
+      if (params.action === 'notify') return fbApi.live.markNotified(params.id)
+      return fbApi.live.updateStatus(params.id, params.status || 'LIVE')
+    },
+    onSuccess: (_r, vars) => {
+      toast.success(vars.action === 'notify' ? 'Đã đánh dấu nhắc' : 'Đã cập nhật trạng thái')
+      qc.invalidateQueries({ queryKey: ['mkt', 'live'] })
+    },
+  })
+}

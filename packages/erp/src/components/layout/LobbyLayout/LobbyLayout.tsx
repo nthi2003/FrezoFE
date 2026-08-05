@@ -25,20 +25,16 @@ import { NotificationBell } from '@/components/shared/NotificationBell/Notificat
 import { UserAccountMenu } from '@/components/shared/UserAvatar'
 
 import { useNotificationRealtimeToast } from '@/modules/common/hooks/useNotification'
-
-
+import { useSessionHeartbeat } from '@/lib/session/useSessionHeartbeat'
+import { usePageViewTracker } from '@/lib/session/usePageViewTracker'
 
 export function LobbyLayout() {
-
   const palette = useCommandPalette()
-
   const navigate = useNavigate()
 
-
-
   useNotificationRealtimeToast()
-
-
+  useSessionHeartbeat()
+  usePageViewTracker()
 
   const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform)
 

@@ -18,31 +18,21 @@ export function onboardingStepIndex(wizardStep: number, progressPct = 0): number
   return 3
 }
 
-/** Luồng 2 — Chấm công & Lương (end-to-end) */
+/**
+ * Luồng 2 — Chấm công (Time hub).
+ * Không gồm «Duyệt & chi trả» (thừa — đã nằm trong trang Tính lương / Bảng lương).
+ * Các bước time không render trên Payroll hub.
+ */
 export const ATTENDANCE_PAYROLL_PIPELINE: PipelineStep[] = [
   { key: 'daily', label: 'Chấm công ngày' },
   { key: 'leave_ot', label: 'Duyệt nghỉ & OT' },
   { key: 'summary', label: 'Tổng hợp công' },
   { key: 'calc', label: 'Tính lương' },
-  { key: 'pay', label: 'Duyệt & chi trả' },
 ]
 
 export function attendanceWorkflowStepIndex(activeTab: string): number {
   if (activeTab === 'leaves') return 1
   return 0
-}
-
-export function payrollWorkflowStepIndex(opts: {
-  hasAnyPayroll: boolean
-  allPaid: boolean
-  anyConfirmed: boolean
-  periodLocked: boolean
-}): number {
-  const { hasAnyPayroll, allPaid, anyConfirmed, periodLocked } = opts
-  if (allPaid) return 4
-  if (anyConfirmed || periodLocked) return 3
-  if (hasAnyPayroll) return 3
-  return 2
 }
 
 /** Luồng 3 — KPI / OKR */

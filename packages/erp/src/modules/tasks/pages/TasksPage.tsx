@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, Search, ListTodo } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Plus, Pencil, Trash2, Search, ListTodo, Gift } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -15,6 +16,7 @@ import {
   useCreateTask,
   useUpdateTask,
   useDeleteTask,
+  useReviewTask,
 } from '../hooks/useTask'
 import { taskFormSchema, type TaskFormValues } from '../constants/schema'
 
@@ -26,7 +28,8 @@ const TASKS_GUIDE: PageGuideConfig = {
       heading: 'Trạng thái',
       type: 'tips',
       tips: [
-        'Chưa làm → Đang làm → Hoàn thành hoặc Đã hủy.',
+        'Chưa làm → Đang làm → Hoàn thành (chờ duyệt) → Đã đóng.',
+        'Người thực hiện đánh dấu hoàn thành; người giao duyệt hoặc trả lại.',
         'Lọc theo trạng thái hoặc mức độ ưu tiên để ưu tiên xử lý.',
       ],
     },
@@ -36,7 +39,8 @@ const TASKS_GUIDE: PageGuideConfig = {
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   OPEN: { label: 'Chưa làm', color: 'bg-neutral-100 text-neutral-700' },
   IN_PROGRESS: { label: 'Đang làm', color: 'bg-blue-100 text-blue-700' },
-  DONE: { label: 'Hoàn thành', color: 'bg-green-100 text-green-700' },
+  DONE: { label: 'Chờ duyệt', color: 'bg-amber-100 text-amber-800' },
+  CLOSED: { label: 'Đã đóng', color: 'bg-green-100 text-green-700' },
   CANCELLED: { label: 'Đã hủy', color: 'bg-red-100 text-red-700' },
 }
 
@@ -56,6 +60,13 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<any | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title?: string } | null>(null)
+  const [completeConfirm, setCompleteConfirm] = useState<{ id: string; title?: string; values: TaskFormValues } | null>(null)
+  const [reviewTarget, setReviewTarget] = useState<{
+    id: string
+    title?: string
+    approved: boolean
+    assigneeId?: string
+  } | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [priorityFilter, setPriorityFilter] = useState('ALL')
@@ -64,6 +75,7 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
   const createTask = useCreateTask()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
+  const reviewTask = useReviewTask()
 
   const dataList = useMemo(
     () => (Array.isArray(rawData) ? rawData : []) as any[],
@@ -222,6 +234,12 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
   }
 
   const handleSubmit = (values: TaskFormValues) => {
+    const becomingDone =
+      values.status === 'DONE' && selectedTask?.id && selectedTask.status !== 'DONE'
+    if (becomingDone && selectedTask?.id) {
+      setCompleteConfirm({ id: selectedTask.id, title: values.title || selectedTask.title, values })
+      return
+    }
     if (selectedTask?.id) {
       updateTask.mutate(
         { id: selectedTask.id, data: values },
@@ -258,10 +276,43 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
       key: 'actions',
       title: 'Thao tác',
       dataIndex: 'id',
-      width: 100,
+      width: 180,
       align: 'right',
       render: (_, row) => (
         <div className="flex items-center justify-end gap-1">
+          {row.canReview && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() =>
+                  setReviewTarget({
+                    id: row.id,
+                    title: row.title,
+                    approved: false,
+                    assigneeId: row.assigneeId,
+                  })
+                }
+              >
+                Trả lại
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 text-xs bg-success hover:bg-success-dark text-white"
+                onClick={() =>
+                  setReviewTarget({
+                    id: row.id,
+                    title: row.title,
+                    approved: true,
+                    assigneeId: row.assigneeId,
+                  })
+                }
+              >
+                Duyệt
+              </Button>
+            </>
+          )}
           <AppTooltip content="Sửa">
             <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(row)} aria-label="Sửa">
               <Pencil className="w-4 h-4 text-blue-600" />
@@ -288,7 +339,8 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
         { value: '', label: '-- Chọn --' },
         { value: 'OPEN', label: 'Chưa làm' },
         { value: 'IN_PROGRESS', label: 'Đang làm' },
-        { value: 'DONE', label: 'Hoàn thành' },
+        { value: 'DONE', label: 'Hoàn thành (chờ duyệt)' },
+        { value: 'CLOSED', label: 'Đã đóng' },
         { value: 'CANCELLED', label: 'Đã hủy' },
       ],
     },
@@ -438,6 +490,66 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
         cancelText="Huỷ"
         variant="danger"
         isLoading={deleteTask.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={!!completeConfirm}
+        onClose={() => setCompleteConfirm(null)}
+        title="Xác nhận hoàn thành?"
+        message={
+          completeConfirm
+            ? `「${completeConfirm.title || 'Task'}」 sẽ chờ người giao duyệt. Bạn chắc đã xong?`
+            : ''
+        }
+        confirmText="Đã hoàn thành"
+        cancelText="Chưa xong"
+        variant="default"
+        isLoading={updateTask.isPending}
+        onConfirm={() => {
+          if (!completeConfirm) return
+          updateTask.mutate(
+            { id: completeConfirm.id, data: completeConfirm.values },
+            {
+              onSuccess: () => {
+                setCompleteConfirm(null)
+                setModalOpen(false)
+              },
+            },
+          )
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={!!reviewTarget}
+        onClose={() => setReviewTarget(null)}
+        title={reviewTarget?.approved ? 'Duyệt hoàn thành?' : 'Trả lại người xử lý?'}
+        message={
+          reviewTarget?.approved ? (
+            <span className="block space-y-2">
+              <span className="block">「{reviewTarget.title || 'Task'}」 sẽ được đóng.</span>
+              {reviewTarget.assigneeId && (
+                <Link
+                  to={`/qlns/recognition?personId=${encodeURIComponent(reviewTarget.assigneeId)}&ticketId=${encodeURIComponent(reviewTarget.id)}&action=gift`}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                >
+                  <Gift size={14} /> Tặng token (tuỳ chọn) — tuyên dương
+                </Link>
+              )}
+            </span>
+          ) : (
+            `「${reviewTarget?.title || 'Task'}」 sẽ trả về Đang làm.`
+          )
+        }
+        confirmText={reviewTarget?.approved ? 'Duyệt & đóng' : 'Trả lại'}
+        variant={reviewTarget?.approved ? 'default' : 'warning'}
+        isLoading={reviewTask.isPending}
+        onConfirm={() => {
+          if (!reviewTarget) return
+          reviewTask.mutate(
+            { id: reviewTarget.id, approved: reviewTarget.approved },
+            { onSuccess: () => setReviewTarget(null) },
+          )
+        }}
       />
     </div>
   )

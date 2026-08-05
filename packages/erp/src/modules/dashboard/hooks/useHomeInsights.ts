@@ -95,7 +95,7 @@ export function useHomeInsights() {
 
   const openTasks = useMemo(() => {
     const list = (tasksRaw as { status?: string }[] | undefined) ?? []
-    return list.filter((t) => t.status !== 'DONE').length
+    return list.filter((t) => t.status !== 'DONE' && t.status !== 'CLOSED' && t.status !== 'CANCELLED').length
   }, [tasksRaw])
 
   const pendingLeaves = useMemo(() => {

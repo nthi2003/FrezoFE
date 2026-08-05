@@ -155,7 +155,7 @@ export function GrnCreateModal({
 
   const supplierSelectOptions = useMemo(
     () =>
-      supplierOptions.map((s) => ({
+      (supplierOptions ?? []).map((s) => ({
         value: s.id,
         label: s.label,
       })),
@@ -164,7 +164,7 @@ export function GrnCreateModal({
 
   const poSelectOptions = useMemo(
     () =>
-      receivablePos.map((po) => ({
+      (receivablePos ?? []).map((po) => ({
         value: po.id,
         label: `${po.code || po.id} · ${formatSupplierLabel(po)}`,
       })),

@@ -49,7 +49,7 @@ export function Select({
   const triggerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const normalizedOptions = options.map((opt) =>
+  const normalizedOptions = (options ?? []).map((opt) =>
     typeof opt === 'string' ? { value: opt, label: opt } : opt
   )
 

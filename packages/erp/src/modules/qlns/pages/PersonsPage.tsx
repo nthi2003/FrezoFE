@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Trash2, Eye, AlertTriangle, RefreshCw } from 'lucide-react'
+import { Plus, Edit, Trash2, Eye, AlertTriangle, RefreshCw, Search } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import {
@@ -104,15 +104,21 @@ export function PersonsPage() {
 
   // Pagination & Filter States
   const [page, setPage] = useState(1)
-  const [size, setSize] = useState(20)
+  const [size, setSize] = useState(10)
+  const [keyword, setKeyword] = useState('')
   const [filters, setFilters] = useState<Record<string, any>>({})
+  const [filterEpoch, setFilterEpoch] = useState(0)
 
-  const hasActiveFilters = Object.keys(filters).some(
-    (k) => filters[k] !== undefined && filters[k] !== '' && filters[k] !== 'ALL',
-  )
+  const hasActiveFilters =
+    !!keyword.trim() ||
+    Object.keys(filters).some(
+      (k) => filters[k] !== undefined && filters[k] !== '' && filters[k] !== 'ALL',
+    )
   const clearFilters = () => {
+    setKeyword('')
     setFilters({})
     setPage(1)
+    setFilterEpoch((n) => n + 1)
   }
 
   const queryClient = useQueryClient()
@@ -136,11 +142,12 @@ export function PersonsPage() {
     setSearchParams(next, { replace: true })
   }, [searchParams, setSearchParams])
 
-  // Build filter query params
+  // Build filter query params — BE PersonFilterRequest.keyword (name/code/shortName)
   const filterParams = {
     pageNumber: page,
     pageSize: size,
-    ...filters
+    ...filters,
+    ...(keyword.trim() ? { keyword: keyword.trim() } : {}),
   }
 
   const { data: rawData, isLoading } = usePersons(filterParams)
@@ -320,10 +327,10 @@ export function PersonsPage() {
           >
             <Eye size={15} />
           </IconActionButton>
-          <IconActionButton tooltip="Sửa" tone="primary" onClick={() => handleOpenEdit(row)}>
+          <IconActionButton tooltip="Sửa" tone="blue" onClick={() => handleOpenEdit(row)}>
             <Edit size={15} />
           </IconActionButton>
-          <IconActionButton tooltip="Xóa" tone="red" onClick={() => handleDelete(row)}>
+          <IconActionButton tooltip="Xóa" tone="rose" onClick={() => handleDelete(row)}>
             <Trash2 size={15} />
           </IconActionButton>
         </div>
@@ -360,7 +367,22 @@ export function PersonsPage() {
         hasActiveFilters={hasActiveFilters}
         onClear={clearFilters}
         countLabel={`${totalElements} nhân viên${hasActiveFilters ? ' (đã lọc)' : ''}`}
-      />
+      >
+        <div className="relative flex-1 min-w-[220px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="text"
+            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
+            placeholder="Tìm theo tên, mã nhân viên…"
+            value={keyword}
+            onChange={(e) => {
+              setKeyword(e.target.value)
+              setPage(1)
+            }}
+            aria-label="Tìm nhân viên"
+          />
+        </div>
+      </FilterBar>
 
       {/* FR-UX-06 Flexible Column — desktop 40|60; &lt;md 1 cột */}
       <FlexibleColumnLayout
@@ -378,19 +400,21 @@ export function PersonsPage() {
         }
         master={
           <AppTable
+            key={filterEpoch}
             data={dataList}
             columns={columns}
             isLoading={isLoading}
-            density="compact"
+            defaultDensity="comfortable"
             pageIndex={page}
             pageSize={size}
-            pageSizeOptions={[10, 20, 50, 100]}
+            pageSizeOptions={[10]}
             totalElements={totalElements}
             onPageChange={handlePageChange}
-            showSearch={true}
-            searchPlaceholder="Tìm theo tên, mã nhân viên..."
+            showSearch={false}
             onFilterChange={(nextFilters) => {
-              setFilters(nextFilters)
+              const rest = { ...nextFilters }
+              delete rest.keyword
+              setFilters(rest)
               setPage(1)
             }}
             showDensityToggle

@@ -1,12 +1,11 @@
 // ============================================================
-// GoodsIssueNotesPage — danh sách PXK (GIN) — AppTable + pipeline UX
+// GoodsIssueNotesPage — danh sách phiếu xuất kho — WarehouseListShell
 // ============================================================
 
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PackageMinus, Plus, Eye } from 'lucide-react'
-import { toast } from 'sonner'
-import { Button, AppModal, Select } from '@frezo/ui'
+import { Button } from '@frezo/ui'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { useProducts } from '@/modules/products/hooks/useProduct'
 import { GIN_GUIDE } from '../constants/grn-gin.guide'
@@ -18,23 +17,29 @@ import { useGins, useCreateGin } from '../hooks/useGin'
 import { useWarehouseFilters } from '../hooks/useWarehouseFilters'
 import { usePermission } from '@/lib/hooks/usePermission'
 import { GrnGinStatusBadge } from '../components/GrnGinStatusBadge'
+import { GinCreateModal } from '../components/GinCreateModal'
 import { WarehouseListShell } from '../components/WarehouseListShell'
 import { WarehouseFilterBar } from '../components/WarehouseFilterBar'
-import { WarehouseSelect } from '../components/WarehouseSelect'
+import { formatGinDate, formatVnd, issueTypeLabel } from '../utils/grnGinUtils'
 import {
-  formatVnd,
-  issueTypeLabel,
-  parseProductLines,
-} from '../utils/grnGinUtils'
-import { resolveProductTokens } from '../utils/stockTakeUtils'
-import { formatWarehouseLabel } from '../utils/displayUtils'
+  formatWarehouseLabel,
+  warehouseSelectLabel,
+} from '../utils/displayUtils'
 import type { GinDto } from '../services/ginApi'
 
 export function GoodsIssueNotesPage() {
   const nav = useNavigate()
+  const [searchParams] = useSearchParams()
   const filters = useWarehouseFilters()
   const [issueTypeFilter, setIssueTypeFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [keyword, setKeyword] = useState('')
+
+  useEffect(() => {
+    const status = searchParams.get('status')
+    if (status) filters.setStatus(status)
+  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const listParams = useMemo(
     () => ({
@@ -51,45 +56,61 @@ export function GoodsIssueNotesPage() {
     isFetching,
     refetch,
   } = useGins(listParams)
-  const { data: productsRaw } = useProducts()
+  const { data: productsRaw, isError: productsError, isLoading: productsLoading } = useProducts()
   const create = useCreateGin()
   const canCreate = usePermission('WAREHOUSE.GIN.CREATE')
 
   const [open, setOpen] = useState(false)
-  const [warehouseId, setWarehouseId] = useState('')
-  const [customerId, setCustomerId] = useState('')
-  const [issueType, setIssueType] = useState('SALES')
-  const [documentNo, setDocumentNo] = useState('')
-  const [documentDate, setDocumentDate] = useState('')
-  const [transferWarehouseId, setTransferWarehouseId] = useState('')
-  const [note, setNote] = useState('')
-  const [linesRaw, setLinesRaw] = useState('')
 
   const products = useMemo(() => {
-    const raw = productsRaw as Array<{ id: string; code?: string; name?: string }> | undefined
-    return Array.isArray(raw) ? raw : []
+    const raw = productsRaw as
+      | Array<{ id: string; code?: string; name?: string; price?: number | null }>
+      | undefined
+    return Array.isArray(raw)
+      ? raw.filter((p) => Boolean(p?.id)).map((p) => ({
+          id: p.id,
+          code: p.code,
+          name: p.name,
+          price: p.price,
+        }))
+      : []
   }, [productsRaw])
 
-  const warehouseOptions = filters.warehouses
+  const warehouseOptions = Array.isArray(filters.warehouses) ? filters.warehouses : []
 
   const filteredList = useMemo(() => {
-    return list.filter((gin) => {
+    const source = Array.isArray(list) ? list : []
+    return source.filter((gin) => {
       if (filters.warehouseId && gin.warehouseId !== filters.warehouseId) return false
-      if (issueTypeFilter && (gin.issueType || '').toUpperCase() !== issueTypeFilter) return false
+      if (issueTypeFilter && (gin.issueType || '').toUpperCase() !== issueTypeFilter)
+        return false
+      const docDate = formatGinDate(gin)
+      if (dateFrom && docDate !== '—' && docDate < dateFrom) return false
+      if (dateTo && docDate !== '—' && docDate > dateTo) return false
       return true
     })
-  }, [list, filters.warehouseId, issueTypeFilter])
+  }, [list, filters.warehouseId, issueTypeFilter, dateFrom, dateTo])
 
   const stats = useMemo(() => {
+    const source = Array.isArray(list) ? list : []
     const base = filters.warehouseId
-      ? list.filter((g) => g.warehouseId === filters.warehouseId)
-      : list
+      ? source.filter((g) => g.warehouseId === filters.warehouseId)
+      : source
     return [
       { label: 'Tổng phiếu', value: base.length },
       { label: 'Nháp', value: base.filter((g) => (g.status || '').toUpperCase() === 'DRAFT').length },
-      { label: 'Chờ duyệt', value: base.filter((g) => (g.status || '').toUpperCase() === 'PENDING_APPROVAL').length },
-      { label: 'Đã duyệt', value: base.filter((g) => (g.status || '').toUpperCase() === 'APPROVED').length },
-      { label: 'Đã xuất', value: base.filter((g) => (g.status || '').toUpperCase() === 'CONFIRMED').length },
+      {
+        label: 'Chờ duyệt',
+        value: base.filter((g) => (g.status || '').toUpperCase() === 'PENDING_APPROVAL').length,
+      },
+      {
+        label: 'Đã xuất',
+        value: base.filter((g) => (g.status || '').toUpperCase() === 'CONFIRMED').length,
+      },
+      {
+        label: 'Huỷ',
+        value: base.filter((g) => (g.status || '').toUpperCase() === 'CANCELLED').length,
+      },
     ]
   }, [list, filters.warehouseId])
 
@@ -103,8 +124,15 @@ export function GoodsIssueNotesPage() {
           className="font-mono text-xs text-primary-700 hover:underline text-left"
           onClick={() => nav(`/warehouse/gin/${row.id}`)}
         >
-          {row.ginCode || row.id.slice(0, 8)}
+          {row.ginCode || '—'}
         </button>
+      ),
+    },
+    {
+      key: 'date',
+      title: 'Ngày',
+      render: (_, row) => (
+        <span className="tabular-nums text-sm">{formatGinDate(row)}</span>
       ),
     },
     {
@@ -135,7 +163,7 @@ export function GoodsIssueNotesPage() {
     },
     {
       key: 'lines',
-      title: 'Dòng',
+      title: 'SL dòng',
       align: 'right',
       render: (_, row) => (
         <span className="tabular-nums">{row.items?.length ?? 0}</span>
@@ -172,81 +200,35 @@ export function GoodsIssueNotesPage() {
     },
   ]
 
-  const resetCreateForm = () => {
-    setWarehouseId(filters.warehouseId || warehouseOptions[0]?.id || '')
-    setCustomerId('')
-    setIssueType('SALES')
-    setDocumentNo('')
-    setDocumentDate('')
-    setTransferWarehouseId('')
-    setNote('')
-    setLinesRaw('SP001,10,25000')
-  }
+  const openCreateModal = () => setOpen(true)
 
-  const handleCreate = () => {
-    if (!warehouseId || !linesRaw.trim()) return
-    const parsed = parseProductLines(linesRaw)
-    const tokens = parsed.map((p) => p.productId)
-    const { resolved, unknown } = resolveProductTokens(tokens.join('\n'), products)
-    if (unknown.length > 0) {
-      toast.error(`Không tìm thấy SP: ${unknown.join(', ')}`)
-      return
-    }
-    const tokenToId = new Map<string, string>()
-    for (const p of products) {
-      if (p.code) tokenToId.set(p.code.toUpperCase(), p.id)
-      tokenToId.set(p.id, p.id)
-    }
-    const items = parsed.map((ln) => ({
-      productId: tokenToId.get(ln.productId.toUpperCase()) || ln.productId,
-      qtyRequested: ln.qty,
-      unitCost: ln.unitCost,
-    }))
-    create.mutate(
-      {
-        warehouseId,
-        customerId: customerId || undefined,
-        issueType: issueType || undefined,
-        documentNo: documentNo || undefined,
-        documentDate: documentDate || undefined,
-        transferWarehouseId:
-          issueType === 'INTERNAL_TRANSFER' ? transferWarehouseId || undefined : undefined,
-        note: note || undefined,
-        items,
-      },
-      {
-        onSuccess: (gin) => {
-          setOpen(false)
-          if (gin?.id) nav(`/warehouse/gin/${gin.id}`)
-        },
-      },
-    )
-  }
-
-  const hasActiveFilters =
-    Boolean(filters.warehouseId || filters.status || issueTypeFilter || keyword)
+  const hasActiveFilters = Boolean(
+    filters.warehouseId ||
+      filters.status ||
+      issueTypeFilter ||
+      dateFrom ||
+      dateTo ||
+      keyword,
+  )
 
   const clearFilters = () => {
     filters.clearFilters()
     setIssueTypeFilter('')
+    setDateFrom('')
+    setDateTo('')
     setKeyword('')
   }
 
   return (
     <WarehouseListShell
       title="Phiếu xuất kho"
-      description="Nháp → Gửi duyệt → Duyệt → Xác nhận xuất (trừ tồn)."
+      description="Nháp → Gửi duyệt → Duyệt → Xác nhận xuất kho (trừ tồn)."
       guide={GIN_GUIDE}
       headerActions={
         canCreate ? (
-          <Button
-            className="gap-1.5"
-            onClick={() => {
-              resetCreateForm()
-              setOpen(true)
-            }}
-          >
-            <Plus size={14} /> Tạo phiếu xuất
+          <Button className="gap-2 shadow-sm" onClick={openCreateModal}>
+            <Plus size={16} strokeWidth={2.5} />
+            Tạo phiếu xuất kho
           </Button>
         ) : undefined
       }
@@ -263,7 +245,7 @@ export function GoodsIssueNotesPage() {
                 { value: '', label: 'Tất cả kho' },
                 ...warehouseOptions.map((w) => ({
                   value: w.id,
-                  label: w.name || w.id,
+                  label: warehouseSelectLabel(w),
                 })),
               ],
             },
@@ -286,13 +268,29 @@ export function GoodsIssueNotesPage() {
           onClear={clearFilters}
           countLabel={`${filteredList.length} phiếu${hasActiveFilters ? ' (đã lọc)' : ''}`}
           extra={
-            <input
-              className="h-9 border rounded-md px-3 text-sm bg-white min-w-[160px]"
-              placeholder="Tìm mã / chứng từ…"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              aria-label="Tìm kiếm"
-            />
+            <>
+              <input
+                type="date"
+                className="h-9 border rounded-md px-3 text-sm bg-white"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                aria-label="Từ ngày"
+              />
+              <input
+                type="date"
+                className="h-9 border rounded-md px-3 text-sm bg-white"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                aria-label="Đến ngày"
+              />
+              <input
+                className="h-9 border rounded-md px-3 text-sm bg-white min-w-[160px]"
+                placeholder="Tìm mã phiếu / chứng từ…"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                aria-label="Tìm kiếm"
+              />
+            </>
           }
         />
       }
@@ -305,134 +303,39 @@ export function GoodsIssueNotesPage() {
       filteredCount={filteredList.length}
       emptyIcon={PackageMinus}
       emptyTitle="Chưa có phiếu xuất kho"
-      emptyDescription="Tạo phiếu xuất — chọn kho, loại xuất và danh sách hàng."
+      emptyDescription="Tạo phiếu mới — chọn kho, loại xuất và danh sách hàng."
       emptyAction={
         canCreate
           ? {
-              label: 'Tạo phiếu xuất',
-              onClick: () => {
-                resetCreateForm()
-                setOpen(true)
-              },
+              label: 'Tạo phiếu xuất kho',
+              onClick: openCreateModal,
             }
           : undefined
       }
       filteredEmptyTitle="Không có phiếu phù hợp bộ lọc"
-      filteredEmptyDescription="Thử đổi kho, loại xuất hoặc trạng thái."
+      filteredEmptyDescription="Thử đổi kho, loại xuất, trạng thái hoặc khoảng ngày."
       columns={columns}
       data={filteredList}
       onRefresh={refetch}
     >
-      <AppModal
+      <GinCreateModal
         isOpen={open}
         onClose={() => setOpen(false)}
-        title="Tạo phiếu xuất kho"
-        maxWidth="lg"
-      >
-        <div className="space-y-3 text-sm">
-          <p className="text-neutral-500 text-xs">
-            Bước 1: Nhập thông tin chứng từ và dòng hàng (mã SP như SP001).
-          </p>
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-neutral-600">Kho xuất *</span>
-            <WarehouseSelect
-              warehouses={warehouseOptions}
-              value={warehouseId}
-              onChange={setWarehouseId}
-              placeholder="— Chọn kho —"
-              aria-label="Kho xuất"
-            />
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-neutral-600">Loại xuất</span>
-              <Select
-                options={[
-                  { value: 'SALES', label: 'Xuất bán' },
-                  { value: 'INTERNAL_TRANSFER', label: 'Chuyển kho nội bộ' },
-                  { value: 'DAMAGE_RETURN', label: 'Hủy/hoàn hàng' },
-                  { value: 'ADJUSTMENT', label: 'Điều chỉnh' },
-                ]}
-                value={issueType}
-                onChange={setIssueType}
-                showSearch={false}
-                aria-label="Loại xuất"
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-neutral-600">Mã khách (tuỳ chọn)</span>
-              <input
-                className="w-full border rounded-md px-3 py-2 font-mono"
-                placeholder="KH003"
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-              />
-            </label>
-          </div>
-          {issueType === 'INTERNAL_TRANSFER' && (
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-neutral-600">Kho đích</span>
-              <WarehouseSelect
-                warehouses={warehouseOptions}
-                value={transferWarehouseId}
-                onChange={setTransferWarehouseId}
-                placeholder="— Kho nhận —"
-                aria-label="Kho đích"
-              />
-            </label>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-neutral-600">Số chứng từ / HĐ xuất</span>
-              <input
-                className="w-full border rounded-md px-3 py-2"
-                placeholder="PX-2026-001"
-                value={documentNo}
-                onChange={(e) => setDocumentNo(e.target.value)}
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-neutral-600">Ngày chứng từ</span>
-              <input
-                type="date"
-                className="w-full border rounded-md px-3 py-2"
-                value={documentDate}
-                onChange={(e) => setDocumentDate(e.target.value)}
-              />
-            </label>
-          </div>
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-neutral-600">Dòng hàng *</span>
-            <textarea
-              rows={4}
-              className="w-full border rounded-md px-3 py-2 font-mono text-xs"
-              placeholder={'Mỗi dòng: mãSP,sốLượng,đơnGiá\nSP001,10,25000'}
-              value={linesRaw}
-              onChange={(e) => setLinesRaw(e.target.value)}
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-neutral-600">Ghi chú</span>
-            <textarea
-              rows={2}
-              className="w-full border rounded-md px-3 py-2"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </label>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Huỷ
-            </Button>
-            <Button
-              disabled={!warehouseId || !linesRaw.trim() || create.isPending}
-              onClick={handleCreate}
-            >
-              Lưu nháp
-            </Button>
-          </div>
-        </div>
-      </AppModal>
+        warehouseOptions={warehouseOptions}
+        products={products}
+        productsError={productsError}
+        productsLoading={productsLoading}
+        defaultWarehouseId={filters.warehouseId}
+        isPending={create.isPending}
+        onSubmit={(body) =>
+          create.mutate(body, {
+            onSuccess: (gin) => {
+              setOpen(false)
+              if (gin?.id) nav(`/warehouse/gin/${gin.id}`)
+            },
+          })
+        }
+      />
     </WarehouseListShell>
   )
 }

@@ -271,11 +271,12 @@ export function RequisitionsPage() {
           columns={columns}
           data={filtered}
           isLoading={isLoading}
-          density="compact"
+          defaultDensity="comfortable"
           showSearch={false}
-          pageSize={20}
-          pageSizeOptions={[10, 20, 50, 100]}
+          pageSize={10}
+          pageSizeOptions={[10]}
           onRefresh={() => void refetch()}
+          showDensityToggle
         />
       )}
 

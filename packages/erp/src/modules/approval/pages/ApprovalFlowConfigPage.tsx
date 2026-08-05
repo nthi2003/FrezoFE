@@ -1,16 +1,16 @@
 // ============================================================
 // ApprovalFlowConfigPage — CRUD template luồng duyệt (FE-1)
 // Drag-sort bước đơn giản bằng ▲▼ (không cần dnd lib).
-// Layout: PageHeader + PageGuide + sticky FilterBar + AppTable compact
+// Layout: PageHeader + sticky FilterBar + AppTable compact
 // ============================================================
 
 import { useMemo, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  Plus, Pencil, GripVertical, ChevronUp, ChevronDown, Trash2, Workflow, Info,
+  Plus, Pencil, GripVertical, ChevronUp, ChevronDown, Trash2, Workflow,
 } from 'lucide-react'
 import {
   Button, PageHeader, AppModal, EmptyState, ErrorState, PageGuideButton, Select,
+  IconActionButton, actionIconTone,
 } from '@frezo/ui'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import {
@@ -39,8 +39,6 @@ export function ApprovalFlowConfigPage({ embedded }: { embedded?: boolean } = {}
   const update = useUpdateApprovalFlow()
   const canCreate = usePermission('APPROVAL_FLOWS.CREATE')
   const canUpdate = usePermission('APPROVAL_FLOWS.UPDATE')
-  const navigate = useNavigate()
-  const [, setSearchParams] = useSearchParams()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ApprovalFlowDto | null>(null)
@@ -177,32 +175,24 @@ export function ApprovalFlowConfigPage({ embedded }: { embedded?: boolean } = {}
     },
     {
       key: 'actions',
-      title: 'Thao tác',
-      width: 100,
+      title: '',
+      width: 56,
       align: 'right',
       render: (_, row) =>
         canUpdate ? (
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => openEdit(row)}>
-            <Pencil size={13} /> Sửa
-          </Button>
+          <div className="flex items-center justify-end gap-1">
+            <IconActionButton
+              tooltip="Sửa"
+              tone={actionIconTone.edit}
+              size="sm"
+              onClick={() => openEdit(row)}
+            >
+              <Pencil size={14} />
+            </IconActionButton>
+          </div>
         ) : null,
     },
   ]
-
-  const goTemplatesTab = () => {
-    if (embedded) {
-      setSearchParams(
-        (prev) => {
-          const sp = new URLSearchParams(prev)
-          sp.set('tab', 'templates')
-          return sp
-        },
-        { replace: true },
-      )
-      return
-    }
-    navigate('/approval/flows?tab=templates')
-  }
 
   const headerActions = (
     <div className="flex flex-wrap gap-2 items-center">
@@ -227,27 +217,6 @@ export function ApprovalFlowConfigPage({ embedded }: { embedded?: boolean } = {}
       {embedded && (
         <div className="flex flex-wrap gap-2 items-center justify-end">{headerActions}</div>
       )}
-
-      <div className="flex gap-2.5 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-2.5 text-sm text-sky-950">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
-        <p className="leading-snug">
-          Tab này <b>gắn</b> luồng vào loại đơn: chọn <b>Loại đối tượng</b> → sửa bước → tick{' '}
-          <b>Đang kích hoạt</b> → lưu. Badge <b>Áp dụng: …</b> = đơn mới đi theo draft đó.
-          Hướng dẫn:{' '}
-          <Link to="/docs/guide-approval-attach" className="font-semibold underline underline-offset-2 hover:text-sky-800">
-            Gắn luồng duyệt
-          </Link>
-          . Cần vẽ mẫu sơ đồ nâng cao → tab{' '}
-          <button
-            type="button"
-            onClick={goTemplatesTab}
-            className="font-semibold underline underline-offset-2 hover:text-sky-800"
-          >
-            Mẫu / Designer
-          </button>
-          {' '}(không tự gắn Leave).
-        </p>
-      </div>
 
       <div className={`sticky top-0 z-10 py-2 bg-neutral-50/95 backdrop-blur border-y border-neutral-200/80 ${embedded ? '-mx-1 px-1' : '-mx-6 px-6'}`}>
         <div className="flex flex-wrap gap-2 items-center">
@@ -468,33 +437,30 @@ function FlowForm({
                 />
               </div>
               <div className="flex items-center gap-0.5">
-                <button
-                  type="button"
-                  className="p-1 text-neutral-400 hover:text-neutral-700"
+                <IconActionButton
+                  tooltip="Lên"
+                  tone="neutral"
+                  size="sm"
                   onClick={() => moveStep(idx, -1)}
-                  title="Lên"
-                  aria-label="Di chuyển bước lên"
                 >
                   <ChevronUp size={14} />
-                </button>
-                <button
-                  type="button"
-                  className="p-1 text-neutral-400 hover:text-neutral-700"
+                </IconActionButton>
+                <IconActionButton
+                  tooltip="Xuống"
+                  tone="neutral"
+                  size="sm"
                   onClick={() => moveStep(idx, 1)}
-                  title="Xuống"
-                  aria-label="Di chuyển bước xuống"
                 >
                   <ChevronDown size={14} />
-                </button>
-                <button
-                  type="button"
-                  className="p-1 text-neutral-400 hover:text-rose-600"
+                </IconActionButton>
+                <IconActionButton
+                  tooltip="Xoá bước"
+                  tone={actionIconTone.delete}
+                  size="sm"
                   onClick={() => removeStep(idx)}
-                  title="Xoá bước"
-                  aria-label="Xoá bước"
                 >
                   <Trash2 size={14} />
-                </button>
+                </IconActionButton>
               </div>
             </div>
           ))}

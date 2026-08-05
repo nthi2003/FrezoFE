@@ -13,6 +13,7 @@ import { menuApi } from '@/modules/menus/services/menuApi'
 
 // ---- Lazy load pages per module ----
 const LoginPage       = lazy(() => import('@/modules/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })))
+const ForgotPasswordPage = lazy(() => import('@/modules/auth/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })))
 const LobbyPage       = lazy(() => import('@/modules/dashboard/pages/LobbyPage').then(m => ({ default: m.LobbyPage })))
 const DashboardPage   = lazy(() => import('@/modules/dashboard/pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
 
@@ -26,10 +27,8 @@ const PermissionsPage   = lazy(() => import('@/modules/qtht/pages/PermissionsPag
 const SecurityPage      = lazy(() => import('@/modules/qtht/pages/SecurityPage').then(m => ({ default: m.SecurityPage })))
 const SettingsPage      = lazy(() => import('@/modules/qtht/pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const ApiLogsPage       = lazy(() => import('@/modules/qtht/pages/ApiLogsPage').then(m => ({ default: m.ApiLogsPage })))
+const UsageAnalyticsPage = lazy(() => import('@/modules/qtht/pages/UsageAnalyticsPage').then(m => ({ default: m.UsageAnalyticsPage })))
 const WebsiteManagementPage = lazy(() => import('@/modules/qtht/pages/WebsiteManagementPage').then(m => ({ default: m.WebsiteManagementPage })))
-const NewsPage = lazy(() => import('@/modules/qtht/pages/NewsPage').then(m => ({ default: m.NewsPage })))
-const NewsCreatePage = lazy(() => import('@/modules/qtht/pages/NewsCreatePage').then(m => ({ default: m.NewsCreatePage })))
-
 // Assets (QLTS)
 const AssetsPage = lazy(() => import('@/modules/assets/pages/AssetsPage').then(m => ({ default: m.AssetsPage })))
 const DepreciationPostPage = lazy(() => import('@/modules/assets/pages/DepreciationPostPage').then(m => ({ default: m.DepreciationPostPage })))
@@ -56,6 +55,7 @@ const RequisitionsPage      = lazy(() => import('@/modules/qlns/pages/Requisitio
 const RecruitmentBoardPage  = lazy(() => import('@/modules/qlns/pages/RecruitmentBoardPage').then(m => ({ default: m.RecruitmentBoardPage })))
 const OkrsPage                  = lazy(() => import('@/modules/qlns/pages/OkrsPage').then(m => ({ default: m.OkrsPage })))
 const PerformanceReviewsPage    = lazy(() => import('@/modules/qlns/pages/PerformanceReviewsPage').then(m => ({ default: m.PerformanceReviewsPage })))
+const RecognitionPage           = lazy(() => import('@/modules/qlns/pages/RecognitionPage').then(m => ({ default: m.RecognitionPage })))
 const OnboardingPage            = lazy(() => import('@/modules/qlns/pages/OnboardingPage').then(m => ({ default: m.OnboardingPage })))
 const OffboardingPage           = lazy(() => import('@/modules/qlns/pages/OffboardingPage').then(m => ({ default: m.OffboardingPage })))
 const ContractSignPage          = lazy(() => import('@/modules/contracts/pages/ContractSignPage').then(m => ({ default: m.ContractSignPage })))
@@ -163,6 +163,11 @@ const FbLeadsPage         = lazy(() => import('@/modules/fbautomation/pages/FbLe
 const LeadImportPage      = lazy(() => import('@/modules/fbautomation/pages/LeadImportPage').then(m => ({ default: m.LeadImportPage })))
 const SocialContentPage   = lazy(() => import('@/modules/fbautomation/pages/SocialContentPage').then(m => ({ default: m.SocialContentPage })))
 const AffiliatePage       = lazy(() => import('@/modules/fbautomation/pages/AffiliatePage').then(m => ({ default: m.AffiliatePage })))
+const AdsPage             = lazy(() => import('@/modules/fbautomation/pages/AdsPage').then(m => ({ default: m.AdsPage })))
+const InsightsPage        = lazy(() => import('@/modules/fbautomation/pages/InsightsPage').then(m => ({ default: m.InsightsPage })))
+const CommentsPage        = lazy(() => import('@/modules/fbautomation/pages/CommentsPage').then(m => ({ default: m.CommentsPage })))
+const ReviewsPage         = lazy(() => import('@/modules/fbautomation/pages/ReviewsPage').then(m => ({ default: m.ReviewsPage })))
+const LivePage            = lazy(() => import('@/modules/fbautomation/pages/LivePage').then(m => ({ default: m.LivePage })))
 
 // AI Automation
 const AIDashboardPage   = lazy(() => import('@/modules/ai/pages/AIDashboardPage').then(m => ({ default: m.AIDashboardPage })))
@@ -297,6 +302,17 @@ export const router = createBrowserRouter([
       </PublicRoute>
     ),
   },
+  {
+    path: '/forgot-password',
+    errorElement: <RouteErrorBoundary />,
+    element: (
+      <PublicRoute>
+        <Suspense fallback={<AppSplash label="Đang mở quên mật khẩu" />}>
+          <ForgotPasswordPage />
+        </Suspense>
+      </PublicRoute>
+    ),
+  },
 
   // Protected routes — LobbyLayout (/) vs MainLayout (ERP modules)
   {
@@ -336,18 +352,20 @@ export const router = createBrowserRouter([
       { path: 'qtht/security',      element: <Suspense fallback={<PageLoader />}><SecurityPage /></Suspense> },
       { path: 'qtht/settings',      element: <Suspense fallback={<PageLoader />}><SettingsPage /></Suspense> },
       { path: 'qtht/apilogs',       element: <Suspense fallback={<PageLoader />}><ApiLogsPage /></Suspense> },
+      { path: 'qtht/usage',         element: <Suspense fallback={<PageLoader />}><UsageAnalyticsPage /></Suspense> },
       { path: 'qtht/workflows',     element: <Navigate to="/approval/flows?tab=templates" replace /> },
       { path: 'qtht/workflows/templates', element: <Suspense fallback={<PageLoader />}><WorkflowTemplateGalleryPage /></Suspense> },
       { path: 'qtht/workflows/:id/designer', element: <Suspense fallback={<PageLoader />}><WorkflowDesignerPage /></Suspense> },
       { path: 'qtht/website',        element: <Suspense fallback={<PageLoader />}><WebsiteManagementPage /></Suspense> },
-      { path: 'qtht/tin-tuc',        element: <Suspense fallback={<PageLoader />}><NewsPage /></Suspense> },
-      { path: 'qtht/tin-tuc/tao-moi', element: <Suspense fallback={<PageLoader />}><NewsCreatePage /></Suspense> },
+      { path: 'qtht/tin-tuc',        element: <Navigate to="/admin/article-management" replace /> },
+      { path: 'qtht/tin-tuc/tao-moi', element: <Navigate to="/admin/article-management/new" replace /> },
 
       // QLNS — unified hubs + legacy redirects
       { path: 'qlns/time',        element: <Suspense fallback={<PageLoader />}><TimeHubPage /></Suspense> },
       { path: 'qlns/payroll',     element: <Suspense fallback={<PageLoader />}><PayrollHubPage /></Suspense> },
       { path: 'qlns/people',      element: <Suspense fallback={<PageLoader />}><PeopleHubPage /></Suspense> },
       { path: 'qlns/performance', element: <Suspense fallback={<PageLoader />}><PerformanceHubPage /></Suspense> },
+      { path: 'qlns/recognition', element: <Suspense fallback={<PageLoader />}><RecognitionPage /></Suspense> },
       { path: 'qlns/persons',     element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/people" tab="persons" /></Suspense> },
       { path: 'qlns/contract',        element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/people" tab="contracts" /></Suspense> },
       { path: 'qlns/contract/create', element: <Suspense fallback={<PageLoader />}><ContractCreatePage /></Suspense> },
@@ -482,12 +500,12 @@ export const router = createBrowserRouter([
       { path: 'mkt/content',      element: <Suspense fallback={<PageLoader />}><SocialContentPage /></Suspense> },
       { path: 'mkt/affiliate',    element: <Suspense fallback={<PageLoader />}><AffiliatePage /></Suspense> },
 
-      // Cần Meta App Review + Page Token — hiện placeholder, sẽ implement khi có credentials.
-      { path: 'mkt/insights',     element: <PlaceholderPage title="Page Insights" moduleCode="MKT · INSIGHTS" description="Reach / engagement / follower theo Graph API. Cần Meta App + permission read_insights. Xem MKT_ROADMAP.md." /> },
-      { path: 'mkt/ads',          element: <PlaceholderPage title="Báo cáo Ads" moduleCode="MKT · ADS" description="Chi phí / ROAS / CTR từ Meta Marketing API. Cần Ad Account Token + permission ads_read." /> },
-      { path: 'mkt/comments',     element: <PlaceholderPage title="Kiểm duyệt Comment" moduleCode="MKT · MODERATOR" description="Auto-reply / hide spam theo từ khoá. Cần Page Token + webhook feed." /> },
-      { path: 'mkt/reviews',      element: <PlaceholderPage title="Theo dõi đánh giá" moduleCode="MKT · REVIEWS" description="Poll ratings, alert khi có review 1-2 sao. Cần Page Token + permission pages_read_user_content." /> },
-      { path: 'mkt/live',         element: <PlaceholderPage title="Livestream Reminder" moduleCode="MKT · LIVE" description="Tạo event + notify khách đăng ký trước giờ live. Standalone — không cần Meta App." /> },
+      { path: 'mkt/insights',     element: <Suspense fallback={<PageLoader />}><InsightsPage /></Suspense> },
+      { path: 'mkt/ads',          element: <Suspense fallback={<PageLoader />}><AdsPage /></Suspense> },
+      { path: 'mkt/comments',     element: <Suspense fallback={<PageLoader />}><CommentsPage /></Suspense> },
+      { path: 'mkt/reviews',      element: <Suspense fallback={<PageLoader />}><ReviewsPage /></Suspense> },
+      { path: 'mkt/live',         element: <Suspense fallback={<PageLoader />}><LivePage /></Suspense> },
+      // Cần Zalo OA verified + template duyệt trước.
       { path: 'mkt/zalo',         element: <PlaceholderPage title="Zalo OA Broadcast" moduleCode="MKT · ZALO" description="Gửi ZNS theo template đã duyệt. Cần Zalo OA verified + template duyệt trước." /> },
 
       // AI Automation

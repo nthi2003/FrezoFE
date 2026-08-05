@@ -22,15 +22,16 @@ export interface IconActionButtonProps
   size?: 'sm' | 'md'
 }
 
+/** Tất cả tone đều có màu idle (không chỉ hover). `neutral` là xám có chủ đích. */
 const toneClasses: Record<IconActionTone, string> = {
   neutral: 'text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100',
   blue: 'text-blue-600 hover:text-blue-800 hover:bg-blue-50',
   rose: 'text-rose-600 hover:text-rose-800 hover:bg-rose-50',
-  amber: 'text-neutral-400 hover:text-amber-600 hover:bg-amber-50',
-  emerald: 'text-neutral-400 hover:text-emerald-600 hover:bg-emerald-50',
-  red: 'text-neutral-400 hover:text-red-600 hover:bg-red-50',
-  violet: 'text-neutral-400 hover:text-violet-600 hover:bg-violet-50',
-  primary: 'text-neutral-400 hover:text-primary-600 hover:bg-primary-50',
+  amber: 'text-amber-600 hover:text-amber-800 hover:bg-amber-50',
+  emerald: 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50',
+  red: 'text-red-600 hover:text-red-800 hover:bg-red-50',
+  violet: 'text-violet-600 hover:text-violet-800 hover:bg-violet-50',
+  primary: 'text-primary-600 hover:text-primary-800 hover:bg-primary-50',
 }
 
 const sizeClasses: Record<'sm' | 'md', string> = {
@@ -39,10 +40,24 @@ const sizeClasses: Record<'sm' | 'md', string> = {
 }
 
 /**
+ * Tone chuẩn cho CRUD / approve — dùng thay vì invent tone từng trang.
+ *
+ * @example
+ * <IconActionButton tooltip="Sửa" tone={actionIconTone.edit} onClick={onEdit}>
+ */
+export const actionIconTone = {
+  view: 'blue',
+  edit: 'blue',
+  delete: 'rose',
+  approve: 'emerald',
+  reject: 'rose',
+} as const satisfies Record<string, IconActionTone>
+
+/**
  * Nút icon-only có tooltip — dùng ở cột thao tác bảng, toolbar hub.
  *
  * @example
- * <IconActionButton tooltip="Sửa" tone="blue" onClick={onEdit}>
+ * <IconActionButton tooltip="Sửa" tone={actionIconTone.edit} onClick={onEdit}>
  *   <Pencil size={14} />
  * </IconActionButton>
  */

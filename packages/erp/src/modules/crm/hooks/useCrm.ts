@@ -2,10 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { unwrapList, unwrapOne } from '@frezo/utils'
 import { toast } from 'sonner'
 import {
-  leadsApi, pipelinesApi, dealsApi, activitiesApi, quotesApi, invoicesApi,
+  leadsApi, pipelinesApi, dealsApi, activitiesApi, quotesApi, invoicesApi, commissionsApi,
   type LeadStatus, type LeadRequest, type DealStatus, type DealRequest,
   type DealActivity, type QuoteRequest, type QuoteStatus,
   type InvoiceRequest, type InvoiceStatus,
+  type CommissionEntry, type CommissionRule,
 } from '../services/crmApi'
 
 const one = unwrapOne
@@ -334,9 +335,76 @@ export function useRecordPayment() {
     onSuccess: () => {
       toast.success('Đã ghi nhận thanh toán')
       qc.invalidateQueries({ queryKey: ['crm', 'invoices'] })
+      qc.invalidateQueries({ queryKey: ['crm', 'commissions'] })
     },
     onError: (err: unknown) => {
       toast.error(mutationErrorMessage(err, 'Thu tiền hoá đơn thất bại'))
     },
   })
 }
+
+// ---- Commissions ----
+
+export function useCommissionDashboard() {
+  return useQuery({
+    queryKey: ['crm', 'commissions', 'dashboard'],
+    queryFn: commissionsApi.dashboard,
+  })
+}
+
+export function useCommissionRules() {
+  return useQuery({
+    queryKey: ['crm', 'commissions', 'rules'],
+    queryFn: commissionsApi.listRules,
+  })
+}
+
+export function useCommissionEntries(salespersonUsername?: string) {
+  return useQuery({
+    queryKey: ['crm', 'commissions', 'entries', salespersonUsername ?? 'all'],
+    queryFn: () => commissionsApi.listEntries(salespersonUsername),
+  })
+}
+
+export function useUpsertCommissionRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { salespersonUsername: string; ratePercent: number; active?: boolean; note?: string }) =>
+      commissionsApi.upsertRule(data),
+    onSuccess: () => {
+      toast.success('Đã lưu mức hoa hồng')
+      qc.invalidateQueries({ queryKey: ['crm', 'commissions'] })
+    },
+    onError: (err: unknown) => toast.error(mutationErrorMessage(err, 'Lưu mức hoa hồng thất bại')),
+  })
+}
+
+export function useDeleteCommissionRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => commissionsApi.deleteRule(id),
+    onSuccess: () => {
+      toast.success('Đã xoá cấu hình')
+      qc.invalidateQueries({ queryKey: ['crm', 'commissions'] })
+    },
+    onError: (err: unknown) => toast.error(mutationErrorMessage(err, 'Xoá thất bại')),
+  })
+}
+
+export function useCommissionEntryAction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'approve' | 'mark-paid' | 'void' }) => {
+      if (action === 'approve') return commissionsApi.approve(id)
+      if (action === 'mark-paid') return commissionsApi.markPaid(id)
+      return commissionsApi.voidEntry(id)
+    },
+    onSuccess: () => {
+      toast.success('Đã cập nhật hoa hồng')
+      qc.invalidateQueries({ queryKey: ['crm', 'commissions'] })
+    },
+    onError: (err: unknown) => toast.error(mutationErrorMessage(err, 'Cập nhật thất bại')),
+  })
+}
+
+export type { CommissionEntry, CommissionRule }

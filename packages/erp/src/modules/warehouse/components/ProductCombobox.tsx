@@ -39,7 +39,7 @@ export function ProductCombobox({
 }: ProductComboboxProps) {
   const options = useMemo(() => {
     const opts: Array<{ value: string; label: string }> = []
-    for (const p of products) {
+    for (const p of products ?? []) {
       if (!p?.id) continue
       const label = formatProductLabel(p)
       if (!label || label === '—') continue

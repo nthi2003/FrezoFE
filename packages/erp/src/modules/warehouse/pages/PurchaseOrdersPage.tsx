@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Package, CheckCircle2, PackagePlus, Eye } from 'lucide-react'
-import { Button, ConfirmDialog } from '@frezo/ui'
+import { Button, ConfirmDialog, IconActionButton } from '@frezo/ui'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { PURCHASE_ORDERS_GUIDE } from '../constants/purchase.guide'
 import { PO_STATUS_FILTER_OPTIONS } from '../constants/warehouseStatus'
@@ -169,39 +169,41 @@ export function PurchaseOrdersPage() {
       key: 'actions',
       title: '',
       align: 'right',
-      width: 200,
+      width: 100,
       render: (_, po) => {
         const st = (po.status || '').toUpperCase()
         const receivePending = st === 'CONFIRMED' || st === 'PARTIAL_RECEIVED'
         return (
-          <div className="flex justify-end gap-1">
-            <Button
+          <div className="flex items-center justify-end gap-1">
+            <IconActionButton
+              tooltip="Chi tiết"
+              tone="blue"
               size="sm"
-              variant="outline"
-              className="gap-1"
               onClick={() => nav(`/warehouse/purchase-orders/${po.id}`)}
             >
-              <Eye size={12} /> Chi tiết
-            </Button>
+              <Eye size={14} />
+            </IconActionButton>
             {st === 'DRAFT' && canConfirm && (
-              <Button
+              <IconActionButton
+                tooltip="Xác nhận"
+                tone="emerald"
                 size="sm"
-                className="gap-1"
                 disabled={confirm.isPending}
                 onClick={() => setConfirmTarget(po)}
               >
-                <CheckCircle2 size={12} /> Xác nhận
-              </Button>
+                <CheckCircle2 size={14} />
+              </IconActionButton>
             )}
             {receivePending && canCreateGrn && (
-              <Button
+              <IconActionButton
+                tooltip="Nhận hàng"
+                tone="primary"
                 size="sm"
-                className="gap-1"
                 disabled={createGrn.isPending}
                 onClick={() => setReceiveTarget(po)}
               >
-                <PackagePlus size={12} /> Nhận hàng
-              </Button>
+                <PackagePlus size={14} />
+              </IconActionButton>
             )}
           </div>
         )

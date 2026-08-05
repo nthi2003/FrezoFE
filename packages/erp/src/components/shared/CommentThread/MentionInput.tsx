@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react'
 import { AtSign } from 'lucide-react'
 import { useMentionUsers } from './useComments'
 import type { MentionUser } from './types'
@@ -12,22 +12,37 @@ interface Props {
   mentionedIds: string[]
 }
 
+export interface MentionInputHandle {
+  /** Chèn text (emoji, …) tại vị trí caret hiện tại */
+  insertAtCursor: (text: string) => void
+  focus: () => void
+}
+
 /**
  * Input đơn giản + autocomplete @user.
  * (Tiptap full editor quá nặng cho comment box — MVP dùng textarea + @ trigger.)
  */
-export function MentionInput({
-  value,
-  onChange,
-  onSubmit,
-  placeholder = 'Viết bình luận… dùng @ để mention',
-  disabled,
-  mentionedIds,
-}: Props) {
+export const MentionInput = forwardRef<MentionInputHandle, Props>(function MentionInput(
+  {
+    value,
+    onChange,
+    onSubmit,
+    placeholder = 'Viết bình luận… dùng @ để mention',
+    disabled,
+    mentionedIds,
+  },
+  ref,
+) {
   const [mentionQ, setMentionQ] = useState<string | null>(null)
   const [caret, setCaret] = useState(0)
   const taRef = useRef<HTMLTextAreaElement>(null)
+  const caretRef = useRef(0)
   const { data: suggestions = [] } = useMentionUsers(mentionQ ?? '', mentionQ !== null)
+
+  const syncCaret = (pos: number) => {
+    caretRef.current = pos
+    setCaret(pos)
+  }
 
   // Detect @query trước caret
   useEffect(() => {
@@ -36,6 +51,25 @@ export function MentionInput({
     if (m) setMentionQ(m[1])
     else setMentionQ(null)
   }, [value, caret])
+
+  const insertAtCursor = (text: string) => {
+    const pos = caretRef.current
+    const before = value.slice(0, pos)
+    const after = value.slice(pos)
+    const next = before + text + after
+    const nextPos = before.length + text.length
+    onChange(next, mentionedIds)
+    syncCaret(nextPos)
+    requestAnimationFrame(() => {
+      taRef.current?.focus()
+      taRef.current?.setSelectionRange(nextPos, nextPos)
+    })
+  }
+
+  useImperativeHandle(ref, () => ({
+    insertAtCursor,
+    focus: () => taRef.current?.focus(),
+  }))
 
   const pickUser = (u: MentionUser) => {
     const before = value.slice(0, caret)
@@ -48,6 +82,7 @@ export function MentionInput({
     requestAnimationFrame(() => {
       taRef.current?.focus()
       const pos = replaced.length
+      syncCaret(pos)
       taRef.current?.setSelectionRange(pos, pos)
     })
   }
@@ -62,11 +97,12 @@ export function MentionInput({
         placeholder={placeholder}
         value={value}
         onChange={(e) => {
-          setCaret(e.target.selectionStart)
+          syncCaret(e.target.selectionStart)
           onChange(e.target.value, mentionedIds)
         }}
-        onKeyUp={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart)}
-        onClick={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart)}
+        onSelect={(e) => syncCaret((e.target as HTMLTextAreaElement).selectionStart)}
+        onKeyUp={(e) => syncCaret((e.target as HTMLTextAreaElement).selectionStart)}
+        onClick={(e) => syncCaret((e.target as HTMLTextAreaElement).selectionStart)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault()
@@ -97,9 +133,9 @@ export function MentionInput({
       )}
       <div className="flex items-center justify-between mt-1 text-[11px] text-neutral-400">
         <span className="inline-flex items-center gap-1">
-          <AtSign size={11} /> gõ @ để mention · Ctrl+Enter gửi
+          <AtSign size={11} /> gõ @ để mention · Emoji · Ctrl+Enter gửi
         </span>
       </div>
     </div>
   )
-}
+})

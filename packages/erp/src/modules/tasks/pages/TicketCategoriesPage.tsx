@@ -172,14 +172,16 @@ export function TicketCategoriesPage({ embedded = false }: { embedded?: boolean 
         <div className="flex items-center justify-end gap-1">
           <IconActionButton
             tooltip={row.active ? 'Ẩn khỏi form' : 'Hiện lại trên form'}
+            tone="blue"
+            size="sm"
             onClick={() => handleToggleActive(row)}
           >
             {row.active ? <EyeOff size={14} /> : <Eye size={14} />}
           </IconActionButton>
-          <IconActionButton tooltip="Sửa" onClick={() => openEdit(row)}>
+          <IconActionButton tooltip="Sửa" tone="blue" size="sm" onClick={() => openEdit(row)}>
             <Pencil size={14} />
           </IconActionButton>
-          <IconActionButton tooltip="Ẩn danh mục" tone="rose" onClick={() => setDeleteTarget(row)}>
+          <IconActionButton tooltip="Ẩn danh mục" tone="rose" size="sm" onClick={() => setDeleteTarget(row)}>
             <Trash2 size={14} />
           </IconActionButton>
         </div>

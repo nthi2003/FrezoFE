@@ -43,7 +43,7 @@ export function WarehouseSelect({
     if (emptyOption) {
       opts.push({ value: emptyOption.value ?? '', label: emptyOption.label })
     }
-    for (const w of warehouses) {
+    for (const w of warehouses ?? []) {
       if (!w?.id) continue
       opts.push({ value: w.id, label: warehouseSelectLabel(w) })
     }

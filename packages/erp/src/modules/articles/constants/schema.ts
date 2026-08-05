@@ -27,21 +27,26 @@ export type ArticleFormValues = z.infer<typeof articleFormSchema>
 
 /** BE create contract (SA-ART-001) — omit blank `code` so server auto-gens. */
 export function toArticleCreatePayload(values: ArticleFormValues) {
+  const publishScope = values.publishScope === 'PUBLIC' ? 'PUBLIC' : 'INTERNAL'
   return {
     title: values.title.trim(),
     content: values.content,
     organizationId: values.organizationId || undefined,
     managerId: values.managerId || undefined,
-    publishScope: values.publishScope || 'INTERNAL',
+    publishScope,
+    isPublic: publishScope === 'PUBLIC',
   }
 }
 
 /** BE update contract — code immutable, not sent. */
 export function toArticleUpdatePayload(values: ArticleFormValues) {
+  const publishScope = values.publishScope === 'PUBLIC' ? 'PUBLIC' : 'INTERNAL'
   return {
     title: values.title.trim(),
     content: values.content,
     organizationId: values.organizationId || undefined,
-    publishScope: values.publishScope || 'INTERNAL',
+    managerId: values.managerId || undefined,
+    publishScope,
+    isPublic: publishScope === 'PUBLIC',
   }
 }

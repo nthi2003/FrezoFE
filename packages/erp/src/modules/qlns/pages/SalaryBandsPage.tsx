@@ -373,8 +373,8 @@ export function SalaryBandsPage({ embedded }: { embedded?: boolean } = {}) {
             isLoading={false}
             density="compact"
             showSearch={false}
-            pageSize={20}
-            pageSizeOptions={[10, 20, 50, 100]}
+            pageSize={10}
+            pageSizeOptions={[10]}
             columns={[
               {
                 title: 'Mã', dataIndex: 'code', width: 90,

@@ -1,5 +1,5 @@
 // Sync user profile (avatarUrl → avatar) từ /auth/profile sau login / reload.
-// localStorage chỉ nhận cache SAU khi đã bind từ server — không dùng cache làm nguồn chính.
+// Cache localStorage giữ avatar để paint ngay; response API vẫn là nguồn đúng (ghi đè).
 
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'

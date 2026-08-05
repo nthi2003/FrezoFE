@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
-import { Button, AppModal, PageHeader, PageGuideButton, StatusBadge, Select, ConfirmDialog, EmptyState, ErrorState } from '@frezo/ui'
+import { Button, AppModal, PageHeader, PageGuideButton, StatusBadge, Select, ConfirmDialog, EmptyState, ErrorState, IconActionButton } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { unwrapList } from '@frezo/utils'
@@ -218,30 +218,22 @@ export function ContractPage() {
       width: 120,
       render: (_: any, row: any) => (
         <div className="flex items-center gap-1">
-          <button
-            title="Xem chi tiết"
-            onClick={() => handleOpenDetail(row)}
-            className="p-1.5 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-          >
+          <IconActionButton tooltip="Xem chi tiết" tone="blue" onClick={() => handleOpenDetail(row)}>
             <Eye className="w-4 h-4" />
-          </button>
+          </IconActionButton>
           {(row.status === 'PENDING_APPROVAL' || row.status === 'DRAFT') && (
             <>
-              <button
-                title="Duyệt hợp đồng"
-                onClick={() => setApproveTarget(row)}
+              <IconActionButton
+                tooltip="Duyệt hợp đồng"
+                tone="emerald"
                 disabled={approveContract.isPending}
-                className="p-1.5 text-neutral-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors disabled:opacity-40"
+                onClick={() => setApproveTarget(row)}
               >
                 <CheckCircle className="w-4 h-4" />
-              </button>
-              <button
-                title="Từ chối hợp đồng"
-                onClick={() => handleOpenReject(row)}
-                className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
-              >
+              </IconActionButton>
+              <IconActionButton tooltip="Từ chối hợp đồng" tone="rose" onClick={() => handleOpenReject(row)}>
                 <FileX2 className="w-4 h-4" />
-              </button>
+              </IconActionButton>
             </>
           )}
         </div>
@@ -382,11 +374,12 @@ export function ContractPage() {
           data={filteredList}
           columns={columns as any}
           isLoading={isLoading}
-          density="compact"
+          defaultDensity="comfortable"
           showSearch={false}
-          pageSize={20}
-          pageSizeOptions={[10, 20, 50, 100]}
+          pageSize={10}
+          pageSizeOptions={[10]}
           onRefresh={() => void refetch()}
+          showDensityToggle
         />
       )}
 

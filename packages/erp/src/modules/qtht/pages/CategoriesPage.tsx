@@ -38,6 +38,7 @@ const CATEGORIES_GUIDE: PageGuideConfig = {
       tips: [
         'Chọn nhóm danh mục trước khi thêm mới.',
         'Mã viết HOA, không dấu — không đổi sau khi đã dùng.',
+        'Nhóm “Popup UX thành công”: Tên = tiêu đề popup, Mô tả = nội dung (hoặc JSON {"body","imageUrl"}). Tắt bằng công tắc Kích hoạt.',
       ],
     },
   ],

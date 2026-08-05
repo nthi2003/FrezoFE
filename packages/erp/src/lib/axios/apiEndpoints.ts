@@ -19,11 +19,20 @@ export const API = {
     REVOKE:      (id: string) => `/auth/session/revoke/${id}`,
     REVOKE_ALL:  '/auth/session/revoke-all',
     COUNT:       '/auth/session/count',
+    HEARTBEAT:   '/auth/session/heartbeat',
+    ONLINE:      '/auth/session/online-count',
+    ADMIN_ACTIVE:'/auth/session/admin/active',
   },
 
   // ---- Statistics (/auth/statistic) ----
   STATISTICS: {
     LOGIN_BY_DAY: '/auth/statistic/login-by-day',
+    USAGE_SUMMARY: '/auth/statistic/usage-summary',
+  },
+
+  USAGE: {
+    PAGEVIEW: '/qtht/usage/pageview',
+    TOP: '/qtht/usage/pageviews/top',
   },
 
   // ---- Person Document ----
@@ -53,6 +62,8 @@ export const API = {
     DEPT_BY_ID:   (id: string) => `/qtht/department/${id}`,
     CATEGORIES:   '/qtht/category',
     CATEGORY_BY_ID: (id: string) => `/qtht/category/${id}`,
+    /** Template popup UX theo event code (group UX_POPUP) */
+    UX_POPUP_BY_EVENT: (eventCode: string) => `/qtht/ux-popups/${encodeURIComponent(eventCode)}`,
   },
 
   // ---- QLNS — Nhân sự ----
@@ -144,6 +155,8 @@ export const API = {
     TICKET_BY_ID:  (id: string) => `/task/ticket/${id}`,
     TICKET_ASSIGN: (id: string, assignee: string) => `/task/ticket/${id}/assign/${assignee}`,
     TICKET_STATUS: (id: string) => `/task/ticket/${id}/status`,
+    TICKET_REVIEW: (id: string) => `/task/ticket/${id}/review`,
+    TASK_REVIEW:   (id: string) => `/task/task/${id}/review`,
     TAGS:          '/task/tag',
   },
 

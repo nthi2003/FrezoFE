@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PackagePlus, Plus, Eye } from 'lucide-react'
-import { Button } from '@frezo/ui'
+import { Button, IconActionButton, actionIconTone } from '@frezo/ui'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { useProducts } from '@/modules/products/hooks/useProduct'
 import { GRN_GUIDE } from '../constants/grn-gin.guide'
@@ -77,7 +77,7 @@ export function GoodsReceiptNotesPage() {
       : []
   }, [productsRaw])
 
-  const warehouseOptions = filters.warehouses
+  const warehouseOptions = Array.isArray(filters.warehouses) ? filters.warehouses : []
 
   const supplierOptions = useMemo(() => {
     const map = new Map<string, string>()
@@ -204,16 +204,18 @@ export function GoodsReceiptNotesPage() {
       key: 'actions',
       title: '',
       align: 'right',
-      width: 100,
+      width: 56,
       render: (_, row) => (
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1"
-          onClick={() => nav(`/warehouse/grn/${row.id}`)}
-        >
-          <Eye size={12} /> Chi tiết
-        </Button>
+        <div className="flex items-center justify-end gap-1">
+          <IconActionButton
+            tooltip="Chi tiết"
+            tone={actionIconTone.view}
+            size="sm"
+            onClick={() => nav(`/warehouse/grn/${row.id}`)}
+          >
+            <Eye size={14} />
+          </IconActionButton>
+        </div>
       ),
     },
   ]

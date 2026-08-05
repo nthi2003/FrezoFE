@@ -17,9 +17,8 @@ export function useLogin() {
   const mutation = useMutation({
     mutationFn: async (data: LoginRequest) => {
       const response = await authApi.login(data)
-      // Set tokens immediately so axiosClient has it for getProfile()
-      useAuthStore.getState().setAuth({
-        user: null as any, // Temporary
+      // Token only — không ghi user:null (tránh mất avatar / wipe cache)
+      useAuthStore.getState().setTokens({
         accessToken: response.token,
         refreshToken: response.refreshToken,
       })
@@ -28,7 +27,7 @@ export function useLogin() {
       return { response, userProfile }
     },
     onSuccess: ({ response, userProfile }) => {
-      // Finalize store with user đã bind avatarUrl từ API
+      // Bind user + avatarUrl từ /profile ngay trước khi navigate
       setAuth({
         user: userProfile,
         accessToken: response.token,

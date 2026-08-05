@@ -57,6 +57,6 @@ export function useLoginByDay() {
   return useQuery({
     queryKey: ['dashboard_login_by_day'],
     queryFn: dashboardApi.getLoginByDay,
-    select: unwrapList,
+    select: (res: any): Record<string, number> => (res?.data ?? res) as Record<string, number>,
   })
 }

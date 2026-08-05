@@ -61,7 +61,7 @@ export function useLobbyPending() {
 
   const openTasks = useMemo(() => {
     const list = (tasksRaw as { status?: string }[] | undefined) ?? []
-    return list.filter((t) => t.status !== 'DONE').length
+    return list.filter((t) => t.status !== 'DONE' && t.status !== 'CLOSED' && t.status !== 'CANCELLED').length
   }, [tasksRaw])
 
   const pendingLeaves = useMemo(() => {
@@ -171,7 +171,7 @@ export function useLobbyPending() {
 
     if (canSeeTasks && !tasksLoading) {
       const tasks = ((tasksRaw as { id: string; title?: string; status?: string; dueDate?: string; createdDate?: string; createdAt?: string }[]) ?? [])
-        .filter((t) => t.status !== 'DONE')
+        .filter((t) => t.status !== 'DONE' && t.status !== 'CLOSED' && t.status !== 'CANCELLED')
         .slice(0, 5)
       for (const t of tasks) {
         const created = t.createdDate || t.createdAt || t.dueDate

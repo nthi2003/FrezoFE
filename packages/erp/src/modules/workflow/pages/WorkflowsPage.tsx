@@ -12,12 +12,12 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import {
   Plus, Workflow, Search, X, RefreshCw, Edit3, Trash2,
   Layers, Building2, ClipboardList, Package, FileText, Briefcase,
-  type LucideIcon, MoreVertical, Copy, BookOpen, BookTemplate, PencilRuler, Info,
+  type LucideIcon, Copy, BookOpen, BookTemplate, PencilRuler, Info,
   ArrowUpDown,
 } from 'lucide-react'
 import {
   Button, PageHeader, EmptyState, PageGuideButton, ErrorState, Skeleton, ConfirmDialog,
-  Select,
+  Select, IconActionButton, actionIconTone,
 } from '@frezo/ui'
 import { FilterExportDrawer, FilterExportTrigger } from '@/components/shared/FilterExportDrawer'
 import { downloadCsv } from '@/utils/csvExport'
@@ -626,8 +626,7 @@ function DefinitionCard({
   onClone?: () => void
   onOpenDesigner?: () => void
 }) {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const hasMenu = !!(onEdit || onClone || onDelete)
+  const hasActions = !!(onEdit || onClone || onDelete || onOpenDesigner)
   return (
     <div className="bg-white rounded-xl border border-neutral-200 hover:border-primary-200 hover:shadow-md transition p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
@@ -646,37 +645,27 @@ function DefinitionCard({
           )}
         </div>
 
-        {/* Menu */}
-        {hasMenu && (
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setMenuOpen((o) => !o)}
-              className="p-1.5 rounded-lg text-neutral-500 hover:bg-neutral-100"
-            >
-              <MoreVertical size={14} />
-            </button>
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-8 z-20 w-40 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 text-sm">
-                  {onEdit && (
-                    <button type="button" onClick={() => { setMenuOpen(false); onEdit() }} className="w-full text-left px-3 py-1.5 hover:bg-neutral-50 inline-flex items-center gap-2">
-                      <Edit3 size={12} /> Sửa
-                    </button>
-                  )}
-                  {onClone && (
-                    <button type="button" onClick={() => { setMenuOpen(false); onClone() }} className="w-full text-left px-3 py-1.5 hover:bg-neutral-50 inline-flex items-center gap-2">
-                      <Copy size={12} /> Copy
-                    </button>
-                  )}
-                  {onDelete && (
-                    <button type="button" onClick={() => { setMenuOpen(false); onDelete() }} className="w-full text-left px-3 py-1.5 hover:bg-danger-light text-danger inline-flex items-center gap-2">
-                      <Trash2 size={12} /> Xoá
-                    </button>
-                  )}
-                </div>
-              </>
+        {hasActions && (
+          <div className="flex items-center gap-0.5 shrink-0">
+            {onOpenDesigner && (
+              <IconActionButton tooltip="Designer" tone={actionIconTone.view} size="sm" onClick={onOpenDesigner}>
+                <PencilRuler size={14} />
+              </IconActionButton>
+            )}
+            {onEdit && (
+              <IconActionButton tooltip="Sửa" tone={actionIconTone.edit} size="sm" onClick={onEdit}>
+                <Edit3 size={14} />
+              </IconActionButton>
+            )}
+            {onClone && (
+              <IconActionButton tooltip="Sao chép" tone="neutral" size="sm" onClick={onClone}>
+                <Copy size={14} />
+              </IconActionButton>
+            )}
+            {onDelete && (
+              <IconActionButton tooltip="Xoá" tone={actionIconTone.delete} size="sm" onClick={onDelete}>
+                <Trash2 size={14} />
+              </IconActionButton>
             )}
           </div>
         )}
@@ -703,26 +692,6 @@ function DefinitionCard({
         <span className="inline-flex items-center gap-1">
           <Layers size={11} /> {(def.steps || []).length} bước
         </span>
-        <div className="flex items-center gap-2">
-          {onOpenDesigner && (
-            <button
-              type="button"
-              onClick={onOpenDesigner}
-              className="inline-flex items-center gap-1 text-neutral-600 hover:text-primary-700 font-medium"
-            >
-              <PencilRuler size={11} /> Designer
-            </button>
-          )}
-          {onEdit && (
-            <button
-              type="button"
-              onClick={onEdit}
-              className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-800 font-medium"
-            >
-              <Edit3 size={11} /> Chỉnh sửa
-            </button>
-          )}
-        </div>
       </div>
     </div>
   )

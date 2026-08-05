@@ -581,7 +581,7 @@ export function GoodsReceiptNoteDetailPage() {
                               <Select
                                 options={[
                                   { value: '', label: 'Chọn vị trí *' },
-                                  ...locations.map((loc) => ({
+                                  ...(locations ?? []).map((loc) => ({
                                     value: loc.id,
                                     label: formatLocationLabel(loc),
                                   })),

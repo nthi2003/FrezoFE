@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { cn } from '@frezo/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { resolveAvatarUrl } from '@/modules/auth/utils/resolveAvatarUrl'
@@ -24,18 +25,27 @@ export function UserAvatarWithPresence({
   const user = useAuthStore((s) => s.user)
   const status = usePresenceStore((s) => s.status)
   const avatarSrc = resolveAvatarUrl(user)
+  const [imgFailed, setImgFailed] = useState(false)
   const option = getPresenceOption(status)
   const s = SIZE[size]
   const initial = user?.fullName?.charAt(0) || user?.username?.charAt(0) || 'U'
 
+  useEffect(() => {
+    setImgFailed(false)
+  }, [avatarSrc])
+
+  // Có URL → hiện ảnh ngay; lỗi load → initials. Không spinner / không chờ localStorage.
+  const showImage = !!avatarSrc && !imgFailed
+
   return (
     <div className={cn('flex items-center gap-2', className)}>
       <div className={cn('relative shrink-0', s.wrap)}>
-        {avatarSrc ? (
+        {showImage ? (
           <img
             src={avatarSrc}
             alt="avatar"
             className={cn(s.wrap, 'rounded-full border border-border object-cover')}
+            onError={() => setImgFailed(true)}
           />
         ) : (
           <div

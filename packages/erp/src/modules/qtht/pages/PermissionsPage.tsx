@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Plus, Trash2, Search, Shield, HelpCircle } from 'lucide-react'
+import { Plus, Trash2, Search, Shield } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import {
   AppModal, Button, ConfirmDialog, EmptyState, ErrorState,
-  PageHeader, PageGuideButton, IconActionButton, AppTooltip, type PageGuideConfig,
+  PageHeader, PageGuideButton, IconActionButton, actionIconTone, type PageGuideConfig,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { usePermissions, useCreatePermission, useDeletePermission } from '../hooks/useQtht'
@@ -88,13 +88,16 @@ export function PermissionsPage() {
       width: 72,
       align: 'right',
       render: (_, row) => (
-        <IconActionButton
-          tooltip="Xóa quyền"
-          tone="red"
-          onClick={() => setConfirmDel({ id: row.id, name: row.name, code: row.code })}
-        >
-          <Trash2 className="w-4 h-4" />
-        </IconActionButton>
+        <div className="flex items-center justify-end gap-1">
+          <IconActionButton
+            tooltip="Xóa quyền"
+            tone={actionIconTone.delete}
+            size="sm"
+            onClick={() => setConfirmDel({ id: row.id, name: row.name, code: row.code })}
+          >
+            <Trash2 size={14} />
+          </IconActionButton>
+        </div>
       ),
     },
   ]
@@ -106,17 +109,9 @@ export function PermissionsPage() {
         description="Danh mục mã quyền hệ thống — dùng khi cấu hình vai trò."
         actions={(
           <div className="flex items-center gap-2">
-            <AppTooltip content="Mã quyền viết HOA (VD: CREATE, VIEW). Gắn quyền vào vai trò tại trang Vai trò.">
-              <span
-                className="inline-flex items-center text-neutral-400 hover:text-primary-600 cursor-help"
-                aria-label="Giải thích phân quyền"
-              >
-                <HelpCircle size={16} strokeWidth={2} />
-              </span>
-            </AppTooltip>
             <PageGuideButton guide={PERMISSIONS_GUIDE} />
-            <Button onClick={() => setModalOpen(true)} className="gap-2 bg-primary-600 hover:bg-primary-700 text-white">
-              <Plus className="w-4 h-4" /> Thêm mới
+            <Button onClick={() => setModalOpen(true)} className="gap-2 bg-primary-600 hover:bg-primary-700 text-white h-9">
+              <Plus size={16} /> Thêm mới
             </Button>
           </div>
         )}
@@ -172,8 +167,8 @@ export function PermissionsPage() {
           isLoading={isLoading}
           density="compact"
           showSearch={false}
-          pageSize={20}
-          pageSizeOptions={[10, 20, 50, 100]}
+          pageSize={10}
+          pageSizeOptions={[10]}
           onRefresh={() => void refetch()}
         />
       )}

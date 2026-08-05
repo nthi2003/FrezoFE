@@ -28,14 +28,27 @@ export const authApi = {
       })
       .then((res) => res.data.data),
 
+  /** 2FA login — BE expect query params username + code */
   verifyOtp: (data: { username: string; otp: string }) =>
-    axiosClient.post<ApiResponse<any>>(API.AUTH.VERIFY_OTP, data).then(res => res.data),
+    axiosClient
+      .post<ApiResponse<LoginResponse>>(API.AUTH.VERIFY_OTP, null, {
+        params: { username: data.username, code: data.otp },
+      })
+      .then((res) => res.data),
 
-  forgotPassword: (username: string) =>
-    axiosClient.post<ApiResponse<any>>(API.AUTH.FORGOT_PW, null, { params: { username } }).then(res => res.data),
+  /** Gửi OTP quên mật khẩu về email */
+  forgotPassword: (email: string) =>
+    axiosClient
+      .post<ApiResponse<void>>(API.AUTH.FORGOT_PW, null, { params: { email } })
+      .then((res) => res.data),
 
-  resetPassword: (data: { token: string; newPassword: string }) =>
-    axiosClient.post<ApiResponse<any>>(API.AUTH.RESET_PW, data).then(res => res.data),
+  /** Đặt lại mật khẩu bằng OTP (param key = mã OTP 6 số) */
+  resetPassword: (data: { key: string; newPassword: string }) =>
+    axiosClient
+      .post<ApiResponse<void>>(API.AUTH.RESET_PW, null, {
+        params: { key: data.key, newPassword: data.newPassword },
+      })
+      .then((res) => res.data),
 
   getLoginHistory: (params?: { page?: number; size?: number }) =>
     axiosClient.get<ApiResponse<any[]>>(API.AUTH.LOGIN_HISTORY, { params }).then(res => res.data.data),

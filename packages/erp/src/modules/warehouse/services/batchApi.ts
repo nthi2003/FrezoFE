@@ -46,8 +46,17 @@ export interface FefoSuggestResponse {
   suggestions: FefoBatchSuggestion[]
 }
 
+export interface BatchListParams {
+  warehouseId?: string
+  productId?: string
+  status?: string
+  keyword?: string
+  expiryFrom?: string
+  expiryTo?: string
+}
+
 export const batchApi = {
-  list: (params?: { warehouseId?: string; productId?: string }) =>
+  list: (params?: BatchListParams) =>
     axiosClient
       .get<ApiResponse<unknown>>('/warehouse/batches', { params })
       .then((r) => unwrapList<StockBatchDto>(r.data)),
@@ -66,5 +75,20 @@ export const batchApi = {
       .get<ApiResponse<FefoSuggestResponse>>('/warehouse/gin/fefo-suggest', {
         params,
       })
-      .then((r) => r.data.data),
+      .then((r) => {
+        const data = r.data.data
+        if (!data) {
+          return {
+            productId: params.productId,
+            warehouseId: params.warehouseId,
+            requestedQty: params.qty,
+            allocatedQty: 0,
+            suggestions: [],
+          } satisfies FefoSuggestResponse
+        }
+        return {
+          ...data,
+          suggestions: Array.isArray(data.suggestions) ? data.suggestions.filter(Boolean) : [],
+        }
+      }),
 }

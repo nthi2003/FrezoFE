@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { FileText, Receipt } from 'lucide-react'
+import { FileText, Receipt, Percent } from 'lucide-react'
 import { CrmHubLayout, useCrmMenuUrls } from '../components/CrmHubLayout'
 import {
   CRM_SALES_TABS,
@@ -9,10 +9,12 @@ import {
 } from '../utils/crmRoutes'
 import { InvoicesPage } from './InvoicesPage'
 import { QuotesPage } from './QuotesPage'
+import { CommissionsPage } from './CommissionsPage'
 
 const TAB_ICONS = {
   quotes: FileText,
   invoices: Receipt,
+  commissions: Percent,
 } as const
 
 export function CrmSalesHubPage() {
@@ -37,7 +39,7 @@ export function CrmSalesHubPage() {
   return (
     <CrmHubLayout
       title="Đơn bán & thu"
-      description="Báo giá và hoá đơn bán hàng — theo dõi doanh thu từ CRM."
+      description="Báo giá, hoá đơn và hoa hồng sale — theo dõi doanh thu từ CRM."
       tabs={tabs}
       tab={tab}
       visibleTabKeys={visibleTabKeys}
@@ -47,6 +49,7 @@ export function CrmSalesHubPage() {
     >
       {tab === 'quotes' && <QuotesPage embedded />}
       {tab === 'invoices' && <InvoicesPage embedded />}
+      {tab === 'commissions' && <CommissionsPage embedded />}
     </CrmHubLayout>
   )
 }

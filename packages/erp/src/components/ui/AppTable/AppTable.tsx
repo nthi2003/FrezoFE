@@ -101,8 +101,8 @@ export interface AppTableProps<T> {
 
   /**
    * Density hàng (FR-UX-01).
-   * - compact: py-2 / h-9 — mặc định cho list master dày
-   * - comfortable: p-4 / h-12 — mặc định legacy
+   * - compact: py-2.5 / h-10 / text-sm (14px @ 16px root) — mặc định
+   * - comfortable: p-4 / h-12 / text-base (16px) — đọc dễ hơn
    * Truyền `density` cố định; `defaultDensity` + `showDensityToggle` cho EU đổi.
    */
   density?: TableDensity
@@ -126,7 +126,7 @@ export function AppTable<T>({
   pageSize = 10,
   totalElements = 0,
   onPageChange,
-  pageSizeOptions = [10, 20, 50, 100],
+  pageSizeOptions = [10],
   hidePaginationWhenSinglePage = false,
   showSearch = false,
   searchPlaceholder = 'Tìm kiếm...',
@@ -156,9 +156,9 @@ export function AppTable<T>({
   const density: TableDensity = densityProp ?? densityInternal
   const isCompact = density === 'compact'
   const headCellClass = isCompact
-    ? 'h-9 px-3 py-1.5 text-xs font-semibold text-neutral-600'
-    : 'h-12 px-4 font-semibold text-neutral-600'
-  const bodyCellClass = isCompact ? 'px-3 py-2 text-sm' : 'p-4'
+    ? 'h-10 min-h-10 px-3 py-2 text-sm font-semibold text-neutral-600'
+    : 'h-12 min-h-12 px-4 text-base font-semibold text-neutral-600'
+  const bodyCellClass = isCompact ? 'px-3 py-2.5 text-sm leading-snug' : 'p-4 text-base'
 
   // Sync internal pagination with props when props change
   useEffect(() => {

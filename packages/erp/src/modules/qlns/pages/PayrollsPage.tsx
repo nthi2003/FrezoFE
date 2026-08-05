@@ -20,11 +20,6 @@ import {
 import { bonusSchema, createPayrollSchema } from '../constants/schema'
 import { usePostPayrollToGL } from '@/modules/accounting/hooks/useAccounting'
 import { PAYROLLS_GUIDE, PAYROLL_STATUS_CONFIG } from '../constants/payrolls.guide'
-import { StatusPipelineStepper } from '../../warehouse/components/StatusPipelineStepper'
-import {
-  ATTENDANCE_PAYROLL_PIPELINE,
-  payrollWorkflowStepIndex,
-} from '../constants/hrWorkflow'
 import { PayslipDrawer } from '../components/PayslipDrawer'
 import {
   PayrollCalculateModal,
@@ -34,7 +29,6 @@ import {
 import { PayrollApprovalBar } from '../components/PayrollApprovalBar'
 import type { PayrollCalculateItemError } from '../services/payrollApi'
 import { pageRootClass } from '../utils/pageEmbed'
-import { timeHubUrl } from '../utils/qlnsRoutes'
 
 
 // ============================================================
@@ -184,17 +178,6 @@ export function PayrollsPage({
       .reduce((s, p) => s + (Number(p.totalNet ?? p.netSalary) || 0), 0)
     return { total, draft, confirmed, paid, totalPayout, paidPayout }
   }, [dataList])
-
-  const payrollPipelineIndex = useMemo(
-    () =>
-      payrollWorkflowStepIndex({
-        hasAnyPayroll: stats.total > 0,
-        allPaid: stats.total > 0 && stats.paid === stats.total,
-        anyConfirmed: stats.confirmed > 0 || stats.paid > 0,
-        periodLocked: false,
-      }),
-    [stats],
-  )
 
   const shiftPeriod = useCallback((delta: -1 | 1) => {
     setPeriodMonth((m) => {
@@ -554,24 +537,6 @@ export function PayrollsPage({
         </div>
       )}
 
-      <StatusPipelineStepper
-        steps={ATTENDANCE_PAYROLL_PIPELINE}
-        currentIndex={payrollPipelineIndex}
-        showInboxLink
-        nextCta={
-          stats.total === 0
-            ? {
-                label: 'Tính lương kỳ này',
-                onClick: handleCalculateAll,
-                disabled: calculateAll.isPending,
-                loading: calculateAll.isPending,
-              }
-            : stats.paid < stats.total
-              ? { label: 'Chấm công & nghỉ phép', href: timeHubUrl() }
-              : null
-        }
-      />
-
       {!embedded && <PayrollApprovalBar month={periodMonth} year={periodYear} />}
 
       {/* LNK-02 — banner skip thiếu HĐ sau calculate-all (đã ẩn tài khoản hệ thống) */}
@@ -856,8 +821,8 @@ export function PayrollsPage({
             isLoading={isLoading || calculateAll.isPending}
             density="compact"
             showSearch={false}
-            pageSize={20}
-            pageSizeOptions={[10, 20, 50, 100]}
+            pageSize={10}
+            pageSizeOptions={[10]}
             onRefresh={() => void refetch()}
           />
       )}

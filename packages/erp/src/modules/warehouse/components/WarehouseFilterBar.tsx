@@ -29,19 +29,19 @@ export function WarehouseFilterBar({
   return (
     <div className="sticky top-0 z-10 -mx-6 px-6 py-2 bg-neutral-50/95 backdrop-blur border-y border-neutral-200/80">
       <div className="flex flex-wrap gap-2 items-center">
-        {selects.map((sel) => (
+        {(selects ?? []).map((sel) => (
           <div
             key={sel.id}
             className="min-w-[140px]"
             style={sel.minWidth ? { minWidth: sel.minWidth } : undefined}
           >
             <Select
-              options={sel.options}
+              options={sel.options ?? []}
               value={sel.value}
               onChange={sel.onChange}
               placeholder={sel.label}
               aria-label={sel.label}
-              showSearch={sel.options.length > 8}
+              showSearch={(sel.options ?? []).length > 8}
             />
           </div>
         ))}

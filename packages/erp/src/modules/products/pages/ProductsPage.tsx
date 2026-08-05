@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Plus, Pencil, Trash2, Package, Layers, Upload, Loader2,
-  LayoutGrid, List, Search, AlertTriangle, TrendingUp, Sparkles, LineChart,
+  LayoutGrid, List, Search, AlertTriangle, TrendingUp, Sparkles, LineChart, Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppTable } from '@/components/ui/AppTable'
@@ -333,6 +333,18 @@ export function ProductsPage() {
       render: (_, row) => (
         <span className="tabular-nums text-sm font-medium text-neutral-900">
           {formatCurrency(Number(row.price ?? 0))}
+        </span>
+      ),
+    },
+    {
+      key: 'viewCount',
+      title: 'Lượt xem',
+      align: 'right',
+      width: 100,
+      render: (_, row) => (
+        <span className="inline-flex items-center gap-1 tabular-nums text-sm text-neutral-700" title="Lượt mở chi tiết SP">
+          <Eye size={12} className="text-neutral-400" />
+          {Number(row.viewCount ?? 0).toLocaleString('vi-VN')}
         </span>
       ),
     },

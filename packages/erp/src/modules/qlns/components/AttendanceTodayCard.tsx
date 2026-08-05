@@ -1,8 +1,11 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Clock, LogIn, LogOut, MapPin, Wifi, AlertTriangle, CheckCircle2, Sparkles } from 'lucide-react'
 import { Button } from '@frezo/ui'
 import { formatMinutesDuration } from '@frezo/utils'
+import { toast } from 'sonner'
 import { useCheckIn, useCheckOut, useMyTodayAttendance } from '../hooks/useAttendance'
+import { useUxPopup } from '@/modules/common/hooks/useUxPopup'
+import { UxEventPopup } from '@/modules/common/components/UxEventPopup'
 
 interface Props {
   personId?: string
@@ -34,8 +37,12 @@ export function AttendanceTodayCard({
   const [geoState, setGeoState] = useState<{ lat?: number; lng?: number; error?: string }>({})
 
   const { data: today, isLoading } = useMyTodayAttendance(personId)
-  const checkInReq = useCheckIn()
+  const checkInReq = useCheckIn({ skipSuccessToast: true })
   const checkOutReq = useCheckOut()
+  const onPopupEmpty = useCallback(() => {
+    toast.success('Đã check-in thành công!')
+  }, [])
+  const uxPopup = useUxPopup({ onEmpty: onPopupEmpty })
 
   // Đồng hồ tick 1s
   useEffect(() => {
@@ -94,15 +101,27 @@ export function AttendanceTodayCard({
 
   const handleCheckIn = () => {
     if (!personId) return
-    checkInReq.mutate({
-      personId,
-      contractId,
-      attendanceDate: now.toISOString().slice(0, 10),
-      checkInTime: now.toTimeString().slice(0, 8),
-      shiftType: 'FULL',
-      latitude: geoState.lat,
-      longitude: geoState.lng,
-    })
+    checkInReq.mutate(
+      {
+        personId,
+        contractId,
+        attendanceDate: now.toISOString().slice(0, 10),
+        checkInTime: now.toTimeString().slice(0, 8),
+        shiftType: 'FULL',
+        latitude: geoState.lat,
+        longitude: geoState.lng,
+      },
+      {
+        onSuccess: (res: any) => {
+          const popupEvent = res?.data?.popupEvent as string | undefined
+          if (popupEvent) {
+            uxPopup.show(popupEvent)
+          } else {
+            toast.success('Đã check-in thành công!')
+          }
+        },
+      },
+    )
   }
 
   const handleCheckOut = () => {
@@ -139,6 +158,7 @@ export function AttendanceTodayCard({
   }[status]
 
   return (
+    <>
     <section
       className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${themeMap.bg} text-white shadow-lg`}
     >
@@ -270,6 +290,8 @@ export function AttendanceTodayCard({
         </div>
       </div>
     </section>
+    <UxEventPopup {...uxPopup.modalProps} tone="welcome" confirmLabel="Bắt đầu làm việc" />
+    </>
   )
 }
 

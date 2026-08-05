@@ -117,7 +117,7 @@ export function CommentItem({
             </div>
           </div>
         ) : (
-          <div className="text-sm text-neutral-700 mt-0.5 leading-relaxed whitespace-pre-wrap">
+          <div className="text-sm text-neutral-700 mt-0.5 leading-relaxed whitespace-pre-wrap break-words">
             {comment.content && comment.content !== '(Đính kèm)'
               ? renderContentWithMentions(comment.content, comment.mentions)
               : null}

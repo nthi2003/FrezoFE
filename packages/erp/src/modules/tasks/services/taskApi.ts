@@ -13,6 +13,9 @@ export const taskApi = {
     axiosClient
       .patch<ApiResponse<any>>(`/task/task/${id}/status`, null, { params: { status } })
       .then((res) => res.data),
+  /** Người giao / admin duyệt DONE → CLOSED hoặc trả IN_PROGRESS */
+  review: (id: string, data: { approved: boolean; note?: string }) =>
+    axiosClient.post<ApiResponse<any>>(`/task/task/${id}/review`, data).then((res) => res.data),
 }
 
 export const ticketApi = {
@@ -28,6 +31,9 @@ export const ticketApi = {
     axiosClient
       .patch<ApiResponse<any>>(`/task/ticket/${id}/status`, null, { params: { status } })
       .then((res) => res.data),
+  /** Người giao / admin duyệt RESOLVED → CLOSED hoặc trả IN_PROGRESS */
+  review: (id: string, data: { approved: boolean; note?: string }) =>
+    axiosClient.post<ApiResponse<any>>(`/task/ticket/${id}/review`, data).then((res) => res.data),
 }
 
 export const tagApi = {

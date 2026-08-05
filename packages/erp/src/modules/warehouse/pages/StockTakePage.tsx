@@ -8,6 +8,7 @@ import { Plus, ClipboardCheck, Play, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button,
+  IconActionButton,
   PageHeader,
   AppModal,
   EmptyState,
@@ -144,28 +145,29 @@ export function StockTakePage() {
       key: 'actions',
       title: '',
       align: 'right',
-      width: 160,
+      width: 100,
       render: (_, row) => {
         const st = (row.status || '').toUpperCase()
         return (
-          <div className="flex justify-end gap-1">
-            <Button
+          <div className="flex items-center justify-end gap-1">
+            <IconActionButton
+              tooltip="Chi tiết"
+              tone="blue"
               size="sm"
-              variant="outline"
-              className="gap-1"
               onClick={() => nav(`/warehouse/stock-takes/${row.id}`)}
             >
-              <Eye size={12} /> Chi tiết
-            </Button>
+              <Eye size={14} />
+            </IconActionButton>
             {st === 'DRAFT' && (
-              <Button
+              <IconActionButton
+                tooltip="Bắt đầu"
+                tone="emerald"
                 size="sm"
-                className="gap-1"
                 disabled={start.isPending}
                 onClick={() => start.mutate(row.id)}
               >
-                <Play size={12} /> Start
-              </Button>
+                <Play size={14} />
+              </IconActionButton>
             )}
           </div>
         )

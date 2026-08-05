@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Plus, Search, LayoutGrid, CalendarDays, Users, Filter, Flame, Zap, AlertCircle, Clock, MessageSquare, type LucideIcon } from 'lucide-react'
+import { useSearchParams, Link } from 'react-router-dom'
+import { Plus, Search, LayoutGrid, CalendarDays, Users, Filter, Flame, Zap, AlertCircle, Clock, MessageSquare, Gift, type LucideIcon } from 'lucide-react'
 import { TicketCalendar } from '../components/TicketCalendar'
 import { TicketCard } from '../components/TicketCard'
 import {
@@ -30,6 +30,7 @@ import {
   useCreateTicket,
   useUpdateTicket,
   useUpdateTicketStatus,
+  useReviewTicket,
   useDeleteTicket,
   useActiveTicketCategories,
   useTicketCategories,
@@ -62,11 +63,11 @@ const STATUSES = [
   },
   {
     key: 'RESOLVED',
-    label: 'Đã giải quyết',
-    dotColor: 'bg-success',
-    headerBg: 'bg-success-light',
-    headerText: 'text-success-dark',
-    countClass: 'bg-success text-white',
+    label: 'Chờ QL duyệt',
+    dotColor: 'bg-warning',
+    headerBg: 'bg-warning-light',
+    headerText: 'text-warning-dark',
+    countClass: 'bg-warning text-white',
   },
 ] as const
 
@@ -75,7 +76,7 @@ const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
   { value: 'OPEN', label: 'Mở' },
   { value: 'IN_PROGRESS', label: 'Đang xử lý' },
-  { value: 'RESOLVED', label: 'Đã giải quyết' },
+  { value: 'RESOLVED', label: 'Chờ QL duyệt' },
   { value: 'CLOSED', label: 'Đã đóng' },
 ]
 
@@ -83,8 +84,8 @@ const STATUS_FORM_OPTIONS = [
   { value: '', label: '-- Chọn --' },
   { value: 'OPEN', label: 'Mở' },
   { value: 'IN_PROGRESS', label: 'Đang xử lý' },
-  { value: 'RESOLVED', label: 'Đã giải quyết' },
-  { value: 'CLOSED', label: 'Đã đóng' },
+  { value: 'RESOLVED', label: 'Hoàn thành (chờ QL duyệt)' },
+  { value: 'CLOSED', label: 'Đã đóng (QL đã duyệt)' },
 ]
 
 /** Map BE Ticket.TicketPriority — dùng chung filter + form create/edit */
@@ -151,6 +152,18 @@ export function TicketsPage({ embedded = false, initialMineOnly = false }: Ticke
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
+  /** EU xác nhận hoàn thành trước khi PATCH RESOLVED */
+  const [completeConfirm, setCompleteConfirm] = useState<{ id: string; title?: string; via: 'drop' | 'form'; formValues?: any } | null>(null)
+  /** QL duyệt / trả lại ticket RESOLVED — assigneeId chỉ để CTA tặng token (tuỳ chọn) */
+  const [reviewTarget, setReviewTarget] = useState<{
+    id: string
+    title?: string
+    approved: boolean
+    assigneeId?: string
+  } | null>(null)
+
+  const recognitionGiftHref = (personId: string, ticketId: string) =>
+    `/qlns/recognition?personId=${encodeURIComponent(personId)}&ticketId=${encodeURIComponent(ticketId)}&action=gift`
 
   // ---- Profile để xác định "của tôi" ----
   const { data: profile } = useQuery({
@@ -171,6 +184,7 @@ export function TicketsPage({ embedded = false, initialMineOnly = false }: Ticke
   const createReq = useCreateTicket()
   const updateReq = useUpdateTicket()
   const updateStatusReq = useUpdateTicketStatus()
+  const reviewReq = useReviewTicket()
   const deleteReq = useDeleteTicket()
 
   const { data: personOptions } = useQuery({
@@ -341,6 +355,20 @@ export function TicketsPage({ embedded = false, initialMineOnly = false }: Ticke
     } else if (selectedItem?.id && dirtyFields.assigneeId) {
       payload.assigneeId = ''
     }
+
+    // EU đánh dấu hoàn thành qua form → popup xác nhận
+    const becomingResolved =
+      values.status === 'RESOLVED' && selectedItem?.status !== 'RESOLVED'
+    if (becomingResolved && selectedItem?.id) {
+      setCompleteConfirm({
+        id: selectedItem.id,
+        title: values.title || selectedItem.title,
+        via: 'form',
+        formValues: payload,
+      })
+      return
+    }
+
     if (selectedItem?.id) {
       updateReq.mutate({ id: selectedItem.id, data: payload }, { onSuccess: () => handleCloseModal() })
     } else {
@@ -351,13 +379,50 @@ export function TicketsPage({ embedded = false, initialMineOnly = false }: Ticke
   const handleDrop = useCallback(
     (ticketId: string, newStatus: string) => {
       const ticket = (rawData || []).find((t: any) => t.id === ticketId)
-      if (ticket && ticket.status !== newStatus) {
-        // PATCH status only — không PUT partial (trước đây wipe assignee)
-        updateStatusReq.mutate({ id: ticketId, status: newStatus })
+      if (!ticket || ticket.status === newStatus) return
+
+      // EU kéo sang hoàn thành → popup xác nhận trước khi PATCH
+      if (newStatus === 'RESOLVED') {
+        setCompleteConfirm({ id: ticketId, title: ticket.title, via: 'drop' })
+        return
       }
+      updateStatusReq.mutate({ id: ticketId, status: newStatus })
     },
     [rawData, updateStatusReq],
   )
+
+  const confirmComplete = () => {
+    if (!completeConfirm) return
+    if (completeConfirm.via === 'form' && completeConfirm.formValues) {
+      updateReq.mutate(
+        { id: completeConfirm.id, data: completeConfirm.formValues },
+        {
+          onSuccess: () => {
+            setCompleteConfirm(null)
+            handleCloseModal()
+          },
+        },
+      )
+      return
+    }
+    updateStatusReq.mutate(
+      { id: completeConfirm.id, status: 'RESOLVED' },
+      { onSuccess: () => setCompleteConfirm(null) },
+    )
+  }
+
+  const confirmReview = () => {
+    if (!reviewTarget) return
+    reviewReq.mutate(
+      { id: reviewTarget.id, approved: reviewTarget.approved },
+      {
+        onSuccess: () => {
+          setReviewTarget(null)
+          if (selectedItem?.id === reviewTarget.id) handleCloseModal()
+        },
+      },
+    )
+  }
 
   const onDragStart = (id: string) => setDraggedId(id)
   const onDragOver = (e: React.DragEvent, colKey: string) => {
@@ -866,6 +931,28 @@ export function TicketsPage({ embedded = false, initialMineOnly = false }: Ticke
                       onDragEnd={onDragEnd}
                       onComment={() => setCommentTicket(ticket)}
                       onDelete={() => setDeleteTarget(ticket)}
+                      onApproveReview={
+                        ticket.canReview
+                          ? () =>
+                              setReviewTarget({
+                                id: ticket.id,
+                                title: ticket.title,
+                                approved: true,
+                                assigneeId: ticket.assigneeId,
+                              })
+                          : undefined
+                      }
+                      onRejectReview={
+                        ticket.canReview
+                          ? () =>
+                              setReviewTarget({
+                                id: ticket.id,
+                                title: ticket.title,
+                                approved: false,
+                                assigneeId: ticket.assigneeId,
+                              })
+                          : undefined
+                      }
                       priorityMeta={PRIORITY_META[ticket.priority]}
                       assigneeName={personMap[ticket.assigneeId]}
                       currentPersonId={currentPersonId}
@@ -976,7 +1063,42 @@ export function TicketsPage({ embedded = false, initialMineOnly = false }: Ticke
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
-            {selectedItem?.id && (
+            {selectedItem?.canReview && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mr-auto text-warning-dark border-warning/40"
+                  disabled={reviewReq.isPending}
+                  onClick={() =>
+                    setReviewTarget({
+                      id: selectedItem.id,
+                      title: selectedItem.title,
+                      approved: false,
+                      assigneeId: selectedItem.assigneeId,
+                    })
+                  }
+                >
+                  Trả lại
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-success hover:bg-success-dark text-white"
+                  disabled={reviewReq.isPending}
+                  onClick={() =>
+                    setReviewTarget({
+                      id: selectedItem.id,
+                      title: selectedItem.title,
+                      approved: true,
+                      assigneeId: selectedItem.assigneeId,
+                    })
+                  }
+                >
+                  Duyệt hoàn thành
+                </Button>
+              </>
+            )}
+            {selectedItem?.id && !selectedItem?.canReview && (
               <Button
                 type="button"
                 variant="outline"
@@ -989,6 +1111,15 @@ export function TicketsPage({ embedded = false, initialMineOnly = false }: Ticke
                 <MessageSquare size={14} /> Bình luận
               </Button>
             )}
+            {/* Tặng token = tuyên dương tuỳ chọn — không chặn cập nhật / duyệt */}
+            {selectedItem?.assigneeId &&
+              selectedItem.assigneeId !== currentPersonId && (
+                <Button type="button" variant="outline" className="gap-1.5" asChild>
+                  <Link to={recognitionGiftHref(selectedItem.assigneeId, selectedItem.id)}>
+                    <Gift size={14} /> Tặng token (tuỳ chọn)
+                  </Link>
+                </Button>
+              )}
             <Button type="button" variant="outline" onClick={handleCloseModal}>
               Huỷ
             </Button>
@@ -1034,6 +1165,52 @@ export function TicketsPage({ embedded = false, initialMineOnly = false }: Ticke
             onSuccess: () => setDeleteTarget(null),
           })
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={!!completeConfirm}
+        onClose={() => setCompleteConfirm(null)}
+        title="Xác nhận hoàn thành?"
+        message={
+          completeConfirm
+            ? `「${completeConfirm.title || 'Ticket'}」 sẽ chuyển sang chờ quản lý duyệt. Bạn chắc đã xong việc?`
+            : ''
+        }
+        confirmText="Đã hoàn thành"
+        cancelText="Chưa xong"
+        variant="default"
+        isLoading={updateStatusReq.isPending || updateReq.isPending}
+        onConfirm={confirmComplete}
+      />
+
+      <ConfirmDialog
+        isOpen={!!reviewTarget}
+        onClose={() => setReviewTarget(null)}
+        title={reviewTarget?.approved ? 'Duyệt hoàn thành?' : 'Trả lại người xử lý?'}
+        message={
+          reviewTarget?.approved ? (
+            <span className="block space-y-2">
+              <span className="block">
+                「{reviewTarget.title || 'Ticket'}」 sẽ được đóng sau khi bạn duyệt.
+              </span>
+              {reviewTarget.assigneeId &&
+                reviewTarget.assigneeId !== currentPersonId && (
+                  <Link
+                    to={recognitionGiftHref(reviewTarget.assigneeId, reviewTarget.id)}
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                  >
+                    <Gift size={14} /> Tặng token (tuỳ chọn) — tuyên dương
+                  </Link>
+                )}
+            </span>
+          ) : (
+            `「${reviewTarget?.title || 'Ticket'}」 sẽ trả về Đang xử lý để làm lại.`
+          )
+        }
+        confirmText={reviewTarget?.approved ? 'Duyệt & đóng' : 'Trả lại'}
+        variant={reviewTarget?.approved ? 'default' : 'warning'}
+        isLoading={reviewReq.isPending}
+        onConfirm={confirmReview}
       />
     </div>
   )

@@ -49,6 +49,7 @@ export function usePerformanceReviews(params?: {
   return useQuery({
     queryKey: ['qlns', 'performance-reviews', params?.cycleId, params?.personId],
     queryFn: () => performanceApi.listReviews(params),
+    select: (data) => (Array.isArray(data) ? data : []),
   })
 }
 

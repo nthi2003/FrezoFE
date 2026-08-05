@@ -8,7 +8,8 @@ import { Button } from '@frezo/ui'
 import { toast } from 'sonner'
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 import { useAuthStore } from '@/stores/authStore'
-import { MentionInput } from './MentionInput'
+import { MentionInput, type MentionInputHandle } from './MentionInput'
+import { EmojiPicker } from './EmojiPicker'
 import { ActivityFeed } from './ActivityFeed'
 import {
   useComments, useCreateComment, useUpdateComment, useDeleteComment,
@@ -49,6 +50,7 @@ export function CommentThread({
   const [replyTo, setReplyTo] = useState<CommentDto | null>(null)
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const mentionRef = useRef<MentionInputHandle>(null)
   const { askConfirm, confirmDialog } = useConfirmDialog()
 
   const userComments = items.filter((c) => !c.isSystem && !c.deleted)
@@ -179,6 +181,7 @@ export function CommentThread({
           </div>
         )}
         <MentionInput
+          ref={mentionRef}
           value={text}
           mentionedIds={mentionedIds}
           onChange={(v, ids) => {
@@ -231,6 +234,10 @@ export function CommentThread({
           >
             <Paperclip size={12} /> Đính kèm
           </button>
+          <EmojiPicker
+            disabled={busy}
+            onPick={(emoji) => mentionRef.current?.insertAtCursor(emoji)}
+          />
           <div className="flex-1" />
           <Button
             size="sm"

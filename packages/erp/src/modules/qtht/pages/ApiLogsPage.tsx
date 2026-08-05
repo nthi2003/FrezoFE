@@ -172,7 +172,7 @@ function copyToClipboard(text: string, label = 'Đã copy') {
 export function ApiLogsPage() {
   // ---- Pagination ----
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
 
   // ---- Filters ----
   const [searchText, setSearchText] = useState('')
@@ -556,6 +556,7 @@ export function ApiLogsPage() {
           loadingRows={6}
           pageIndex={page}
           pageSize={pageSize}
+          pageSizeOptions={[10]}
           totalElements={data?.total ?? 0}
           onPageChange={(newPage, newSize) => {
             setPage(newPage)

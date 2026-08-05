@@ -20,39 +20,39 @@ interface AuthStore {
     accessToken: string
     refreshToken: string
   }) => void
+  /** Chỉ gắn token (trước khi /profile bind user) — không xoá user/avatar đang có. */
+  setTokens: (payload: { accessToken: string; refreshToken: string }) => void
   setUser: (user: UserProfile) => void
   logout: () => void
   initFromStorage: () => void
 }
 
-/** localStorage không phải nguồn chính cho avatar — bỏ mọi field ảnh khi restore, chờ /profile bind lại. */
+/** Restore user từ cache (kèm avatar) để Header/Lobby paint ngay; /profile vẫn sync lại sau. */
 function userFromCache(): UserProfile | null {
-  const cached = storage.get<Record<string, unknown>>(STORAGE_KEYS.USER)
-  if (!cached) return null
-  const {
-    avatar: _a,
-    avatarUrl: _b,
-    imageUrl: _c,
-    photoUrl: _d,
-    photo: _e,
-    ...rest
-  } = cached
-  return rest as unknown as UserProfile
+  const cached = storage.get<UserProfile>(STORAGE_KEYS.USER)
+  if (!cached || typeof cached !== 'object') return null
+  return cached
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
-  // Initial state: restore from storage (avatar stripped — sync từ API)
+  // Initial state: restore full user (avatar) so UI không chờ round-trip
   user: userFromCache(),
   accessToken: storage.get<string>(STORAGE_KEYS.ACCESS_TOKEN),
   refreshToken: storage.get<string>(STORAGE_KEYS.REFRESH_TOKEN),
   isAuthenticated: !!storage.get<string>(STORAGE_KEYS.ACCESS_TOKEN),
 
-  // Set after login success — chỉ cache user sau khi đã map từ server
+  // Set after login success — user đã map avatarUrl từ API
   setAuth: ({ user, accessToken, refreshToken }) => {
     storage.set(STORAGE_KEYS.USER, user)
     storage.set(STORAGE_KEYS.ACCESS_TOKEN, accessToken)
     storage.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken)
     set({ user, accessToken, refreshToken, isAuthenticated: true })
+  },
+
+  setTokens: ({ accessToken, refreshToken }) => {
+    storage.set(STORAGE_KEYS.ACCESS_TOKEN, accessToken)
+    storage.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken)
+    set({ accessToken, refreshToken, isAuthenticated: true })
   },
 
   // Update user profile only (gọi sau /profile hoặc upload avatar)
@@ -72,7 +72,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     })
   },
 
-  // Restore from localStorage on app init (avatar stripped)
+  // Restore from localStorage on app init (giữ avatar để paint ngay)
   initFromStorage: () => {
     const user = userFromCache()
     const accessToken = storage.get<string>(STORAGE_KEYS.ACCESS_TOKEN)
