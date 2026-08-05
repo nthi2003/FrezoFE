@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import {
   Button, PageHeader, PageGuideButton, AppModal, ConfirmDialog, EmptyState, ErrorState, Select, Label, VndInput,
-  IconActionButton,
+  RowActions,
 } from '@frezo/ui'
 import { formatCurrency, formatDate, unwrapOne } from '@frezo/utils'
 import { toast } from 'sonner'
@@ -737,59 +737,48 @@ export function DealsPage({ embedded }: { embedded?: boolean } = {}) {
                           <div className="text-[10px] text-neutral-400 font-mono truncate" title={d.id}>
                             deal:{d.id.slice(0, 8)}…
                           </div>
-                          <div className="flex justify-end items-center gap-0.5 mt-2 pt-2 border-t border-neutral-100">
-                            {nextStage && (
-                              <button
-                                type="button"
-                                className="h-7 px-1.5 rounded-md hover:bg-primary-50 text-primary-700 inline-flex items-center gap-0.5 text-[11px] font-semibold"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  move.mutate({ id: d.id, stageId: nextStage.id })
-                                }}
-                                title={`Chuyển → ${nextStage.name}`}
-                                aria-label={`Chuyển sang ${nextStage.name}`}
-                                disabled={move.isPending}
-                              >
-                                Tiếp <ChevronRight size={12} aria-hidden />
-                              </button>
-                            )}
-                            <IconActionButton
-                              tooltip="Bình luận"
-                              tone="blue"
-                              size="sm"
-                              className="h-7 w-7 text-primary-600 hover:bg-primary-50"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setCommentDeal(d)
-                              }}
-                            >
-                              <MessageSquare size={14} aria-hidden />
-                            </IconActionButton>
-                            <IconActionButton
-                              tooltip="Đánh dấu đã chốt"
-                              tone="emerald"
-                              size="sm"
-                              className="h-7 w-7 text-success-dark hover:bg-success-light"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setWonTarget(d)
-                              }}
-                            >
-                              <Trophy size={14} aria-hidden />
-                            </IconActionButton>
-                            <IconActionButton
-                              tooltip="Đánh dấu thất bại"
-                              tone="rose"
-                              size="sm"
-                              className="h-7 w-7 text-danger hover:bg-danger-light"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setLostReason('')
-                                setLostTarget(d)
-                              }}
-                            >
-                              <XCircle size={14} aria-hidden />
-                            </IconActionButton>
+                          <div className="mt-2 pt-2 border-t border-neutral-100">
+                            <RowActions
+                              align="end"
+                              actions={[
+                                {
+                                  key: 'next-stage',
+                                  icon: ChevronRight,
+                                  tooltip: nextStage ? `Chuyển sang ${nextStage.name}` : '',
+                                  tone: 'primary',
+                                  hidden: !nextStage,
+                                  disabled: move.isPending,
+                                  onClick: () => {
+                                    if (!nextStage) return
+                                    move.mutate({ id: d.id, stageId: nextStage.id })
+                                  },
+                                },
+                                {
+                                  key: 'comment',
+                                  icon: MessageSquare,
+                                  tooltip: 'Bình luận',
+                                  tone: 'blue',
+                                  onClick: () => setCommentDeal(d),
+                                },
+                                {
+                                  key: 'won',
+                                  icon: Trophy,
+                                  tooltip: 'Đánh dấu đã chốt',
+                                  tone: 'emerald',
+                                  onClick: () => setWonTarget(d),
+                                },
+                                {
+                                  key: 'lost',
+                                  icon: XCircle,
+                                  tooltip: 'Đánh dấu thất bại',
+                                  tone: 'rose',
+                                  onClick: () => {
+                                    setLostReason('')
+                                    setLostTarget(d)
+                                  },
+                                },
+                              ]}
+                            />
                           </div>
                         </div>
                       )

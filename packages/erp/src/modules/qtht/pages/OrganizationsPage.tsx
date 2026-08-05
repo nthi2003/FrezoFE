@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import {
-  Plus, Edit, Trash2, Eye, Building2, GitBranch,
+  Plus, Building2, GitBranch,
   ChevronRight, ChevronDown, List, Search,
   CheckCircle, AlertCircle, Power,
   type LucideIcon,
@@ -10,7 +10,7 @@ import { FilterBar } from '@/components/ui/FilterBar'
 import {
   AppModal, Button, ConfirmDialog, PageHeader, PageGuideButton,
   EmptyState, ErrorState, Select,
-  IconActionButton, AppTooltip, StatusBadge, actionIconTone,
+  RowActions, AppTooltip, StatusBadge,
   type PageGuideConfig, type StatusConfig,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
@@ -301,32 +301,14 @@ export function OrganizationsPage() {
       width: 120,
       align: 'right',
       render: (_: any, row: any) => (
-        <div className="flex items-center justify-end gap-1">
-          <IconActionButton
-            tooltip="Xem chi tiết"
-            tone={actionIconTone.view}
-            size="sm"
-            onClick={() => setDetailOrg(row)}
-          >
-            <Eye size={14} />
-          </IconActionButton>
-          <IconActionButton
-            tooltip="Sửa"
-            tone={actionIconTone.edit}
-            size="sm"
-            onClick={() => handleOpenEdit(row)}
-          >
-            <Edit size={14} />
-          </IconActionButton>
-          <IconActionButton
-            tooltip="Xoá"
-            tone={actionIconTone.delete}
-            size="sm"
-            onClick={() => setConfirmDel(row)}
-          >
-            <Trash2 size={14} />
-          </IconActionButton>
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            { kind: 'view', onClick: () => setDetailOrg(row) },
+            { kind: 'edit', onClick: () => handleOpenEdit(row) },
+            { kind: 'delete', onClick: () => setConfirmDel(row) },
+          ]}
+        />
       ),
     },
   ]
@@ -661,32 +643,20 @@ function OrgTreeNode({
 
         <StatusBadge {...statusCfg} compact />
 
-        <div className="flex items-center gap-0.5 shrink-0 opacity-45 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-          <IconActionButton
-            tooltip="Thêm đơn vị con"
-            tone={actionIconTone.edit}
-            size="sm"
-            onClick={(e) => { e.stopPropagation(); onAddChild(node) }}
-          >
-            <Plus size={13} />
-          </IconActionButton>
-          <IconActionButton
-            tooltip="Sửa"
-            tone={actionIconTone.edit}
-            size="sm"
-            onClick={(e) => { e.stopPropagation(); onEdit(node) }}
-          >
-            <Edit size={13} />
-          </IconActionButton>
-          <IconActionButton
-            tooltip="Xoá"
-            tone={actionIconTone.delete}
-            size="sm"
-            onClick={(e) => { e.stopPropagation(); onDelete(node) }}
-          >
-            <Trash2 size={13} />
-          </IconActionButton>
-        </div>
+        <RowActions
+          className="shrink-0 opacity-45 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+          actions={[
+            {
+              key: 'add-child',
+              icon: Plus,
+              tooltip: 'Thêm đơn vị con',
+              tone: 'primary',
+              onClick: () => onAddChild(node),
+            },
+            { kind: 'edit', onClick: () => onEdit(node) },
+            { kind: 'delete', onClick: () => onDelete(node) },
+          ]}
+        />
       </div>
 
       {hasChildren && expanded && (

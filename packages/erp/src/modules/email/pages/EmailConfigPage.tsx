@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import {
-  Plus, Trash2, Zap, Power, PowerOff, Pencil, Eye, EyeOff, MailWarning,
+  Plus, Zap, Power, PowerOff, Eye, EyeOff, MailWarning,
   Server, Key, Globe, CheckCircle2, XCircle, Loader2, Search,
 } from 'lucide-react'
-import { AppModal, Button, Input, Label, PageHeader, PageGuideButton, ConfirmDialog, EmptyState, ErrorState, Select, IconActionButton, type PageGuideConfig } from '@frezo/ui'
+import { AppModal, Button, Input, Label, PageHeader, PageGuideButton, ConfirmDialog, EmptyState, ErrorState, Select, RowActions, type PageGuideConfig } from '@frezo/ui'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -264,27 +264,41 @@ export function EmailConfigPage() {
                 </div>
               </div>
 
-              <div className="px-5 py-3 border-t border-neutral-100 bg-neutral-50/50 rounded-b-xl flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <IconActionButton tooltip="Sửa" tone="primary" onClick={() => openEdit(item)}>
-                    <Pencil size={14} />
-                  </IconActionButton>
-                  {item.activated ? (
-                    <IconActionButton tooltip="Hủy kích hoạt" tone="amber" onClick={() => setConfirmAction({ type: 'deactivate', id: item.id, name: item.name })}>
-                      <PowerOff size={14} />
-                    </IconActionButton>
-                  ) : (
-                    <IconActionButton tooltip="Kích hoạt" tone="emerald" onClick={() => activateReq.mutate(item.id)}>
-                      <Power size={14} />
-                    </IconActionButton>
-                  )}
-                  <IconActionButton tooltip="Kiểm tra kết nối" tone="blue" onClick={() => testReq.mutate(item.id)} disabled={testReq.isPending}>
-                    {testReq.isPending ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                  </IconActionButton>
-                </div>
-                <IconActionButton tooltip="Xóa" tone="red" className="opacity-0 group-hover:opacity-100" onClick={() => setConfirmAction({ type: 'delete', id: item.id, name: item.name })}>
-                  <Trash2 size={14} />
-                </IconActionButton>
+              <div className="px-5 py-3 border-t border-neutral-100 bg-neutral-50/50 rounded-b-xl">
+                <RowActions
+                  actions={[
+                    { kind: 'edit', tooltip: 'Sửa', onClick: () => openEdit(item) },
+                    {
+                      key: 'deactivate',
+                      icon: PowerOff,
+                      tooltip: 'Hủy kích hoạt',
+                      tone: 'amber',
+                      hidden: !item.activated,
+                      onClick: () => setConfirmAction({ type: 'deactivate', id: item.id, name: item.name }),
+                    },
+                    {
+                      key: 'activate',
+                      icon: Power,
+                      tooltip: 'Kích hoạt',
+                      tone: 'emerald',
+                      hidden: !!item.activated,
+                      onClick: () => activateReq.mutate(item.id),
+                    },
+                    {
+                      key: 'test',
+                      icon: Zap,
+                      tooltip: 'Kiểm tra kết nối',
+                      tone: 'blue',
+                      disabled: testReq.isPending,
+                      onClick: () => testReq.mutate(item.id),
+                    },
+                    {
+                      kind: 'delete',
+                      tooltip: 'Xóa',
+                      onClick: () => setConfirmAction({ type: 'delete', id: item.id, name: item.name }),
+                    },
+                  ]}
+                />
               </div>
             </div>
           ))}

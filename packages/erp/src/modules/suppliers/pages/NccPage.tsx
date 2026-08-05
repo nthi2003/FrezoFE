@@ -6,6 +6,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import {
   Button, PageHeader, PageGuideButton, Select, ConfirmDialog, Skeleton, EmptyState,
+  RowActions,
 } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -335,26 +336,13 @@ export function NccPage() {
                 dataIndex: 'id',
                 width: 140,
                 render: (_: any, row: any) => (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setDetailNcc(row)}
-                      className="text-xs font-medium text-primary-600 hover:text-primary-700 px-2 py-1 rounded hover:bg-primary-50"
-                    >
-                      Xem
-                    </button>
-                    <button
-                      onClick={() => handleOpenEdit(row)}
-                      className="text-xs font-medium text-neutral-600 hover:text-primary-700 px-2 py-1 rounded hover:bg-primary-50"
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      onClick={() => setConfirmDelete(row)}
-                      className="text-xs font-medium text-rose-600 hover:text-rose-700 px-2 py-1 rounded hover:bg-rose-50"
-                    >
-                      Xoá
-                    </button>
-                  </div>
+                  <RowActions
+                    actions={[
+                      { kind: 'view', onClick: () => setDetailNcc(row) },
+                      { kind: 'edit', onClick: () => handleOpenEdit(row) },
+                      { kind: 'delete', onClick: () => setConfirmDelete(row) },
+                    ]}
+                  />
                 ),
               },
             ]}

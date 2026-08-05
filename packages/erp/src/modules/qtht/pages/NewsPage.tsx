@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, Pencil, Plus, Search, Trash2, Newspaper } from 'lucide-react'
+import { Plus, Search, Newspaper } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import {
   Button, ConfirmDialog, EmptyState, ErrorState,
-  PageHeader, PageGuideButton, Select, IconActionButton, type PageGuideConfig,
+  PageHeader, PageGuideButton, Select, RowActions, type PageGuideConfig,
 } from '@frezo/ui'
 import { useArticles, useDeleteArticle } from '@/modules/articles/hooks/useArticle'
 import { usePermission } from '@/lib/hooks/usePermission'
@@ -153,21 +153,24 @@ export function NewsPage() {
       width: 120,
       align: 'right',
       render: (_, row) => (
-        <div className="flex items-center justify-end gap-1">
-          <IconActionButton tooltip="Xem bài viết" tone="blue" onClick={() => window.open(`/bai-viet/${row.id}`, '_blank')}>
-            <Eye className="w-4 h-4" />
-          </IconActionButton>
-          {canUpdate && (
-            <IconActionButton tooltip="Chỉnh sửa bài viết" onClick={() => navigate(`/admin/article-management/${row.id}/edit`)}>
-              <Pencil className="w-4 h-4" />
-            </IconActionButton>
-          )}
-          {canDelete && (
-            <IconActionButton tooltip="Xóa bài viết" tone="red" onClick={() => setDeleteTarget(row)}>
-              <Trash2 className="w-4 h-4" />
-            </IconActionButton>
-          )}
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            { kind: 'view', tooltip: 'Xem bài viết', onClick: () => window.open(`/bai-viet/${row.id}`, '_blank') },
+            {
+              kind: 'edit',
+              tooltip: 'Chỉnh sửa bài viết',
+              onClick: () => navigate(`/admin/article-management/${row.id}/edit`),
+              hidden: !canUpdate,
+            },
+            {
+              kind: 'delete',
+              tooltip: 'Xóa bài viết',
+              onClick: () => setDeleteTarget(row),
+              hidden: !canDelete,
+            },
+          ]}
+        />
       ),
     },
   ]

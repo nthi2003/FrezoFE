@@ -4,11 +4,11 @@
 
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, ClipboardCheck, Play, Eye } from 'lucide-react'
+import { Plus, ClipboardCheck, Play } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button,
-  IconActionButton,
+  RowActions,
   PageHeader,
   AppModal,
   EmptyState,
@@ -149,27 +149,21 @@ export function StockTakePage() {
       render: (_, row) => {
         const st = (row.status || '').toUpperCase()
         return (
-          <div className="flex items-center justify-end gap-1">
-            <IconActionButton
-              tooltip="Chi tiết"
-              tone="blue"
-              size="sm"
-              onClick={() => nav(`/warehouse/stock-takes/${row.id}`)}
-            >
-              <Eye size={14} />
-            </IconActionButton>
-            {st === 'DRAFT' && (
-              <IconActionButton
-                tooltip="Bắt đầu"
-                tone="emerald"
-                size="sm"
-                disabled={start.isPending}
-                onClick={() => start.mutate(row.id)}
-              >
-                <Play size={14} />
-              </IconActionButton>
-            )}
-          </div>
+          <RowActions
+            align="end"
+            actions={[
+              { kind: 'view', onClick: () => nav(`/warehouse/stock-takes/${row.id}`) },
+              {
+                key: 'start',
+                icon: Play,
+                tooltip: 'Bắt đầu',
+                tone: 'emerald',
+                disabled: start.isPending,
+                hidden: st !== 'DRAFT',
+                onClick: () => start.mutate(row.id),
+              },
+            ]}
+          />
         )
       },
     },

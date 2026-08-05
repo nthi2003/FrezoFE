@@ -20,8 +20,6 @@ import { profileApi } from '@/modules/profile/services/profileApi'
 import { usePersonsCombobox } from '../hooks/usePerson'
 import { useOkrs, useCreateOkr, useCheckInOkr } from '../hooks/usePerformance'
 import type { OkrDto, OkrKeyResult, OkrRequest, OkrScope } from '../services/performanceApi'
-import { StatusPipelineStepper } from '../../warehouse/components/StatusPipelineStepper'
-import { KPI_PIPELINE, kpiStepIndex } from '../constants/hrWorkflow'
 import { KPI_GUIDE } from '../constants/kpi.guide'
 
 // ============================================================
@@ -153,7 +151,6 @@ export function OkrsPage() {
     return { total, avg, onTrack, atRisk }
   }, [rows])
 
-  const pipelineIndex = kpiStepIndex(stats.avg, rows.length > 0)
   const hasFilter = !!(periodFilter || statusFilter || search.trim() || ownerFilter)
   const isFilteredEmpty = !isLoading && !isError && allRows.length > 0 && rows.length === 0
   const isFullyEmpty = !isLoading && !isError && allRows.length === 0
@@ -294,16 +291,6 @@ export function OkrsPage() {
           })}
         </div>
       )}
-
-      <StatusPipelineStepper
-        steps={KPI_PIPELINE}
-        currentIndex={pipelineIndex}
-        nextCta={
-          isPersonalView
-            ? { label: 'Đánh giá hiệu suất', href: '/qlns/performance-reviews' }
-            : undefined
-        }
-      />
 
       {/* KPI summary */}
       {!isFullyEmpty && !isError && (

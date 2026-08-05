@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
-  AlertTriangle, FileText, Plus, RefreshCw, RotateCcw, Eye, Search,
+  AlertTriangle, FileText, Plus, RefreshCw, RotateCcw, Search,
   Scale, TrendingDown, TrendingUp, Send, Trash2, CalendarRange,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
   Button, PageHeader, AppModal, ConfirmDialog, EmptyState, ErrorState,
-  PageGuideButton, AppTooltip, StatusBadge, Label, Input,
+  PageGuideButton, AppTooltip, StatusBadge, Label, Input, RowActions,
 } from '@frezo/ui'
 import { formatCurrency, formatDate } from '@frezo/utils'
 import { AppTable } from '@/components/ui/AppTable'
@@ -315,50 +315,40 @@ export function JournalsPage({
   }, [createLines])
 
   const renderRowActions = (entry: JournalEntry) => (
-    <div className="inline-flex items-center gap-0.5 justify-end">
-      <AppTooltip content="Xem chi tiết bút toán">
-        <button
-          type="button"
-          className="p-1.5 rounded hover:bg-neutral-100 text-neutral-600"
-          onClick={() => setDetailId(entry.id)}
-          aria-label={`Xem chi tiết ${entry.code}`}
-        >
-          <Eye size={14} />
-        </button>
-      </AppTooltip>
-      {canUpdateJournal && entry.status === 'DRAFT' && (
-        <AppTooltip content="Ghi sổ: chuyển nháp sang Đã ghi sổ">
-          <button
-            type="button"
-            className="p-1.5 rounded hover:bg-primary-50 text-primary-700"
-            onClick={() => {
-              setActionTarget(entry)
-              setPostConfirmOpen(true)
-            }}
-            aria-label={`Ghi sổ ${entry.code}`}
-          >
-            <Send size={14} />
-          </button>
-        </AppTooltip>
-      )}
-      {canUpdateJournal && entry.status === 'POSTED' && (
-        <AppTooltip content="Đảo chứng từ: tạo bút toán đảo, cần lý do">
-          <button
-            type="button"
-            className="p-1.5 rounded hover:bg-amber-50 text-amber-700"
-            onClick={() => {
-              setActionTarget(entry)
-              setDetailId(entry.id)
-              setReverseReason('')
-              setReverseOpen(true)
-            }}
-            aria-label={`Đảo ${entry.code}`}
-          >
-            <RotateCcw size={14} />
-          </button>
-        </AppTooltip>
-      )}
-    </div>
+    <RowActions
+      align="end"
+      actions={[
+        {
+          kind: 'view',
+          tooltip: 'Xem chi tiết bút toán',
+          onClick: () => setDetailId(entry.id),
+        },
+        {
+          key: 'post',
+          icon: Send,
+          tooltip: 'Ghi sổ: chuyển nháp sang Đã ghi sổ',
+          tone: 'primary',
+          hidden: !canUpdateJournal || entry.status !== 'DRAFT',
+          onClick: () => {
+            setActionTarget(entry)
+            setPostConfirmOpen(true)
+          },
+        },
+        {
+          key: 'reverse',
+          icon: RotateCcw,
+          tooltip: 'Đảo chứng từ: tạo bút toán đảo, cần lý do',
+          tone: 'amber',
+          hidden: !canUpdateJournal || entry.status !== 'POSTED',
+          onClick: () => {
+            setActionTarget(entry)
+            setDetailId(entry.id)
+            setReverseReason('')
+            setReverseOpen(true)
+          },
+        },
+      ]}
+    />
   )
 
   const columns: AppTableColumn<JournalEntry>[] = [

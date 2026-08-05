@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import {
   Button, PageHeader, AppModal, ConfirmDialog, PageGuideButton,
-  EmptyState, ErrorState, Select, Label, VndInput, AppTooltip, IconActionButton,
+  EmptyState, ErrorState, Select, Label, VndInput, AppTooltip, IconActionButton, RowActions,
 } from '@frezo/ui'
 import { formatCurrency, formatDate, parseVndInput } from '@frezo/utils'
 import { AppTable } from '@/components/ui/AppTable'
@@ -19,8 +19,10 @@ import { useProducts } from '@/modules/products/hooks/useProduct'
 import { useCategories } from '@/modules/qtht/hooks/useCategory'
 import {
   useInvoices, useCreateInvoice, useIssueInvoice, usePostInvoiceToGL, useRecordPayment,
+  useCommissionRules,
 } from '../hooks/useCrm'
 import type { Invoice, InvoiceItem, InvoiceStatus } from '../services/crmApi'
+import { usePersonsCombobox } from '@/modules/qlns/hooks/usePerson'
 import { CommentDrawer } from '@/components/shared/CommentThread'
 import { SubjectType } from '@/modules/approval/types'
 import { toast } from 'sonner'
@@ -76,6 +78,8 @@ type CreateForm = {
   dueDate: string
   notes: string
   salespersonUsername: string
+  /** id rule HH đã chọn (UI); submit map → commissionRatePercent */
+  commissionRuleId: string
   commissionRatePercent: string
   items: LineDraft[]
 }
@@ -104,6 +108,7 @@ function emptyCreateForm(customerId = '', customerName = ''): CreateForm {
     dueDate: '',
     notes: '',
     salespersonUsername: '',
+    commissionRuleId: '',
     commissionRatePercent: '',
     items: [emptyLine()],
   }
@@ -163,6 +168,12 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
   const { data: customersRaw } = useCustomers()
   const { data: productsRaw } = useProducts()
   const { data: unitCategoriesRaw } = useCategories('DonVi')
+  const { options: salePersonOptions } = usePersonsCombobox({
+    jobTitle: 'Sale',
+    activated: true,
+    valueField: 'username',
+  })
+  const commissionRulesQ = useCommissionRules()
   const create = useCreateInvoice()
   const issue = useIssueInvoice()
   const post = usePostInvoiceToGL()
@@ -230,6 +241,35 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
         .filter((o) => o.value),
     [unitCategories],
   )
+
+  const saleOptions = useMemo(
+    () => salePersonOptions.filter((o) => !!o.value).map((o) => ({ value: o.value, label: o.label })),
+    [salePersonOptions],
+  )
+
+  /** Options loại HH từ setting — value = rule.id; submit map → ratePercent. */
+  const commissionRateOptions = useMemo(() => {
+    const rules = Array.isArray(commissionRulesQ.data) ? commissionRulesQ.data : []
+    return rules
+      .filter((r) => r.active !== false && Number.isFinite(Number(r.ratePercent)))
+      .map((r) => {
+        const pct = Number(r.ratePercent).toFixed(2)
+        const label =
+          r.salespersonUsername === '*'
+            ? `Mặc định — ${pct}%`
+            : r.note?.trim()
+              ? `${r.note.trim()} — ${pct}%`
+              : `${r.salespersonUsername} — ${pct}%`
+        return { value: r.id, label }
+      })
+  }, [commissionRulesQ.data])
+
+  const commissionRuleById = useMemo(() => {
+    const map = new Map<string, { ratePercent: number }>()
+    const rules = Array.isArray(commissionRulesQ.data) ? commissionRulesQ.data : []
+    for (const r of rules) map.set(r.id, { ratePercent: Number(r.ratePercent) })
+    return map
+  }, [commissionRulesQ.data])
 
   const resolveProductUnit = (raw?: string | null) => {
     const u = raw?.trim()
@@ -573,57 +613,52 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
         const canPay = inv.status === 'ISSUED' || inv.status === 'PARTIALLY_PAID'
         const canPrint = canExportInvoice(inv)
         return (
-          <div className="flex flex-wrap justify-end gap-1">
-            <IconActionButton
-              tooltip="Bình luận"
-              onClick={() => setCommentInv(inv)}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-neutral-50 text-neutral-600 border border-neutral-200 hover:bg-primary-50 hover:text-primary-700"
-            >
-              <MessageSquare size={12} />
-            </IconActionButton>
-            {canPrint && (
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-white text-neutral-700 border border-neutral-200 hover:bg-primary-50 hover:text-primary-700 hover:border-primary-200"
-                onClick={() => setPrintInvoiceId(inv.id)}
-                title="Xuất hoá đơn (PDF / In)"
-              >
-                <Printer size={12} /> Xuất
-              </button>
-            )}
-            {canIssue && (
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-info-light text-info-dark border border-info/30 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={issue.isPending}
-                title="Phát hành hoá đơn nháp"
-                onClick={() => issue.mutate(inv.id)}
-              >
-                <Send size={12} /> {issue.isPending ? 'Đang phát hành…' : 'Phát hành'}
-              </button>
-            )}
-            {canPay && (
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-success-light text-success-dark border border-success/30 hover:opacity-90"
-                onClick={() => {
+          <RowActions
+            align="end"
+            actions={[
+              {
+                key: 'comment',
+                icon: MessageSquare,
+                tooltip: 'Bình luận',
+                onClick: () => setCommentInv(inv),
+              },
+              {
+                key: 'print',
+                icon: Printer,
+                tooltip: 'Xuất hoá đơn (PDF / In)',
+                hidden: !canPrint,
+                onClick: () => setPrintInvoiceId(inv.id),
+              },
+              {
+                key: 'issue',
+                icon: Send,
+                tooltip: 'Phát hành hoá đơn nháp',
+                tone: 'blue',
+                hidden: !canIssue,
+                disabled: issue.isPending,
+                onClick: () => issue.mutate(inv.id),
+              },
+              {
+                key: 'pay',
+                icon: DollarSign,
+                tooltip: 'Thu tiền',
+                tone: 'emerald',
+                hidden: !canPay,
+                onClick: () => {
                   setPayTarget(inv)
                   setPayAmount(String(remain))
-                }}
-              >
-                <DollarSign size={12} /> Thu tiền
-              </button>
-            )}
-            {canPost && (
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-primary-50 text-primary-700 border border-primary-200 hover:bg-primary-100"
-                onClick={() => setPostTarget(inv)}
-              >
-                <Landmark size={12} /> Hạch toán
-              </button>
-            )}
-          </div>
+                },
+              },
+              {
+                key: 'post',
+                icon: Landmark,
+                tooltip: 'Hạch toán',
+                tone: 'primary',
+                hidden: !canPost,
+                onClick: () => setPostTarget(inv),
+              },
+            ]}
+          />
         )
       },
     },
@@ -856,24 +891,35 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="mb-1 block">Sale phụ trách (username)</Label>
-              <input
-                className="w-full border rounded-md px-3 py-2 text-sm font-mono"
-                placeholder="vd: sale01 — trống = lấy từ Deal"
+              <Select
+                options={saleOptions}
                 value={form.salespersonUsername}
-                onChange={(e) => setForm({ ...form, salespersonUsername: e.target.value })}
+                onChange={(v) => setForm({ ...form, salespersonUsername: v || '' })}
+                placeholder="Trống = lấy từ Deal"
+                showSearch={saleOptions.length > 5}
+                showClear
+                aria-label="Sale phụ trách"
               />
             </div>
             <div>
               <Label className="mb-1 block">% hoa hồng (override)</Label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={0.01}
-                className="w-full border rounded-md px-3 py-2 text-sm"
+              <Select
+                options={commissionRateOptions}
+                value={form.commissionRuleId}
+                onChange={(v) => {
+                  const id = v || ''
+                  const rate = id ? commissionRuleById.get(id)?.ratePercent : undefined
+                  setForm({
+                    ...form,
+                    commissionRuleId: id,
+                    commissionRatePercent:
+                      rate != null && Number.isFinite(rate) ? String(rate) : '',
+                  })
+                }}
                 placeholder="Trống = dùng mức đã cài"
-                value={form.commissionRatePercent}
-                onChange={(e) => setForm({ ...form, commissionRatePercent: e.target.value })}
+                showSearch={commissionRateOptions.length > 5}
+                showClear
+                aria-label="Phần trăm hoa hồng override"
               />
             </div>
           </div>
@@ -1071,42 +1117,39 @@ export function InvoicesPage({ embedded }: { embedded?: boolean } = {}) {
       <ConfirmDialog
         isOpen={!!postTarget}
         onClose={() => setPostTarget(null)}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!postTarget) return
           const code = postTarget.code
-          post.mutate(postTarget.id, {
-            onSuccess: (res: any) => {
-              setPostTarget(null)
-              const data = res?.data ?? res
-              const journalEntryId =
-                data?.journalEntryId ??
-                data?.glJournalEntryId ??
-                data?.id ??
-                null
-              const skipped = !!(data?.skipped || data?.alreadyPosted)
-              setPostResult({
-                code,
-                journalEntryId,
-                skipped,
-                message: data?.message || (skipped
-                  ? 'Kỳ đã hạch toán trước đó — không ghi đôi.'
-                  : 'Đã hạch toán sổ cái thành công.'),
-              })
-            },
-            onError: (err: any) => {
-              setPostTarget(null)
-              setPostResult({
-                code,
-                message:
-                  err?.response?.data?.message ||
-                  err?.message ||
-                  'Hạch toán thất bại. Kiểm tra kỳ kế toán / ánh xạ tài khoản.',
-              })
-            },
-          })
+          try {
+            const res: any = await post.mutateAsync(postTarget.id)
+            const data = res?.data ?? res
+            const journalEntryId =
+              data?.journalEntryId ??
+              data?.glJournalEntryId ??
+              data?.id ??
+              null
+            const skipped = !!(data?.skipped || data?.alreadyPosted)
+            setPostResult({
+              code,
+              journalEntryId,
+              skipped,
+              message: data?.message || (skipped
+                ? 'Kỳ đã hạch toán trước đó — không ghi đôi.'
+                : 'Đã hạch toán sổ cái thành công.'),
+            })
+            setPostTarget(null)
+          } catch (err: any) {
+            // Giữ ConfirmDialog mở để retry
+            const msg =
+              err?.response?.data?.message ||
+              err?.message ||
+              'Hạch toán thất bại. Kiểm tra kỳ kế toán / ánh xạ tài khoản.'
+            toast.error(msg)
+            throw Object.assign(err instanceof Error ? err : new Error(msg), { message: msg })
+          }
         }}
         title="Hạch toán vào sổ cái?"
-        message={`Hoá đơn ${postTarget?.code || ''} sẽ được ghi sổ cái. Hệ thống tránh ghi trùng nếu đã hạch toán.`}
+        description={`Hoá đơn ${postTarget?.code || ''} sẽ được ghi sổ cái. Hệ thống tránh ghi trùng nếu đã hạch toán.`}
         confirmText="Hạch toán"
         variant="warning"
         isLoading={post.isPending}

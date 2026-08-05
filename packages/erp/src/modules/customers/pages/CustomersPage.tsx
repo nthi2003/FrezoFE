@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 import { AppTable } from '@/components/ui/AppTable'
 import type { BulkAction } from '@/components/ui/AppTable/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
-import { AppModal, PageHeader, PageGuideButton, ConfirmDialog, EmptyState, ErrorState, IconActionButton } from '@frezo/ui'
+import { AppModal, PageHeader, PageGuideButton, ConfirmDialog, EmptyState, ErrorState, RowActions } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { Button } from '@frezo/ui'
 import {
@@ -326,22 +326,20 @@ export function CustomersPage() {
       dataIndex: 'id',
       width: 160,
       render: (_: any, row: any) => (
-        <div className="flex items-center gap-1">
-          <IconActionButton tooltip="Xem 360°" tone="violet" onClick={() => nav(`/customer/${row.id}/360`)}>
-            <Radar className="w-4 h-4" />
-          </IconActionButton>
-          <IconActionButton tooltip="Xem nhanh" tone="blue" onClick={() => openDetail(row)}>
-            <Eye className="w-4 h-4" />
-          </IconActionButton>
-          <IconActionButton tooltip="Sửa" tone="primary" onClick={() => openEdit(row)}>
-            <Pencil className="w-4 h-4" />
-          </IconActionButton>
-          {showDelete && (
-            <IconActionButton tooltip="Xóa" tone="rose" onClick={() => setConfirmDelete(row)}>
-              <Trash2 className="w-4 h-4" />
-            </IconActionButton>
-          )}
-        </div>
+        <RowActions
+          actions={[
+            {
+              key: 'customer-360',
+              icon: Radar,
+              tooltip: 'Xem 360°',
+              tone: 'violet',
+              onClick: () => nav(`/customer/${row.id}/360`),
+            },
+            { kind: 'view', tooltip: 'Xem nhanh', onClick: () => openDetail(row) },
+            { kind: 'edit', onClick: () => openEdit(row) },
+            { kind: 'delete', hidden: !showDelete, onClick: () => setConfirmDelete(row) },
+          ]}
+        />
       ),
     },
   ]

@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import {
   BookOpen, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown,
-  LayoutGrid, List, Plus, RefreshCw, Search, Sparkles, Trash2, UserCheck, Wallet,
+  LayoutGrid, List, Plus, RefreshCw, Search, Sparkles, UserCheck, Wallet,
 } from 'lucide-react'
 import {
   Button,
@@ -16,6 +16,7 @@ import {
   PageGuideButton,
   AppTooltip,
   StatusBadge,
+  RowActions,
 } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
@@ -336,19 +337,19 @@ export function AccountsPage({ embedded }: { embedded?: boolean } = {}) {
     )
   }
 
-  const renderDeleteAction = (account: Account) =>
-    canDelete ? (
-      <AppTooltip content="Xoá tài khoản">
-        <button
-          type="button"
-          className="p-1.5 rounded hover:bg-red-50 text-red-600"
-          onClick={() => setConfirmDelete(account)}
-          aria-label={`Xoá tài khoản ${account.code}`}
-        >
-          <Trash2 size={14} />
-        </button>
-      </AppTooltip>
-    ) : null
+  const renderDeleteAction = (account: Account) => (
+    <RowActions
+      align="end"
+      actions={[
+        {
+          kind: 'delete',
+          tooltip: 'Xoá tài khoản',
+          hidden: !canDelete,
+          onClick: () => setConfirmDelete(account),
+        },
+      ]}
+    />
+  )
 
   const columns: AppTableColumn<Account>[] = [
     {

@@ -28,7 +28,6 @@ import {
   Sparkles,
   ArrowUp,
   ArrowDown,
-  Copy,
   Search,
   Share2,
   BarChart3,
@@ -50,6 +49,7 @@ import {
   EmptyState,
   ImageUploader,
   IconActionButton,
+  RowActions,
   AppTooltip,
 } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
@@ -70,7 +70,6 @@ import {
 import { bannerFormSchema, type BannerFormValues } from '../constants/banner.schema'
 import { makeImageUploader } from '@/lib/upload'
 import { LandingPreview, type PreviewDevice, type LandingConfigLite } from '../components/LandingPreview'
-import { Can } from '@/lib/permissions'
 import { usePermission } from '@/lib/hooks/usePermission'
 
 // ============================================================
@@ -951,48 +950,41 @@ function ArticlesTab() {
       dataIndex: 'id',
       width: 200,
       render: (_: any, row: any) => (
-        <div className="flex items-center gap-1">
-          <Can permission="QTBV.ARTICLES.PUBLISH">
-            {row.status === 'APPROVED' && (
-              <IconActionButton
-                tooltip="Mở trình soạn để xuất bản"
-                tone="emerald"
-                onClick={() => quickPublish(row)}
-              >
-                <CheckCircle2 size={16} />
-              </IconActionButton>
-            )}
-          </Can>
-          <IconActionButton tooltip="Xem preview" tone="blue" onClick={() => window.open(`${LANDING_URL}/bai-viet/${row.id}`, '_blank')}>
-            <Eye size={16} />
-          </IconActionButton>
-          {canCreate && (
-            <IconActionButton tooltip="Sao chép" onClick={() => duplicate(row)}>
-              <Copy size={16} />
-            </IconActionButton>
-          )}
-          {canUpdate && (
-            <IconActionButton tooltip="Chỉnh sửa (mở trình soạn full)" tone="primary" onClick={() => navigate(`/admin/article-management/${row.id}/edit`)}>
-              <Pencil size={16} />
-            </IconActionButton>
-          )}
-          {canDelete && (
-            <IconActionButton
-              tooltip="Xoá"
-              tone="red"
-              onClick={() =>
+        <RowActions
+          actions={[
+            {
+              key: 'publish',
+              icon: CheckCircle2,
+              tooltip: 'Mở trình soạn để xuất bản',
+              tone: 'emerald',
+              onClick: () => quickPublish(row),
+              hidden: !canPublish || row.status !== 'APPROVED',
+            },
+            {
+              kind: 'view',
+              tooltip: 'Xem preview',
+              onClick: () => window.open(`${LANDING_URL}/bai-viet/${row.id}`, '_blank'),
+            },
+            { kind: 'copy', onClick: () => duplicate(row), hidden: !canCreate },
+            {
+              kind: 'edit',
+              tooltip: 'Chỉnh sửa (mở trình soạn full)',
+              onClick: () => navigate(`/admin/article-management/${row.id}/edit`),
+              hidden: !canUpdate,
+            },
+            {
+              kind: 'delete',
+              onClick: () =>
                 askConfirm({
                   title: 'Xoá bài viết?',
                   message: `Bài viết "${row.title}" sẽ bị xoá.`,
                   confirmText: 'Xoá',
                   onConfirm: () => deleteReq.mutate(row.id),
-                })
-              }
-            >
-              <Trash2 size={16} />
-            </IconActionButton>
-          )}
-        </div>
+                }),
+              hidden: !canDelete,
+            },
+          ]}
+        />
       ),
     },
   ]

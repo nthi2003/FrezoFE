@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import {
   AppModal, Button, Input, Label, PageHeader, PageGuideButton,
-  StatusBadge, ConfirmDialog, Select, IconActionButton, AppTooltip, type PageGuideConfig,
+  StatusBadge, ConfirmDialog, Select, IconActionButton, RowActions, AppTooltip, type PageGuideConfig,
 } from '@frezo/ui'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -920,17 +920,14 @@ function RoleListItem({ role, selected, dirty, onSelect, onEdit, onClone, onDele
         </div>
       </button>
       {/* Hover actions */}
-      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <IconActionButton tooltip="Nhân bản" size="sm" className="p-1 rounded hover:bg-white" onClick={(e) => { e.stopPropagation(); onClone() }}>
-          <Copy size={11} />
-        </IconActionButton>
-        <IconActionButton tooltip="Sửa" tone="primary" size="sm" className="p-1 rounded hover:bg-white" onClick={(e) => { e.stopPropagation(); onEdit() }}>
-          <Edit size={11} />
-        </IconActionButton>
-        <IconActionButton tooltip="Xoá" tone="rose" size="sm" className="p-1 rounded hover:bg-white" onClick={(e) => { e.stopPropagation(); onDelete() }}>
-          <Trash2 size={11} />
-        </IconActionButton>
-      </div>
+      <RowActions
+        className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+        actions={[
+          { kind: 'copy', tooltip: 'Nhân bản', onClick: onClone },
+          { kind: 'edit', onClick: onEdit },
+          { kind: 'delete', onClick: onDelete },
+        ]}
+      />
     </div>
   )
 }

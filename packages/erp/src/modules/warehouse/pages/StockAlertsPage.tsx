@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, BellOff, PackagePlus } from 'lucide-react'
-import { Button, ConfirmDialog } from '@frezo/ui'
+import { Button, ConfirmDialog, RowActions } from '@frezo/ui'
 import { toast } from 'sonner'
 import type { AppTableColumn, BulkAction } from '@/components/ui/AppTable'
 import {
@@ -191,18 +191,21 @@ export function StockAlertsPage() {
       title: '',
       align: 'right',
       width: 120,
-      render: (_, row) =>
-        row.status === 'OPEN' ? (
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1"
-            disabled={dismiss.isPending}
-            onClick={() => setDismissTarget(row)}
-          >
-            <BellOff size={12} /> Bỏ qua
-          </Button>
-        ) : null,
+      render: (_, row) => (
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'dismiss',
+              icon: BellOff,
+              tooltip: 'Bỏ qua',
+              disabled: dismiss.isPending,
+              hidden: row.status !== 'OPEN',
+              onClick: () => setDismissTarget(row),
+            },
+          ]}
+        />
+      ),
     },
   ]
 

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Search, HelpCircle, UserRound } from 'lucide-react'
+import { Plus, Loader2, Search, HelpCircle, UserRound } from 'lucide-react'
 import {
-  AppModal, Button, Input, PageHeader, EmptyState, ErrorState, Label, Select, IconActionButton,
+  AppModal, Button, Input, PageHeader, EmptyState, ErrorState, Label, Select, RowActions,
 } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
@@ -113,25 +113,27 @@ export function FbAccountsPage() {
       align: 'right',
       width: 120,
       render: (_, acc) => (
-        <div className="flex items-center justify-end gap-1">
-          <IconActionButton tooltip="Sửa tài khoản" tone="blue" onClick={() => { setSelectedItem(acc); setFormStatus(acc.status || 'ACTIVE'); setModalOpen(true) }}>
-            <Pencil className="w-4 h-4" />
-          </IconActionButton>
-          <IconActionButton
-            tooltip="Xoá tài khoản"
-            tone="red"
-            onClick={() =>
-              askConfirm({
-                title: 'Xoá tài khoản này?',
-                message: `Tài khoản "${acc.username}" sẽ bị xoá.`,
-                confirmText: 'Xoá',
-                onConfirm: () => deleteReq.mutate(acc.id),
-              })
-            }
-          >
-            <Trash2 className="w-4 h-4" />
-          </IconActionButton>
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              kind: 'edit',
+              tooltip: 'Sửa tài khoản',
+              onClick: () => { setSelectedItem(acc); setFormStatus(acc.status || 'ACTIVE'); setModalOpen(true) },
+            },
+            {
+              kind: 'delete',
+              tooltip: 'Xoá tài khoản',
+              onClick: () =>
+                askConfirm({
+                  title: 'Xoá tài khoản này?',
+                  message: `Tài khoản "${acc.username}" sẽ bị xoá.`,
+                  confirmText: 'Xoá',
+                  onConfirm: () => deleteReq.mutate(acc.id),
+                }),
+            },
+          ]}
+        />
       ),
     },
   ]

@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from 'react'
 import { Scale, Plus, CheckCircle2 } from 'lucide-react'
-import { Button, ConfirmDialog, Select } from '@frezo/ui'
+import { Button, ConfirmDialog, RowActions, Select } from '@frezo/ui'
 import { useProducts } from '@/modules/products/hooks/useProduct'
 import { WarehouseListShell } from '../components/WarehouseListShell'
 import { ProductCombobox } from '../components/ProductCombobox'
@@ -78,12 +78,22 @@ export function ShrinkagePage() {
     {
       key: 'actions',
       title: '',
-      render: (_, r) =>
-        r?.status === 'DRAFT' && r?.id ? (
-          <Button size="sm" variant="outline" onClick={() => setConfirmId(r.id)}>
-            Xác nhận
-          </Button>
-        ) : null,
+      render: (_, r) => (
+        <RowActions
+          actions={[
+            {
+              key: 'confirm',
+              icon: CheckCircle2,
+              tooltip: 'Xác nhận',
+              tone: 'emerald',
+              hidden: !(r?.status === 'DRAFT' && r?.id),
+              onClick: () => {
+                if (r?.id) setConfirmId(r.id)
+              },
+            },
+          ]}
+        />
+      ),
     },
   ]
 

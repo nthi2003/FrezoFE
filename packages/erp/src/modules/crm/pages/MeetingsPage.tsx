@@ -3,9 +3,9 @@
 // ============================================================
 
 import { useMemo, useState } from 'react'
-import { Plus, Calendar, Search } from 'lucide-react'
+import { Plus, Calendar, Search, Ban } from 'lucide-react'
 import {
-  Button, PageHeader, PageGuideButton, AppModal, EmptyState, ErrorState, ConfirmDialog,
+  Button, PageHeader, PageGuideButton, AppModal, EmptyState, ErrorState, ConfirmDialog, RowActions,
 } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
@@ -138,17 +138,22 @@ export function MeetingsPage({ embedded }: { embedded?: boolean } = {}) {
       title: '',
       align: 'right',
       width: 100,
-      render: (_, row) =>
-        (row.status || '').toUpperCase() !== 'CANCELLED' ? (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={cancel.isPending}
-            onClick={() => setCancelTarget(row)}
-          >
-            Huỷ
-          </Button>
-        ) : null,
+      render: (_, row) => (
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'cancel',
+              icon: Ban,
+              tooltip: 'Huỷ cuộc họp',
+              tone: 'rose',
+              hidden: (row.status || '').toUpperCase() === 'CANCELLED',
+              disabled: cancel.isPending,
+              onClick: () => setCancelTarget(row),
+            },
+          ]}
+        />
+      ),
     },
   ]
 

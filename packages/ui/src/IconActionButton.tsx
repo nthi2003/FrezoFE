@@ -41,6 +41,7 @@ const sizeClasses: Record<'sm' | 'md', string> = {
 
 /**
  * Tone chuẩn cho CRUD / approve — dùng thay vì invent tone từng trang.
+ * Cụm thao tác trong bảng/danh sách nên dùng `RowActions` (đã áp sẵn tone này).
  *
  * @example
  * <IconActionButton tooltip="Sửa" tone={actionIconTone.edit} onClick={onEdit}>
@@ -48,6 +49,8 @@ const sizeClasses: Record<'sm' | 'md', string> = {
 export const actionIconTone = {
   view: 'blue',
   edit: 'blue',
+  copy: 'neutral',
+  more: 'neutral',
   delete: 'rose',
   approve: 'emerald',
   reject: 'rose',
@@ -76,6 +79,7 @@ export function IconActionButton({
         aria-label={tooltip}
         className={cn(
           'inline-flex items-center justify-center rounded-md transition-colors',
+          'disabled:opacity-40 disabled:pointer-events-none',
           toneClasses[tone],
           sizeClasses[size],
           className,

@@ -1,24 +1,37 @@
 // ============================================================
-// useConfirmDialog — thay window.confirm() (FR-UX-03 / STANDARD §8)
+// useConfirmDialog / useConfirm — thay window.confirm() (FR-UX-03)
 // ============================================================
 
 import { useCallback, useState, type ReactNode } from 'react'
-import { ConfirmDialog } from '@frezo/ui'
+import { ConfirmDialog, type ConfirmVariant } from '@frezo/ui'
 
 export interface ConfirmAskOptions {
   title: string
-  message: ReactNode
+  /** Ưu tiên dùng `description`. */
+  description?: ReactNode
+  /** @deprecated Dùng `description`. */
+  message?: ReactNode
   confirmText?: string
   cancelText?: string
-  variant?: 'danger' | 'warning' | 'default'
+  /** `default` giữ tương thích — map sang `info`. */
+  variant?: ConfirmVariant | 'default'
   onConfirm: () => void | Promise<void>
+  onCancel?: () => void
+  requireTypeToConfirm?: string
+  extra?: ReactNode
 }
 
 /**
- * Hook trả về `askConfirm` + node `confirmDialog` để render 1 lần trong page.
+ * Hook imperative: `askConfirm` + node `confirmDialog` render 1 lần trong page.
+ *
  * @example
- * const { askConfirm, confirmDialog } = useConfirmDialog()
- * askConfirm({ title: 'Xoá?', message: '…', onConfirm: () => del.mutate(id) })
+ * const { askConfirm, confirmDialog } = useConfirm()
+ * askConfirm({
+ *   title: 'Xoá?',
+ *   description: 'Không hoàn tác được.',
+ *   variant: 'danger',
+ *   onConfirm: () => del.mutateAsync(id),
+ * })
  * return <>{...}{confirmDialog}</>
  */
 export function useConfirmDialog() {
@@ -40,24 +53,37 @@ export function useConfirmDialog() {
     try {
       await Promise.resolve(state.onConfirm())
       setState(null)
+    } catch {
+      // Giữ dialog mở khi lỗi
     } finally {
       setLoading(false)
     }
   }, [state])
 
+  const handleCancel = useCallback(() => {
+    if (loading) return
+    state?.onCancel?.()
+    setState(null)
+  }, [loading, state])
+
   const confirmDialog = (
     <ConfirmDialog
       isOpen={!!state}
-      onClose={close}
-      onConfirm={() => void handleConfirm()}
+      onClose={handleCancel}
+      onConfirm={() => handleConfirm()}
       title={state?.title || ''}
-      message={state?.message ?? ''}
+      description={state?.description ?? state?.message ?? ''}
       confirmText={state?.confirmText}
       cancelText={state?.cancelText}
       variant={state?.variant ?? 'danger'}
       isLoading={loading}
+      requireTypeToConfirm={state?.requireTypeToConfirm}
+      extra={state?.extra}
     />
   )
 
   return { askConfirm, confirmDialog, isOpen: !!state }
 }
+
+/** Alias ngắn của `useConfirmDialog`. */
+export const useConfirm = useConfirmDialog

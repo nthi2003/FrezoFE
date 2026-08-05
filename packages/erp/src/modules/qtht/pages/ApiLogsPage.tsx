@@ -10,14 +10,14 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import {
-  Activity, Trash2, RefreshCw, Search, X, Eye, Copy,
+  Activity, Trash2, RefreshCw, Search, X, Copy,
   Radio, ChevronDown, Clock, Zap, CheckCircle2, XCircle, TrendingUp,
   TrendingDown, User, Globe, Calendar, Info, AlertTriangle,
 } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import {
   Button, AppModal, PageHeader, ConfirmDialog, EmptyState, ErrorState, PageGuideButton, Select,
-  IconActionButton, AppTooltip,
+  IconActionButton, RowActions,
   type PageGuideConfig,
 } from '@frezo/ui'
 import { toast } from 'sonner'
@@ -352,9 +352,10 @@ export function ApiLogsPage() {
       width: 50,
       align: 'center' as const,
       render: (_: unknown, row: ApiLogItem) => (
-        <IconActionButton tooltip="Xem chi tiết" tone="blue" size="sm" onClick={() => setDetailLog(row)}>
-          <Eye size={14} />
-        </IconActionButton>
+        <RowActions
+          align="center"
+          actions={[{ kind: 'view', onClick: () => setDetailLog(row) }]}
+        />
       ),
     },
   ], [])

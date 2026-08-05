@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Plus,
-  Pencil,
-  Trash2,
   FileText,
   Grid3x3,
   Rows3,
@@ -24,6 +22,7 @@ import {
   Input,
   PageHeader,
   PageGuideButton,
+  RowActions,
   StatusBadge,
   type PageGuideConfig,
   type StatusConfig,
@@ -208,27 +207,14 @@ function ArticleCard({ article, onEdit, onDelete, canUpdate, canDelete }: Articl
 
       {/* Actions — hide-not-disable */}
       {showActions && (
-        <div className="border-t border-neutral-100 p-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-neutral-50/50">
-          {canUpdate && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onEdit}
-              className="h-8 gap-1.5 text-neutral-600 hover:text-primary-700"
-            >
-              <Pencil size={13} /> Sửa
-            </Button>
-          )}
-          {canDelete && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onDelete}
-              className="h-8 gap-1.5 text-neutral-600 hover:text-danger"
-            >
-              <Trash2 size={13} /> Xóa
-            </Button>
-          )}
+        <div className="border-t border-neutral-100 p-2 opacity-0 group-hover:opacity-100 transition-opacity bg-neutral-50/50">
+          <RowActions
+            align="end"
+            actions={[
+              { kind: 'edit', hidden: !canUpdate, onClick: onEdit },
+              { kind: 'delete', hidden: !canDelete, onClick: onDelete },
+            ]}
+          />
         </div>
       )}
     </div>
@@ -406,28 +392,13 @@ export function ArticlesPage() {
       width: 100,
       align: 'right' as const,
       render: (_: any, row: any) => (
-        <div className="flex items-center gap-1 justify-end">
-          {canUpdate && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => openEdit(row)}
-              title="Chỉnh sửa"
-            >
-              <Pencil className="w-4 h-4" />
-            </Button>
-          )}
-          {canDelete && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setDeleteTarget(row)}
-              title="Xóa"
-            >
-              <Trash2 className="w-4 h-4 text-danger" />
-            </Button>
-          )}
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            { kind: 'edit', hidden: !canUpdate, onClick: () => openEdit(row) },
+            { kind: 'delete', hidden: !canDelete, onClick: () => setDeleteTarget(row) },
+          ]}
+        />
       ),
     },
   ]

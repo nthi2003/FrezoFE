@@ -8,11 +8,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  Trash2, Loader2, Download, CheckCircle, Inbox, Facebook, MessageCircle,
+  Loader2, Download, CheckCircle, Inbox, Facebook, MessageCircle,
   Globe, User, Sparkles, Search, RefreshCw, ExternalLink,
   Phone, Mail, Clock, MapPin, X, HelpCircle,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, ErrorState, Select, IconActionButton, AppTooltip } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, ErrorState, Select, IconActionButton, AppTooltip, RowActions } from '@frezo/ui'
 import { toast } from 'sonner'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn, BulkAction } from '@/components/ui/AppTable'
@@ -266,47 +266,40 @@ export function FbLeadsPage() {
       title: 'Thao tác',
       align: 'right',
       width: 120,
-      render: (_, lead) => {
-        const disabled = lead.status === 'IMPORTED'
-        return (
-          <div className="flex items-center justify-end gap-1">
-            {lead.profileUrl && (
-              <AppTooltip content="Mở profile gốc">
-                <a
-                  href={lead.profileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Mở profile gốc"
-                  className="p-1.5 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-primary-600 inline-flex"
-                >
-                  <ExternalLink size={14} />
-                </a>
-              </AppTooltip>
-            )}
-            {!disabled && (
-              <IconActionButton tooltip="Import vào Khách hàng" tone="emerald" onClick={() => importReq.mutate(lead.id)} disabled={importReq.isPending}>
-                {importReq.isPending
-                  ? <Loader2 size={14} className="animate-spin" />
-                  : <Download size={14} />}
-              </IconActionButton>
-            )}
-            <IconActionButton
-              tooltip="Xoá"
-              tone="red"
-              onClick={() =>
+      render: (_, lead) => (
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'profile',
+              icon: ExternalLink,
+              tooltip: 'Mở profile gốc',
+              hidden: !lead.profileUrl,
+              onClick: () => window.open(lead.profileUrl, '_blank', 'noopener,noreferrer'),
+            },
+            {
+              key: 'import',
+              icon: Download,
+              tooltip: 'Import vào Khách hàng',
+              tone: 'emerald',
+              hidden: lead.status === 'IMPORTED',
+              disabled: importReq.isPending,
+              onClick: () => importReq.mutate(lead.id),
+            },
+            {
+              kind: 'delete',
+              tooltip: 'Xoá',
+              onClick: () =>
                 askConfirm({
                   title: 'Xoá lead này?',
                   message: `Lead "${lead.name}" sẽ bị xoá.`,
                   confirmText: 'Xoá',
                   onConfirm: () => deleteReq.mutate(lead.id),
-                })
-              }
-            >
-              <Trash2 size={14} />
-            </IconActionButton>
-          </div>
-        )
-      },
+                }),
+            },
+          ]}
+        />
+      ),
     },
   ]
 

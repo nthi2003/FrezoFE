@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Plus, Trash2, Pencil, Send, Users, Mail, X, Search } from 'lucide-react'
+import { Plus, Send, Users, Mail, X, Search } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import {
   AppModal, Button, ConfirmDialog, EmptyState, ErrorState,
-  PageHeader, PageGuideButton, IconActionButton, type PageGuideConfig,
+  PageHeader, PageGuideButton, RowActions, type PageGuideConfig,
 } from '@frezo/ui'
 import { Input } from '@frezo/ui'
 import { Label } from '@frezo/ui'
@@ -164,29 +164,29 @@ export function EmailGroupsPage() {
       dataIndex: 'id',
       width: 160,
       render: (_: any, row: any) => (
-        <div className="flex items-center gap-0.5">
-          <IconActionButton tooltip="Sửa" size="sm" onClick={() => openEdit(row)}>
-            <Pencil className="w-3.5 h-3.5" />
-          </IconActionButton>
-          <IconActionButton tooltip="Gửi email cho nhóm" tone="primary" size="sm" onClick={() => openSend(row)}>
-            <Send className="w-3.5 h-3.5" />
-          </IconActionButton>
-          <IconActionButton
-            tooltip="Xóa"
-            tone="red"
-            size="sm"
-            onClick={() =>
-              askConfirm({
-                title: 'Xóa nhóm này?',
-                message: `Nhóm "${row.name || ''}" sẽ bị xóa.`,
-                confirmText: 'Xóa',
-                onConfirm: () => deleteReq.mutate(row.id),
-              })
-            }
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </IconActionButton>
-        </div>
+        <RowActions
+          actions={[
+            { kind: 'edit', tooltip: 'Sửa', onClick: () => openEdit(row) },
+            {
+              key: 'send',
+              icon: Send,
+              tooltip: 'Gửi email cho nhóm',
+              tone: 'primary',
+              onClick: () => openSend(row),
+            },
+            {
+              kind: 'delete',
+              tooltip: 'Xóa',
+              onClick: () =>
+                askConfirm({
+                  title: 'Xóa nhóm này?',
+                  message: `Nhóm "${row.name || ''}" sẽ bị xóa.`,
+                  confirmText: 'Xóa',
+                  onConfirm: () => deleteReq.mutate(row.id),
+                }),
+            },
+          ]}
+        />
       ),
     },
   ]

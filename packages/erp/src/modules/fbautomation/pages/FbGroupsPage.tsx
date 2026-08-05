@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Trash2, Search, Users, HelpCircle, UserPlus } from 'lucide-react'
-import { Button, PageHeader, EmptyState, ErrorState, Select, IconActionButton, AppTooltip } from '@frezo/ui'
+import { Search, Users, HelpCircle, UserPlus } from 'lucide-react'
+import { PageHeader, EmptyState, ErrorState, Select, RowActions } from '@frezo/ui'
 import { toast } from 'sonner'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
@@ -126,38 +126,33 @@ export function FbGroupsPage() {
       align: 'right',
       width: 160,
       render: (_, g) => (
-        <div className="flex items-center justify-end gap-1">
-          {(g.status === 'NEW' || g.status === 'READY_TO_JOIN') && (
-            <AppTooltip content={accountId ? 'Tham gia group bằng tài khoản đã chọn' : 'Chọn tài khoản ở bộ lọc trước'}>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleJoin(g.groupId)}
-                disabled={joinReq.isPending || !accountId}
-                className="text-emerald-600 hover:text-emerald-800 gap-1"
-                aria-label="Tham gia group"
-              >
-                <UserPlus size={14} /> Tham gia
-              </Button>
-            </AppTooltip>
-          )}
-          <IconActionButton
-            tooltip="Xoá group"
-            tone="red"
-            onClick={() =>
-              askConfirm({
-                title: 'Xoá group này?',
-                message: `Group "${g.groupName}" sẽ bị xoá khỏi danh sách.`,
-                confirmText: 'Xoá',
-                onConfirm: () => deleteReq.mutate(g.id),
-              })
-            }
-          >
-            <Trash2 className="w-4 h-4" />
-          </IconActionButton          >
-            <Trash2 className="w-4 h-4" />
-          </IconActionButton>
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'join',
+              icon: UserPlus,
+              tooltip: accountId
+                ? 'Tham gia group bằng tài khoản đã chọn'
+                : 'Chọn tài khoản ở bộ lọc trước',
+              tone: 'emerald',
+              hidden: !(g.status === 'NEW' || g.status === 'READY_TO_JOIN'),
+              disabled: joinReq.isPending || !accountId,
+              onClick: () => handleJoin(g.groupId),
+            },
+            {
+              kind: 'delete',
+              tooltip: 'Xoá group',
+              onClick: () =>
+                askConfirm({
+                  title: 'Xoá group này?',
+                  message: `Group "${g.groupName}" sẽ bị xoá khỏi danh sách.`,
+                  confirmText: 'Xoá',
+                  onConfirm: () => deleteReq.mutate(g.id),
+                }),
+            },
+          ]}
+        />
       ),
     },
   ]

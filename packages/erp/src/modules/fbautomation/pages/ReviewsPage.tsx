@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Plus, RefreshCw, Trash2, Star, MessageSquare } from 'lucide-react'
+import { Plus, RefreshCw, Star, MessageSquare } from 'lucide-react'
 import {
-  Button, PageHeader, EmptyState, ErrorState, AppModal, Input, Label, Select, IconActionButton, StatusBadge,
+  Button, PageHeader, EmptyState, ErrorState, AppModal, Input, Label, Select, RowActions, StatusBadge,
 } from '@frezo/ui'
-import { Can } from '@/lib/permissions'
+import { Can, usePermission } from '@/lib/permissions'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -25,6 +25,9 @@ export function ReviewsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const reply = useReplyPageReview()
   const deleteReview = useDeletePageReview()
+
+  const canReply = usePermission('MKT_REVIEWS_ID_REPLY_UPDATE')
+  const canDelete = usePermission('MKT_REVIEWS_ID_DELETE')
 
   const { data: dash } = useReviewsDashboard()
   const { data, isLoading, isFetching, isError, refetch } = usePageReviews()
@@ -72,36 +75,34 @@ export function ReviewsPage() {
       align: 'right',
       width: 100,
       render: (_, r) => (
-        <div className="flex justify-end gap-1">
-          <Can permission="MKT_REVIEWS_ID_REPLY_UPDATE">
-            <IconActionButton
-              tooltip="Trả lời"
-              tone="emerald"
-              onClick={() => {
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'reply',
+              icon: MessageSquare,
+              tooltip: 'Trả lời',
+              tone: 'emerald',
+              hidden: !canReply,
+              onClick: () => {
                 const text = window.prompt('Nội dung trả lời', r.replyText || '')
                 if (text) reply.mutate({ id: r.id, replyText: text })
-              }}
-            >
-              <MessageSquare size={14} />
-            </IconActionButton>
-          </Can>
-          <Can permission="MKT_REVIEWS_ID_DELETE">
-            <IconActionButton
-              tooltip="Xoá"
-              tone="rose"
-              onClick={() =>
+              },
+            },
+            {
+              kind: 'delete',
+              tooltip: 'Xoá',
+              hidden: !canDelete,
+              onClick: () =>
                 askConfirm({
                   title: 'Xoá đánh giá?',
                   message: 'Đánh giá sẽ bị xoá khỏi danh sách.',
                   confirmText: 'Xoá',
                   onConfirm: () => deleteReview.mutate(r.id),
-                })
-              }
-            >
-              <Trash2 size={14} />
-            </IconActionButton>
-          </Can>
-        </div>
+                }),
+            },
+          ]}
+        />
       ),
     },
   ]

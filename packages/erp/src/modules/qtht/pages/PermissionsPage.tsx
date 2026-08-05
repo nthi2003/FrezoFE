@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Plus, Trash2, Search, Shield } from 'lucide-react'
+import { Plus, Search, Shield } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import {
   AppModal, Button, ConfirmDialog, EmptyState, ErrorState,
-  PageHeader, PageGuideButton, IconActionButton, actionIconTone, type PageGuideConfig,
+  PageHeader, PageGuideButton, RowActions, type PageGuideConfig,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { usePermissions, useCreatePermission, useDeletePermission } from '../hooks/useQtht'
@@ -88,16 +88,16 @@ export function PermissionsPage() {
       width: 72,
       align: 'right',
       render: (_, row) => (
-        <div className="flex items-center justify-end gap-1">
-          <IconActionButton
-            tooltip="Xóa quyền"
-            tone={actionIconTone.delete}
-            size="sm"
-            onClick={() => setConfirmDel({ id: row.id, name: row.name, code: row.code })}
-          >
-            <Trash2 size={14} />
-          </IconActionButton>
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              kind: 'delete',
+              tooltip: 'Xóa quyền',
+              onClick: () => setConfirmDel({ id: row.id, name: row.name, code: row.code }),
+            },
+          ]}
+        />
       ),
     },
   ]

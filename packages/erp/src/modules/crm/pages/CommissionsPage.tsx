@@ -5,10 +5,10 @@
 
 import { useMemo, useState } from 'react'
 import {
-  Percent, Users, Receipt, Package, Plus, Trash2, RefreshCw, Check, Banknote, Ban,
+  Percent, Users, Receipt, Package, Plus, RefreshCw, Check, Banknote, Ban,
 } from 'lucide-react'
 import {
-  Button, EmptyState, ErrorState, AppModal, Label, PageGuideButton,
+  Button, EmptyState, ErrorState, AppModal, Label, PageGuideButton, RowActions,
   type PageGuideConfig,
 } from '@frezo/ui'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
@@ -103,18 +103,18 @@ export function CommissionsPage({ embedded }: { embedded?: boolean } = {}) {
       key: 'actions',
       title: '',
       align: 'right',
-      render: (_, r) =>
-        r.salespersonUsername === '*' ? null : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-rose-600"
-            onClick={() => delRule.mutate(r.id)}
-          >
-            <Trash2 size={14} />
-          </Button>
-        ),
+      render: (_, r) => (
+        <RowActions
+          align="end"
+          actions={[
+            {
+              kind: 'delete',
+              hidden: r.salespersonUsername === '*',
+              onClick: () => delRule.mutate(r.id),
+            },
+          ]}
+        />
+      ),
     },
   ]
 
@@ -169,26 +169,35 @@ export function CommissionsPage({ embedded }: { embedded?: boolean } = {}) {
       title: '',
       align: 'right',
       render: (_, e) => (
-        <div className="flex items-center justify-end gap-1">
-          {e.status === 'PENDING' && (
-            <Button type="button" variant="ghost" size="sm" title="Duyệt"
-              onClick={() => entryAction.mutate({ id: e.id, action: 'approve' })}>
-              <Check size={14} className="text-emerald-600" />
-            </Button>
-          )}
-          {(e.status === 'PENDING' || e.status === 'APPROVED') && (
-            <Button type="button" variant="ghost" size="sm" title="Đánh dấu đã trả"
-              onClick={() => entryAction.mutate({ id: e.id, action: 'mark-paid' })}>
-              <Banknote size={14} className="text-blue-600" />
-            </Button>
-          )}
-          {e.status !== 'VOID' && e.status !== 'PAID' && (
-            <Button type="button" variant="ghost" size="sm" title="Huỷ"
-              onClick={() => entryAction.mutate({ id: e.id, action: 'void' })}>
-              <Ban size={14} className="text-rose-500" />
-            </Button>
-          )}
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'approve',
+              icon: Check,
+              tooltip: 'Duyệt',
+              tone: 'emerald',
+              hidden: e.status !== 'PENDING',
+              onClick: () => entryAction.mutate({ id: e.id, action: 'approve' }),
+            },
+            {
+              key: 'mark-paid',
+              icon: Banknote,
+              tooltip: 'Đánh dấu đã trả',
+              tone: 'blue',
+              hidden: e.status !== 'PENDING' && e.status !== 'APPROVED',
+              onClick: () => entryAction.mutate({ id: e.id, action: 'mark-paid' }),
+            },
+            {
+              key: 'void',
+              icon: Ban,
+              tooltip: 'Huỷ',
+              tone: 'rose',
+              hidden: e.status === 'VOID' || e.status === 'PAID',
+              onClick: () => entryAction.mutate({ id: e.id, action: 'void' }),
+            },
+          ]}
+        />
       ),
     },
   ]

@@ -4,8 +4,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { PackageMinus, Plus, Eye } from 'lucide-react'
-import { Button } from '@frezo/ui'
+import { PackageMinus, Plus } from 'lucide-react'
+import { Button, RowActions } from '@frezo/ui'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { useProducts } from '@/modules/products/hooks/useProduct'
 import { GIN_GUIDE } from '../constants/grn-gin.guide'
@@ -188,14 +188,10 @@ export function GoodsIssueNotesPage() {
       align: 'right',
       width: 100,
       render: (_, row) => (
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1"
-          onClick={() => nav(`/warehouse/gin/${row.id}`)}
-        >
-          <Eye size={12} /> Chi tiết
-        </Button>
+        <RowActions
+          align="end"
+          actions={[{ kind: 'view', onClick: () => nav(`/warehouse/gin/${row.id}`) }]}
+        />
       ),
     },
   ]

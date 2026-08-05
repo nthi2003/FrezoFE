@@ -10,14 +10,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  Plus, Workflow, Search, X, RefreshCw, Edit3, Trash2,
+  Plus, Workflow, Search, X, RefreshCw,
   Layers, Building2, ClipboardList, Package, FileText, Briefcase,
-  type LucideIcon, Copy, BookOpen, BookTemplate, PencilRuler, Info,
+  type LucideIcon, BookOpen, BookTemplate, PencilRuler, Info,
   ArrowUpDown,
 } from 'lucide-react'
 import {
   Button, PageHeader, EmptyState, PageGuideButton, ErrorState, Skeleton, ConfirmDialog,
-  Select, IconActionButton, actionIconTone,
+  Select, RowActions,
 } from '@frezo/ui'
 import { FilterExportDrawer, FilterExportTrigger } from '@/components/shared/FilterExportDrawer'
 import { downloadCsv } from '@/utils/csvExport'
@@ -646,28 +646,22 @@ function DefinitionCard({
         </div>
 
         {hasActions && (
-          <div className="flex items-center gap-0.5 shrink-0">
-            {onOpenDesigner && (
-              <IconActionButton tooltip="Designer" tone={actionIconTone.view} size="sm" onClick={onOpenDesigner}>
-                <PencilRuler size={14} />
-              </IconActionButton>
-            )}
-            {onEdit && (
-              <IconActionButton tooltip="Sửa" tone={actionIconTone.edit} size="sm" onClick={onEdit}>
-                <Edit3 size={14} />
-              </IconActionButton>
-            )}
-            {onClone && (
-              <IconActionButton tooltip="Sao chép" tone="neutral" size="sm" onClick={onClone}>
-                <Copy size={14} />
-              </IconActionButton>
-            )}
-            {onDelete && (
-              <IconActionButton tooltip="Xoá" tone={actionIconTone.delete} size="sm" onClick={onDelete}>
-                <Trash2 size={14} />
-              </IconActionButton>
-            )}
-          </div>
+          <RowActions
+            className="shrink-0"
+            actions={[
+              {
+                key: 'designer',
+                icon: PencilRuler,
+                tooltip: 'Designer',
+                tone: 'blue',
+                hidden: !onOpenDesigner,
+                onClick: () => onOpenDesigner?.(),
+              },
+              { kind: 'edit', hidden: !onEdit, onClick: () => onEdit?.() },
+              { kind: 'copy', hidden: !onClone, onClick: () => onClone?.() },
+              { kind: 'delete', hidden: !onDelete, onClick: () => onDelete?.() },
+            ]}
+          />
         )}
       </div>
 

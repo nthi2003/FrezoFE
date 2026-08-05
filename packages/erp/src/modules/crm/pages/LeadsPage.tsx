@@ -4,7 +4,7 @@ import { Plus, Search, ArrowRight, Trash2, Users, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Button, PageHeader, PageGuideButton, AppModal, ConfirmDialog,
-  EmptyState, ErrorState,
+  EmptyState, ErrorState, RowActions,
 } from '@frezo/ui'
 import { formatDate } from '@frezo/utils'
 import { AppTable } from '@/components/ui/AppTable'
@@ -162,17 +162,21 @@ export function LeadsPage({ embedded }: { embedded?: boolean } = {}) {
       title: '',
       align: 'right',
       width: 120,
-      render: (_, l) =>
-        l.status !== 'CONVERTED' && l.status !== 'UNQUALIFIED' ? (
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-success-light text-success-dark border border-success/30 hover:opacity-90"
-            onClick={() => setConvertTarget(l)}
-            title="Chuyển thành cơ hội bán"
-          >
-            Chuyển đổi <ArrowRight size={12} />
-          </button>
-        ) : null,
+      render: (_, l) => (
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'convert',
+              icon: ArrowRight,
+              tooltip: 'Chuyển thành cơ hội bán',
+              tone: 'emerald',
+              hidden: l.status === 'CONVERTED' || l.status === 'UNQUALIFIED',
+              onClick: () => setConvertTarget(l),
+            },
+          ]}
+        />
+      ),
     },
   ]
 

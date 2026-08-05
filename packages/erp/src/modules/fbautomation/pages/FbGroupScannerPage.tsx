@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Search, Trash2, Loader2, CheckCircle, Users, HelpCircle } from 'lucide-react'
-import { Button, Input, PageHeader, EmptyState, ErrorState, Label, Select, IconActionButton, AppTooltip } from '@frezo/ui'
+import { Search, Loader2, CheckCircle, Users, HelpCircle } from 'lucide-react'
+import { Button, Input, PageHeader, EmptyState, ErrorState, Label, Select, RowActions } from '@frezo/ui'
 import { toast } from 'sonner'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
@@ -134,36 +134,31 @@ export function FbGroupScannerPage() {
       align: 'right',
       width: 180,
       render: (_, g) => (
-        <div className="flex items-center justify-end gap-1">
-          {(g.status === 'NEW' || g.status === 'READY_TO_JOIN') && (
-            <AppTooltip content="Tham gia group">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleJoin(g.groupId)}
-                disabled={joinReq.isPending || !accountId}
-                className="text-emerald-600 hover:text-emerald-800 gap-1"
-                aria-label="Tham gia group"
-              >
-                <CheckCircle className="w-3.5 h-3.5" /> Tham gia
-              </Button>
-            </AppTooltip>
-          )}
-          <IconActionButton
-            tooltip="Xoá group"
-            tone="red"
-            onClick={() =>
-              askConfirm({
-                title: 'Xoá group này?',
-                message: `Group "${g.groupName}" sẽ bị xoá khỏi danh sách.`,
-                confirmText: 'Xoá',
-                onConfirm: () => deleteReq.mutate(g.id),
-              })
-            }
-          >
-            <Trash2 className="w-4 h-4" />
-          </IconActionButton>
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'join',
+              icon: CheckCircle,
+              tooltip: 'Tham gia group',
+              tone: 'emerald',
+              hidden: !(g.status === 'NEW' || g.status === 'READY_TO_JOIN'),
+              disabled: joinReq.isPending || !accountId,
+              onClick: () => handleJoin(g.groupId),
+            },
+            {
+              kind: 'delete',
+              tooltip: 'Xoá group',
+              onClick: () =>
+                askConfirm({
+                  title: 'Xoá group này?',
+                  message: `Group "${g.groupName}" sẽ bị xoá khỏi danh sách.`,
+                  confirmText: 'Xoá',
+                  onConfirm: () => deleteReq.mutate(g.id),
+                }),
+            },
+          ]}
+        />
       ),
     },
   ]

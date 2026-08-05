@@ -65,7 +65,8 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        // Nguồn sự thật cho font chữ toàn app — xem thêm src/fonts.ts (loader)
+        sans: ['Be Vietnam Pro', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       fontSize: {

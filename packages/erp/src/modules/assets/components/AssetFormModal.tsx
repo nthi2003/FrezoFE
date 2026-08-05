@@ -2,9 +2,9 @@
 // AssetFormModal — Tạo / Sửa tài sản
 // ============================================================
 
-import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Loader2 } from 'lucide-react'
-import { AppModal, Button, Select, VndInput } from '@frezo/ui'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { AlertCircle } from 'lucide-react'
+import { FormGrid, FormModal, FormSection, Select, VndInput } from '@frezo/ui'
 import { toast } from 'sonner'
 import { useCategories } from '@/modules/qtht/hooks/useCategory'
 import { useCreateAsset, useUpdateAsset } from '../hooks/useAsset'
@@ -24,9 +24,11 @@ export function AssetFormModal({ open, editing, onClose }: Props) {
   const categories = (Array.isArray(categoriesRaw) ? categoriesRaw : []) as any[]
 
   const [form, setForm] = useState<AssetSavePayload>(defaultForm())
+  const [dirty, setDirty] = useState(false)
 
   useEffect(() => {
     if (!open) return
+    setDirty(false)
     if (editing) {
       setForm({
         code: editing.code,
@@ -49,8 +51,10 @@ export function AssetFormModal({ open, editing, onClose }: Props) {
     }
   }, [open, editing])
 
-  const setF = <K extends keyof AssetSavePayload>(k: K, v: AssetSavePayload[K]) =>
+  const setF = <K extends keyof AssetSavePayload>(k: K, v: AssetSavePayload[K]) => {
+    setDirty(true)
     setForm((f) => ({ ...f, [k]: v }))
+  }
 
   const errors = useMemo(() => {
     const e: Record<string, string> = {}
@@ -60,7 +64,8 @@ export function AssetFormModal({ open, editing, onClose }: Props) {
     return e
   }, [form])
 
-  const canSubmit = Object.keys(errors).length === 0 && !create.isPending && !update.isPending
+  const isSubmitting = create.isPending || update.isPending
+  const canSubmit = Object.keys(errors).length === 0 && !isSubmitting
 
   const handleSubmit = () => {
     if (!canSubmit) {
@@ -70,7 +75,6 @@ export function AssetFormModal({ open, editing, onClose }: Props) {
     const payload: AssetSavePayload = {
       ...form,
       name: form.name!.trim(),
-      // sanitize empty strings → null
       brand: form.brand?.trim() || null,
       model: form.model?.trim() || null,
       serialNumber: form.serialNumber?.trim() || null,
@@ -86,157 +90,164 @@ export function AssetFormModal({ open, editing, onClose }: Props) {
   }
 
   return (
-    <AppModal isOpen={open} onClose={onClose} title={isEdit ? `Sửa: ${editing?.code}` : 'Thêm tài sản mới'} maxWidth="3xl">
-      <div className="space-y-4">
-        {/* Row 1: Code (read-only edit) + Name */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Field label="Mã tài sản">
-            <input
-              type="text"
-              value={form.code || ''}
-              onChange={(e) => setF('code', e.target.value.toUpperCase())}
-              disabled={isEdit}
-              placeholder="Tự sinh AS-YYYY-####"
-              className={inputCls + ' font-mono'}
-            />
-            <div className="text-[11px] text-neutral-400 mt-1">Để trống → hệ thống tự sinh</div>
-          </Field>
-          <Field label="Tên tài sản *" error={errors.name} className="md:col-span-2">
-            <input
-              type="text"
-              value={form.name || ''}
-              onChange={(e) => setF('name', e.target.value)}
-              placeholder="VD: MacBook Pro 14 M3"
-              className={inputCls}
-            />
-          </Field>
-        </div>
+    <FormModal
+      isOpen={open}
+      onClose={onClose}
+      title={isEdit ? `Sửa: ${editing?.code}` : 'Thêm tài sản mới'}
+      size="lg"
+      onSubmit={handleSubmit}
+      isSubmitting={isSubmitting}
+      submitDisabled={!canSubmit}
+      submitText={isEdit ? 'Cập nhật' : 'Tạo tài sản'}
+      dirty={dirty}
+    >
+      <div className="space-y-6">
+        <FormSection title="Thông tin tài sản">
+          <FormGrid cols={3}>
+            <Field label="Mã tài sản">
+              <input
+                type="text"
+                value={form.code || ''}
+                onChange={(e) => setF('code', e.target.value.toUpperCase())}
+                disabled={isEdit}
+                placeholder="Tự sinh AS-YYYY-####"
+                className={inputCls + ' font-mono'}
+              />
+              <div className="mt-1 text-[11px] text-neutral-400">Để trống → hệ thống tự sinh</div>
+            </Field>
+            <Field label="Tên tài sản" required error={errors.name} className="md:col-span-2">
+              <input
+                type="text"
+                value={form.name || ''}
+                onChange={(e) => setF('name', e.target.value)}
+                placeholder="VD: MacBook Pro 14 M3"
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Loại" required error={errors.categoryCode}>
+              <Select
+                options={[
+                  { value: '', label: '— Chọn loại —' },
+                  ...categories.map((c) => ({ value: c.code, label: c.name })),
+                ]}
+                value={form.categoryCode || ''}
+                onChange={(v) => setF('categoryCode', v || null)}
+                placeholder="— Chọn loại —"
+                aria-label="Loại tài sản"
+              />
+            </Field>
+            <Field label="Hãng">
+              <input
+                type="text"
+                value={form.brand || ''}
+                onChange={(e) => setF('brand', e.target.value)}
+                placeholder="Apple, Dell, Lenovo..."
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Model">
+              <input
+                type="text"
+                value={form.model || ''}
+                onChange={(e) => setF('model', e.target.value)}
+                placeholder="MBP14 M3 Pro"
+                className={inputCls}
+              />
+            </Field>
+          </FormGrid>
+        </FormSection>
 
-        {/* Row 2: Category + Brand + Model */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Field label="Loại *" error={errors.categoryCode}>
-            <Select
-              options={[
-                { value: '', label: '— Chọn loại —' },
-                ...categories.map((c) => ({ value: c.code, label: c.name })),
-              ]}
-              value={form.categoryCode || ''}
-              onChange={(v) => setF('categoryCode', v || null)}
-              placeholder="— Chọn loại —"
-              aria-label="Loại tài sản"
-            />
-          </Field>
-          <Field label="Hãng">
-            <input
-              type="text"
-              value={form.brand || ''}
-              onChange={(e) => setF('brand', e.target.value)}
-              placeholder="Apple, Dell, Lenovo..."
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Model">
-            <input
-              type="text"
-              value={form.model || ''}
-              onChange={(e) => setF('model', e.target.value)}
-              placeholder="MBP14 M3 Pro"
-              className={inputCls}
-            />
-          </Field>
-        </div>
+        <FormSection title="Vị trí & định danh">
+          <FormGrid cols={2}>
+            <Field label="Serial / IMEI">
+              <input
+                type="text"
+                value={form.serialNumber || ''}
+                onChange={(e) => setF('serialNumber', e.target.value)}
+                placeholder="C02XYZ001"
+                className={inputCls + ' font-mono'}
+              />
+            </Field>
+            <Field label="Vị trí lưu">
+              <input
+                type="text"
+                value={form.location || ''}
+                onChange={(e) => setF('location', e.target.value)}
+                placeholder="Tầng 3, phòng Dev · Kho IT..."
+                className={inputCls}
+              />
+            </Field>
+          </FormGrid>
+        </FormSection>
 
-        {/* Row 3: Serial + Location */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Field label="Serial / IMEI">
-            <input
-              type="text"
-              value={form.serialNumber || ''}
-              onChange={(e) => setF('serialNumber', e.target.value)}
-              placeholder="C02XYZ001"
-              className={inputCls + ' font-mono'}
-            />
-          </Field>
-          <Field label="Vị trí lưu">
-            <input
-              type="text"
-              value={form.location || ''}
-              onChange={(e) => setF('location', e.target.value)}
-              placeholder="Tầng 3, phòng Dev · Kho IT..."
-              className={inputCls}
-            />
-          </Field>
-        </div>
-
-        {/* Row 4: Purchase date + price + warranty */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Field label="Ngày mua">
-            <input
-              type="date"
-              value={form.purchaseDate || ''}
-              onChange={(e) => setF('purchaseDate', e.target.value || null)}
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Giá mua (VND)" error={errors.purchasePrice}>
-            <VndInput
-              value={form.purchasePrice}
-              onChange={(n) => setF('purchasePrice', n ?? null)}
-              placeholder="0"
-              className={inputCls + ' tabular-nums'}
-            />
-          </Field>
-          <Field label="Hết hạn bảo hành">
-            <input
-              type="date"
-              value={form.warrantyEndDate || ''}
-              onChange={(e) => setF('warrantyEndDate', e.target.value || null)}
-              className={inputCls}
-            />
-          </Field>
-        </div>
-
-        {/* Note */}
-        <Field label="Ghi chú">
-          <textarea
-            value={form.note || ''}
-            onChange={(e) => setF('note', e.target.value)}
-            rows={2}
-            maxLength={1000}
-            placeholder="VD: Máy chính cho lead BE — kèm sạc + túi Bellroy"
-            className={inputCls + ' resize-none'}
-          />
-        </Field>
-
-        {/* Actions */}
-        <div className="flex justify-end gap-2 pt-3 border-t border-neutral-100">
-          <Button variant="outline" onClick={onClose}>Huỷ</Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit} className="gap-1.5">
-            {(create.isPending || update.isPending) && <Loader2 size={14} className="animate-spin" />}
-            {isEdit ? 'Cập nhật' : 'Tạo tài sản'}
-          </Button>
-        </div>
+        <FormSection title="Mua sắm & bảo hành">
+          <FormGrid cols={3}>
+            <Field label="Ngày mua">
+              <input
+                type="date"
+                value={form.purchaseDate || ''}
+                onChange={(e) => setF('purchaseDate', e.target.value || null)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Giá mua (VND)" error={errors.purchasePrice}>
+              <VndInput
+                value={form.purchasePrice}
+                onChange={(n) => setF('purchasePrice', n ?? null)}
+                placeholder="0"
+                className={inputCls + ' tabular-nums'}
+              />
+            </Field>
+            <Field label="Hết hạn bảo hành">
+              <input
+                type="date"
+                value={form.warrantyEndDate || ''}
+                onChange={(e) => setF('warrantyEndDate', e.target.value || null)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Ghi chú" className="md:col-span-2 xl:col-span-3">
+              <textarea
+                value={form.note || ''}
+                onChange={(e) => setF('note', e.target.value)}
+                rows={2}
+                maxLength={1000}
+                placeholder="VD: Máy chính cho lead BE — kèm sạc + túi Bellroy"
+                className={inputCls + ' h-auto resize-none py-2'}
+              />
+            </Field>
+          </FormGrid>
+        </FormSection>
       </div>
-    </AppModal>
+    </FormModal>
   )
 }
 
-// ============================================================
-// Sub
-// ============================================================
-
 const inputCls =
-  'w-full h-10 px-3 rounded-lg border border-neutral-200 bg-white text-sm focus:border-primary-300 focus:ring-2 focus:ring-primary-100 outline-none'
+  'w-full h-10 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary-300 focus:ring-2 focus:ring-primary-100'
 
 function Field({
-  label, error, children, className,
-}: { label: string; error?: string; children: React.ReactNode; className?: string }) {
+  label,
+  required,
+  error,
+  children,
+  className,
+}: {
+  label: string
+  required?: boolean
+  error?: string
+  children: ReactNode
+  className?: string
+}) {
   return (
     <div className={className}>
-      <label className="text-xs font-semibold text-neutral-700 block mb-1.5">{label}</label>
+      <label className="mb-1.5 block text-sm font-medium text-neutral-700">
+        {label}
+        {required ? <span className="ml-1 text-danger">*</span> : null}
+      </label>
       {children}
       {error && (
-        <div className="text-[11px] text-rose-600 mt-1 inline-flex items-center gap-1">
+        <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-danger">
           <AlertCircle size={11} /> {error}
         </div>
       )}

@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import { AppModal, Button, Input, Label, Select } from '@frezo/ui'
+import { Button, FormModal, FormSection, Input, Label, Select } from '@frezo/ui'
 import { cn } from '@frezo/utils'
 import type { PurchaseRequestSaveRequest } from '../services/purchaseRequestApi'
 import { ProductCombobox } from './ProductCombobox'
@@ -38,15 +38,6 @@ export interface PrCreateModalProps {
 
 function newLine(): PrLineDraft {
   return { key: crypto.randomUUID(), productId: '', qty: '' }
-}
-
-function SectionHeader({ title, hint }: { title: string; hint?: string }) {
-  return (
-    <div className="border-b border-neutral-200 pb-2.5 mb-4">
-      <h3 className="text-sm font-semibold text-neutral-900">{title}</h3>
-      {hint && <p className="text-xs text-neutral-500 mt-0.5">{hint}</p>}
-    </div>
-  )
 }
 
 function FormField({
@@ -188,19 +179,22 @@ export function PrCreateModal({
   }
 
   return (
-    <AppModal
+    <FormModal
       isOpen={isOpen}
       onClose={onClose}
       title="Tạo yêu cầu mua hàng"
       description="Chọn kho, NCC (nếu có) và thêm từng dòng sản phẩm — không nhập CSV."
-      maxWidth="4xl"
+      size="xl"
+      onSubmit={handleSubmit}
+      isSubmitting={isPending}
+      submitDisabled={!isValid || isPending}
+      submitText={isPending ? 'Đang lưu…' : 'Lưu nháp'}
     >
       <div className="space-y-6 pb-1">
-        <section>
-          <SectionHeader
-            title="1. Thông tin chung"
-            hint="Một yêu cầu nên gom hàng cùng một nhà cung cấp."
-          />
+        <FormSection
+          title="1. Thông tin chung"
+          description="Một yêu cầu nên gom hàng cùng một nhà cung cấp."
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label="Kho" required error={warehouseError}>
               <WarehouseSelect
@@ -228,14 +222,12 @@ export function PrCreateModal({
               />
             </FormField>
           </div>
-        </section>
+        </FormSection>
 
-        <section>
-          <SectionHeader
-            title="2. Dòng hàng"
-            hint="Chọn sản phẩm từ danh mục — nhập số lượng cần mua."
-          />
-
+        <FormSection
+          title="2. Dòng hàng"
+          description="Chọn sản phẩm từ danh mục — nhập số lượng cần mua."
+        >
           {productsError && (
             <p className="text-xs text-danger mb-3 -mt-1" role="alert">
               Không tải được danh sách sản phẩm. Kiểm tra quyền hoặc thử tải lại trang.
@@ -357,17 +349,8 @@ export function PrCreateModal({
               Kiểm tra các dòng chưa điền đủ sản phẩm hoặc số lượng.
             </p>
           )}
-        </section>
-
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-neutral-200">
-          <Button variant="outline" onClick={onClose} disabled={isPending}>
-            Huỷ
-          </Button>
-          <Button onClick={handleSubmit} disabled={!isValid || isPending}>
-            {isPending ? 'Đang lưu…' : 'Lưu nháp'}
-          </Button>
-        </div>
+        </FormSection>
       </div>
-    </AppModal>
+    </FormModal>
   )
 }

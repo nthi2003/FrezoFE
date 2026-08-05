@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, Edit, Trash2, Search, Tags } from 'lucide-react'
+import { Plus, Search, Tags } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -12,7 +12,7 @@ import {
   PageHeader,
   PageGuideButton,
   StatusBadge,
-  IconActionButton,
+  RowActions,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { usePermission } from '@/lib/hooks/usePermission'
@@ -141,31 +141,20 @@ export function ProductCategoriesPage() {
       width: 100,
       align: 'right',
       render: (_: any, row: any) => (
-        <div className="flex items-center justify-end gap-1">
-          {canUpdate && (
-            <IconActionButton
-              tooltip="Sửa"
-              tone="blue"
-              size="sm"
-              onClick={() => {
+        <RowActions
+          align="end"
+          actions={[
+            {
+              kind: 'edit',
+              hidden: !canUpdate,
+              onClick: () => {
                 setSelectedItem(row)
                 setModalOpen(true)
-              }}
-            >
-              <Edit size={14} />
-            </IconActionButton>
-          )}
-          {canDelete && (
-            <IconActionButton
-              tooltip="Xóa"
-              tone="rose"
-              size="sm"
-              onClick={() => setConfirmDelete(row)}
-            >
-              <Trash2 size={14} />
-            </IconActionButton>
-          )}
-        </div>
+              },
+            },
+            { kind: 'delete', hidden: !canDelete, onClick: () => setConfirmDelete(row) },
+          ]}
+        />
       ),
     },
   ]

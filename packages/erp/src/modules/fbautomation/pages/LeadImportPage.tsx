@@ -14,7 +14,7 @@ import {
   Upload, FileSpreadsheet, CheckCircle, XCircle, Loader2, Info,
   RotateCcw, Download, History, AlertCircle, FileCheck2, ExternalLink,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, Input, Label, IconActionButton } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, Input, Label, RowActions } from '@frezo/ui'
 import { toast } from 'sonner'
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
 import {
@@ -387,9 +387,17 @@ function BatchCard({ batch, onRollback }: { batch: BatchRow; onRollback: () => v
             ĐÃ HOÀN TÁC
           </span>
         ) : (
-          <IconActionButton tooltip="Hoàn tác batch này" tone="rose" onClick={onRollback}>
-            <RotateCcw size={14} />
-          </IconActionButton>
+          <RowActions
+            actions={[
+              {
+                key: 'rollback',
+                icon: RotateCcw,
+                tooltip: 'Hoàn tác batch này',
+                tone: 'rose',
+                onClick: onRollback,
+              },
+            ]}
+          />
         )}
       </div>
       <div className="grid grid-cols-4 gap-2 text-xs">

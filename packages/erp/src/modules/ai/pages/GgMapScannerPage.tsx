@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   useGgMapScan, useGgMapResults, useImportGgMapResult, useImportAllGgMapResults,
 } from '../hooks/useAI'
-import { Button, Input, PageHeader, EmptyState, ErrorState, Label, Select } from '@frezo/ui'
+import { Button, Input, PageHeader, EmptyState, ErrorState, Label, Select, RowActions } from '@frezo/ui'
 import {
   Search, Loader2, MapPin, Star, Phone, Download, CheckCircle, HelpCircle,
 } from 'lucide-react'
@@ -148,19 +148,19 @@ export function GgMapScannerPage() {
       width: 120,
       render: (_, r) =>
         r.status !== 'imported' ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => importReq.mutate(r.id)}
-            disabled={importReq.isPending}
-            className="text-primary-600 hover:text-primary-800 hover:bg-primary-50 gap-1"
-            title="Import vào khách hàng tiềm năng"
-          >
-            {importReq.isPending
-              ? <Loader2 className="w-3 h-3 animate-spin" />
-              : <Download className="w-3 h-3" />}
-            Import
-          </Button>
+          <RowActions
+            align="end"
+            actions={[
+              {
+                key: 'import',
+                icon: Download,
+                tooltip: 'Import vào khách hàng tiềm năng',
+                tone: 'primary',
+                disabled: importReq.isPending,
+                onClick: () => importReq.mutate(r.id),
+              },
+            ]}
+          />
         ) : (
           <span className="text-xs text-emerald-600">Đã import</span>
         ),

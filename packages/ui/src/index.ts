@@ -34,7 +34,12 @@ export {
 } from './dialog'
 export { AppModal } from './AppModal'
 export type { AppModalProps } from './AppModal'
+export { FormModal } from './FormModal'
+export type { FormModalProps, FormModalSize } from './FormModal'
+export { FormSection, FormGrid } from './FormSection'
+export type { FormSectionProps, FormGridProps } from './FormSection'
 export { ConfirmDialog } from './ConfirmDialog'
+export type { ConfirmDialogProps, ConfirmVariant } from './ConfirmDialog'
 export { Drawer } from './Drawer'
 export type { DrawerProps } from './Drawer'
 
@@ -123,3 +128,12 @@ export type { AppTooltipProps } from './tooltip'
 
 export { IconActionButton, actionIconTone } from './IconActionButton'
 export type { IconActionButtonProps, IconActionTone } from './IconActionButton'
+
+// ---- Row actions (cụm icon thao tác chuẩn cho bảng / danh sách) ----
+export { RowActions, rowActionPreset } from './RowActions'
+export type {
+  RowActionsProps,
+  RowAction,
+  RowActionKind,
+  RowActionConfirm,
+} from './RowActions'

@@ -7,9 +7,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   CalendarDays, Plus, RefreshCw, Loader2, Search, X, MapPin, Users,
-  Megaphone, Ban, Trash2, Edit3, ArrowLeft, CheckCircle2,
+  Megaphone, Ban, Edit3, ArrowLeft, CheckCircle2,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, AppModal, Input, Label, ConfirmDialog } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, AppModal, Input, Label, ConfirmDialog, RowActions } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -140,51 +140,35 @@ export function EventsAdminPage() {
       align: 'right',
       width: 280,
       render: (_, row) => (
-        <div className="flex items-center gap-1.5 justify-end flex-wrap">
-          {row.status === 'DRAFT' && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1"
-              disabled={publish.isPending}
-              onClick={() => publish.mutate(row.id)}
-            >
-              <Megaphone size={12} /> Xuất bản
-            </Button>
-          )}
-          {row.status === 'PUBLISHED' && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1 text-rose-600"
-              disabled={cancel.isPending}
-              onClick={() =>
-                setConfirmAction({ type: 'cancel', id: row.id, title: row.title })
-              }
-            >
-              <Ban size={12} /> Huỷ
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1"
-            onClick={() => openEdit(row)}
-          >
-            <Edit3 size={12} /> Sửa
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1 text-rose-600"
-            disabled={del.isPending}
-            onClick={() =>
-              setConfirmAction({ type: 'delete', id: row.id, title: row.title })
-            }
-          >
-            <Trash2 size={12} />
-          </Button>
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'publish',
+              icon: Megaphone,
+              tooltip: 'Xuất bản',
+              tone: 'emerald',
+              hidden: row.status !== 'DRAFT',
+              disabled: publish.isPending,
+              onClick: () => publish.mutate(row.id),
+            },
+            {
+              key: 'cancel',
+              icon: Ban,
+              tooltip: 'Huỷ sự kiện',
+              tone: 'rose',
+              hidden: row.status !== 'PUBLISHED',
+              disabled: cancel.isPending,
+              onClick: () => setConfirmAction({ type: 'cancel', id: row.id, title: row.title }),
+            },
+            { kind: 'edit', onClick: () => openEdit(row) },
+            {
+              kind: 'delete',
+              disabled: del.isPending,
+              onClick: () => setConfirmAction({ type: 'delete', id: row.id, title: row.title }),
+            },
+          ]}
+        />
       ),
     },
   ]

@@ -35,21 +35,6 @@ export function attendanceWorkflowStepIndex(activeTab: string): number {
   return 0
 }
 
-/** Luồng 3 — KPI / OKR */
-export const KPI_PIPELINE: PipelineStep[] = [
-  { key: 'set', label: 'Đặt KPI/OKR' },
-  { key: 'checkin', label: 'Theo dõi giữa kỳ' },
-  { key: 'review', label: 'Đánh giá cuối kỳ' },
-  { key: 'profile', label: 'Cập nhật hồ sơ' },
-]
-
-export function kpiStepIndex(avgProgress: number, hasReviews: boolean): number {
-  if (!hasReviews && avgProgress === 0) return 0
-  if (avgProgress > 0 && avgProgress < 80) return 1
-  if (avgProgress >= 80 && !hasReviews) return 2
-  return hasReviews ? 3 : 1
-}
-
 /** Luồng 4 — Nghỉ việc / Offboarding */
 export const OFFBOARDING_PIPELINE: PipelineStep[] = [
   { key: 'request', label: 'Đề xuất nghỉ' },

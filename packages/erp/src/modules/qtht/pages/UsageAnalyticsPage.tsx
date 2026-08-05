@@ -8,7 +8,7 @@ import {
   Activity, Users, LogIn, Monitor, RefreshCw, ShieldOff, Eye, Route,
 } from 'lucide-react'
 import {
-  PageHeader, Button, EmptyState, ErrorState, ConfirmDialog, PageGuideButton,
+  PageHeader, Button, EmptyState, ErrorState, ConfirmDialog, PageGuideButton, RowActions,
   type PageGuideConfig,
 } from '@frezo/ui'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
@@ -105,15 +105,17 @@ export function UsageAnalyticsPage() {
       title: '',
       width: 100,
       render: (_, row) => (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="text-rose-600 hover:bg-rose-50"
-          onClick={() => setRevokeId(row.id)}
-        >
-          <ShieldOff size={14} /> Thu hồi
-        </Button>
+        <RowActions
+          actions={[
+            {
+              key: 'revoke',
+              icon: ShieldOff,
+              tooltip: 'Thu hồi phiên',
+              tone: 'rose',
+              onClick: () => setRevokeId(row.id),
+            },
+          ]}
+        />
       ),
     },
   ]

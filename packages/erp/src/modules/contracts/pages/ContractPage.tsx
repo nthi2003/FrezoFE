@@ -2,11 +2,11 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   FileX2, CheckCircle, Plus, FileText, Clock, TrendingUp, AlertTriangle,
-  Search, Eye, Filter, type LucideIcon,
+  Search, Filter, type LucideIcon,
 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
-import { Button, AppModal, PageHeader, PageGuideButton, StatusBadge, Select, ConfirmDialog, EmptyState, ErrorState, IconActionButton } from '@frezo/ui'
+import { Button, AppModal, PageHeader, PageGuideButton, StatusBadge, Select, ConfirmDialog, EmptyState, ErrorState, RowActions } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { unwrapList } from '@frezo/utils'
@@ -216,28 +216,33 @@ export function ContractPage() {
       title: 'Thao tác',
       dataIndex: 'id',
       width: 120,
-      render: (_: any, row: any) => (
-        <div className="flex items-center gap-1">
-          <IconActionButton tooltip="Xem chi tiết" tone="blue" onClick={() => handleOpenDetail(row)}>
-            <Eye className="w-4 h-4" />
-          </IconActionButton>
-          {(row.status === 'PENDING_APPROVAL' || row.status === 'DRAFT') && (
-            <>
-              <IconActionButton
-                tooltip="Duyệt hợp đồng"
-                tone="emerald"
-                disabled={approveContract.isPending}
-                onClick={() => setApproveTarget(row)}
-              >
-                <CheckCircle className="w-4 h-4" />
-              </IconActionButton>
-              <IconActionButton tooltip="Từ chối hợp đồng" tone="rose" onClick={() => handleOpenReject(row)}>
-                <FileX2 className="w-4 h-4" />
-              </IconActionButton>
-            </>
-          )}
-        </div>
-      ),
+      render: (_: any, row: any) => {
+        const isPendingApproval = row.status === 'PENDING_APPROVAL' || row.status === 'DRAFT'
+        return (
+          <RowActions
+            actions={[
+              { kind: 'view', onClick: () => handleOpenDetail(row) },
+              {
+                key: 'approve',
+                icon: CheckCircle,
+                tooltip: 'Duyệt hợp đồng',
+                tone: 'emerald',
+                hidden: !isPendingApproval,
+                disabled: approveContract.isPending,
+                onClick: () => setApproveTarget(row),
+              },
+              {
+                key: 'reject',
+                icon: FileX2,
+                tooltip: 'Từ chối hợp đồng',
+                tone: 'rose',
+                hidden: !isPendingApproval,
+                onClick: () => handleOpenReject(row),
+              },
+            ]}
+          />
+        )
+      },
     },
   ]
 

@@ -1,6 +1,6 @@
 // ============================================================
 // PerformanceReviewsPage — create / submit / manager-score
-// Hub-embeddable: FilterBar + AppTable + IconActionButton + StatusBadge + Can
+// Hub-embeddable: FilterBar + AppTable + RowActions + StatusBadge + Can
 // ============================================================
 
 import { useMemo, useState } from 'react'
@@ -13,8 +13,7 @@ import {
   ErrorState,
   ConfirmDialog,
   PageGuideButton,
-  IconActionButton,
-  actionIconTone,
+  RowActions,
   StatusBadge,
   Select,
   Label,
@@ -35,8 +34,6 @@ import type {
   PerformanceReviewDto,
   PerformanceReviewRequest,
 } from '../services/performanceApi'
-import { StatusPipelineStepper } from '../../warehouse/components/StatusPipelineStepper'
-import { KPI_PIPELINE } from '../constants/hrWorkflow'
 import { KPI_GUIDE } from '../constants/kpi.guide'
 import { pageRootClass } from '../utils/pageEmbed'
 
@@ -182,33 +179,32 @@ export function PerformanceReviewsPage({ embedded }: { embedded?: boolean } = {}
         render: (_, r) => {
           const st = (r.status || '').toUpperCase()
           return (
-            <div className="inline-flex items-center justify-end gap-0.5">
-              {canSubmit && st === 'DRAFT' && (
-                <IconActionButton
-                  tooltip="Gửi đánh giá"
-                  tone={actionIconTone.approve}
-                  size="sm"
-                  disabled={submit.isPending}
-                  onClick={() => setSubmitTarget(r)}
-                >
-                  <Send size={14} />
-                </IconActionButton>
-              )}
-              {canManagerScore && ['SUBMITTED', 'SCORED'].includes(st) && (
-                <IconActionButton
-                  tooltip="Chấm điểm quản lý"
-                  tone={actionIconTone.edit}
-                  size="sm"
-                  onClick={() => {
+            <RowActions
+              align="end"
+              actions={[
+                {
+                  key: 'submit',
+                  icon: Send,
+                  tooltip: 'Gửi đánh giá',
+                  tone: 'emerald',
+                  disabled: submit.isPending,
+                  onClick: () => setSubmitTarget(r),
+                  hidden: !(canSubmit && st === 'DRAFT'),
+                },
+                {
+                  key: 'manager-score',
+                  icon: ClipboardCheck,
+                  tooltip: 'Chấm điểm quản lý',
+                  tone: 'blue',
+                  onClick: () => {
                     setScoreTarget(r)
                     setScore(r.managerScore ?? 3)
                     setComments(r.managerComment || '')
-                  }}
-                >
-                  <ClipboardCheck size={14} />
-                </IconActionButton>
-              )}
-            </div>
+                  },
+                  hidden: !(canManagerScore && ['SUBMITTED', 'SCORED'].includes(st)),
+                },
+              ]}
+            />
           )
         },
       },
@@ -243,8 +239,6 @@ export function PerformanceReviewsPage({ embedded }: { embedded?: boolean } = {}
       {embedded && (
         <div className="flex flex-wrap items-center justify-end gap-2">{toolbar}</div>
       )}
-
-      <StatusPipelineStepper steps={KPI_PIPELINE} currentIndex={2} />
 
       {!isFullyEmpty && (
         <FilterBar

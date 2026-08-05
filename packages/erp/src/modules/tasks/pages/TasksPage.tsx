@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Pencil, Trash2, Search, ListTodo, Gift } from 'lucide-react'
+import { Plus, Search, ListTodo, Gift, CheckCircle2, Undo2 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -8,7 +8,7 @@ import { FilterExportDrawer, FilterExportTrigger } from '@/components/shared/Fil
 import { downloadCsv } from '@/utils/csvExport'
 import {
   AppModal, Button, ConfirmDialog, ErrorState, EmptyState,
-  PageHeader, PageGuideButton, Select, AppTooltip, type PageGuideConfig,
+  PageHeader, PageGuideButton, Select, RowActions, type PageGuideConfig,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import {
@@ -279,51 +279,41 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
       width: 180,
       align: 'right',
       render: (_, row) => (
-        <div className="flex items-center justify-end gap-1">
-          {row.canReview && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() =>
-                  setReviewTarget({
-                    id: row.id,
-                    title: row.title,
-                    approved: false,
-                    assigneeId: row.assigneeId,
-                  })
-                }
-              >
-                Trả lại
-              </Button>
-              <Button
-                size="sm"
-                className="h-7 text-xs bg-success hover:bg-success-dark text-white"
-                onClick={() =>
-                  setReviewTarget({
-                    id: row.id,
-                    title: row.title,
-                    approved: true,
-                    assigneeId: row.assigneeId,
-                  })
-                }
-              >
-                Duyệt
-              </Button>
-            </>
-          )}
-          <AppTooltip content="Sửa">
-            <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(row)} aria-label="Sửa">
-              <Pencil className="w-4 h-4 text-blue-600" />
-            </Button>
-          </AppTooltip>
-          <AppTooltip content="Xóa">
-            <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ id: row.id, title: row.title })} aria-label="Xóa">
-              <Trash2 className="w-4 h-4 text-red-600" />
-            </Button>
-          </AppTooltip>
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'return',
+              icon: Undo2,
+              tooltip: 'Trả lại',
+              tone: 'rose',
+              hidden: !row.canReview,
+              onClick: () =>
+                setReviewTarget({
+                  id: row.id,
+                  title: row.title,
+                  approved: false,
+                  assigneeId: row.assigneeId,
+                }),
+            },
+            {
+              key: 'approve',
+              icon: CheckCircle2,
+              tooltip: 'Duyệt',
+              tone: 'emerald',
+              hidden: !row.canReview,
+              onClick: () =>
+                setReviewTarget({
+                  id: row.id,
+                  title: row.title,
+                  approved: true,
+                  assigneeId: row.assigneeId,
+                }),
+            },
+            { kind: 'edit', onClick: () => handleOpenEdit(row) },
+            { kind: 'delete', onClick: () => setDeleteTarget({ id: row.id, title: row.title }) },
+          ]}
+        />
       ),
     },
   ]

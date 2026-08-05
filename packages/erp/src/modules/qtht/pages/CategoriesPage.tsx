@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Plus, Edit, Trash2, ArrowLeft, Search, FolderTree } from 'lucide-react'
+import { Plus, ArrowLeft, Search, FolderTree } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import {
   AppModal, Button, ConfirmDialog, EmptyState, ErrorState,
-  PageHeader, PageGuideButton, Select, IconActionButton, AppTooltip, type PageGuideConfig,
+  PageHeader, PageGuideButton, Select, IconActionButton, RowActions, type PageGuideConfig,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from '../hooks/useCategory'
@@ -148,14 +148,12 @@ export function CategoriesPage() {
       dataIndex: 'id',
       width: 100,
       render: (_, row) => (
-        <div className="flex items-center gap-1">
-          <IconActionButton tooltip="Sửa" tone="primary" onClick={() => { setSelectedItem(row); setModalOpen(true) }}>
-            <Edit className="w-4 h-4" />
-          </IconActionButton>
-          <IconActionButton tooltip="Xóa" tone="red" onClick={() => setConfirmDelete(row)}>
-            <Trash2 className="w-4 h-4" />
-          </IconActionButton>
-        </div>
+        <RowActions
+          actions={[
+            { kind: 'edit', onClick: () => { setSelectedItem(row); setModalOpen(true) } },
+            { kind: 'delete', onClick: () => setConfirmDelete(row) },
+          ]}
+        />
       ),
     },
   ]

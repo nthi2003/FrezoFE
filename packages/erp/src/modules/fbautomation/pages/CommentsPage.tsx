@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Plus, RefreshCw, Trash2, Shield, MessageSquare, Flag, EyeOff } from 'lucide-react'
+import { Plus, RefreshCw, Shield, MessageSquare, Flag, EyeOff } from 'lucide-react'
 import {
-  Button, PageHeader, EmptyState, ErrorState, AppModal, Input, Label, Select, IconActionButton, StatusBadge,
+  Button, PageHeader, EmptyState, ErrorState, AppModal, Input, Label, Select, RowActions, StatusBadge,
 } from '@frezo/ui'
-import { Can } from '@/lib/permissions'
+import { Can, usePermission } from '@/lib/permissions'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -27,6 +27,10 @@ export function CommentsPage() {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [showComment, setShowComment] = useState(false)
   const [showRule, setShowRule] = useState(false)
+
+  const canModerate = usePermission('MKT_COMMENTS_ID_MODERATE_UPDATE')
+  const canDeleteComment = usePermission('MKT_COMMENTS_ID_DELETE')
+  const canDeleteRule = usePermission('MKT_COMMENTS_RULES_ID_DELETE')
 
   const moderate = useModerateComment()
   const deleteComment = useDeleteComment()
@@ -74,42 +78,50 @@ export function CommentsPage() {
       align: 'right',
       width: 180,
       render: (_, r) => (
-        <div className="flex items-center justify-end gap-1">
-          <Can permission="MKT_COMMENTS_ID_MODERATE_UPDATE">
-            <IconActionButton tooltip="Ẩn" tone="amber" onClick={() => moderate.mutate({ id: r.id, action: 'HIDE' })}>
-              <EyeOff size={14} />
-            </IconActionButton>
-            <IconActionButton tooltip="Cờ" tone="rose" onClick={() => moderate.mutate({ id: r.id, action: 'FLAG' })}>
-              <Flag size={14} />
-            </IconActionButton>
-            <IconActionButton
-              tooltip="Trả lời"
-              tone="emerald"
-              onClick={() => {
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'hide',
+              icon: EyeOff,
+              tooltip: 'Ẩn',
+              tone: 'amber',
+              hidden: !canModerate,
+              onClick: () => moderate.mutate({ id: r.id, action: 'HIDE' }),
+            },
+            {
+              key: 'flag',
+              icon: Flag,
+              tooltip: 'Cờ',
+              tone: 'rose',
+              hidden: !canModerate,
+              onClick: () => moderate.mutate({ id: r.id, action: 'FLAG' }),
+            },
+            {
+              key: 'reply',
+              icon: MessageSquare,
+              tooltip: 'Trả lời',
+              tone: 'emerald',
+              hidden: !canModerate,
+              onClick: () => {
                 const text = window.prompt('Nội dung trả lời', r.replyText || '')
                 if (text != null) moderate.mutate({ id: r.id, action: 'REPLY', replyText: text })
-              }}
-            >
-              <MessageSquare size={14} />
-            </IconActionButton>
-          </Can>
-          <Can permission="MKT_COMMENTS_ID_DELETE">
-            <IconActionButton
-              tooltip="Xoá"
-              tone="rose"
-              onClick={() =>
+              },
+            },
+            {
+              kind: 'delete',
+              tooltip: 'Xoá',
+              hidden: !canDeleteComment,
+              onClick: () =>
                 askConfirm({
                   title: 'Xoá comment?',
                   message: 'Comment sẽ bị xoá khỏi hàng đợi.',
                   confirmText: 'Xoá',
                   onConfirm: () => deleteComment.mutate(r.id),
-                })
-              }
-            >
-              <Trash2 size={14} />
-            </IconActionButton>
-          </Can>
-        </div>
+                }),
+            },
+          ]}
+        />
       ),
     },
   ]
@@ -139,22 +151,23 @@ export function CommentsPage() {
       align: 'right',
       width: 60,
       render: (_, r) => (
-        <Can permission="MKT_COMMENTS_RULES_ID_DELETE">
-          <IconActionButton
-            tooltip="Xoá rule"
-            tone="rose"
-            onClick={() =>
-              askConfirm({
-                title: 'Xoá rule?',
-                message: `Rule “${r.name}” sẽ bị xoá.`,
-                confirmText: 'Xoá',
-                onConfirm: () => deleteRule.mutate(r.id),
-              })
-            }
-          >
-            <Trash2 size={14} />
-          </IconActionButton>
-        </Can>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              kind: 'delete',
+              tooltip: 'Xoá rule',
+              hidden: !canDeleteRule,
+              onClick: () =>
+                askConfirm({
+                  title: 'Xoá rule?',
+                  message: `Rule “${r.name}” sẽ bị xoá.`,
+                  confirmText: 'Xoá',
+                  onConfirm: () => deleteRule.mutate(r.id),
+                }),
+            },
+          ]}
+        />
       ),
     },
   ]

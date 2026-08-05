@@ -9,11 +9,11 @@
 
 import { useMemo, useState } from 'react'
 import {
-  Send, Calendar, Facebook, MessageCircle, Instagram, Video, Plus, Trash2,
-  Copy, Play, Ban, Clock, CheckCircle2, XCircle, FileEdit, Loader2,
+  Send, Calendar, Facebook, MessageCircle, Instagram, Video, Plus,
+  Play, Ban, Clock, CheckCircle2, XCircle, FileEdit, Loader2,
   Image as ImageIcon,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, Input, Label, Textarea, Select, IconActionButton } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, Input, Label, Textarea, Select, RowActions } from '@frezo/ui'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { toast } from 'sonner'
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog'
@@ -449,24 +449,30 @@ function PostCard({
           {post.errorMessage}
         </div>
       )}
-      <div className="flex items-center justify-end gap-1 pt-2 border-t border-neutral-100" onClick={(e) => e.stopPropagation()}>
-        {post.status === 'SCHEDULED' && (
-          <IconActionButton tooltip="Huỷ lịch" tone="amber" onClick={onCancel}>
-            <Ban size={14} />
-          </IconActionButton>
-        )}
-        {(post.status === 'DRAFT' || post.status === 'SCHEDULED') && (
-          <IconActionButton tooltip="Đăng ngay" tone="emerald" onClick={onPublish}>
-            <Play size={14} />
-          </IconActionButton>
-        )}
-        <IconActionButton tooltip="Nhân bản" onClick={onDuplicate}>
-          <Copy size={14} />
-        </IconActionButton>
-        <IconActionButton tooltip="Xoá" tone="red" onClick={onDelete}>
-          <Trash2 size={14} />
-        </IconActionButton>
-      </div>
+      <RowActions
+        align="end"
+        className="pt-2 border-t border-neutral-100"
+        actions={[
+          {
+            key: 'cancel',
+            icon: Ban,
+            tooltip: 'Huỷ lịch',
+            tone: 'amber',
+            hidden: post.status !== 'SCHEDULED',
+            onClick: onCancel,
+          },
+          {
+            key: 'publish',
+            icon: Play,
+            tooltip: 'Đăng ngay',
+            tone: 'emerald',
+            hidden: !(post.status === 'DRAFT' || post.status === 'SCHEDULED'),
+            onClick: onPublish,
+          },
+          { kind: 'copy', tooltip: 'Nhân bản', onClick: onDuplicate },
+          { kind: 'delete', tooltip: 'Xoá', onClick: onDelete },
+        ]}
+      />
     </div>
   )
 }

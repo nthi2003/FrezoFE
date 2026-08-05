@@ -7,13 +7,13 @@
 
 import { useState, useMemo } from 'react'
 import {
-  Plus, Edit, Trash2, DollarSign, Search, Filter, LayoutGrid, List,
+  Plus, DollarSign, Search, Filter, LayoutGrid, List,
   TrendingUp, Loader2, AlertTriangle, Building2, Sparkles,
   type LucideIcon,
 } from 'lucide-react'
 import {
   AppModal, Button, ConfirmDialog, PageHeader, PageGuideButton, Input, Label, Select,
-  IconActionButton, type PageGuideConfig,
+  RowActions, type PageGuideConfig,
 } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -442,14 +442,12 @@ export function SalaryBandsPage({ embedded }: { embedded?: boolean } = {}) {
               {
                 title: 'Thao tác', dataIndex: 'id', width: 100,
                 render: (_: any, row: any) => (
-                  <div className="flex items-center gap-1">
-                    <IconActionButton tooltip="Sửa" tone="primary" onClick={() => handleOpenEdit(row)}>
-                      <Edit size={14} />
-                    </IconActionButton>
-                    <IconActionButton tooltip="Xoá" tone="rose" onClick={() => setConfirmDel(row)}>
-                      <Trash2 size={14} />
-                    </IconActionButton>
-                  </div>
+                  <RowActions
+                    actions={[
+                      { kind: 'edit', onClick: () => handleOpenEdit(row) },
+                      { kind: 'delete', onClick: () => setConfirmDel(row) },
+                    ]}
+                  />
                 ),
               },
             ]}
@@ -585,14 +583,13 @@ function LadderView({ ladderData, onEdit, onDelete }: LadderViewProps) {
                 </div>
 
                 {/* Right: actions */}
-                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  <IconActionButton tooltip="Sửa" tone="primary" size="sm" onClick={() => onEdit(b)}>
-                    <Edit size={13} />
-                  </IconActionButton>
-                  <IconActionButton tooltip="Xoá" tone="rose" size="sm" onClick={() => onDelete(b)}>
-                    <Trash2 size={13} />
-                  </IconActionButton>
-                </div>
+                <RowActions
+                  className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                  actions={[
+                    { kind: 'edit', onClick: () => onEdit(b) },
+                    { kind: 'delete', onClick: () => onDelete(b) },
+                  ]}
+                />
               </div>
             </div>
           )

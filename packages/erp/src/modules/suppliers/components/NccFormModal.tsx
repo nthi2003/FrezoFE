@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus, Trash2, Upload, Loader2, Award, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  AppModal, Button, Input, Textarea, Label, Select,
+  Button, FormGrid, FormModal, FormSection, Input, Textarea, Label, Select,
 } from '@frezo/ui'
 import { useQuery } from '@tanstack/react-query'
 import { categoryApi } from '@/modules/qtht/services/categoryApi'
@@ -47,7 +47,7 @@ export function NccFormModal({ isOpen, ncc, onClose, onSubmit, isSubmitting }: P
     control,
     watch,
     setValue,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<NccFormValues>({
     resolver: zodResolver(nccFormSchema),
     defaultValues: getDefaults(ncc),
@@ -62,7 +62,7 @@ export function NccFormModal({ isOpen, ncc, onClose, onSubmit, isSubmitting }: P
   const classCode = watch('classificationCode')
 
   return (
-    <AppModal
+    <FormModal
       isOpen={isOpen}
       onClose={onClose}
       title={isEdit ? 'Chỉnh sửa nhà cung cấp' : 'Thêm nhà cung cấp mới'}
@@ -71,15 +71,19 @@ export function NccFormModal({ isOpen, ncc, onClose, onSubmit, isSubmitting }: P
           ? 'Cập nhật thông tin, năng lực và chứng chỉ của NCC.'
           : 'Điền thông tin cơ bản. Có thể bổ sung chứng chỉ và năng lực sau.'
       }
-      maxWidth="4xl"
+      size="xl"
+      formId="ncc-form"
+      isSubmitting={isSubmitting}
+      submitText={isEdit ? 'Cập nhật' : 'Tạo NCC'}
+      dirty={isDirty}
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form id="ncc-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* ==================== Section 1: Basic ==================== */}
         <FormSection
           title="Thông tin cơ bản"
           description="Tên, mã và người đại diện — bắt buộc cho mọi NCC"
         >
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormGrid cols={3}>
             <Field label="Tên nhà cung cấp" required error={errors.name?.message}>
               <Input placeholder="VD: HTX Rau sạch Đà Lạt" {...register('name')} />
             </Field>
@@ -112,7 +116,7 @@ export function NccFormModal({ isOpen, ncc, onClose, onSubmit, isSubmitting }: P
             <Field label="Địa chỉ" colSpan={3}>
               <Input placeholder="Địa chỉ đầy đủ..." {...register('address')} />
             </Field>
-          </div>
+          </FormGrid>
         </FormSection>
 
         {/* ==================== Section 2: Capacity ==================== */}
@@ -120,7 +124,7 @@ export function NccFormModal({ isOpen, ncc, onClose, onSubmit, isSubmitting }: P
           title="Năng lực sản xuất"
           description="Số liệu để dự báo nguồn cung khi lập kế hoạch thu mua"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormGrid cols={2}>
             <Field
               label="Diện tích canh tác (ha)"
               error={errors.growingArea?.message}
@@ -154,7 +158,7 @@ export function NccFormModal({ isOpen, ncc, onClose, onSubmit, isSubmitting }: P
                 {...register('strengths')}
               />
             </Field>
-          </div>
+          </FormGrid>
         </FormSection>
 
         {/* ==================== Section 3: Certificates ==================== */}
@@ -204,23 +208,8 @@ export function NccFormModal({ isOpen, ncc, onClose, onSubmit, isSubmitting }: P
             </div>
           )}
         </FormSection>
-
-        {/* ==================== Footer ==================== */}
-        <div className="flex items-center justify-end gap-2 pt-4 border-t border-neutral-100 sticky bottom-0 bg-white -mx-6 px-6 -mb-6 pb-6">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-            Huỷ
-          </Button>
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="bg-primary-600 hover:bg-primary-700 text-white gap-1 min-w-[140px] justify-center"
-          >
-            {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-            {isSubmitting ? 'Đang lưu...' : isEdit ? 'Cập nhật' : 'Tạo NCC'}
-          </Button>
-        </div>
       </form>
-    </AppModal>
+    </FormModal>
   )
 }
 
@@ -348,33 +337,6 @@ function CertificateFormRow({
 // Layout helpers
 // ============================================================
 
-function FormSection({
-  title,
-  description,
-  action,
-  children,
-}: {
-  title: string
-  description?: string
-  action?: React.ReactNode
-  children: React.ReactNode
-}) {
-  return (
-    <div>
-      <div className="flex items-start justify-between gap-3 mb-3 pb-2 border-b border-neutral-100">
-        <div>
-          <h3 className="text-sm font-bold text-neutral-800">{title}</h3>
-          {description && (
-            <p className="text-xs text-neutral-500 mt-0.5">{description}</p>
-          )}
-        </div>
-        {action}
-      </div>
-      {children}
-    </div>
-  )
-}
-
 function Field({
   label,
   required,
@@ -388,9 +350,9 @@ function Field({
   error?: string
   hint?: string
   colSpan?: number
-  children: React.ReactNode
+  children: ReactNode
 }) {
-  const spanCls = colSpan === 2 ? 'md:col-span-2' : colSpan === 3 ? 'md:col-span-3' : ''
+  const spanCls = colSpan === 2 ? 'md:col-span-2' : colSpan === 3 ? 'md:col-span-3 xl:col-span-3' : ''
   return (
     <div className={`space-y-1.5 ${spanCls}`}>
       <Label className="text-sm font-medium text-neutral-700">
@@ -399,7 +361,7 @@ function Field({
       </Label>
       {children}
       {hint && !error && <p className="text-[11px] text-neutral-500">{hint}</p>}
-      {error && <p className="text-xs text-rose-600">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   )
 }

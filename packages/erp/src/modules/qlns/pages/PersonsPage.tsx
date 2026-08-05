@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Trash2, Eye, AlertTriangle, RefreshCw, Search } from 'lucide-react'
+import { Plus, AlertTriangle, RefreshCw, Search } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import {
@@ -12,7 +12,7 @@ import {
   PageHeader,
   PageGuideButton,
   FlexibleColumnLayout,
-  IconActionButton,
+  RowActions,
   type PageGuideConfig,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
@@ -318,22 +318,17 @@ export function PersonsPage() {
     {
       title: 'Thao tác', dataIndex: 'id', key: 'actions',
       render: (_: any, row: any) => (
-        <div className="flex items-center gap-1">
-          <IconActionButton
-            tooltip="Xem chi tiết"
-            tone="blue"
-            className={selectedId === row.id ? 'text-primary-700 bg-primary-50' : undefined}
-            onClick={() => openDetail(row)}
-          >
-            <Eye size={15} />
-          </IconActionButton>
-          <IconActionButton tooltip="Sửa" tone="blue" onClick={() => handleOpenEdit(row)}>
-            <Edit size={15} />
-          </IconActionButton>
-          <IconActionButton tooltip="Xóa" tone="rose" onClick={() => handleDelete(row)}>
-            <Trash2 size={15} />
-          </IconActionButton>
-        </div>
+        <RowActions
+          actions={[
+            {
+              kind: 'view',
+              tone: selectedId === row.id ? 'primary' : undefined,
+              onClick: () => openDetail(row),
+            },
+            { kind: 'edit', onClick: () => handleOpenEdit(row) },
+            { kind: 'delete', onClick: () => handleDelete(row) },
+          ]}
+        />
       ),
     },
   ]

@@ -18,8 +18,7 @@ import {
   ConfirmDialog,
   StatCard,
   StatusBadge,
-  AppTooltip,
-  IconActionButton,
+  RowActions,
 } from '@frezo/ui'
 import { formatCurrency } from '@frezo/utils'
 import { AppForm } from '@/components/shared/AppForm'
@@ -376,34 +375,19 @@ export function ProductsPage() {
       align: 'right',
       width: 148,
       render: (_, row) => (
-        <div className="flex items-center justify-end gap-1">
-          <AppTooltip content="Biến động giá">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-neutral-600"
-              onClick={() => setPriceHistoryProduct(row)}
-              aria-label="Biến động giá"
-            >
-              <LineChart size={12} />
-            </Button>
-          </AppTooltip>
-          {canUpdate && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1"
-              onClick={() => openModal(row)}
-            >
-              <Pencil size={12} /> Sửa
-            </Button>
-          )}
-          {canDelete && (
-            <IconActionButton tooltip="Xoá" tone="rose" size="sm" onClick={() => setConfirmDelete(row)}>
-              <Trash2 size={12} />
-            </IconActionButton>
-          )}
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            { kind: 'edit', onClick: () => openModal(row), hidden: !canUpdate },
+            {
+              key: 'price-history',
+              icon: LineChart,
+              tooltip: 'Biến động giá',
+              onClick: () => setPriceHistoryProduct(row),
+            },
+            { kind: 'delete', onClick: () => setConfirmDelete(row), hidden: !canDelete },
+          ]}
+        />
       ),
     },
   ]

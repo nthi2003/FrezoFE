@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
-  Plus, Search, ChevronRight, ChevronDown, Trash2, FolderTree, FileText, AlertTriangle,
+  Plus, Search, ChevronRight, ChevronDown, FolderTree, FileText, AlertTriangle,
   ExpandIcon, MinusSquare, ExternalLink, EyeOff, Copy, Info, Sparkles,
 } from 'lucide-react'
 import {
@@ -17,8 +17,7 @@ import {
   IconPicker,
   IconPreview,
   StatusBadge,
-  IconActionButton,
-  AppTooltip,
+  RowActions,
   type PageGuideConfig,
 } from '@frezo/ui'
 
@@ -242,14 +241,19 @@ function TreeNode({
         </div>
 
         {/* Hover actions */}
-        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity shrink-0 ml-0.5">
-          <IconActionButton tooltip="Thêm menu con" tone="primary" size="sm" className="p-0.5" onClick={(e) => { e.stopPropagation(); onAddChild(node.code) }}>
-            <Plus size={12} />
-          </IconActionButton>
-          <IconActionButton tooltip="Xoá menu" tone="red" size="sm" className="p-0.5" onClick={(e) => { e.stopPropagation(); onDelete(node) }}>
-            <Trash2 size={12} />
-          </IconActionButton>
-        </div>
+        <RowActions
+          className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-0.5"
+          actions={[
+            {
+              key: 'add-child',
+              icon: Plus,
+              tooltip: 'Thêm menu con',
+              tone: 'primary',
+              onClick: () => onAddChild(node.code),
+            },
+            { kind: 'delete', tooltip: 'Xoá menu', onClick: () => onDelete(node) },
+          ]}
+        />
       </div>
 
       {expanded && hasChildren && (

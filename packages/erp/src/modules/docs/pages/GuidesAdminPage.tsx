@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, Plus, Pencil, Eye, EyeOff, Trash2, Search, FileText, CheckCircle2 } from 'lucide-react'
+import { BookOpen, Plus, Eye, EyeOff, Search, FileText, CheckCircle2 } from 'lucide-react'
 import {
   Button,
   ConfirmDialog,
@@ -15,7 +15,7 @@ import {
   PageHeader,
   PageGuideButton,
   StatusBadge,
-  IconActionButton,
+  RowActions,
   type PageGuideConfig,
   type StatusConfig,
 } from '@frezo/ui'
@@ -195,39 +195,31 @@ export function GuidesAdminPage() {
       align: 'right',
       width: 140,
       render: (_, g) => (
-        <div className="flex items-center gap-1 justify-end">
-          {canWrite && (
-            <IconActionButton tooltip="Sửa" onClick={() => nav(`/admin/guides/${g.id}/edit`)}>
-              <Pencil size={16} />
-            </IconActionButton>
-          )}
-          {canWrite && (
-            g.published ? (
-              <IconActionButton
-                tooltip="Gỡ xuất bản"
-                tone="amber"
-                onClick={() => unpublishReq.mutate(g.id)}
-                disabled={unpublishReq.isPending}
-              >
-                <EyeOff size={16} />
-              </IconActionButton>
-            ) : (
-              <IconActionButton
-                tooltip="Xuất bản"
-                tone="emerald"
-                onClick={() => publishReq.mutate(g.id)}
-                disabled={publishReq.isPending}
-              >
-                <Eye size={16} />
-              </IconActionButton>
-            )
-          )}
-          {canWrite && (
-            <IconActionButton tooltip="Xóa" tone="red" onClick={() => setDeleteId(g.id)}>
-              <Trash2 size={16} />
-            </IconActionButton>
-          )}
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            { kind: 'edit', hidden: !canWrite, onClick: () => nav(`/admin/guides/${g.id}/edit`) },
+            {
+              key: 'unpublish',
+              icon: EyeOff,
+              tooltip: 'Gỡ xuất bản',
+              tone: 'amber',
+              hidden: !canWrite || !g.published,
+              disabled: unpublishReq.isPending,
+              onClick: () => unpublishReq.mutate(g.id),
+            },
+            {
+              key: 'publish',
+              icon: Eye,
+              tooltip: 'Xuất bản',
+              tone: 'emerald',
+              hidden: !canWrite || g.published,
+              disabled: publishReq.isPending,
+              onClick: () => publishReq.mutate(g.id),
+            },
+            { kind: 'delete', tooltip: 'Xóa', hidden: !canWrite, onClick: () => setDeleteId(g.id) },
+          ]}
+        />
       ),
     },
   ]

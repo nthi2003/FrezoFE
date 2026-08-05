@@ -4,8 +4,8 @@
 
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Package, CheckCircle2, PackagePlus, Eye } from 'lucide-react'
-import { Button, ConfirmDialog, IconActionButton } from '@frezo/ui'
+import { Package, CheckCircle2, PackagePlus } from 'lucide-react'
+import { Button, ConfirmDialog, RowActions } from '@frezo/ui'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { PURCHASE_ORDERS_GUIDE } from '../constants/purchase.guide'
 import { PO_STATUS_FILTER_OPTIONS } from '../constants/warehouseStatus'
@@ -174,38 +174,30 @@ export function PurchaseOrdersPage() {
         const st = (po.status || '').toUpperCase()
         const receivePending = st === 'CONFIRMED' || st === 'PARTIAL_RECEIVED'
         return (
-          <div className="flex items-center justify-end gap-1">
-            <IconActionButton
-              tooltip="Chi tiết"
-              tone="blue"
-              size="sm"
-              onClick={() => nav(`/warehouse/purchase-orders/${po.id}`)}
-            >
-              <Eye size={14} />
-            </IconActionButton>
-            {st === 'DRAFT' && canConfirm && (
-              <IconActionButton
-                tooltip="Xác nhận"
-                tone="emerald"
-                size="sm"
-                disabled={confirm.isPending}
-                onClick={() => setConfirmTarget(po)}
-              >
-                <CheckCircle2 size={14} />
-              </IconActionButton>
-            )}
-            {receivePending && canCreateGrn && (
-              <IconActionButton
-                tooltip="Nhận hàng"
-                tone="primary"
-                size="sm"
-                disabled={createGrn.isPending}
-                onClick={() => setReceiveTarget(po)}
-              >
-                <PackagePlus size={14} />
-              </IconActionButton>
-            )}
-          </div>
+          <RowActions
+            align="end"
+            actions={[
+              { kind: 'view', onClick: () => nav(`/warehouse/purchase-orders/${po.id}`) },
+              {
+                key: 'confirm',
+                icon: CheckCircle2,
+                tooltip: 'Xác nhận',
+                tone: 'emerald',
+                disabled: confirm.isPending,
+                hidden: !(st === 'DRAFT' && canConfirm),
+                onClick: () => setConfirmTarget(po),
+              },
+              {
+                key: 'receive',
+                icon: PackagePlus,
+                tooltip: 'Nhận hàng',
+                tone: 'primary',
+                disabled: createGrn.isPending,
+                hidden: !(receivePending && canCreateGrn),
+                onClick: () => setReceiveTarget(po),
+              },
+            ]}
+          />
         )
       },
     },

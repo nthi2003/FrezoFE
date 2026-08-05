@@ -4,8 +4,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { PackagePlus, Plus, Eye } from 'lucide-react'
-import { Button, IconActionButton, actionIconTone } from '@frezo/ui'
+import { PackagePlus, Plus } from 'lucide-react'
+import { Button, RowActions } from '@frezo/ui'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { useProducts } from '@/modules/products/hooks/useProduct'
 import { GRN_GUIDE } from '../constants/grn-gin.guide'
@@ -206,16 +206,10 @@ export function GoodsReceiptNotesPage() {
       align: 'right',
       width: 56,
       render: (_, row) => (
-        <div className="flex items-center justify-end gap-1">
-          <IconActionButton
-            tooltip="Chi tiết"
-            tone={actionIconTone.view}
-            size="sm"
-            onClick={() => nav(`/warehouse/grn/${row.id}`)}
-          >
-            <Eye size={14} />
-          </IconActionButton>
-        </div>
+        <RowActions
+          align="end"
+          actions={[{ kind: 'view', onClick: () => nav(`/warehouse/grn/${row.id}`) }]}
+        />
       ),
     },
   ]

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useScanGroups, useGroups, useDeleteGroup } from '../hooks/useAI'
-import { Button, Input, PageHeader, EmptyState, ErrorState, Label, Select } from '@frezo/ui'
-import { Search, Trash2, Loader2, Users, HelpCircle } from 'lucide-react'
+import { Button, Input, PageHeader, EmptyState, ErrorState, Label, Select, RowActions } from '@frezo/ui'
+import { Search, Loader2, Users, HelpCircle } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -100,21 +100,22 @@ export function GroupScannerPage() {
       align: 'right',
       width: 80,
       render: (_, g) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          title="Xoá group"
-          onClick={() =>
-            askConfirm({
-              title: 'Xoá group này?',
-              message: `Group "${g.name}" sẽ bị xoá khỏi danh sách.`,
-              confirmText: 'Xoá',
-              onConfirm: () => deleteReq.mutate(g.id),
-            })
-          }
-        >
-          <Trash2 className="w-4 h-4 text-red-500" />
-        </Button>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              kind: 'delete',
+              tooltip: 'Xoá group',
+              onClick: () =>
+                askConfirm({
+                  title: 'Xoá group này?',
+                  message: `Group "${g.name}" sẽ bị xoá khỏi danh sách.`,
+                  confirmText: 'Xoá',
+                  onConfirm: () => deleteReq.mutate(g.id),
+                }),
+            },
+          ]}
+        />
       ),
     },
   ]

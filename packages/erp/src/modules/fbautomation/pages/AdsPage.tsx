@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Plus, RefreshCw, Trash2, Pencil, Megaphone, Eye, MousePointerClick, Users, DollarSign, Target,
+  Plus, RefreshCw, Megaphone, Eye, MousePointerClick, Users, DollarSign, Target,
 } from 'lucide-react'
 import {
-  Button, PageHeader, EmptyState, ErrorState, AppModal, Input, Label, Select, IconActionButton, StatusBadge,
+  Button, PageHeader, EmptyState, ErrorState, AppModal, Input, Label, Select, RowActions, StatusBadge,
 } from '@frezo/ui'
-import { Can } from '@/lib/permissions'
+import { Can, usePermission } from '@/lib/permissions'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -59,6 +59,9 @@ export function AdsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState<AdCampaign | null>(null)
 
+  const canUpdate = usePermission('MKT_ADS_ID_UPDATE')
+  const canDelete = usePermission('MKT_ADS_ID_DELETE')
+
   const { data: dashData, refetch: refetchDash } = useAdsDashboard()
   const { data, isLoading, isFetching, isError, refetch } = useAdCampaigns()
 
@@ -109,29 +112,29 @@ export function AdsPage() {
       align: 'right',
       width: 90,
       render: (_, r) => (
-        <div className="flex items-center justify-end gap-1">
-          <Can permission="MKT_ADS_ID_UPDATE">
-            <IconActionButton tooltip="Sửa số liệu" tone="blue" onClick={() => setEditing(r)}>
-              <Pencil size={14} />
-            </IconActionButton>
-          </Can>
-          <Can permission="MKT_ADS_ID_DELETE">
-            <IconActionButton
-              tooltip="Xoá"
-              tone="rose"
-              onClick={() =>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              kind: 'edit',
+              tooltip: 'Sửa số liệu',
+              hidden: !canUpdate,
+              onClick: () => setEditing(r),
+            },
+            {
+              kind: 'delete',
+              tooltip: 'Xoá',
+              hidden: !canDelete,
+              onClick: () =>
                 askConfirm({
                   title: 'Xoá chiến dịch?',
                   message: `“${r.name}” sẽ bị xoá.`,
                   confirmText: 'Xoá',
                   onConfirm: () => deleteCampaign.mutate(r.id),
-                })
-              }
-            >
-              <Trash2 size={14} />
-            </IconActionButton>
-          </Can>
-        </div>
+                }),
+            },
+          ]}
+        />
       ),
     },
   ]

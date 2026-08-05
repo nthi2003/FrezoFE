@@ -6,11 +6,11 @@
 
 import { useMemo, useState } from 'react'
 import {
-  Plus, Pencil, GripVertical, ChevronUp, ChevronDown, Trash2, Workflow,
+  Plus, GripVertical, ChevronUp, ChevronDown, Trash2, Workflow,
 } from 'lucide-react'
 import {
   Button, PageHeader, AppModal, EmptyState, ErrorState, PageGuideButton, Select,
-  IconActionButton, actionIconTone,
+  IconActionButton, actionIconTone, RowActions,
 } from '@frezo/ui'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import {
@@ -178,19 +178,12 @@ export function ApprovalFlowConfigPage({ embedded }: { embedded?: boolean } = {}
       title: '',
       width: 56,
       align: 'right',
-      render: (_, row) =>
-        canUpdate ? (
-          <div className="flex items-center justify-end gap-1">
-            <IconActionButton
-              tooltip="Sửa"
-              tone={actionIconTone.edit}
-              size="sm"
-              onClick={() => openEdit(row)}
-            >
-              <Pencil size={14} />
-            </IconActionButton>
-          </div>
-        ) : null,
+      render: (_, row) => (
+        <RowActions
+          align="end"
+          actions={[{ kind: 'edit', hidden: !canUpdate, onClick: () => openEdit(row) }]}
+        />
+      ),
     },
   ]
 

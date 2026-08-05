@@ -8,7 +8,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Loader2, AlertCircle, ClipboardCheck, ExternalLink } from 'lucide-react'
-import { AppModal, Button, Select, ConfirmDialog } from '@frezo/ui'
+import { FormModal, Select, ConfirmDialog } from '@frezo/ui'
 import { toast } from 'sonner'
 import { Link } from 'react-router-dom'
 import { usePersonsCombobox } from '@/modules/qlns/hooks/usePerson'
@@ -107,11 +107,15 @@ export function AssetAssignModal({ open, asset, onClose }: Props) {
 
   return (
     <>
-    <AppModal
+    <FormModal
       isOpen={open}
       onClose={onClose}
       title="Tạo yêu cầu cấp phát tài sản"
-      maxWidth="2xl"
+      size="md"
+      onSubmit={handleSubmit}
+      isSubmitting={createReq.isPending}
+      submitDisabled={!canSubmit}
+      submitText="Gửi yêu cầu"
     >
       <div className="space-y-4">
         {/* Asset preview */}
@@ -217,17 +221,8 @@ export function AssetAssignModal({ open, asset, onClose }: Props) {
             Trong khi ticket chờ duyệt, tài sản vẫn ở trạng thái <b>Sẵn sàng</b> và không thể tạo ticket khác cho cùng tài sản.
           </div>
         )}
-
-        {/* Actions */}
-        <div className="flex justify-end gap-2 pt-3 border-t border-neutral-100">
-          <Button variant="outline" onClick={onClose} disabled={createReq.isPending}>Huỷ</Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit} className="gap-1.5">
-            {createReq.isPending && <Loader2 size={14} className="animate-spin" />}
-            Gửi yêu cầu
-          </Button>
-        </div>
       </div>
-    </AppModal>
+    </FormModal>
 
     <ConfirmDialog
       isOpen={submitConfirmOpen}
@@ -236,7 +231,7 @@ export function AssetAssignModal({ open, asset, onClose }: Props) {
       }}
       onConfirm={runSubmit}
       title="Gửi yêu cầu cấp phát?"
-      message={
+      description={
         <span>
           Tài sản <strong>{asset.code}</strong> sẽ tạo ticket cấp phát cho{' '}
           <strong>{personName || 'nhân viên đã chọn'}</strong>. Cần duyệt trước khi bàn giao.

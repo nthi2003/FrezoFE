@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/be-vietnam-pro": "^5.3.0",
     "@frezo/types": "*",
     "@frezo/ui": "*",
     "@frezo/utils": "*",

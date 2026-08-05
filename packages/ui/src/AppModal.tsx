@@ -14,20 +14,29 @@ export interface AppModalProps {
   title: string
   description?: string
   children: React.ReactNode
-  /** Desktop: default 2xl (~672px+). Create form phức tạp nên dùng 3xl–5xl. */
+  /**
+   * Size preset (khuyến nghị) hoặc maxWidth legacy.
+   * sm | md | lg | xl | full map sang FormModal sizes.
+   * 2xl–6xl giữ tương thích call-site cũ.
+   */
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  /** @deprecated Dùng `size`. */
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl'
+  /** Footer sticky (nút hành động). */
+  footer?: React.ReactNode
+  className?: string
 }
 
 function isSelectDropdownTarget(target: EventTarget | null) {
   return target instanceof Element && !!target.closest('[data-frezo-select-dropdown]')
 }
 
-const MAX_WIDTH_CLASS: Record<NonNullable<AppModalProps['maxWidth']>, string> = {
+const WIDTH_CLASS: Record<string, string> = {
   sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-lg',
   xl: 'max-w-xl',
-  // ERP forms: 2xl trở lên + min-width desktop để không dưới ~720px
+  full: 'max-w-[min(96rem,96vw)] w-[96vw]',
   '2xl': 'max-w-2xl sm:min-w-[min(100%,42rem)]',
   '3xl': 'max-w-3xl sm:min-w-[min(100%,48rem)]',
   '4xl': 'max-w-4xl sm:min-w-[min(100%,56rem)]',
@@ -35,25 +44,33 @@ const MAX_WIDTH_CLASS: Record<NonNullable<AppModalProps['maxWidth']>, string> = 
   '6xl': 'max-w-6xl sm:min-w-[min(100%,72rem)]',
 }
 
+/**
+ * AppModal — modal nội dung/form cơ bản (header sticky + body scroll + footer tùy chọn).
+ * Form tạo/sửa phức tạp nên ưu tiên `FormModal` (footer Hủy/Lưu chuẩn).
+ */
 export function AppModal({
   isOpen,
   onClose,
   title,
   description,
   children,
+  size,
   maxWidth = '2xl',
+  footer,
+  className,
 }: AppModalProps) {
+  const widthKey = size ?? maxWidth
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         className={cn(
-          MAX_WIDTH_CLASS[maxWidth],
-          'flex max-h-[90vh] flex-col gap-0 overflow-hidden p-6 sm:p-8',
+          WIDTH_CLASS[widthKey] ?? WIDTH_CLASS['2xl'],
+          'flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-xl p-0 shadow-card-md',
+          'motion-reduce:data-[state=open]:animate-none motion-reduce:data-[state=closed]:animate-none',
+          className,
         )}
         onPointerDownOutside={(e) => {
-          // Portaled Select/MultiSelect sit outside DialogContent. preventDefault keeps
-          // the modal open; options must use onMouseDown (not onClick) because this
-          // also preventDefaults the original pointerdown and suppresses the click event.
           if (isSelectDropdownTarget(e.target)) e.preventDefault()
         }}
         onInteractOutside={(e) => {
@@ -63,14 +80,26 @@ export function AppModal({
           if (isSelectDropdownTarget(e.target)) e.preventDefault()
         }}
       >
-        <DialogHeader className="shrink-0 pr-8">
-          <DialogTitle>{title}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>}
+        <DialogHeader className="shrink-0 space-y-1 border-b border-border px-5 py-4 pr-12 text-left sm:px-6 sm:pt-5">
+          <DialogTitle className="text-base font-semibold tracking-tight text-neutral-900">
+            {title}
+          </DialogTitle>
+          {description ? (
+            <DialogDescription className="text-sm text-neutral-500">
+              {description}
+            </DialogDescription>
+          ) : null}
         </DialogHeader>
-        {/* Scroll body only — không overflow trên DialogContent để tránh clip dropdown non-portal */}
-        <div className="mt-5 min-h-0 flex-1 overflow-y-auto overflow-x-visible pr-0.5">
+
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-visible px-5 py-5 sm:px-6">
           {children}
         </div>
+
+        {footer ? (
+          <div className="shrink-0 border-t border-border bg-surface-secondary px-5 py-3.5 sm:px-6">
+            {footer}
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   )

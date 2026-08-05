@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { AlarmClock, Search, Send, CheckCircle2, XCircle, FileText } from 'lucide-react'
 import {
-  PageHeader, PageGuideButton, ConfirmDialog, EmptyState, ErrorState, Select,
+  PageHeader, PageGuideButton, ConfirmDialog, EmptyState, ErrorState, Select, RowActions,
   type PageGuideConfig,
 } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
@@ -167,35 +167,35 @@ export function QuotesPage({ embedded }: { embedded?: boolean } = {}) {
       align: 'right',
       width: 180,
       render: (_, q) => (
-        <div className="flex items-center justify-end gap-1">
-          {q.status === 'DRAFT' && (
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
-              onClick={() => setConfirmAction({ id: q.id, code: q.code, status: q.status, next: 'SENT' })}
-            >
-              <Send size={12} /> Gửi
-            </button>
-          )}
-          {q.status === 'SENT' && (
-            <>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-                onClick={() => setConfirmAction({ id: q.id, code: q.code, status: q.status, next: 'ACCEPTED' })}
-              >
-                <CheckCircle2 size={12} /> Duyệt
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
-                onClick={() => setConfirmAction({ id: q.id, code: q.code, status: q.status, next: 'REJECTED' })}
-              >
-                <XCircle size={12} /> Từ chối
-              </button>
-            </>
-          )}
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'send',
+              icon: Send,
+              tooltip: 'Gửi báo giá',
+              tone: 'blue',
+              hidden: q.status !== 'DRAFT',
+              onClick: () => setConfirmAction({ id: q.id, code: q.code, status: q.status, next: 'SENT' }),
+            },
+            {
+              key: 'accept',
+              icon: CheckCircle2,
+              tooltip: 'Duyệt',
+              tone: 'emerald',
+              hidden: q.status !== 'SENT',
+              onClick: () => setConfirmAction({ id: q.id, code: q.code, status: q.status, next: 'ACCEPTED' }),
+            },
+            {
+              key: 'reject',
+              icon: XCircle,
+              tooltip: 'Từ chối',
+              tone: 'rose',
+              hidden: q.status !== 'SENT',
+              onClick: () => setConfirmAction({ id: q.id, code: q.code, status: q.status, next: 'REJECTED' }),
+            },
+          ]}
+        />
       ),
     },
   ]

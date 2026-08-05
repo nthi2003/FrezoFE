@@ -9,6 +9,7 @@
 //
 // Detail drawer: ApprovalTimeline + duyệt qua Approval Inbox (không approve local).
 // Create modal: nhân viên = person đăng nhập (read-only), loại nghỉ, date range.
+// Khi embed trong TimeHub: nút tạo do hub header / toolbar — truyền onCreateLeave.
 // ============================================================
 
 import { useEffect, useMemo, useState } from 'react'
@@ -17,7 +18,10 @@ import {
   Plus, Search, RefreshCw, CalendarDays, Filter, CheckCircle2, XCircle,
   Clock, User, Ban, ArrowRight, Bell,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, ErrorState, PageGuideButton, Select } from '@frezo/ui'
+import {
+  Button, PageHeader, EmptyState, ErrorState, PageGuideButton, Select,
+  StatusBadge, RowActions, type StatusColor,
+} from '@frezo/ui'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { useAuthStore } from '@/stores/authStore'
@@ -31,37 +35,36 @@ import { LEAVES_GUIDE } from '../constants/leaves.guide'
 import { pageRootClass } from '../utils/pageEmbed'
 
 // ============================================================
-// Config maps — status → label + màu
+// Config maps — status → label + màu semantic StatusBadge
 // ============================================================
 
 const STATUS_META: Record<
   LeaveStatus,
-  { label: string; short: string; tone: string; dot: string; icon: typeof CheckCircle2 }
+  { label: string; short: string; color: StatusColor; icon: typeof CheckCircle2 }
 > = {
   PENDING_MANAGER: {
     label: 'Chờ QL trực tiếp duyệt', short: 'Chờ QL',
-    tone: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500', icon: Clock,
+    color: 'warning', icon: Clock,
   },
   PENDING_HR: {
     label: 'Chờ HR chốt', short: 'Chờ HR',
-    tone: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500', icon: Clock,
+    color: 'info', icon: Clock,
   },
   APPROVED: {
     label: 'Đã duyệt', short: 'Duyệt',
-    tone: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500', icon: CheckCircle2,
+    color: 'success', icon: CheckCircle2,
   },
   REJECTED: {
     label: 'Từ chối', short: 'Từ chối',
-    tone: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500', icon: XCircle,
+    color: 'danger', icon: XCircle,
   },
   CANCELLED: {
     label: 'Đã huỷ', short: 'Huỷ',
-    tone: 'bg-neutral-100 text-neutral-600 border-neutral-200', dot: 'bg-neutral-400', icon: Ban,
+    color: 'neutral', icon: Ban,
   },
-  // Legacy status — coi tương đương PENDING_MANAGER
   PENDING: {
     label: 'Chờ duyệt (legacy)', short: 'Chờ duyệt',
-    tone: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500', icon: Clock,
+    color: 'warning', icon: Clock,
   },
 }
 
@@ -88,7 +91,14 @@ type TabKey = 'inbox' | 'mine' | 'all'
 // Main
 // ============================================================
 
-export function LeavesPage({ embedded }: { embedded?: boolean } = {}) {
+export function LeavesPage({
+  embedded,
+  onCreateLeave,
+}: {
+  embedded?: boolean
+  /** Hub điều khiển modal tạo đơn — khi có thì không render modal nội bộ. */
+  onCreateLeave?: () => void
+} = {}) {
   const [searchParams, setSearchParams] = useSearchParams()
   const highlightId = searchParams.get('highlight') || null
 
@@ -104,9 +114,15 @@ export function LeavesPage({ embedded }: { embedded?: boolean } = {}) {
   const [createOpen, setCreateOpen] = useState(false)
   const [activeLead, setActiveLead] = useState<LeaveRequestItem | null>(null)
 
+  const ownsCreateModal = !onCreateLeave
+  const openCreate = () => {
+    if (onCreateLeave) onCreateLeave()
+    else setCreateOpen(true)
+  }
+
   // ---- Data ----
   const pending = useLeaveRequests()
-  const mine = useMyLeaveRequests(currentUser?.id) // fallback — hooks won't fire nếu id undefined
+  const mine = useMyLeaveRequests(currentUser?.id)
   const source = tab === 'mine' ? mine : pending
   const rawList: LeaveRequestItem[] = (source.data as any) || []
 
@@ -159,6 +175,11 @@ export function LeavesPage({ embedded }: { embedded?: boolean } = {}) {
   const hasFilter = search || typeFilter !== 'all' || statusFilter !== 'all'
   const isFilteredEmpty = !source.isLoading && !source.isError && rawList.length > 0 && list.length === 0
   const isFullyEmpty = !source.isLoading && !source.isError && rawList.length === 0
+
+  const createEmptyAction =
+    canCreateLeave && !isFilteredEmpty && (tab === 'mine' || tab === 'all' || isFullyEmpty)
+      ? { label: 'Tạo đơn nghỉ phép', onClick: openCreate }
+      : undefined
 
   const columns: AppTableColumn<LeaveRequestItem>[] = useMemo(() => [
     {
@@ -233,12 +254,32 @@ export function LeavesPage({ embedded }: { embedded?: boolean } = {}) {
       render: (_, l) => {
         const st = STATUS_META[(l.status || 'PENDING_MANAGER') as LeaveStatus]
         return (
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${st.tone}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
-            {st.short}
-          </span>
+          <StatusBadge
+            label={st.short}
+            color={st.color}
+            icon={st.icon}
+            className="justify-end"
+          />
         )
       },
+    },
+    {
+      key: 'actions',
+      title: '',
+      width: 56,
+      align: 'right',
+      render: (_, l) => (
+        <RowActions
+          align="end"
+          actions={[
+            {
+              kind: 'view',
+              onClick: () => setActiveLead(l),
+              tooltip: 'Xem chi tiết',
+            },
+          ]}
+        />
+      ),
     },
   ], [])
 
@@ -247,46 +288,77 @@ export function LeavesPage({ embedded }: { embedded?: boolean } = {}) {
   // ============================================================
 
   return (
-    <div className={pageRootClass(embedded, 'space-y-5')}>
+    <div className={pageRootClass(embedded, 'space-y-4')}>
       {!embedded && (
-      <PageHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center">
-              <CalendarDays size={16} />
+        <PageHeader
+          title={
+            <span className="inline-flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center">
+                <CalendarDays size={16} />
+              </span>
+              Nghỉ phép
             </span>
-            Nghỉ phép
-          </span>
-        }
-        description={
-          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span>Duyệt theo luồng <b>Nghỉ phép</b> đang kích hoạt tại Cấu hình luồng duyệt.</span>
+          }
+          description={
+            <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>Duyệt theo luồng <b>Nghỉ phép</b> đang kích hoạt tại Cấu hình luồng duyệt.</span>
+              <span className="text-neutral-300">·</span>
+              <span className="tabular-nums">
+                <b>{stats.pending}</b> chờ duyệt · <b className="text-emerald-700">{stats.approved}</b> đã duyệt
+                · <b className="text-rose-700">{stats.rejected}</b> từ chối/huỷ
+              </span>
+            </span>
+          }
+          actions={
+            <>
+              <PageGuideButton guide={LEAVES_GUIDE} />
+              <Button variant="outline" onClick={() => source.refetch()} disabled={source.isFetching} className="gap-1.5">
+                <RefreshCw size={14} className={source.isFetching ? 'animate-spin' : ''} />
+                Làm mới
+              </Button>
+              {canCreateLeave && (
+                <Button onClick={openCreate} className="gap-1.5">
+                  <Plus size={14} /> Tạo đơn nghỉ phép
+                </Button>
+              )}
+            </>
+          }
+        />
+      )}
+
+      {embedded && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex flex-wrap items-center gap-2 text-sm text-neutral-600">
+            <span className="tabular-nums font-medium text-neutral-800">
+              {stats.pending} chờ duyệt
+            </span>
             <span className="text-neutral-300">·</span>
-            <span className="tabular-nums">
-              <b>{stats.pending}</b> chờ duyệt · <b className="text-emerald-700">{stats.approved}</b> đã duyệt
-              · <b className="text-rose-700">{stats.rejected}</b> từ chối/huỷ
-            </span>
-          </span>
-        }
-        actions={
-          <>
-            <PageGuideButton guide={LEAVES_GUIDE} />
-            <Button variant="outline" onClick={() => source.refetch()} disabled={source.isFetching} className="gap-1.5">
+            <span className="tabular-nums text-emerald-700">{stats.approved} đã duyệt</span>
+            <span className="text-neutral-300">·</span>
+            <span className="tabular-nums text-rose-600">{stats.rejected} từ chối/huỷ</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void source.refetch()}
+              disabled={source.isFetching}
+              className="gap-1.5 h-9"
+            >
               <RefreshCw size={14} className={source.isFetching ? 'animate-spin' : ''} />
               Làm mới
             </Button>
             {canCreateLeave && (
-              <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
-                <Plus size={14} /> Tạo đơn
+              <Button size="sm" onClick={openCreate} className="gap-1.5 h-9">
+                <Plus size={14} /> Tạo đơn nghỉ phép
               </Button>
             )}
-          </>
-        }
-      />
+          </div>
+        </div>
       )}
 
       {/* Tabs */}
-      <div className="bg-white rounded-xl border border-neutral-200 p-1 inline-flex gap-1">
+      <div className="bg-white rounded-xl border border-neutral-200 p-1 inline-flex gap-1 flex-wrap">
         <TabButton
           active={tab === 'inbox'}
           onClick={() => setTab('inbox')}
@@ -319,16 +391,11 @@ export function LeavesPage({ embedded }: { embedded?: boolean } = {}) {
         onClear={clearFilters}
         countLabel={`${list.length} đơn${hasFilter ? ' (đã lọc)' : ''}`}
         extra={(
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void source.refetch()}
-            className="gap-2 h-9"
-            disabled={source.isFetching}
-          >
-            <RefreshCw size={14} className={source.isFetching ? 'animate-spin' : ''} />
-            Làm mới
-          </Button>
+          canCreateLeave && !embedded ? (
+            <Button size="sm" onClick={openCreate} className="gap-1.5 h-9">
+              <Plus size={14} /> Tạo đơn
+            </Button>
+          ) : undefined
         )}
       >
         <div className="relative flex-1 min-w-[200px] max-w-md">
@@ -399,11 +466,15 @@ export function LeavesPage({ embedded }: { embedded?: boolean } = {}) {
             description={
               isFilteredEmpty
                 ? 'Thử điều chỉnh từ khoá hoặc bỏ bớt filter.'
-                : tab === 'mine'
-                  ? 'Bấm "Tạo đơn" ở góc trên để đăng ký nghỉ phép.'
+                : tab === 'mine' || canCreateLeave
+                  ? 'Bấm "Tạo đơn nghỉ phép" để đăng ký nghỉ.'
                   : 'Khi có đơn mới, bạn sẽ nhận notification.'
             }
-            action={isFilteredEmpty ? { label: 'Xoá lọc', onClick: clearFilters } : undefined}
+            action={
+              isFilteredEmpty
+                ? { label: 'Xoá lọc', onClick: clearFilters }
+                : createEmptyAction
+            }
           />
         </div>
       ) : (
@@ -425,8 +496,10 @@ export function LeavesPage({ embedded }: { embedded?: boolean } = {}) {
         />
       )}
 
-      {/* Modals */}
-      <LeaveRequestModal open={createOpen} onClose={() => setCreateOpen(false)} />
+      {/* Modals — chỉ local khi hub chưa nhận create */}
+      {ownsCreateModal && (
+        <LeaveRequestModal open={createOpen} onClose={() => setCreateOpen(false)} />
+      )}
       {activeLead && (
         <LeaveDetailDrawer
           lead={activeLead}

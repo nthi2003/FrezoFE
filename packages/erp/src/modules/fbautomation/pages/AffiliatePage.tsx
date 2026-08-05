@@ -10,10 +10,10 @@
 import { useMemo, useState } from 'react'
 import {
   Link2, Copy, TrendingUp, Users, DollarSign, MousePointerClick,
-  Percent, Trophy, Plus, ExternalLink, Trash2, Loader2, Search, RefreshCw, HelpCircle,
+  Percent, Trophy, Plus, ExternalLink, Loader2, Search, RefreshCw, HelpCircle,
 } from 'lucide-react'
 import {
-  Button, PageHeader, EmptyState, ErrorState, AppModal, Input, Label, Select, IconActionButton, AppTooltip,
+  Button, PageHeader, EmptyState, ErrorState, AppModal, Input, Label, Select, IconActionButton, RowActions,
 } from '@frezo/ui'
 import { toast } from 'sonner'
 import { AppTable } from '@/components/ui/AppTable'
@@ -204,28 +204,33 @@ export function AffiliatePage() {
       align: 'right',
       width: 120,
       render: (_, link) => (
-        <div className="flex items-center justify-end gap-1">
-          <IconActionButton tooltip="Mở URL đích" onClick={() => window.open(link.targetUrlWithUtm || link.targetUrl, '_blank')}>
-            <ExternalLink size={14} />
-          </IconActionButton>
-          <IconActionButton tooltip="Sao chép URL đích (kèm UTM)" onClick={() => copy(link.targetUrlWithUtm || link.targetUrl, 'Đã copy URL đích')}>
-            <Copy size={14} />
-          </IconActionButton>
-          <IconActionButton
-            tooltip="Xoá"
-            tone="red"
-            onClick={() =>
-              askConfirm({
-                title: 'Xoá link này?',
-                message: `Link ${link.code} sẽ bị xoá.`,
-                confirmText: 'Xoá',
-                onConfirm: () => deleteLink.mutate(link.id),
-              })
-            }
-          >
-            <Trash2 size={14} />
-          </IconActionButton>
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'open',
+              icon: ExternalLink,
+              tooltip: 'Mở URL đích',
+              onClick: () => window.open(link.targetUrlWithUtm || link.targetUrl, '_blank'),
+            },
+            {
+              kind: 'copy',
+              tooltip: 'Sao chép URL đích (kèm UTM)',
+              onClick: () => copy(link.targetUrlWithUtm || link.targetUrl, 'Đã copy URL đích'),
+            },
+            {
+              kind: 'delete',
+              tooltip: 'Xoá',
+              onClick: () =>
+                askConfirm({
+                  title: 'Xoá link này?',
+                  message: `Link ${link.code} sẽ bị xoá.`,
+                  confirmText: 'Xoá',
+                  onConfirm: () => deleteLink.mutate(link.id),
+                }),
+            },
+          ]}
+        />
       ),
     },
   ]

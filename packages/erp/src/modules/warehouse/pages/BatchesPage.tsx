@@ -4,8 +4,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Eye, Layers, PackagePlus } from 'lucide-react'
-import { Button, IconActionButton, actionIconTone } from '@frezo/ui'
+import { Layers, PackagePlus } from 'lucide-react'
+import { Button, RowActions } from '@frezo/ui'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { useProducts } from '@/modules/products/hooks/useProduct'
 import { BATCH_STATUS_FILTER_OPTIONS } from '../constants/warehouseStatus'
@@ -211,19 +211,19 @@ export function BatchesPage() {
       title: '',
       align: 'right',
       width: 56,
-      render: (_, row) =>
-        row?.grnId ? (
-          <div className="flex items-center justify-end gap-1">
-            <IconActionButton
-              tooltip="Phiếu nhập kho"
-              tone={actionIconTone.view}
-              size="sm"
-              onClick={() => nav(`/warehouse/grn/${row.grnId}`)}
-            >
-              <Eye size={14} />
-            </IconActionButton>
-          </div>
-        ) : null,
+      render: (_, row) => (
+        <RowActions
+          align="end"
+          actions={[
+            {
+              kind: 'view',
+              tooltip: 'Phiếu nhập kho',
+              hidden: !row?.grnId,
+              onClick: () => nav(`/warehouse/grn/${row?.grnId}`),
+            },
+          ]}
+        />
+      ),
     },
   ]
 

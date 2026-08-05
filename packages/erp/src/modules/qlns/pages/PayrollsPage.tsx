@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Calculator, CheckCircle, HandCoins, PlusCircle, Plus, Eye,
+  Calculator, CheckCircle, HandCoins, PlusCircle, Plus,
   Search, X, ChevronLeft, ChevronRight, FileSpreadsheet,
   RefreshCw, AlertTriangle, FileText, Download, Landmark, CalendarRange,
 } from 'lucide-react'
@@ -9,7 +9,7 @@ import { AppTable } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import {
   AppModal, Button, PageHeader, PageGuideButton, EmptyState, ErrorState, ConfirmDialog, Select,
-  IconActionButton, AppTooltip,
+  IconActionButton, AppTooltip, RowActions,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { usePersonsCombobox } from '../hooks/usePerson'
@@ -425,26 +425,36 @@ export function PayrollsPage({
       render: (_: any, row: any) => {
         const code = getStatusCode(row)
         return (
-          <div className="flex items-center justify-end gap-0.5">
-            <IconActionButton tooltip="Xem phiếu lương" tone="blue" onClick={() => setDetailId(row.id)}>
-              <Eye size={14} />
-            </IconActionButton>
-            {code === 'DRAFT' && (
-              <>
-                <IconActionButton tooltip="Thêm thưởng / phụ cấp" tone="amber" onClick={() => handleOpenBonus(row.id)}>
-                  <PlusCircle size={14} />
-                </IconActionButton>
-                <IconActionButton tooltip="Chốt lương" tone="blue" onClick={() => confirmPayroll.mutate(row.id)}>
-                  <CheckCircle size={14} />
-                </IconActionButton>
-              </>
-            )}
-            {code === 'CONFIRMED' && (
-              <IconActionButton tooltip="Đánh dấu đã thanh toán" tone="emerald" onClick={() => payPayroll.mutate(row.id)}>
-                <HandCoins size={14} />
-              </IconActionButton>
-            )}
-          </div>
+          <RowActions
+            align="end"
+            actions={[
+              { kind: 'view', tooltip: 'Xem phiếu lương', onClick: () => setDetailId(row.id) },
+              {
+                key: 'bonus',
+                icon: PlusCircle,
+                tooltip: 'Thêm thưởng / phụ cấp',
+                tone: 'amber',
+                onClick: () => handleOpenBonus(row.id),
+                hidden: code !== 'DRAFT',
+              },
+              {
+                key: 'confirm',
+                icon: CheckCircle,
+                tooltip: 'Chốt lương',
+                tone: 'blue',
+                onClick: () => confirmPayroll.mutate(row.id),
+                hidden: code !== 'DRAFT',
+              },
+              {
+                key: 'pay',
+                icon: HandCoins,
+                tooltip: 'Đánh dấu đã thanh toán',
+                tone: 'emerald',
+                onClick: () => payPayroll.mutate(row.id),
+                hidden: code !== 'CONFIRMED',
+              },
+            ]}
+          />
         )
       },
     },

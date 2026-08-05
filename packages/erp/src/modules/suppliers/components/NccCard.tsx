@@ -1,8 +1,7 @@
 import {
-  Phone, MapPin, User, Sprout, Weight, Award, MoreVertical,
-  Eye, Pencil, Trash2, Building2,
+  Phone, MapPin, User, Sprout, Weight, Award, Building2,
 } from 'lucide-react'
-import { useState, useRef, useEffect } from 'react'
+import { RowActions } from '@frezo/ui'
 
 interface Props {
   ncc: any
@@ -12,17 +11,6 @@ interface Props {
 }
 
 export function NccCard({ ncc, onView, onEdit, onDelete }: Props) {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
-    }
-    if (menuOpen) document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [menuOpen])
-
   const initials = getInitials(ncc.name)
   const certificatesCount = ncc.certificates?.length || 0
   const expiringCount = (ncc.certificates || []).filter((c: any) => {
@@ -63,26 +51,15 @@ export function NccCard({ ncc, onView, onEdit, onDelete }: Props) {
         </div>
       </button>
 
-      {/* Menu btn */}
-      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity" ref={menuRef}>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            setMenuOpen(!menuOpen)
-          }}
-          className="p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded"
-        >
-          <MoreVertical size={14} />
-        </button>
-        {menuOpen && (
-          <div className="absolute right-0 top-8 w-40 bg-white border border-neutral-200 rounded-lg shadow-lg overflow-hidden z-10 animate-fade-in">
-            <MenuItem icon={Eye} label="Xem chi tiết" onClick={() => { setMenuOpen(false); onView(ncc) }} />
-            <MenuItem icon={Pencil} label="Chỉnh sửa" onClick={() => { setMenuOpen(false); onEdit(ncc) }} />
-            <MenuItem icon={Trash2} label="Xoá" danger onClick={() => { setMenuOpen(false); onDelete(ncc) }} />
-          </div>
-        )}
-      </div>
+      {/* Row actions */}
+      <RowActions
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+        actions={[
+          { kind: 'view', onClick: () => onView(ncc) },
+          { kind: 'edit', onClick: () => onEdit(ncc) },
+          { kind: 'delete', onClick: () => onDelete(ncc) },
+        ]}
+      />
 
       {/* Body: contact info */}
       <div className="px-4 pb-3 space-y-1.5">
@@ -173,30 +150,6 @@ function MetricCell({
       </div>
       <div className={`text-sm font-bold mt-0.5 tabular-nums ${toneMap}`}>{value}</div>
     </div>
-  )
-}
-
-function MenuItem({
-  icon: Icon,
-  label,
-  onClick,
-  danger,
-}: {
-  icon: typeof Eye
-  label: string
-  onClick: () => void
-  danger?: boolean
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-neutral-50 transition ${
-        danger ? 'text-rose-600 hover:bg-rose-50' : 'text-neutral-700'
-      }`}
-    >
-      <Icon size={13} />
-      {label}
-    </button>
   )
 }
 

@@ -28,6 +28,7 @@ import {
   EmptyState,
   ErrorState,
   PageGuideButton,
+  RowActions,
   StatCard,
   StatusBadge,
 } from '@frezo/ui'
@@ -218,21 +219,19 @@ export function AssetsPage() {
       align: 'right',
       width: 110,
       render: (_, row) => (
-        <div className="flex items-center justify-end gap-1">
-          {row.status === 'AVAILABLE' && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1"
-              onClick={(e) => {
-                e.stopPropagation()
-                openAssign(row)
-              }}
-            >
-              Cấp phát
-            </Button>
-          )}
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'assign',
+              icon: UserCheck,
+              tooltip: 'Cấp phát',
+              tone: 'primary',
+              hidden: row.status !== 'AVAILABLE',
+              onClick: () => openAssign(row),
+            },
+          ]}
+        />
       ),
     },
   ]

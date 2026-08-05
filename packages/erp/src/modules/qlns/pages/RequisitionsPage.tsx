@@ -7,9 +7,9 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Plus, Search, Briefcase, Users as UsersIcon, Kanban, ArrowRight,
+  Plus, Search, Briefcase, Users as UsersIcon, Kanban,
 } from 'lucide-react'
-import { Button, PageHeader, AppModal, EmptyState, ErrorState, BulkSelectionBar } from '@frezo/ui'
+import { Button, PageHeader, AppModal, EmptyState, ErrorState, BulkSelectionBar, RowActions } from '@frezo/ui'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { formatDate } from '@frezo/utils'
@@ -173,13 +173,18 @@ export function RequisitionsPage() {
       align: 'right',
       width: 140,
       render: (_, r) => (
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
-          onClick={() => nav(`/qlns/recruitment/board?requisitionId=${r.id}`)}
-        >
-          Xem ứng viên <ArrowRight size={12} />
-        </button>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'candidates',
+              icon: UsersIcon,
+              tooltip: 'Xem ứng viên',
+              tone: 'blue',
+              onClick: () => nav(`/qlns/recruitment/board?requisitionId=${r.id}`),
+            },
+          ]}
+        />
       ),
     },
   ], [nav, selection])

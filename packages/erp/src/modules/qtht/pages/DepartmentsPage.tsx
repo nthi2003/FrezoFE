@@ -1,11 +1,12 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Search, Plus, Edit, Trash2, Eye, List, Users,
+  Search, Plus, List, Users,
   ZoomIn, ZoomOut, Maximize2, ChevronDown, ChevronRight, GitBranch,
-  Building2, X,
+  Building2,
 } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
+import { FilterBar } from '@/components/ui/FilterBar'
 import {
   AppModal,
   Switch,
@@ -15,10 +16,13 @@ import {
   ConfirmDialog,
   EmptyState,
   ErrorState,
-  Select,
+  Skeleton,
+  StatusBadge,
   IconActionButton,
+  RowActions,
   AppTooltip,
   type PageGuideConfig,
+  type StatusConfig,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { DepartmentDetailDrawer } from '../components/DepartmentDetailDrawer'
@@ -84,15 +88,9 @@ const defaultFormValues = {
   status: true,
 }
 
-const STATUS_LABEL: Record<string, { text: string; className: string }> = {
-  ACTIVE: {
-    text: 'Hoạt động',
-    className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  },
-  INACTIVE: {
-    text: 'Ngừng',
-    className: 'bg-neutral-100 text-neutral-500 border-neutral-200',
-  },
+const STATUS_CONFIG: Record<string, StatusConfig> = {
+  ACTIVE: { label: 'Hoạt động', color: 'success' },
+  INACTIVE: { label: 'Ngừng', color: 'neutral' },
 }
 
 export function DepartmentsPage() {
@@ -376,86 +374,75 @@ export function DepartmentsPage() {
         </p>
       )}
 
-      <div className="sticky top-0 z-10 -mx-6 px-6 py-2 bg-neutral-50/95 backdrop-blur border-y border-neutral-200/80">
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="relative flex-1 min-w-[200px] max-w-md">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <input
-              type="search"
-              placeholder="Tìm mã, tên, email, tổ chức…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-full pl-8 pr-3 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300"
-              aria-label="Tìm phòng ban"
-            />
-          </div>
+      <FilterBar
+        selects={[
+          {
+            id: 'status',
+            label: 'Trạng thái',
+            value: statusFilter,
+            onChange: (v) => setStatusFilter(v as typeof statusFilter),
+            options: [
+              { value: 'all', label: 'Tất cả trạng thái' },
+              { value: 'ACTIVE', label: 'Hoạt động' },
+              { value: 'INACTIVE', label: 'Ngừng' },
+            ],
+          },
+        ]}
+        hasActiveFilters={hasActiveFilters}
+        onClear={() => {
+          setSearchQuery('')
+          setStatusFilter('all')
+        }}
+        countLabel={`${filteredDataList.length} bản ghi${hasActiveFilters ? ' (đã lọc)' : ''}`}
+        extra={
+          <>
+            <div className="relative flex-1 min-w-[200px] max-w-md">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                type="search"
+                placeholder="Tìm mã, tên, email, tổ chức…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-9 w-full pl-8 pr-3 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300"
+                aria-label="Tìm phòng ban"
+              />
+            </div>
 
-          <div className="min-w-[140px]">
-            <Select
-              options={[
-                { value: 'all', label: 'Tất cả trạng thái' },
-                { value: 'ACTIVE', label: 'Hoạt động' },
-                { value: 'INACTIVE', label: 'Ngừng' },
-              ]}
-              value={statusFilter}
-              onChange={(v) => setStatusFilter(v as typeof statusFilter)}
-              placeholder="Trạng thái"
-              aria-label="Lọc theo trạng thái"
-              showSearch={false}
-            />
-          </div>
-
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setSearchQuery('')
-                setStatusFilter('all')
-              }}
-            >
-              <X size={12} className="mr-1" /> Xoá lọc
-            </Button>
-          )}
-
-          <div className="ml-auto flex items-center bg-white border border-neutral-200 rounded-md p-0.5">
-            <button
-              type="button"
-              onClick={() => setViewMode('tree')}
-              className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
-                viewMode === 'tree' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
-              }`}
-              aria-label="Chế độ cây phòng ban"
-            >
-              <GitBranch size={13} /> Cây phòng ban
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('personnel')}
-              className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
-                viewMode === 'personnel' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
-              }`}
-              aria-label="Chế độ sơ đồ nhân sự"
-            >
-              <Users size={13} /> Nhân sự
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
-                viewMode === 'table' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
-              }`}
-              aria-label="Chế độ danh sách"
-            >
-              <List size={13} /> Danh sách
-            </button>
-          </div>
-
-          <span className="text-xs text-neutral-500 tabular-nums">
-            {filteredDataList.length} bản ghi{hasActiveFilters ? ' (đã lọc)' : ''}
-          </span>
-        </div>
-      </div>
+            <div className="inline-flex items-center bg-white border border-neutral-200 rounded-md p-0.5">
+              <button
+                type="button"
+                onClick={() => setViewMode('tree')}
+                className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
+                  viewMode === 'tree' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
+                }`}
+                aria-label="Chế độ cây phòng ban"
+              >
+                <GitBranch size={13} /> Cây phòng ban
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('personnel')}
+                className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
+                  viewMode === 'personnel' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
+                }`}
+                aria-label="Chế độ sơ đồ nhân sự"
+              >
+                <Users size={13} /> Nhân sự
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
+                  viewMode === 'table' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
+                }`}
+                aria-label="Chế độ danh sách"
+              >
+                <List size={13} /> Danh sách
+              </button>
+            </div>
+          </>
+        }
+      />
 
       {isError ? (
         <div className="border rounded-xl bg-white">
@@ -485,8 +472,10 @@ export function DepartmentsPage() {
         </div>
       ) : viewMode === 'tree' ? (
         isLoading ? (
-          <div className="p-12 flex items-center justify-center bg-white border border-neutral-200 rounded-xl">
-            <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          <div className="px-3 py-3 bg-white border border-neutral-200 rounded-xl space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 rounded-md" style={{ marginLeft: (i % 3) * 24 }} />
+            ))}
           </div>
         ) : (
         <div className="px-3 py-3 bg-white border border-neutral-200 rounded-xl">
@@ -611,17 +600,13 @@ export function DepartmentsPage() {
                 dataIndex: 'id',
                 width: 160,
                 render: (_: any, row: any) => (
-                  <div className="flex items-center gap-1">
-                    <IconActionButton tooltip="Xem chi tiết" tone="blue" onClick={() => setDetailDept(row)}>
-                      <Eye size={14} />
-                    </IconActionButton>
-                    <IconActionButton tooltip="Sửa" tone="primary" onClick={() => handleOpenEdit(row)}>
-                      <Edit size={14} />
-                    </IconActionButton>
-                    <IconActionButton tooltip="Xoá" tone="rose" onClick={() => handleDelete(row)}>
-                      <Trash2 size={14} />
-                    </IconActionButton>
-                  </div>
+                  <RowActions
+                    actions={[
+                      { kind: 'view', onClick: () => setDetailDept(row) },
+                      { kind: 'edit', onClick: () => handleOpenEdit(row) },
+                      { kind: 'delete', onClick: () => handleDelete(row) },
+                    ]}
+                  />
                 ),
               },
             ]}
@@ -718,7 +703,7 @@ function DeptTreeNode({
 }: DeptTreeNodeProps) {
   const [expanded, setExpanded] = useState(depth === 0)
   const hasChildren = Array.isArray(node.children) && node.children.length > 0
-  const statusCfg = STATUS_LABEL[node.status || 'ACTIVE'] || STATUS_LABEL.INACTIVE
+  const statusCfg = STATUS_CONFIG[node.status || 'ACTIVE'] || STATUS_CONFIG.INACTIVE
   const isRoot = depth === 0
 
   return (
@@ -813,36 +798,22 @@ function DeptTreeNode({
           </div>
         </button>
 
-        <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded border shrink-0 ${statusCfg.className}`}>
-          {statusCfg.text}
-        </span>
+        <StatusBadge {...statusCfg} className="shrink-0" />
 
-        <div className="flex items-center gap-0.5 shrink-0 opacity-45 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-          <IconActionButton
-            tooltip="Thêm phòng ban con"
-            tone="primary"
-            className="text-neutral-500 hover:text-primary-700 hover:bg-primary-50"
-            onClick={(e) => { e.stopPropagation(); onAddChild(node) }}
-          >
-            <Plus size={13} />
-          </IconActionButton>
-          <IconActionButton
-            tooltip="Sửa"
-            tone="primary"
-            className="text-neutral-500 hover:text-primary-700 hover:bg-primary-50"
-            onClick={(e) => { e.stopPropagation(); onEdit(node) }}
-          >
-            <Edit size={13} />
-          </IconActionButton>
-          <IconActionButton
-            tooltip="Xoá"
-            tone="rose"
-            className="text-neutral-500"
-            onClick={(e) => { e.stopPropagation(); onDelete(node) }}
-          >
-            <Trash2 size={13} />
-          </IconActionButton>
-        </div>
+        <RowActions
+          className="shrink-0 opacity-45 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+          actions={[
+            {
+              key: 'add-child',
+              icon: Plus,
+              tooltip: 'Thêm phòng ban con',
+              tone: 'primary',
+              onClick: () => onAddChild(node),
+            },
+            { kind: 'edit', onClick: () => onEdit(node) },
+            { kind: 'delete', onClick: () => onDelete(node) },
+          ]}
+        />
       </div>
 
       {hasChildren && expanded && (

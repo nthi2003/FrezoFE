@@ -16,6 +16,7 @@ import {
   ConfirmDialog,
   StatusBadge,
   Select,
+  RowActions,
 } from '@frezo/ui'
 import type { StatusColor } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
@@ -127,39 +128,35 @@ export function FiscalPeriodsPage({
       align: 'right',
       width: 140,
       render: (_, p) => {
-        const isBusy = busyId === p.id
-        if (canUpdate && p.status === 'OPEN') {
-          return (
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5"
-              disabled={isBusy}
-              onClick={() => setConfirm({ type: 'close', period: p })}
-            >
-              <Lock size={14} />
-              Khóa kỳ
-            </Button>
-          )
-        }
-        if (canUpdate && p.status === 'CLOSED') {
-          return (
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5"
-              disabled={isBusy}
-              onClick={() => setConfirm({ type: 'reopen', period: p })}
-            >
-              <LockOpen size={14} />
-              Mở lại
-            </Button>
-          )
-        }
         if (p.status === 'LOCKED') {
           return <span className="text-xs text-neutral-400">Không mở từ UI</span>
         }
-        return null
+        const isBusy = busyId === p.id
+        return (
+          <RowActions
+            align="end"
+            actions={[
+              {
+                key: 'close',
+                icon: Lock,
+                tooltip: 'Khóa kỳ',
+                tone: 'amber',
+                hidden: !canUpdate || p.status !== 'OPEN',
+                disabled: isBusy,
+                onClick: () => setConfirm({ type: 'close', period: p }),
+              },
+              {
+                key: 'reopen',
+                icon: LockOpen,
+                tooltip: 'Mở lại kỳ',
+                tone: 'emerald',
+                hidden: !canUpdate || p.status !== 'CLOSED',
+                disabled: isBusy,
+                onClick: () => setConfirm({ type: 'reopen', period: p }),
+              },
+            ]}
+          />
+        )
       },
     },
   ]

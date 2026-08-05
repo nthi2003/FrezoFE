@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Loader2, KeyRound, Lock, Unlock, Eye, EyeOff, Search, Users } from 'lucide-react'
+import { Plus, Loader2, KeyRound, Lock, Unlock, Eye, EyeOff, Search, Users } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import {
@@ -19,7 +19,7 @@ import {
   PageGuideButton,
   EmptyState,
   ErrorState,
-  IconActionButton,
+  RowActions,
   type PageGuideConfig,
 } from '@frezo/ui'
 import { unwrapList } from '@frezo/utils'
@@ -255,47 +255,47 @@ export function UsersPage() {
     {
       key: 'actions', title: 'Thao tác', align: 'center', width: 140,
       render: (_, record) => (
-        <div className="flex items-center justify-center gap-1">
-          <IconActionButton tooltip="Sửa" tone="primary" onClick={() => handleOpenEdit(record)}>
-            <Edit size={15} />
-          </IconActionButton>
-          <IconActionButton
-            tooltip="Reset mật khẩu"
-            tone="amber"
-            onClick={() => setConfirm({
-              isOpen: true, title: 'Reset mật khẩu',
-              message: 'Bạn có chắc chắn muốn reset mật khẩu tài khoản này về mặc định?',
-              onConfirm: () => { resetPassword.mutate(record.id!); setConfirm(c => ({ ...c, isOpen: false })) },
-            })}
-          >
-            <KeyRound size={15} />
-          </IconActionButton>
-          {record.status === 1 ? (
-            <IconActionButton
-              tooltip="Khóa tài khoản"
-              tone="rose"
-              onClick={() => setConfirm({
+        <RowActions
+          align="center"
+          actions={[
+            { kind: 'edit', onClick: () => handleOpenEdit(record) },
+            {
+              key: 'reset-password',
+              icon: KeyRound,
+              tooltip: 'Reset mật khẩu',
+              tone: 'amber',
+              onClick: () => setConfirm({
+                isOpen: true, title: 'Reset mật khẩu',
+                message: 'Bạn có chắc chắn muốn reset mật khẩu tài khoản này về mặc định?',
+                onConfirm: () => { resetPassword.mutate(record.id!); setConfirm(c => ({ ...c, isOpen: false })) },
+              }),
+            },
+            {
+              key: 'lock',
+              icon: Lock,
+              tooltip: 'Khóa tài khoản',
+              tone: 'rose',
+              hidden: record.status !== 1,
+              onClick: () => setConfirm({
                 isOpen: true, title: 'Khóa tài khoản',
                 message: 'Bạn có chắc chắn muốn khóa tài khoản này?',
                 onConfirm: () => { lockUser.mutate(record.id!); setConfirm(c => ({ ...c, isOpen: false })) },
-              })}
-            >
-              <Lock size={15} />
-            </IconActionButton>
-          ) : (
-            <IconActionButton
-              tooltip="Mở khóa tài khoản"
-              tone="emerald"
-              onClick={() => setConfirm({
+              }),
+            },
+            {
+              key: 'unlock',
+              icon: Unlock,
+              tooltip: 'Mở khóa tài khoản',
+              tone: 'emerald',
+              hidden: record.status === 1,
+              onClick: () => setConfirm({
                 isOpen: true, title: 'Mở khóa tài khoản',
                 message: 'Bạn có chắc chắn muốn mở khóa tài khoản này?',
                 onConfirm: () => { activeUser.mutate(record.id!); setConfirm(c => ({ ...c, isOpen: false })) },
-              })}
-            >
-              <Unlock size={15} />
-            </IconActionButton>
-          )}
-        </div>
+              }),
+            },
+          ]}
+        />
       ),
     },
   ]

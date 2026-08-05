@@ -4,8 +4,8 @@
 
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Send, Eye, Package, Plus } from 'lucide-react'
-import { Button, ConfirmDialog } from '@frezo/ui'
+import { FileText, Send, Package, Plus } from 'lucide-react'
+import { Button, ConfirmDialog, RowActions } from '@frezo/ui'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { useProducts } from '@/modules/products/hooks/useProduct'
 import { useNccList } from '@/modules/suppliers/hooks/useNcc'
@@ -160,36 +160,30 @@ export function PurchaseRequestsPage() {
       render: (_, pr) => {
         const st = (pr.status || '').toUpperCase()
         return (
-          <div className="flex justify-end gap-1 flex-wrap">
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1"
-              onClick={() => nav(`/warehouse/purchase-requests/${pr.id}`)}
-            >
-              <Eye size={12} /> Chi tiết
-            </Button>
-            {st === 'DRAFT' && (
-              <Button
-                size="sm"
-                className="gap-1"
-                disabled={submit.isPending}
-                onClick={() => setSubmitTarget(pr)}
-              >
-                <Send size={12} /> Gửi duyệt
-              </Button>
-            )}
-            {st === 'APPROVED' && (
-              <Button
-                size="sm"
-                className="gap-1"
-                disabled={createPo.isPending}
-                onClick={() => setCreatePoTarget(pr)}
-              >
-                <Package size={12} /> Tạo đơn mua hàng
-              </Button>
-            )}
-          </div>
+          <RowActions
+            align="end"
+            actions={[
+              { kind: 'view', onClick: () => nav(`/warehouse/purchase-requests/${pr.id}`) },
+              {
+                key: 'submit',
+                icon: Send,
+                tooltip: 'Gửi duyệt',
+                tone: 'primary',
+                disabled: submit.isPending,
+                hidden: st !== 'DRAFT',
+                onClick: () => setSubmitTarget(pr),
+              },
+              {
+                key: 'create-po',
+                icon: Package,
+                tooltip: 'Tạo đơn mua hàng',
+                tone: 'primary',
+                disabled: createPo.isPending,
+                hidden: st !== 'APPROVED',
+                onClick: () => setCreatePoTarget(pr),
+              },
+            ]}
+          />
         )
       },
     },

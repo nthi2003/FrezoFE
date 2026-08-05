@@ -21,7 +21,7 @@ import {
   EmptyState,
   ErrorState,
   ConfirmDialog,
-  IconActionButton,
+  RowActions,
   StatusBadge,
   Select,
   Label,
@@ -284,29 +284,30 @@ export function RecognitionPage({ embedded }: { embedded?: boolean } = {}) {
           // UI luôn hiện nút trên PENDING — BE gate 403 nếu thiếu quyền
           if ((r.status || '').toUpperCase() !== 'PENDING') return null
           return (
-            <div className="inline-flex items-center justify-end gap-0.5">
-              <IconActionButton
-                tooltip="Duyệt"
-                tone="blue"
-                size="sm"
-                disabled={approve.isPending}
-                onClick={() => setApproveTarget(r)}
-              >
-                <CheckCircle2 size={14} />
-              </IconActionButton>
-              <IconActionButton
-                tooltip="Từ chối"
-                tone="rose"
-                size="sm"
-                disabled={reject.isPending}
-                onClick={() => {
-                  setRejectReason('')
-                  setRejectTarget(r)
-                }}
-              >
-                <XCircle size={14} />
-              </IconActionButton>
-            </div>
+            <RowActions
+              align="end"
+              actions={[
+                {
+                  key: 'approve',
+                  icon: CheckCircle2,
+                  tooltip: 'Duyệt',
+                  tone: 'emerald',
+                  disabled: approve.isPending,
+                  onClick: () => setApproveTarget(r),
+                },
+                {
+                  key: 'reject',
+                  icon: XCircle,
+                  tooltip: 'Từ chối',
+                  tone: 'rose',
+                  disabled: reject.isPending,
+                  onClick: () => {
+                    setRejectReason('')
+                    setRejectTarget(r)
+                  },
+                },
+              ]}
+            />
           )
         },
       },

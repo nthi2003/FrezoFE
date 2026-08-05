@@ -7,7 +7,6 @@ import {
   RefreshCw,
   Search,
   X,
-  Trash2,
   Unlock,
   Copy,
   HelpCircle,
@@ -21,6 +20,7 @@ import {
   PageGuideButton,
   AppModal,
   IconActionButton,
+  RowActions,
   AppTooltip,
   type PageGuideConfig,
 } from '@frezo/ui'
@@ -412,28 +412,29 @@ export function SecurityPage() {
         align: 'right' as const,
         render: (_: unknown, row: any) => {
           const isBan = tab === 'blacklist'
+          const handleClick = () => {
+            askConfirm({
+              title: isBan ? 'Gỡ chặn IP này?' : 'Xoá IP này?',
+              message: `IP ${row.ipAddress || ''} sẽ bị ${
+                isBan ? 'gỡ chặn' : 'xoá'
+              } khỏi danh sách.`,
+              confirmText: isBan ? 'Gỡ chặn' : 'Xoá',
+              onConfirm: () => {
+                if (tab === 'blacklist') unbanMutation.mutate(row.id)
+                if (tab === 'whitelist') unwhiteMutation.mutate(row.id)
+                if (tab === 'trust') untrustMutation.mutate(row.id)
+              },
+            })
+          }
           return (
-            <IconActionButton
-              tooltip={isBan ? 'Gỡ chặn' : 'Xoá'}
-              tone={isBan ? 'emerald' : 'red'}
-              size="sm"
-              onClick={() => {
-                askConfirm({
-                  title: isBan ? 'Gỡ chặn IP này?' : 'Xoá IP này?',
-                  message: `IP ${row.ipAddress || ''} sẽ bị ${
-                    isBan ? 'gỡ chặn' : 'xoá'
-                  } khỏi danh sách.`,
-                  confirmText: isBan ? 'Gỡ chặn' : 'Xoá',
-                  onConfirm: () => {
-                    if (tab === 'blacklist') unbanMutation.mutate(row.id)
-                    if (tab === 'whitelist') unwhiteMutation.mutate(row.id)
-                    if (tab === 'trust') untrustMutation.mutate(row.id)
-                  },
-                })
-              }}
-            >
-              {isBan ? <Unlock size={14} /> : <Trash2 size={14} />}
-            </IconActionButton>
+            <RowActions
+              align="end"
+              actions={[
+                isBan
+                  ? { key: 'unban', icon: Unlock, tooltip: 'Gỡ chặn', tone: 'emerald', onClick: handleClick }
+                  : { kind: 'delete', onClick: handleClick },
+              ]}
+            />
           )
         },
       },

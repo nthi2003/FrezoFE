@@ -20,7 +20,7 @@ import { FilterExportDrawer, FilterExportTrigger } from '@/components/shared/Fil
 import { downloadCsv } from '@/utils/csvExport'
 import {
   AppModal, Button, PageHeader, PageGuideButton, EmptyState, ErrorState, ConfirmDialog,
-  Label, Input, Select, AppTooltip, IconActionButton,
+  Label, Input, Select, AppTooltip, RowActions,
 } from '@frezo/ui'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -289,20 +289,21 @@ export function TagsPage({ embedded = false }: TagsPageProps) {
       width: 100,
       align: 'right',
       render: (_, row) => (
-        <div className="flex items-center justify-end gap-0.5">
-          <IconActionButton tooltip="Sao chép mã" tone="neutral" size="sm" onClick={() => {
-            navigator.clipboard.writeText(row.code || '')
-            toast.success(`Đã sao chép 「${row.code}」`)
-          }}>
-            <Copy size={14} />
-          </IconActionButton>
-          <IconActionButton tooltip="Sửa" tone="blue" size="sm" onClick={() => handleOpenEdit(row)}>
-            <Pencil size={14} />
-          </IconActionButton>
-          <IconActionButton tooltip="Xoá" tone="rose" size="sm" onClick={() => setConfirmDelete(row)}>
-            <Trash2 size={14} />
-          </IconActionButton>
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              kind: 'copy',
+              tooltip: 'Sao chép mã',
+              onClick: () => {
+                navigator.clipboard.writeText(row.code || '')
+                toast.success(`Đã sao chép 「${row.code}」`)
+              },
+            },
+            { kind: 'edit', onClick: () => handleOpenEdit(row) },
+            { kind: 'delete', onClick: () => setConfirmDelete(row) },
+          ]}
+        />
       ),
     },
   ], [handleOpenEdit])

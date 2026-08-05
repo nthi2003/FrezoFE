@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Plus, RefreshCw, Trash2, Video, Bell, Radio } from 'lucide-react'
+import { Plus, RefreshCw, Video, Bell, Radio } from 'lucide-react'
 import {
-  Button, PageHeader, EmptyState, ErrorState, AppModal, Input, Label, Select, IconActionButton, StatusBadge,
+  Button, PageHeader, EmptyState, ErrorState, AppModal, Input, Label, Select, RowActions, StatusBadge,
 } from '@frezo/ui'
-import { Can } from '@/lib/permissions'
+import { Can, usePermission } from '@/lib/permissions'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -33,6 +33,10 @@ export function LivePage() {
   const [showCreate, setShowCreate] = useState(false)
   const del = useDeleteLivestream()
   const action = useLivestreamAction()
+
+  const canNotify = usePermission('MKT_LIVE_ID_NOTIFY_UPDATE')
+  const canUpdateStatus = usePermission('MKT_LIVE_ID_STATUS_UPDATE')
+  const canDelete = usePermission('MKT_LIVE_ID_DELETE')
 
   const { data: dash } = useLiveDashboard()
   const { data, isLoading, isFetching, isError, refetch } = useLivestreamEvents()
@@ -80,53 +84,47 @@ export function LivePage() {
       align: 'right',
       width: 160,
       render: (_, r) => (
-        <div className="flex justify-end gap-1">
-          <Can permission="MKT_LIVE_ID_NOTIFY_UPDATE">
-            <IconActionButton
-              tooltip="Đánh dấu đã nhắc"
-              tone="amber"
-              onClick={() => action.mutate({ id: r.id, action: 'notify' })}
-            >
-              <Bell size={14} />
-            </IconActionButton>
-          </Can>
-          <Can permission="MKT_LIVE_ID_STATUS_UPDATE">
-            {r.status === 'SCHEDULED' ? (
-              <IconActionButton
-                tooltip="Bắt đầu LIVE"
-                tone="rose"
-                onClick={() => action.mutate({ id: r.id, action: 'status', status: 'LIVE' })}
-              >
-                <Radio size={14} />
-              </IconActionButton>
-            ) : null}
-            {r.status === 'LIVE' ? (
-              <IconActionButton
-                tooltip="Kết thúc"
-                tone="blue"
-                onClick={() => action.mutate({ id: r.id, action: 'status', status: 'ENDED' })}
-              >
-                <Video size={14} />
-              </IconActionButton>
-            ) : null}
-          </Can>
-          <Can permission="MKT_LIVE_ID_DELETE">
-            <IconActionButton
-              tooltip="Xoá"
-              tone="rose"
-              onClick={() =>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'notify',
+              icon: Bell,
+              tooltip: 'Đánh dấu đã nhắc',
+              tone: 'amber',
+              hidden: !canNotify,
+              onClick: () => action.mutate({ id: r.id, action: 'notify' }),
+            },
+            {
+              key: 'start',
+              icon: Radio,
+              tooltip: 'Bắt đầu LIVE',
+              tone: 'rose',
+              hidden: !canUpdateStatus || r.status !== 'SCHEDULED',
+              onClick: () => action.mutate({ id: r.id, action: 'status', status: 'LIVE' }),
+            },
+            {
+              key: 'end',
+              icon: Video,
+              tooltip: 'Kết thúc',
+              tone: 'blue',
+              hidden: !canUpdateStatus || r.status !== 'LIVE',
+              onClick: () => action.mutate({ id: r.id, action: 'status', status: 'ENDED' }),
+            },
+            {
+              kind: 'delete',
+              tooltip: 'Xoá',
+              hidden: !canDelete,
+              onClick: () =>
                 askConfirm({
                   title: 'Xoá lịch live?',
                   message: `“${r.title}” sẽ bị xoá.`,
                   confirmText: 'Xoá',
                   onConfirm: () => del.mutate(r.id),
-                })
-              }
-            >
-              <Trash2 size={14} />
-            </IconActionButton>
-          </Can>
-        </div>
+                }),
+            },
+          ]}
+        />
       ),
     },
   ]

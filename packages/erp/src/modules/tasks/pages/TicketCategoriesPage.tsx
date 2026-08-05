@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { Plus, Pencil, Trash2, Search, EyeOff, Eye, FolderTree } from 'lucide-react'
+import { Plus, Search, EyeOff, Eye, FolderTree } from 'lucide-react'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -12,7 +12,7 @@ import { FilterExportDrawer, FilterExportTrigger } from '@/components/shared/Fil
 import { downloadCsv } from '@/utils/csvExport'
 import {
   AppModal, Button, PageHeader, PageGuideButton, EmptyState, ErrorState, ConfirmDialog,
-  Label, Input, Switch, IconActionButton,
+  Label, Input, Switch, RowActions,
 } from '@frezo/ui'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -169,22 +169,20 @@ export function TicketCategoriesPage({ embedded = false }: { embedded?: boolean 
       width: 140,
       align: 'right',
       render: (_, row) => (
-        <div className="flex items-center justify-end gap-1">
-          <IconActionButton
-            tooltip={row.active ? 'Ẩn khỏi form' : 'Hiện lại trên form'}
-            tone="blue"
-            size="sm"
-            onClick={() => handleToggleActive(row)}
-          >
-            {row.active ? <EyeOff size={14} /> : <Eye size={14} />}
-          </IconActionButton>
-          <IconActionButton tooltip="Sửa" tone="blue" size="sm" onClick={() => openEdit(row)}>
-            <Pencil size={14} />
-          </IconActionButton>
-          <IconActionButton tooltip="Ẩn danh mục" tone="rose" size="sm" onClick={() => setDeleteTarget(row)}>
-            <Trash2 size={14} />
-          </IconActionButton>
-        </div>
+        <RowActions
+          align="end"
+          actions={[
+            {
+              key: 'toggle-active',
+              icon: row.active ? EyeOff : Eye,
+              tooltip: row.active ? 'Ẩn khỏi form' : 'Hiện lại trên form',
+              tone: 'blue',
+              onClick: () => handleToggleActive(row),
+            },
+            { kind: 'edit', onClick: () => openEdit(row) },
+            { kind: 'delete', tooltip: 'Ẩn danh mục', onClick: () => setDeleteTarget(row) },
+          ]}
+        />
       ),
     },
   ]

@@ -1,7 +1,7 @@
-import { Pencil, Trash2, Package, AlertTriangle, Sparkles, MoreHorizontal, LineChart } from 'lucide-react'
+import { Package, AlertTriangle, Sparkles, MoreHorizontal, LineChart } from 'lucide-react'
 import { useState } from 'react'
 import { formatCurrency } from '@frezo/utils'
-import { IconActionButton } from '@frezo/ui'
+import { RowActions } from '@frezo/ui'
 
 interface Props {
   product: any
@@ -97,45 +97,22 @@ export function ProductGridCard({
         </div>
 
         {/* Hover actions */}
-        <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {onPriceHistory && (
-            <IconActionButton
-              tooltip="Biến động giá"
-              className="p-1.5 rounded-lg bg-white/95 backdrop-blur text-neutral-600 hover:text-teal-700 shadow-sm border border-neutral-200"
-              onClick={(e) => {
-                e.stopPropagation()
-                onPriceHistory()
-              }}
-            >
-              <LineChart size={13} />
-            </IconActionButton>
-          )}
-          {onEdit && (
-            <IconActionButton
-              tooltip="Sửa"
-              tone="primary"
-              className="p-1.5 rounded-lg bg-white/95 backdrop-blur shadow-sm border border-neutral-200"
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit()
-              }}
-            >
-              <Pencil size={13} />
-            </IconActionButton>
-          )}
-          {onDelete && (
-            <IconActionButton
-              tooltip="Xoá"
-              tone="rose"
-              className="p-1.5 rounded-lg bg-white/95 backdrop-blur shadow-sm border border-neutral-200"
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete()
-              }}
-            >
-              <Trash2 size={13} />
-            </IconActionButton>
-          )}
+        <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <RowActions
+            align="end"
+            className="rounded-lg bg-white/95 backdrop-blur shadow-sm border border-neutral-200 px-1 py-0.5"
+            actions={[
+              {
+                key: 'price-history',
+                icon: LineChart,
+                tooltip: 'Biến động giá',
+                hidden: !onPriceHistory,
+                onClick: () => onPriceHistory?.(),
+              },
+              { kind: 'edit', hidden: !onEdit, onClick: () => onEdit?.() },
+              { kind: 'delete', hidden: !onDelete, onClick: () => onDelete?.() },
+            ]}
+          />
         </div>
       </div>
 
