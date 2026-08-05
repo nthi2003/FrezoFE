@@ -93,7 +93,12 @@ const STATUS_CONFIG: Record<string, StatusConfig> = {
   INACTIVE: { label: 'Ngừng', color: 'neutral' },
 }
 
-/** Trạng thái thu gọn của cây được nhớ giữa các lần vào trang. */
+type DeptViewMode = 'tree' | 'table' | 'personnel'
+
+const VIEW_MODES: DeptViewMode[] = ['tree', 'table', 'personnel']
+
+/** Chế độ xem + trạng thái thu gọn của cây được nhớ giữa các lần vào trang. */
+const VIEW_STORAGE_KEY = 'frezo.qtht.departments.view'
 const COLLAPSED_STORAGE_KEY = 'frezo.qtht.departments.collapsed'
 
 /** Bậc thụt lề + toạ độ đường nối của cây (px) — dùng chung cho row và guide line. */
@@ -645,6 +650,7 @@ export function DepartmentsPage() {
                 render: (v: string) => v || '—',
               },
               {
+                key: 'memberCount',
                 title: 'Nhân sự',
                 dataIndex: 'id',
                 render: (_: any, row: any) => (
@@ -666,6 +672,7 @@ export function DepartmentsPage() {
                 ),
               },
               {
+                key: 'actions',
                 title: 'Thao tác',
                 dataIndex: 'id',
                 width: 160,
