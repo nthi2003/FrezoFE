@@ -22,7 +22,15 @@ const EXPORT_COLUMNS: CsvColumn<Deal & { stageName?: string; customerLabel?: str
   { header: 'Khách hàng', accessor: (d) => d.customerLabel || d.customerName || '' },
   { header: 'Giai đoạn', accessor: (d) => d.stageName || '' },
   { header: 'Giá trị', accessor: (d) => formatCurrency(d.amount || 0) },
-  { header: 'Trạng thái', accessor: (d) => d.status },
+  {
+    header: 'Trạng thái',
+    accessor: (d) =>
+      d.status === 'OPEN' ? 'Đang mở'
+        : d.status === 'WON' ? 'Đã chốt'
+          : d.status === 'LOST' ? 'Thất bại'
+            : d.status === 'STALLED' ? 'Đang đứng'
+              : d.status || '',
+  },
   { header: 'Ngày chốt dự kiến', accessor: (d) => (d.expectedCloseDate ? formatDate(d.expectedCloseDate) : '') },
 ]
 
@@ -83,7 +91,7 @@ export function CrmPipelineExportDrawer({ isOpen, onClose }: Props) {
       toast.error('Không có cơ hội để xuất')
       return
     }
-    const pipelineName = pipelineList.find((p) => p.id === activePipelineId)?.name || 'pipeline'
+    const pipelineName = pipelineList.find((p) => p.id === activePipelineId)?.name || 'pheu'
     downloadCsv(`co-hoi-ban-${pipelineName}`, filtered, EXPORT_COLUMNS)
     toast.success(`Đã xuất ${filtered.length} cơ hội ra CSV`)
   }
@@ -99,7 +107,7 @@ export function CrmPipelineExportDrawer({ isOpen, onClose }: Props) {
       }}
       onExport={handleExport}
       exportDisabled={filtered.length === 0}
-      exportTooltip="Xuất pipeline / deals CSV nâng cao"
+      exportTooltip="Xuất cơ hội bán ra file CSV"
       description="Lọc phễu và trạng thái trước khi xuất CSV."
     >
       {pipelineList.length > 1 && (
@@ -115,14 +123,14 @@ export function CrmPipelineExportDrawer({ isOpen, onClose }: Props) {
         </div>
       )}
       <div className="space-y-1.5">
-        <Label htmlFor="crm-export-status" className="text-xs text-neutral-500">Trạng thái deal</Label>
+        <Label htmlFor="crm-export-status" className="text-xs text-neutral-500">Trạng thái cơ hội</Label>
         <Select
           id="crm-export-status"
           options={[
             { value: 'ALL', label: 'Tất cả' },
             { value: 'OPEN', label: 'Đang mở' },
-            { value: 'WON', label: 'Đã thắng' },
-            { value: 'LOST', label: 'Đã thua' },
+            { value: 'WON', label: 'Đã chốt' },
+            { value: 'LOST', label: 'Thất bại' },
           ]}
           value={statusFilter}
           onChange={(v) => setStatusFilter((v || 'ALL') as typeof statusFilter)}

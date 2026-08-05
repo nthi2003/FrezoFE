@@ -230,7 +230,7 @@ export function BatchesPage() {
   return (
     <WarehouseListShell
       title="Quản lý lô hàng"
-      description="Lô theo kho + HSD — FEFO khi xuất. Lô tạo khi xác nhận nhập kho (GRN Confirm)."
+      description="Lô theo kho + HSD — FEFO khi xuất. Lô tạo khi xác nhận nhập kho."
       headerActions={
         <Button variant="outline" className="gap-2" onClick={() => nav('/warehouse/grn')}>
           <PackagePlus size={16} />

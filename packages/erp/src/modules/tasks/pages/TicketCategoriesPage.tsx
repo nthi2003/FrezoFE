@@ -254,7 +254,7 @@ export function TicketCategoriesPage({ embedded = false }: { embedded?: boolean 
         </div>
       ) : (
         <PageHeader
-          title="Danh mục ticket"
+          title="Danh mục yêu cầu hỗ trợ"
           description="Nhóm loại việc trên form giao việc (Lỗi, Tính năng, Hỗ trợ…)."
           actions={headerActions}
         />

@@ -44,7 +44,7 @@ export function PerformanceHubPage() {
   return (
     <QlnsHubLayout
       title="Hiệu suất"
-      description="OKR, đánh giá hiệu suất và ghi nhận đóng góp bằng token."
+      description="OKR, đánh giá hiệu suất và ghi nhận đóng góp bằng điểm."
       tabs={tabs}
       tab={tab}
       visibleTabKeys={visibleTabKeys}

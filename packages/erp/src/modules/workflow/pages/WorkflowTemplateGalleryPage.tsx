@@ -84,7 +84,7 @@ export function WorkflowTemplateGalleryPage() {
           <EmptyState
             icon={BookTemplate}
             title="Chưa có mẫu trên server"
-            description="BE trả trống hoặc 404 — FE không mock graph tuyển dụng. Seed template trên BE rồi refresh."
+            description="Máy chủ trả trống hoặc 404 — giao diện không giả lập sơ đồ tuyển dụng. Hãy tạo mẫu trên máy chủ rồi làm mới."
             action={{
               label: 'Về danh sách quy trình',
               onClick: () => nav('/approval/flows?tab=templates'),

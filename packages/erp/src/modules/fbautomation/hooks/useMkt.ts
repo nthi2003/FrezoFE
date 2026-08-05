@@ -56,7 +56,7 @@ export function useRollbackLeadImport() {
   return useMutation({
     mutationFn: (batchId: string) => fbApi.leadImport.rollback(batchId),
     onSuccess: () => {
-      toast.success('Đã rollback batch — các lead trong batch đã bị xoá')
+      toast.success('Đã hoàn tác lô — các khách tiềm năng trong lô đã bị xoá')
       qc.invalidateQueries({ queryKey: ['mkt', 'lead-import'] })
       qc.invalidateQueries({ queryKey: ['fb', 'leads'] })
     },

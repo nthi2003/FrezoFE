@@ -129,12 +129,12 @@ export function FbLeadsPage() {
   const bulkActions: BulkAction<any>[] = [
     {
       key: 'import',
-      label: 'Import vào KH',
+      label: 'Nhập vào khách hàng',
       icon: Download,
       onClick: async (rows) => {
         const ids = rows.filter((r) => r.status !== 'IMPORTED').map((r) => r.id)
         if (ids.length === 0) {
-          toast.warning('Không có lead nào có thể import')
+          toast.warning('Không có khách tiềm năng nào có thể nhập')
           return
         }
         await importBatchReq.mutateAsync(ids)
@@ -150,11 +150,11 @@ export function FbLeadsPage() {
         const src = (lead.source || 'FACEBOOK') as keyof typeof SOURCE_META
         const srcMeta = SOURCE_META[src] ?? SOURCE_META.MANUAL
         return (
-          <AppTooltip content="Xem chi tiết lead">
+          <AppTooltip content="Xem chi tiết khách tiềm năng">
             <button
               type="button"
               onClick={() => setActiveLead(lead)}
-              aria-label="Xem chi tiết lead"
+              aria-label="Xem chi tiết khách tiềm năng"
               className="flex items-center gap-2.5 text-left"
             >
             <div className={`w-8 h-8 rounded-full ${srcMeta.bg} ${srcMeta.color} flex items-center justify-center font-semibold shrink-0 text-sm`}>
@@ -280,7 +280,7 @@ export function FbLeadsPage() {
             {
               key: 'import',
               icon: Download,
-              tooltip: 'Import vào Khách hàng',
+              tooltip: 'Nhập vào khách hàng',
               tone: 'emerald',
               hidden: lead.status === 'IMPORTED',
               disabled: importReq.isPending,
@@ -291,8 +291,8 @@ export function FbLeadsPage() {
               tooltip: 'Xoá',
               onClick: () =>
                 askConfirm({
-                  title: 'Xoá lead này?',
-                  message: `Lead "${lead.name}" sẽ bị xoá.`,
+                  title: 'Xoá khách tiềm năng này?',
+                  message: `「${lead.name}」 sẽ bị xoá.`,
                   confirmText: 'Xoá',
                   onConfirm: () => deleteReq.mutate(lead.id),
                 }),
@@ -311,20 +311,20 @@ export function FbLeadsPage() {
             <span className="w-8 h-8 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center">
               <Inbox size={16} />
             </span>
-            Inbox khách hàng
+            Hộp thư khách tiềm năng
           </span>
         }
-        description="Gộp lead từ Facebook Groups · Landing page · Zalo OA · Nhập tay — xử lý & chuyển thành khách hàng."
+        description="Gộp khách tiềm năng từ Facebook Groups · Landing page · Zalo OA · Nhập tay — xử lý và chuyển thành khách hàng."
         actions={
           <div className="flex gap-2">
             <Button
               variant="outline"
               onClick={() => navigate('/crm/leads')}
               className="gap-1.5"
-              title="Chuyển sang CRM Leads (NEW → follow-up)"
+              title="Chuyển sang khách tiềm năng CRM (Mới → theo dõi)"
             >
               <ExternalLink size={14} />
-              CRM Leads
+              Khách tiềm năng CRM
             </Button>
             <Button variant="outline" onClick={() => refetch()} disabled={isFetching} className="gap-1.5">
               <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
@@ -339,7 +339,7 @@ export function FbLeadsPage() {
           active={source === 'all'}
           onClick={() => setSource('all')}
           icon={Inbox}
-          label="Tổng lead"
+          label="Tổng khách tiềm năng"
           value={list.length}
           tone="neutral"
         />
@@ -362,7 +362,7 @@ export function FbLeadsPage() {
       <FilterBar
         hasActiveFilters={hasFilter}
         onClear={clearFilters}
-        countLabel={`${filtered.length} lead${hasFilter ? ' (đã lọc)' : ''}`}
+        countLabel={`${filtered.length} khách tiềm năng${hasFilter ? ' (đã lọc)' : ''}`}
       >
         <div className="min-w-[150px]">
           <Select
@@ -370,7 +370,7 @@ export function FbLeadsPage() {
               { value: 'all', label: `Tất cả trạng thái (${stats.all || 0})` },
               { value: 'NEW', label: `Mới (${stats.NEW || 0})` },
               { value: 'ASSIGNED', label: `Đang xử lý (${stats.ASSIGNED || 0})` },
-              { value: 'IMPORTED', label: `Đã import KH (${stats.IMPORTED || 0})` },
+              { value: 'IMPORTED', label: `Đã nhập khách hàng (${stats.IMPORTED || 0})` },
             ]}
             value={status}
             onChange={(v) => setStatus(v as StatusKey)}
@@ -386,12 +386,12 @@ export function FbLeadsPage() {
             placeholder="Tìm theo tên, SĐT, email, nội dung…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            aria-label="Tìm lead"
+            aria-label="Tìm khách tiềm năng"
           />
         </div>
         <span
           className="inline-flex items-center text-neutral-400"
-          title="Chọn dòng để import hàng loạt vào Khách hàng"
+          title="Chọn dòng để nhập hàng loạt vào Khách hàng"
         >
           <HelpCircle size={14} />
         </span>
@@ -400,7 +400,7 @@ export function FbLeadsPage() {
       {isError ? (
         <div className="border rounded-xl bg-white">
           <ErrorState
-            title="Không tải được inbox"
+            title="Không tải được hộp thư khách tiềm năng"
             message="Kiểm tra kết nối hoặc quyền truy cập rồi thử lại."
             onRetry={() => void refetch()}
             isRetrying={isFetching}
@@ -410,11 +410,11 @@ export function FbLeadsPage() {
         <div className="border rounded-xl bg-white">
           <EmptyState
             icon={hasFilter ? Search : Inbox}
-            title={hasFilter ? 'Không có lead khớp bộ lọc' : 'Inbox trống'}
+            title={hasFilter ? 'Không có khách tiềm năng khớp bộ lọc' : 'Hộp thư trống'}
             description={
               hasFilter
                 ? 'Thử điều chỉnh từ khoá hoặc bỏ bớt bộ lọc.'
-                : 'Chưa có lead nào. Khi khách gửi form landing, chat Zalo OA, hoặc bot crawl FB Groups — chúng sẽ hiện tại đây.'
+                : 'Chưa có khách tiềm năng. Khi khách gửi form landing, chat Zalo OA, hoặc thu thập từ nhóm Facebook — sẽ hiện tại đây.'
             }
             action={
               hasFilter
@@ -591,10 +591,10 @@ function LeadDetailDrawer({
           )}
 
           <section>
-            <SectionTitle>Kênh & Meta</SectionTitle>
+            <SectionTitle>Kênh & thông tin nguồn</SectionTitle>
             <InfoRow label="Trạng thái" value={STATUS_META[(lead.status || 'NEW') as keyof typeof STATUS_META]?.label} />
-            <InfoRow label="Assign cho" value={lead.assignedTo} />
-            <InfoRow label="Referer" value={lead.referer} />
+            <InfoRow label="Gán cho" value={lead.assignedTo} />
+            <InfoRow label="Trang giới thiệu" value={lead.referer} />
             <InfoRow label="IP" value={lead.sourceIp} />
             {lead.profileUrl && (
               <div className="pt-2">
@@ -604,7 +604,7 @@ function LeadDetailDrawer({
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800"
                 >
-                  <ExternalLink size={12} /> Mở profile gốc
+                  <ExternalLink size={12} /> Mở hồ sơ gốc
                 </a>
               </div>
             )}
@@ -615,7 +615,7 @@ function LeadDetailDrawer({
           <Button variant="outline" onClick={onClose} className="flex-1">Đóng</Button>
           {!disabled && (
             <Button onClick={onImport} className="flex-1 gap-1.5">
-              <Download size={14} /> Import vào KH
+              <Download size={14} /> Nhập vào khách hàng
             </Button>
           )}
         </div>

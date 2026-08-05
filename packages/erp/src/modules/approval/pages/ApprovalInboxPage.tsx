@@ -303,7 +303,7 @@ export function ApprovalInboxPage() {
         onClose={() => !bulkRunning && setBulkMode(null)}
         onConfirm={() => void runBulk()}
         title={`Duyệt ${selectedPending.length} yêu cầu?`}
-        message={`Bạn đang duyệt hàng loạt ${selectedPending.length} đơn PENDING. Thao tác không hoàn tác trên bước hiện tại.`}
+        message={`Bạn đang duyệt hàng loạt ${selectedPending.length} đơn đang chờ. Thao tác không hoàn tác trên bước hiện tại.`}
         confirmText={`Duyệt ${selectedPending.length}`}
         variant="default"
         isLoading={bulkRunning}

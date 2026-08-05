@@ -76,7 +76,7 @@ function consolidateCrmGroup(group: MenuTreeNode): MenuTreeNode {
   ) {
     newChildren.push({
       ...(pipelineSeed ?? crmLeaves[0] ?? leaves[0]),
-      name: 'Pipeline bán hàng',
+      name: 'Phễu bán hàng',
       feUrl: CRM_PIPELINE_HUB_PATH,
       children: [],
       isGroup: false,

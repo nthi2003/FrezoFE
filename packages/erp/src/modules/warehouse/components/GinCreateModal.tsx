@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import { AppModal, Button, Input, Label, Select, VndInput } from '@frezo/ui'
+import { Button, FormModal, Input, Label, Select, VndInput } from '@frezo/ui'
 import { cn, parseVndInput } from '@frezo/utils'
 import { GIN_ISSUE_TYPE_OPTIONS } from '../constants/warehouseStatus'
 import type { GinCreateRequest } from '../services/ginApi'
@@ -232,12 +232,16 @@ export function GinCreateModal({
   }))
 
   return (
-    <AppModal
+    <FormModal
       isOpen={isOpen}
       onClose={onClose}
       title="Tạo phiếu xuất kho"
       description="Nhập thông tin chứng từ và thêm từng dòng hàng — sau khi lưu sẽ mở biên lai phiếu xuất."
-      maxWidth="4xl"
+      size="xl"
+      onSubmit={handleSubmit}
+      isSubmitting={isPending}
+      submitDisabled={!isValid}
+      submitText="Lưu nháp"
     >
       <div className="space-y-6 pb-1">
         <section>
@@ -468,16 +472,7 @@ export function GinCreateModal({
             </p>
           )}
         </section>
-
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-neutral-200">
-          <Button variant="outline" onClick={onClose} disabled={isPending}>
-            Huỷ
-          </Button>
-          <Button onClick={handleSubmit} disabled={!isValid || isPending}>
-            {isPending ? 'Đang lưu…' : 'Lưu nháp'}
-          </Button>
-        </div>
       </div>
-    </AppModal>
+    </FormModal>
   )
 }

@@ -111,7 +111,7 @@ export function BankReconciliationPage({ embedded }: { embedded?: boolean } = {}
         {!embedded && (
         <PageHeader
           title="Đối chiếu ngân hàng"
-          description="Import sao kê CSV và khớp với bút toán sổ cái."
+          description="Nhập sao kê CSV và khớp với bút toán sổ cái."
           actions={(
             <span
               className="inline-flex items-center text-neutral-400 hover:text-primary-600 cursor-help"
@@ -126,8 +126,8 @@ export function BankReconciliationPage({ embedded }: { embedded?: boolean } = {}
         <div className="border rounded-xl bg-white">
           <EmptyState
             icon={Landmark}
-            title="Chưa có sao kê nào, hãy import"
-            description="Upload CSV từ ngân hàng để bắt đầu đối chiếu."
+            title="Chưa có sao kê nào, hãy nhập file"
+            description="Tải lên CSV từ ngân hàng để bắt đầu đối chiếu."
             action={
               canCreate
                 ? {
@@ -201,7 +201,7 @@ export function BankReconciliationPage({ embedded }: { embedded?: boolean } = {}
 
       {active && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Sum label="Tổng import" value={active.importedLines} />
+          <Sum label="Tổng dòng đã nhập" value={active.importedLines} />
           <Sum label="Đã khớp" value={active.matchedCount} tone="emerald" />
           <Sum label="Chưa khớp" value={active.unmatchedCount} tone="amber" />
           <Sum

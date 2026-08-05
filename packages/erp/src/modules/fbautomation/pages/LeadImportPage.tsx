@@ -113,13 +113,13 @@ export function LeadImportPage() {
     <div className="min-h-screen bg-neutral-50/50">
       <div className="max-w-[1400px] mx-auto p-6 space-y-6">
         <PageHeader
-          title="Nhập lead hàng loạt"
-          description="Upload file CSV hoặc Excel (.xlsx) — hệ thống tự parse, dedupe theo SĐT/email và tạo lead."
+          title="Nhập khách tiềm năng hàng loạt"
+          description="Tải lên file CSV hoặc Excel (.xlsx) — hệ thống tự đọc, bỏ trùng theo SĐT/email và tạo khách tiềm năng."
           actions={
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => navigate('/crm/leads')}>
                 <ExternalLink size={16} className="mr-2" />
-                Mở CRM Leads
+                Mở khách tiềm năng CRM
               </Button>
               <Button variant="outline" onClick={downloadSample}>
                 <Download size={16} className="mr-2" />
@@ -132,21 +132,21 @@ export function LeadImportPage() {
         {lastResult && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
             <div className="text-sm text-emerald-950">
-              <p className="font-semibold">Import xong — map sang CRM Leads</p>
+              <p className="font-semibold">Nhập xong — đã chuyển sang khách tiềm năng CRM</p>
               <p className="text-emerald-900/90 mt-0.5">
-                OK {lastResult.ok}/{lastResult.total}
+                Thành công {lastResult.ok}/{lastResult.total}
                 {lastResult.skip > 0 && (
-                  <> · <strong>{lastResult.skip} trùng</strong> đã bỏ qua (không tạo duplicate silent)</>
+                  <> · <strong>{lastResult.skip} trùng</strong> đã bỏ qua (không tạo bản ghi trùng)</>
                 )}
                 {lastResult.fail > 0 && <> · {lastResult.fail} lỗi</>}
-                . Status MKT NEW → CRM Lead NEW khi mở CRM.
+                . Trạng thái MKT Mới → khách tiềm năng CRM (Mới) khi mở CRM.
               </p>
             </div>
             <Button
               className="shrink-0 gap-1.5"
               onClick={() => navigate('/crm/leads?status=NEW')}
             >
-              <ExternalLink size={14} /> Mở CRM Leads
+              <ExternalLink size={14} /> Mở khách tiềm năng CRM
             </Button>
           </div>
         )}
@@ -214,7 +214,7 @@ export function LeadImportPage() {
               {/* Config */}
               <div className="grid md:grid-cols-2 gap-4 mt-4">
                 <div>
-                  <Label>Nguồn (gán cho tất cả lead trong file)</Label>
+                  <Label>Nguồn (gán cho tất cả khách tiềm năng trong file)</Label>
                   <Input
                     value={source}
                     onChange={(e) => setSource(e.target.value)}
@@ -230,7 +230,7 @@ export function LeadImportPage() {
                       className="w-4 h-4 accent-primary-600"
                     />
                     <span className="text-sm">
-                      Bỏ qua lead trùng SĐT/email (khuyên bật)
+                      Bỏ qua khách tiềm năng trùng SĐT/email (khuyên bật)
                     </span>
                   </label>
                 </div>
@@ -345,7 +345,7 @@ export function LeadImportPage() {
                       onRollback={() => {
                         askConfirm({
                           title: 'Hoàn tác batch này?',
-                          message: `Batch "${b.filename}" — toàn bộ lead trong batch sẽ bị xoá mềm.`,
+                          message: `Lô "${b.filename}" — toàn bộ khách tiềm năng trong lô sẽ bị xoá mềm.`,
                           confirmText: 'Hoàn tác',
                           variant: 'warning',
                           onConfirm: () => rollbackMut.mutate(b.id),

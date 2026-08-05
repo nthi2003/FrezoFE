@@ -19,10 +19,10 @@ export function useCreateEmailSequence() {
     mutationFn: (body: EmailSequenceCreateRequest) =>
       emailSequencesApi.create(body),
     onSuccess: () => {
-      toast.success('Đã tạo sequence')
+      toast.success('Đã tạo chuỗi email tự động')
       qc.invalidateQueries({ queryKey: ['crm', 'email-sequences'] })
     },
-    onError: () => toast.error('Tạo sequence thất bại'),
+    onError: () => toast.error('Tạo chuỗi email thất bại'),
   })
 }
 
@@ -37,9 +37,9 @@ export function useEnrollEmailSequence() {
       body: EnrollRequest
     }) => emailSequencesApi.enroll(sequenceId, body),
     onSuccess: () => {
-      toast.success('Đã enroll lead')
+      toast.success('Đã thêm khách tiềm năng vào chuỗi')
       qc.invalidateQueries({ queryKey: ['crm', 'email-sequences'] })
     },
-    onError: () => toast.error('Enroll thất bại'),
+    onError: () => toast.error('Thêm vào chuỗi thất bại'),
   })
 }

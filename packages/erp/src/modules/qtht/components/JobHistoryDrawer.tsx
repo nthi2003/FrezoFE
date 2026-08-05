@@ -269,6 +269,7 @@ export function JobHistoryDrawer({ job, onClose }: JobHistoryDrawerProps) {
         title="Chi tiết lần chạy"
         description={detail ? formatDateTime(detail.startedAt) : undefined}
         size="lg"
+        showFooter={false}
       >
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">

@@ -104,8 +104,8 @@ export function EmailSequencesPage({ embedded }: { embedded?: boolean } = {}) {
       <div className={pageRootClass(embedded, embedded ? 'px-1' : '')}>
         {!embedded && (
           <PageHeader
-            title="Chuỗi email"
-            description="Chuỗi nurture — đang kiểm tra cấu hình email…"
+            title="Chuỗi email tự động"
+            description="Chuỗi email chăm sóc — đang kiểm tra cấu hình email…"
           />
         )}
         <AppTable columns={columns} data={[]} isLoading density="compact" showSearch={false} />
@@ -118,15 +118,15 @@ export function EmailSequencesPage({ embedded }: { embedded?: boolean } = {}) {
       <div className={pageRootClass(embedded, embedded ? 'px-1' : '')}>
         {!embedded && (
           <PageHeader
-            title="Chuỗi email"
-            description="Chuỗi nurture — cần cấu hình email đã kích hoạt trước khi đăng ký lead."
+            title="Chuỗi email tự động"
+            description="Chuỗi email chăm sóc — cần bật cấu hình email trước khi thêm khách tiềm năng vào chuỗi."
           />
         )}
         <div className="border rounded-xl bg-white">
           <EmptyState
             icon={Mail}
             title="Chưa có cấu hình email hoạt động"
-            description="Đăng ký lead vào chuỗi bị chặn khi thiếu cấu hình đã kích hoạt. Kích hoạt cấu hình rồi quay lại."
+            description="Không thể thêm khách tiềm năng vào chuỗi khi chưa bật cấu hình email. Bật cấu hình rồi quay lại."
             action={{
               label: 'Đến cấu hình email',
               onClick: () => navigate('/email/config'),
@@ -141,8 +141,8 @@ export function EmailSequencesPage({ embedded }: { embedded?: boolean } = {}) {
     <div className={pageRootClass(embedded, embedded ? 'px-1' : '')}>
       {!embedded && (
         <PageHeader
-          title="Chuỗi email"
-          description="Chuỗi nurture — đăng ký lead chỉ khi cấu hình email đã kích hoạt."
+          title="Chuỗi email tự động"
+          description="Chuỗi email chăm sóc — chỉ thêm khách tiềm năng khi cấu hình email đã bật."
           actions={
             <Button
               variant="outline"
@@ -191,8 +191,8 @@ export function EmailSequencesPage({ embedded }: { embedded?: boolean } = {}) {
       {isError ? (
         <div className="border rounded-xl bg-white">
           <ErrorState
-            title="Không tải được chuỗi email"
-            message="Lỗi API / mạng. Thử lại hoặc kiểm tra quyền CRM."
+            title="Không tải được chuỗi email tự động"
+            message="Không kết nối được máy chủ. Thử lại hoặc kiểm tra quyền truy cập."
             onRetry={() => void refetch()}
             isRetrying={isFetching}
           />
@@ -201,11 +201,11 @@ export function EmailSequencesPage({ embedded }: { embedded?: boolean } = {}) {
         <div className="border rounded-xl bg-white">
           <EmptyState
             icon={Mail}
-            title={isFilteredEmpty ? 'Không có chuỗi khớp bộ lọc' : 'Chưa có chuỗi email'}
+            title={isFilteredEmpty ? 'Không có chuỗi khớp bộ lọc' : 'Chưa có chuỗi email tự động'}
             description={
               isFilteredEmpty
                 ? 'Thử xoá lọc hoặc đổi từ khoá.'
-                : 'Tạo chuỗi khi BA/SA mở quyền mutate. Đăng ký lead vẫn cần cấu hình email đã kích hoạt.'
+                : 'Chưa có chuỗi nào. Thêm khách tiềm năng vào chuỗi vẫn cần cấu hình email đã bật.'
             }
             action={
               isFilteredEmpty

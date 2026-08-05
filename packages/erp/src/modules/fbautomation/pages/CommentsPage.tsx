@@ -52,13 +52,13 @@ export function CommentsPage() {
   const commentCols: AppTableColumn<any>[] = [
     {
       key: 'content',
-      title: 'Comment',
+      title: 'Bình luận',
       render: (_, r) => (
         <div>
           <div className="text-sm text-neutral-900 line-clamp-2">{r.content}</div>
           <div className="text-xs text-neutral-500 mt-0.5">
             {r.authorName || 'Ẩn danh'} · {r.platform}
-            {r.matchedRuleName ? ` · rule: ${r.matchedRuleName}` : ''}
+            {r.matchedRuleName ? ` · quy tắc: ${r.matchedRuleName}` : ''}
           </div>
         </div>
       ),
@@ -144,7 +144,7 @@ export function CommentsPage() {
       width: 80,
       render: (_, r) => <StatusBadge label={r.enabled ? 'Bật' : 'Tắt'} color={r.enabled ? 'success' : 'neutral'} />,
     },
-    { key: 'hitCount', title: 'Hit', width: 70, align: 'right', render: (_, r) => r.hitCount ?? 0 },
+    { key: 'hitCount', title: 'Lượt khớp', width: 70, align: 'right', render: (_, r) => r.hitCount ?? 0 },
     {
       key: 'actions',
       title: '',
@@ -156,12 +156,12 @@ export function CommentsPage() {
           actions={[
             {
               kind: 'delete',
-              tooltip: 'Xoá rule',
+              tooltip: 'Xoá quy tắc',
               hidden: !canDeleteRule,
               onClick: () =>
                 askConfirm({
-                  title: 'Xoá rule?',
-                  message: `Rule “${r.name}” sẽ bị xoá.`,
+                  title: 'Xoá quy tắc?',
+                  message: `Quy tắc “${r.name}” sẽ bị xoá.`,
                   confirmText: 'Xoá',
                   onConfirm: () => deleteRule.mutate(r.id),
                 }),
@@ -175,8 +175,8 @@ export function CommentsPage() {
   return (
     <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
-        title="Kiểm duyệt Comment"
-        description="Rule từ khoá + hàng đợi comment (MVP offline). Webhook Meta feed sẽ nối sau khi có Page Token."
+        title="Kiểm duyệt bình luận"
+        description="Quy tắc từ khoá + hàng đợi bình luận (bản nội bộ). Kết nối feed Meta sẽ bổ sung sau khi có mã trang."
         actions={
           <>
             <Button variant="outline" onClick={() => { refetch(); refetchRules() }} disabled={isFetching}>
@@ -186,7 +186,7 @@ export function CommentsPage() {
             <Can permission="MKT_COMMENTS_RULES_CREATE">
               <Button variant="outline" onClick={() => setShowRule(true)}>
                 <Shield size={16} className="mr-2" />
-                Thêm rule
+                Thêm quy tắc
               </Button>
             </Can>
             <Can permission="MKT_COMMENTS_CREATE">
@@ -210,7 +210,7 @@ export function CommentsPage() {
       <FilterBar
         hasActiveFilters={statusFilter !== 'ALL'}
         onClear={() => setStatusFilter('ALL')}
-        countLabel={`${filtered.length} comment`}
+        countLabel={`${filtered.length} bình luận`}
       >
         <Select
           options={[
@@ -227,17 +227,17 @@ export function CommentsPage() {
       </FilterBar>
 
       {isError ? (
-        <ErrorState title="Không tải được comment" onRetry={() => refetch()} />
+        <ErrorState title="Không tải được bình luận" onRetry={() => refetch()} />
       ) : !isLoading && filtered.length === 0 ? (
-        <EmptyState title="Hàng đợi trống" description="Thêm comment thủ công hoặc đợi webhook Meta." />
+        <EmptyState title="Hàng đợi trống" description="Thêm bình luận thủ công hoặc đợi kết nối Meta." />
       ) : (
         <AppTable columns={commentCols} data={filtered} loading={isLoading} rowKey={(r) => r.id} pageSize={10} />
       )}
 
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-neutral-800">Rule từ khoá</h3>
+        <h3 className="text-sm font-semibold text-neutral-800">Quy tắc từ khoá</h3>
         {rules.length === 0 ? (
-          <EmptyState title="Chưa có rule" description="Tạo rule để tự gắn cờ khi nội dung chứa từ khoá." />
+          <EmptyState title="Chưa có quy tắc" description="Tạo quy tắc để tự gắn cờ khi nội dung chứa từ khoá." />
         ) : (
           <AppTable columns={ruleCols} data={rules} rowKey={(r) => r.id} pageSize={10} />
         )}
@@ -263,7 +263,7 @@ function CreateCommentModal({ open, onClose }: { open: boolean; onClose: () => v
   const create = useCreateComment()
   const [form, setForm] = useState({ authorName: '', content: '', platform: 'FACEBOOK', postUrl: '' })
   return (
-    <AppModal isOpen={open} onClose={onClose} title="Thêm comment vào hàng đợi" maxWidth="lg">
+    <AppModal isOpen={open} onClose={onClose} title="Thêm bình luận vào hàng đợi" maxWidth="lg">
       <div className="space-y-3">
         <div>
           <Label>Tác giả</Label>
@@ -295,10 +295,10 @@ function CreateRuleModal({ open, onClose }: { open: boolean; onClose: () => void
   const create = useCreateCommentRule()
   const [form, setForm] = useState({ name: '', keywords: '', action: 'FLAG', replyTemplate: '' })
   return (
-    <AppModal isOpen={open} onClose={onClose} title="Thêm rule kiểm duyệt" maxWidth="lg">
+    <AppModal isOpen={open} onClose={onClose} title="Thêm quy tắc kiểm duyệt" maxWidth="lg">
       <div className="space-y-3">
         <div>
-          <Label>Tên rule</Label>
+          <Label>Tên quy tắc</Label>
           <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </div>
         <div>

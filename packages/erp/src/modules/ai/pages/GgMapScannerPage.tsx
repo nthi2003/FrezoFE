@@ -176,7 +176,7 @@ export function GgMapScannerPage() {
             Quét Google Maps
           </span>
         }
-        description="Tìm quán ăn, nhà hàng, cửa hàng trên Google Maps và import vào danh sách khách hàng tiềm năng."
+        description="Tìm quán ăn, nhà hàng, cửa hàng trên Google Maps và thêm vào danh sách khách hàng tiềm năng."
         actions={
           results.length > 0 ? (
             <Button

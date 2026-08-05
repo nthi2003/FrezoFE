@@ -111,7 +111,7 @@ export function ReviewsPage() {
     <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
         title="Theo dõi đánh giá"
-        description="Nhập và theo dõi review fanpage / Google. Alert khi ≤2★. Sync Meta sẽ bổ sung sau."
+        description="Nhập và theo dõi đánh giá fanpage / Google. Cảnh báo khi ≤2★. Đồng bộ Meta sẽ bổ sung sau."
         actions={
           <>
             <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
@@ -129,7 +129,7 @@ export function ReviewsPage() {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi icon={Star} label="Tổng review" value={d.totalReviews ?? rows.length} />
+        <Kpi icon={Star} label="Tổng đánh giá" value={d.totalReviews ?? rows.length} />
         <Kpi icon={Star} label="Điểm TB" value={d.averageRating ?? 0} />
         <Kpi icon={Star} label="≤2★" value={d.lowRatingCount ?? 0} />
         <Kpi icon={MessageSquare} label="Chưa trả lời" value={d.newCount ?? 0} />
@@ -156,7 +156,7 @@ export function ReviewsPage() {
       {isError ? (
         <ErrorState title="Không tải được đánh giá" onRetry={() => refetch()} />
       ) : !isLoading && filtered.length === 0 ? (
-        <EmptyState title="Chưa có đánh giá" description="Thêm review thủ công để theo dõi phản hồi khách." />
+        <EmptyState title="Chưa có đánh giá" description="Thêm đánh giá thủ công để theo dõi phản hồi khách." />
       ) : (
         <AppTable columns={columns} data={filtered} loading={isLoading} rowKey={(r) => r.id} pageSize={10} />
       )}

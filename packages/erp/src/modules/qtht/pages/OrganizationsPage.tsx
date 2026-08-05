@@ -27,7 +27,7 @@ import { OrganizationDetailDrawer } from '../components/OrganizationDetailDrawer
 const ORGANIZATIONS_GUIDE: PageGuideConfig = {
   title: 'Cơ cấu tổ chức',
   subtitle:
-    'Quản lý pháp nhân, chi nhánh và đối tác theo hierarchy. Xem cây để hiểu quan hệ, hoặc bảng để lọc/tìm nhanh.',
+    'Quản lý pháp nhân, chi nhánh và đối tác theo cây tổ chức. Xem cây để hiểu quan hệ, hoặc bảng để lọc/tìm nhanh.',
   sections: [
     {
       heading: 'Cách sử dụng',
@@ -317,7 +317,7 @@ export function OrganizationsPage() {
     <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
         title="Cơ cấu tổ chức"
-        description="Quản lý pháp nhân, chi nhánh, phòng ban và đối tác theo hierarchy."
+        description="Quản lý pháp nhân, chi nhánh, phòng ban và đối tác theo cây tổ chức."
         actions={
           <div className="flex flex-wrap gap-2 items-center">
             <PageGuideButton guide={ORGANIZATIONS_GUIDE} />

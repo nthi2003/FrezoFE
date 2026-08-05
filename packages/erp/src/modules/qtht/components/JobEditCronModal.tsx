@@ -71,7 +71,7 @@ export function JobEditCronModal({
     }
     if (!isCronShapeValid(expr)) {
       setPreview([])
-      setPreviewError('Cron Spring cần đủ 6 trường: giây phút giờ ngày tháng thứ.')
+      setPreviewError('Biểu thức lịch cần đủ 6 trường: giây phút giờ ngày tháng thứ.')
       setIsPreviewing(false)
       return
     }
@@ -91,7 +91,7 @@ export function JobEditCronModal({
         .catch(() => {
           if (latestRequest.current !== requestId) return
           setPreview([])
-          setPreviewError('Biểu thức cron không hợp lệ — kiểm tra lại cú pháp.')
+          setPreviewError('Biểu thức lịch không hợp lệ — kiểm tra lại cú pháp.')
         })
         .finally(() => {
           if (latestRequest.current === requestId) setIsPreviewing(false)
@@ -213,7 +213,7 @@ export function JobEditCronModal({
             htmlFor="job-cron-expression"
             className="text-xs font-semibold uppercase tracking-wider text-neutral-500"
           >
-            Biểu thức cron
+            Biểu thức lịch
           </label>
           <input
             id="job-cron-expression"

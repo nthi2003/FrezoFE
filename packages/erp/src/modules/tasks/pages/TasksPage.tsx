@@ -470,11 +470,11 @@ export function TasksPage({ embedded = false }: TasksPageProps) {
             onSettled: () => setDeleteTarget(null),
           })
         }}
-        title="Xoá task này?"
+        title="Xoá giao việc này?"
         message={
           deleteTarget?.title
-            ? `Task "${deleteTarget.title}" sẽ bị xoá. Không thể hoàn tác.`
-            : 'Task sẽ bị xoá. Không thể hoàn tác.'
+            ? `Giao việc "${deleteTarget.title}" sẽ bị xoá. Không thể hoàn tác.`
+            : 'Giao việc sẽ bị xoá. Không thể hoàn tác.'
         }
         confirmText="Xoá"
         cancelText="Huỷ"

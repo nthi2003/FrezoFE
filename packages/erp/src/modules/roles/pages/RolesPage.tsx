@@ -456,7 +456,7 @@ export function RolesPage() {
     <div className="p-6 space-y-5 animate-fade-in">
       <PageHeader
         title="Vai trò & Phân quyền"
-        description="Cấu hình role, gán menu cho role, nhân bản nhanh khi tạo role tương tự"
+        description="Cấu hình vai trò, gán menu cho vai trò, nhân bản nhanh khi tạo vai trò tương tự"
         actions={
           <>
             <PageGuideButton guide={ROLES_GUIDE} />
@@ -589,7 +589,7 @@ export function RolesPage() {
                     <button
                       type="button"
                       onClick={() => handleOpenClone(selectedRole)}
-                      aria-label="Nhân bản role"
+                      aria-label="Nhân bản vai trò"
                       className="h-8 px-2.5 rounded-lg text-xs font-medium text-neutral-600 hover:text-primary-700 hover:bg-primary-50 border border-neutral-200 inline-flex items-center gap-1"
                     >
                       <Copy size={12} /> Clone
@@ -758,7 +758,7 @@ export function RolesPage() {
           </div>
           <div className="space-y-1.5">
             <Label>Mô tả</Label>
-            <Input placeholder="Chức năng của role" {...register('description')} />
+            <Input placeholder="Chức năng của vai trò" {...register('description')} />
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t border-neutral-100">
             <Button type="button" variant="outline" onClick={() => setIsRoleModalOpen(false)}>
@@ -833,7 +833,7 @@ export function RolesPage() {
           setDirty(false)
         }}
         title="Bạn có thay đổi chưa lưu"
-        message="Chuyển sang role khác sẽ mất thay đổi chưa lưu. Tiếp tục?"
+        message="Chuyển sang vai trò khác sẽ mất thay đổi chưa lưu. Tiếp tục?"
         confirmText="Bỏ thay đổi & chuyển"
         variant="warning"
       />

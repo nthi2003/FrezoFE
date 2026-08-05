@@ -53,7 +53,7 @@ export function CrmPipelineHubPage() {
   const headerExtra = (
     <div className="flex flex-wrap items-center gap-2">
       {canAccessSequencesDrawer(menuUrls) && (
-        <AppTooltip content="Chuỗi email nurture — automation từ pipeline">
+        <AppTooltip content="Chuỗi email chăm sóc — tự động gửi theo phễu bán hàng">
           <Button
             type="button"
             variant="outline"
@@ -62,7 +62,7 @@ export function CrmPipelineHubPage() {
             onClick={sequencesDrawer.open}
           >
             <Mail size={15} />
-            Email sequence
+            Chuỗi email tự động
           </Button>
         </AppTooltip>
       )}
@@ -75,8 +75,8 @@ export function CrmPipelineHubPage() {
   return (
     <>
       <CrmHubLayout
-        title="Pipeline bán hàng"
-        description="Leads, cơ hội bán và cuộc họp — cùng luồng chuyển đổi khách hàng."
+        title="Phễu bán hàng"
+        description="Khách tiềm năng, cơ hội bán và cuộc họp — cùng luồng chuyển đổi khách hàng."
         tabs={tabs}
         tab={tab}
         visibleTabKeys={visibleTabKeys}

@@ -171,7 +171,7 @@ export function MeetingsPage({ embedded }: { embedded?: boolean } = {}) {
       {embedded ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-neutral-600">
-            Cuộc họp gắn deal hoặc khách hàng.
+            Cuộc họp gắn cơ hội bán hoặc khách hàng.
             <span className="ml-2 text-xs text-neutral-400 tabular-nums">
               {filtered.length} cuộc họp{hasFilter ? ' (đã lọc)' : ''}
             </span>

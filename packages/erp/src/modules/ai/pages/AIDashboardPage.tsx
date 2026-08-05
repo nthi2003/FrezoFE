@@ -60,7 +60,7 @@ export function AIDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Group đã quét" value={groupsData?.groups?.length || 0} icon={Users} color="bg-blue-50 text-blue-600" isLoading={groupsLoading} to="/ai/scan-groups" />
         <StatCard title="Bài đã đăng" value={postsData?.posts?.length || 0} icon={Send} color="bg-emerald-50 text-emerald-600" isLoading={postsLoading} to="/ai/poster" />
-        <StatCard title="Comment xử lý" value={commentsData?.comments?.length || 0} icon={MessageCircle} color="bg-orange-50 text-orange-600" isLoading={commentsLoading} to="/ai/comments" />
+        <StatCard title="Bình luận đã xử lý" value={commentsData?.comments?.length || 0} icon={MessageCircle} color="bg-orange-50 text-orange-600" isLoading={commentsLoading} to="/ai/comments" />
         <StatCard title="Hội thoại Inbox" value={convsData?.conversations?.length || 0} icon={Bot} color="bg-violet-50 text-violet-600" isLoading={convsLoading} to="/ai/inbox" />
       </div>
 

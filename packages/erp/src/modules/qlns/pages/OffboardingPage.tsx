@@ -149,7 +149,7 @@ export function OffboardingPage() {
   if (isError) {
     return (
       <div className="p-6">
-        <ErrorState title="Không tải được danh sách offboarding" onRetry={() => refetch()} />
+        <ErrorState title="Không tải được danh sách nghỉ việc" onRetry={() => refetch()} />
       </div>
     )
   }
@@ -157,8 +157,8 @@ export function OffboardingPage() {
   return (
     <div className="p-6 space-y-6 animate-fade-in">
       <PageHeader
-        title="Offboarding"
-        description="Wizard nghỉ việc 5 bước — đề xuất → duyệt → bàn giao → chốt lương → thu hồi TK."
+        title="Nghỉ việc"
+        description="Quy trình nghỉ việc 5 bước — đề xuất → duyệt → bàn giao → chốt lương → thu hồi tài khoản."
         actions={
           <>
             <PageGuideButton guide={OFFBOARDING_GUIDE} />
@@ -205,7 +205,7 @@ export function OffboardingPage() {
             <EmptyState
               icon={UserMinus}
               title="Chưa có đơn nghỉ việc"
-              description="Bấm **Đề xuất mới** để khởi tạo offboarding."
+              description="Bấm **Đề xuất mới** để khởi tạo quy trình nghỉ việc."
             />
           ) : (
             <ul className="space-y-2">
@@ -500,8 +500,8 @@ export function OffboardingPage() {
       <ConfirmDialog
         isOpen={confirmComplete}
         onClose={() => setConfirmComplete(false)}
-        title="Hoàn tất offboarding?"
-        message="Person sẽ chuyển trạng thái Không hoạt động. Nhớ khóa User ERP tại QTHT nếu chưa làm."
+        title="Hoàn tất nghỉ việc?"
+        message="Nhân viên sẽ chuyển sang trạng thái Không hoạt động. Nhớ khóa tài khoản ERP tại QTHT nếu chưa làm."
         confirmText="Hoàn tất"
         onConfirm={handleComplete}
         isLoading={completeMut.isPending}

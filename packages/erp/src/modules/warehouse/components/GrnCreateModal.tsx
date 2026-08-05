@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import { AppModal, Button, Input, Label, Select, VndInput } from '@frezo/ui'
+import { Button, FormModal, Input, Label, Select, VndInput } from '@frezo/ui'
 import { cn, parseVndInput } from '@frezo/utils'
 import type { GrnCreateRequest } from '../services/grnApi'
 import type { PurchaseOrderDto } from '../services/purchaseOrderApi'
@@ -268,12 +268,16 @@ export function GrnCreateModal({
   }
 
   return (
-    <AppModal
+    <FormModal
       isOpen={isOpen}
       onClose={onClose}
       title="Tạo phiếu nhập kho"
       description="Nhập thông tin chung và thêm từng dòng hàng — sau khi lưu sẽ mở biên lai phiếu nhập."
-      maxWidth="4xl"
+      size="xl"
+      onSubmit={handleSubmit}
+      isSubmitting={isPending}
+      submitDisabled={!isValid}
+      submitText="Lưu nháp"
     >
       <div className="space-y-6 pb-1">
         <section>
@@ -503,16 +507,7 @@ export function GrnCreateModal({
             </p>
           )}
         </section>
-
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-neutral-200">
-          <Button variant="outline" onClick={onClose} disabled={isPending}>
-            Huỷ
-          </Button>
-          <Button onClick={handleSubmit} disabled={!isValid || isPending}>
-            {isPending ? 'Đang lưu…' : 'Lưu nháp'}
-          </Button>
-        </div>
       </div>
-    </AppModal>
+    </FormModal>
   )
 }

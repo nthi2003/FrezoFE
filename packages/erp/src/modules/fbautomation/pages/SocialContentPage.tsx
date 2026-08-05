@@ -142,7 +142,7 @@ export function SocialContentPage() {
       <div className="max-w-[1600px] mx-auto p-6 space-y-6">
         <PageHeader
           title="Lên lịch nội dung"
-          description="Soạn & lên lịch đăng bài đa kênh (Facebook Page, Zalo OA, Instagram). Cần Meta App Review + Page Token để tự publish."
+          description="Soạn & lên lịch đăng bài đa kênh (Facebook Page, Zalo OA, Instagram). Cần Meta App Review và mã trang để tự đăng."
           actions={
             <>
               <Button variant="outline" onClick={() => refetch()}>Làm mới</Button>
@@ -350,7 +350,7 @@ export function SocialContentPage() {
                   <div className="text-xs text-neutral-400 mt-1">
                     {form.scheduledAt
                       ? `Sẽ đăng lúc ${new Date(form.scheduledAt).toLocaleString('vi-VN')}`
-                      : 'Chưa lên lịch — lưu ở trạng thái DRAFT'}
+                      : 'Chưa lên lịch — lưu ở trạng thái bản nháp'}
                   </div>
                 </div>
               </div>

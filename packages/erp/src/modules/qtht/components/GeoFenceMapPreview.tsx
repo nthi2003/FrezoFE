@@ -123,7 +123,7 @@ export function GeoFenceMapPreview({
         <EmptyState
           icon={MapPin}
           title="Nhập tọa độ để xem bản đồ"
-          description="Điền vĩ độ và kinh độ văn phòng — bản đồ sẽ hiện tâm và bán kính check-in."
+          description="Điền vĩ độ và kinh độ văn phòng — bản đồ sẽ hiện tâm và bán kính chấm công."
           className="py-10"
         />
       </div>

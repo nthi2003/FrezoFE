@@ -27,6 +27,7 @@ import {
   Bot,
   Newspaper,
   BookOpen,
+  Clock,
   type LucideIcon,
 } from 'lucide-react'
 import { FacebookIcon } from '@/components/shared/FacebookIcon'
@@ -100,6 +101,7 @@ export const MENU_ICON_MAP: Record<string, LucideIcon> = {
   globe: LayoutDashboard,
   book: BookOpen,
   bookopen: BookOpen,
+  clock: Clock,
   DEFAULT: FolderOpen,
 }
 

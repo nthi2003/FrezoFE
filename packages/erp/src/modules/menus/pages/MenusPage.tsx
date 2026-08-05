@@ -469,7 +469,7 @@ export function MenusPage() {
     <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
         title="Quản lý Menu"
-        description="Cấu hình cây menu điều hướng sidebar — hierarchy, icon, URL và thứ tự hiển thị."
+        description="Cấu hình cây menu điều hướng sidebar — cấu trúc, biểu tượng, URL và thứ tự hiển thị."
         actions={
           <>
             <PageGuideButton guide={MENUS_GUIDE} />

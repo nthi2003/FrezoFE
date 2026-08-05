@@ -109,7 +109,7 @@ export function GiftTokenModal({
             layout="form"
             tone="amber"
             illustration={<GiftBoxIllustration aria-hidden />}
-            title="Tặng token"
+            title="Tặng điểm ghi nhận"
             description="Trừ số dư ngay khi gửi."
             footer={
               <div className="flex justify-end gap-2 pt-1">

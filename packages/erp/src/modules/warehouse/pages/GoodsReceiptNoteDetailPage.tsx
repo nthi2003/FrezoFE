@@ -667,7 +667,7 @@ export function GoodsReceiptNoteDetailPage() {
                               {loc ? formatLocationLabel(loc) : locId ? '—' : 'Chưa chọn'}
                             </td>
                             <td className="p-3 text-xs text-neutral-500">
-                              {ln.batchId ? 'ACTIVE' : 'Chờ confirm'}
+                              {ln.batchId ? 'Đang hiệu lực' : 'Chờ xác nhận'}
                             </td>
                           </tr>
                         )

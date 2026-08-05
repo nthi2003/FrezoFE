@@ -85,7 +85,7 @@ export function PhoneReveal({
           onClick={handleReveal}
           disabled={isLoading}
           className="inline-flex items-center justify-center h-6 w-6 rounded text-neutral-500 hover:text-primary-600 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:opacity-50"
-          title="Hiện số điện thoại (được ghi audit)"
+          title="Hiện số điện thoại (được ghi nhật ký)"
           aria-label="Hiện số điện thoại"
         >
           {isLoading ? (

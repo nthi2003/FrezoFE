@@ -24,11 +24,26 @@ import { toast } from 'sonner'
 import {
   useApiLogs, useApiLogStats, useDeleteApiLogs,
 } from '../hooks/useApiLog'
-import { apilogApi, type ApiLogItem, type ApiLogFilter } from '../services/apilogApi'
+import { apilogApi, type ApiLogItem, type ApiLogFilter, type StatusGroup } from '../services/apilogApi'
 
 // ============================================================
 // Constants
 // ============================================================
+
+/** Module = segment đầu của path, do BE tự suy ra khi ghi log. */
+const MODULE_OPTIONS = [
+  { value: 'all', label: 'Tất cả module' },
+  { value: 'auth', label: 'auth' },
+  { value: 'qtht', label: 'qtht' },
+  { value: 'qlns', label: 'qlns' },
+  { value: 'warehouse', label: 'warehouse' },
+  { value: 'crm', label: 'crm' },
+  { value: 'accounting', label: 'accounting' },
+  { value: 'approval', label: 'approval' },
+  { value: 'customer', label: 'customer' },
+  { value: 'product', label: 'product' },
+  { value: 'public', label: 'public' },
+]
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const
 type Method = typeof METHODS[number]
@@ -41,14 +56,14 @@ const METHOD_COLORS: Record<string, { chip: string; dot: string }> = {
   DELETE: { chip: 'bg-rose-50 text-rose-700 border-rose-200',       dot: 'bg-rose-500' },
 }
 
-const STATUS_PRESETS = [
-  { key: 'all',    label: 'Tất cả', match: () => true, tone: 'bg-neutral-900 text-white border-neutral-900' },
-  { key: '2xx',    label: '2xx OK',       match: (s: number) => s >= 200 && s < 300, tone: 'bg-emerald-600 text-white border-emerald-600' },
-  { key: '3xx',    label: '3xx Redirect', match: (s: number) => s >= 300 && s < 400, tone: 'bg-blue-600 text-white border-blue-600' },
-  { key: '4xx',    label: '4xx Client',   match: (s: number) => s >= 400 && s < 500, tone: 'bg-amber-500 text-white border-amber-500' },
-  { key: '5xx',    label: '5xx Server',   match: (s: number) => s >= 500,             tone: 'bg-rose-600 text-white border-rose-600' },
-] as const
-type StatusKey = typeof STATUS_PRESETS[number]['key']
+/** Nhóm status — gửi thẳng xuống BE qua `statusGroup`, không lọc client-side. */
+const STATUS_PRESETS: { key: StatusGroup; label: string }[] = [
+  { key: 'all', label: 'Tất cả' },
+  { key: '2xx', label: '2xx Thành công' },
+  { key: '3xx', label: '3xx Chuyển hướng' },
+  { key: '4xx', label: '4xx Lỗi máy khách' },
+  { key: '5xx', label: '5xx Lỗi máy chủ' },
+]
 
 const AUTO_REFRESH_OPTIONS = [
   { value: 0,      label: 'Tắt' },
@@ -68,7 +83,7 @@ const DELETE_PRESETS = [
 
 const API_LOGS_GUIDE: PageGuideConfig = {
   title: 'Nhật ký API',
-  subtitle: 'Giám sát request vào hệ thống — lọc method/status, xem chi tiết body, dọn log cũ.',
+  subtitle: 'Giám sát mọi yêu cầu API toàn hệ thống (mọi tài khoản) — lọc phương thức, mã trạng thái, module, tài khoản; xem chi tiết nội dung; dọn log cũ.',
   sections: [
     {
       heading: 'Thao tác thường dùng',
@@ -76,15 +91,15 @@ const API_LOGS_GUIDE: PageGuideConfig = {
       steps: [
         {
           title: 'Lọc nhanh',
-          description: 'Tìm URI / user / IP, chọn phương thức HTTP và nhóm mã trạng thái (2xx, 4xx…).',
+          description: 'Tìm URI / người dùng / IP, chọn phương thức HTTP và nhóm mã trạng thái (2xx, 4xx…).',
         },
         {
           title: 'Xem chi tiết',
-          description: 'Bấm mắt trên dòng để mở request/response body, query params và meta.',
+          description: 'Bấm mắt trên dòng để mở nội dung yêu cầu/phản hồi, tham số truy vấn và thông tin kèm theo.',
         },
         {
           title: 'Dọn log cũ',
-          description: 'Chọn khoảng ngày → xác nhận. Không thể hoàn tác — backup nếu cần audit dài hạn.',
+          description: 'Chọn khoảng ngày → xác nhận. Không thể hoàn tác — hãy sao lưu nếu cần giữ nhật ký lâu dài.',
         },
       ],
     },
@@ -92,7 +107,7 @@ const API_LOGS_GUIDE: PageGuideConfig = {
       heading: 'Mẹo',
       type: 'tips',
       tips: [
-        'Bật tự làm mới (5s–1 phút) khi theo dõi sự cố realtime.',
+        'Bật tự làm mới (5s–1 phút) khi theo dõi sự cố theo thời gian thực.',
         'Thời gian phản hồi tô màu: xanh = nhanh, đỏ = rất chậm.',
       ],
     },
@@ -178,7 +193,13 @@ export function ApiLogsPage() {
   const [searchText, setSearchText] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [methodFilter, setMethodFilter] = useState<Method | 'all'>('all')
-  const [statusKey, setStatusKey] = useState<StatusKey>('all')
+  const [statusGroup, setStatusGroup] = useState<StatusGroup>('all')
+  const [usernameFilter, setUsernameFilter] = useState('')
+  const [debouncedUsername, setDebouncedUsername] = useState('')
+  const [moduleFilter, setModuleFilter] = useState<string>('all')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [errorsOnly, setErrorsOnly] = useState(false)
 
   // ---- Auto-refresh ----
   const [refreshInterval, setRefreshInterval] = useState<number>(0)
@@ -194,50 +215,70 @@ export function ApiLogsPage() {
     return () => clearTimeout(t)
   }, [searchText])
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedUsername(usernameFilter.trim()), 400)
+    return () => clearTimeout(t)
+  }, [usernameFilter])
+
   // Reset về page 1 khi đổi filter (tránh empty page)
   useEffect(() => {
     setPage(1)
-  }, [debouncedSearch, methodFilter, statusKey])
+  }, [debouncedSearch, methodFilter, statusGroup, debouncedUsername, moduleFilter, fromDate, toDate, errorsOnly])
 
-  // Build filter object cho BE. Status preset chỉ có "exact code" support ở BE hiện tại,
-  // nên với preset xxx/xxx ta filter client-side (BE hiện tại chưa có statusRange).
   // pageNumber is 1-based — ApiLogServiceImpl uses ServiceHelper.createPageable
-  // which converts with `page - 1` (same contract as Persons/Attendance).
   const filter: ApiLogFilter = useMemo(() => ({
     pageNumber: page,
     pageSize,
     search: debouncedSearch || undefined,
     method: methodFilter === 'all' ? undefined : methodFilter,
-  }), [page, pageSize, debouncedSearch, methodFilter])
+    statusGroup: statusGroup === 'all' ? undefined : statusGroup,
+    username: debouncedUsername || undefined,
+    module: moduleFilter === 'all' ? undefined : moduleFilter,
+    fromDate: fromDate ? `${fromDate}T00:00:00` : undefined,
+    toDate: toDate ? `${toDate}T23:59:59` : undefined,
+    errorsOnly: errorsOnly || undefined,
+  }), [page, pageSize, debouncedSearch, methodFilter, statusGroup, debouncedUsername, moduleFilter, fromDate, toDate, errorsOnly])
 
   const { data, isLoading, isFetching, isError, refetch } = useApiLogs({
     ...filter,
     refetchIntervalMs: refreshInterval || false,
   })
 
-  // Stats dùng chung filter (không paginate) — bỏ page/size để BE tính đúng
   const { data: stats } = useApiLogStats({
     search: filter.search,
     method: filter.method,
+    statusGroup: filter.statusGroup,
+    username: filter.username,
+    module: filter.module,
+    fromDate: filter.fromDate,
+    toDate: filter.toDate,
+    errorsOnly: filter.errorsOnly,
   })
 
   const deleteReq = useDeleteApiLogs()
 
-  // Client-side filter theo status preset (nếu BE chưa hỗ trợ range)
-  const filteredItems = useMemo(() => {
-    const items = data?.items ?? []
-    if (statusKey === 'all') return items
-    const preset = STATUS_PRESETS.find((p) => p.key === statusKey)
-    if (!preset) return items
-    return items.filter((it) => preset.match(Number(it.statusCode) || 0))
-  }, [data?.items, statusKey])
+  const items = data?.items ?? []
 
-  const hasActiveFilter = debouncedSearch || methodFilter !== 'all' || statusKey !== 'all'
+  const hasActiveFilter = !!(
+    debouncedSearch
+    || methodFilter !== 'all'
+    || statusGroup !== 'all'
+    || debouncedUsername
+    || moduleFilter !== 'all'
+    || fromDate
+    || toDate
+    || errorsOnly
+  )
 
   const clearFilters = () => {
     setSearchText('')
     setMethodFilter('all')
-    setStatusKey('all')
+    setStatusGroup('all')
+    setUsernameFilter('')
+    setModuleFilter('all')
+    setFromDate('')
+    setToDate('')
+    setErrorsOnly(false)
   }
 
   // Đóng dropdown auto-refresh khi click ngoài
@@ -322,11 +363,11 @@ export function ApiLogsPage() {
       },
     },
     {
-      title: 'Người dùng',
+      title: 'Account',
       dataIndex: 'username',
       width: 130,
       render: (val: string) => (
-        val ? (
+        val && val !== 'ANONYMOUS' && val !== 'anonymous' ? (
           <div className="flex items-center gap-1.5 min-w-0">
             <div className="w-5 h-5 rounded-full bg-neutral-100 text-neutral-600 flex items-center justify-center flex-shrink-0 text-[10px] font-bold uppercase">
               {val.slice(0, 2)}
@@ -334,14 +375,26 @@ export function ApiLogsPage() {
             <span className="text-xs text-neutral-700 truncate">{val}</span>
           </div>
         ) : (
-          <span className="text-xs text-neutral-400 italic">ẩn danh</span>
+          <span className="text-xs text-neutral-400 italic">ANONYMOUS</span>
         )
+      ),
+    },
+    {
+      title: 'Module',
+      dataIndex: 'module',
+      width: 90,
+      render: (val: string) => (
+        val ? (
+          <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-neutral-100 text-neutral-700 border border-neutral-200">
+            {val}
+          </span>
+        ) : '—'
       ),
     },
     {
       title: 'Địa chỉ IP',
       dataIndex: 'ipAddress',
-      width: 130,
+      width: 120,
       render: (val: string) => (
         <code className="text-[11px] font-mono text-neutral-500" title={val}>{val || '—'}</code>
       ),
@@ -365,7 +418,7 @@ export function ApiLogsPage() {
     <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
         title="Nhật ký API"
-        description={`Giám sát mọi request đi vào hệ thống · ${stats?.total ?? '—'} log${refreshInterval > 0 ? ' · đang live' : ''}`}
+        description={`Nhật ký API toàn hệ thống · ${stats?.total ?? '—'} bản ghi${refreshInterval > 0 ? ' · đang cập nhật trực tiếp' : ''}`}
         actions={
           <>
             <PageGuideButton guide={API_LOGS_GUIDE} />
@@ -436,7 +489,7 @@ export function ApiLogsPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatTile
           icon={Activity}
-          label="Tổng request"
+          label="Tổng yêu cầu"
           value={stats?.total ?? 0}
           trend={stats?.totalTrend}
           tone="neutral"
@@ -508,13 +561,63 @@ export function ApiLogsPage() {
           <div className="min-w-[140px]">
             <Select
               options={STATUS_PRESETS.map((p) => ({ value: p.key, label: p.label }))}
-              value={statusKey}
-              onChange={(v) => setStatusKey(v as StatusKey)}
+              value={statusGroup}
+              onChange={(v) => setStatusGroup(v as StatusGroup)}
               placeholder="Mã trạng thái"
               aria-label="Lọc theo mã trạng thái"
               showSearch={false}
             />
           </div>
+
+          <div className="min-w-[140px]">
+            <Select
+              options={[...MODULE_OPTIONS]}
+              value={moduleFilter}
+              onChange={(v) => setModuleFilter(v)}
+              placeholder="Module"
+              aria-label="Lọc theo module"
+              showSearch
+            />
+          </div>
+
+          <div className="relative min-w-[140px] max-w-[180px]">
+            <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              type="search"
+              placeholder="Account…"
+              value={usernameFilter}
+              onChange={(e) => setUsernameFilter(e.target.value)}
+              className="h-9 w-full pl-8 pr-2 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300"
+              aria-label="Lọc theo account"
+            />
+          </div>
+
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="h-9 px-2 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300"
+            aria-label="Từ ngày"
+            title="Từ ngày"
+          />
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="h-9 px-2 text-sm bg-white border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300"
+            aria-label="Đến ngày"
+            title="Đến ngày"
+          />
+
+          <label className="inline-flex items-center gap-1.5 h-9 px-2 text-xs text-neutral-700 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={errorsOnly}
+              onChange={(e) => setErrorsOnly(e.target.checked)}
+              className="rounded border-neutral-300"
+            />
+            Chỉ lỗi
+          </label>
 
           {hasActiveFilter && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
@@ -522,7 +625,7 @@ export function ApiLogsPage() {
             </Button>
           )}
           <span className="text-xs text-neutral-500 ml-auto tabular-nums">
-            {filteredItems.length} log{hasActiveFilter ? ' (đã lọc)' : ''}
+            {data?.total ?? 0} log{hasActiveFilter ? ' (đã lọc)' : ''}
           </span>
         </div>
       </div>
@@ -536,28 +639,28 @@ export function ApiLogsPage() {
             isRetrying={isFetching}
           />
         </div>
-      ) : !isLoading && filteredItems.length === 0 ? (
+      ) : !isLoading && items.length === 0 ? (
         <div className="border rounded-xl bg-white">
           <EmptyState
             icon={Search}
             title={hasActiveFilter ? 'Không có bản ghi phù hợp bộ lọc' : 'Chưa có log nào được ghi'}
             description={hasActiveFilter
               ? 'Thử đổi bộ lọc hoặc xoá lọc.'
-              : 'Log sẽ tự động xuất hiện khi có request đến hệ thống.'}
+              : 'Nhật ký sẽ tự động xuất hiện khi có yêu cầu đến hệ thống.'}
             action={hasActiveFilter ? { label: 'Xoá lọc', onClick: clearFilters } : undefined}
           />
         </div>
       ) : (
         <AppTable
           columns={columns}
-          data={filteredItems}
+          data={items}
           isLoading={isLoading}
           showSearch={false}
           density="compact"
           loadingRows={6}
           pageIndex={page}
           pageSize={pageSize}
-          pageSizeOptions={[10]}
+          pageSizeOptions={[10, 20, 50]}
           totalElements={data?.total ?? 0}
           onPageChange={(newPage, newSize) => {
             setPage(newPage)
@@ -743,7 +846,7 @@ function ApiLogDetailModal({ log, onClose }: { log: ApiLogItem | null; onClose: 
   }
 
   return (
-    <AppModal isOpen={!!log} onClose={onClose} title="Chi tiết request" maxWidth="4xl">
+    <AppModal isOpen={!!log} onClose={onClose} title="Chi tiết yêu cầu" maxWidth="4xl">
       <div className="space-y-4">
         {/* Header — method + URI + status + refresh */}
         <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-3 flex items-center gap-2">
@@ -772,9 +875,9 @@ function ApiLogDetailModal({ log, onClose }: { log: ApiLogItem | null; onClose: 
         {/* Path only (nếu URI có query, tách path riêng cho dễ đọc) */}
         {queryParams.length > 0 && (
           <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-3 py-2 text-xs">
-            <span className="text-blue-700 font-semibold">Path:</span>{' '}
+            <span className="text-blue-700 font-semibold">Đường dẫn:</span>{' '}
             <code className="font-mono text-neutral-900">{path}</code>
-            <span className="ml-3 text-blue-700 font-semibold">Query:</span>{' '}
+            <span className="ml-3 text-blue-700 font-semibold">Truy vấn:</span>{' '}
             <code className="font-mono text-neutral-600">{queryParams.length} tham số</code>
           </div>
         )}
@@ -786,12 +889,29 @@ function ApiLogDetailModal({ log, onClose }: { log: ApiLogItem | null; onClose: 
               {current.duration != null ? `${current.duration} ms` : '—'} <span className="opacity-75">· {durTone.label}</span>
             </span>
           } />
-          <MetaCell icon={User} label="Người dùng" value={current.username || <span className="italic text-neutral-400">ẩn danh</span>} />
+          <MetaCell icon={User} label="Người dùng" value={current.username || <span className="italic text-neutral-400">ANONYMOUS</span>} />
           <MetaCell icon={Globe} label="Địa chỉ IP" value={<code className="font-mono text-xs">{current.ipAddress || '—'}</code>} />
           <MetaCell icon={Calendar} label="Bắt đầu" value={<span className="font-mono text-xs">{formatDateTime(current.effFrom)}</span>} />
           <MetaCell icon={Calendar} label="Kết thúc" value={<span className="font-mono text-xs">{formatDateTime(current.effTo)}</span>} />
           <MetaCell icon={Clock} label="Cách đây" value={formatRelative(current.effFrom)} />
+          <MetaCell icon={Info} label="Module" value={current.module || '—'} />
+          <MetaCell icon={Globe} label="User-Agent" value={
+            <span className="text-xs text-neutral-700 line-clamp-2" title={current.userAgent}>{current.userAgent || '—'}</span>
+          } />
+          <MetaCell icon={Activity} label="Trace ID" value={
+            <code className="font-mono text-xs">{current.traceId || '—'}</code>
+          } />
         </div>
+
+        {current.errorMessage && (
+          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800 flex items-start gap-2">
+            <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+            <div>
+              <div className="font-semibold">Lỗi</div>
+              <div className="mt-0.5">{current.errorMessage}</div>
+            </div>
+          </div>
+        )}
 
         {/* Tabs: Params / Request / Response */}
         <div>
@@ -800,7 +920,7 @@ function ApiLogDetailModal({ log, onClose }: { log: ApiLogItem | null; onClose: 
               <TabButton
                 active={activeTab === 'params'}
                 onClick={() => setActiveTab('params')}
-                label={`Query Params (${queryParams.length})`}
+                label={`Tham số truy vấn (${queryParams.length})`}
                 dotColor="bg-indigo-500"
                 hasContent={true}
               />
@@ -808,14 +928,14 @@ function ApiLogDetailModal({ log, onClose }: { log: ApiLogItem | null; onClose: 
             <TabButton
               active={activeTab === 'request'}
               onClick={() => setActiveTab('request')}
-              label="Request Body"
+              label="Nội dung yêu cầu"
               dotColor="bg-blue-500"
               hasContent={!reqEmptyInfo.isMarker}
             />
             <TabButton
               active={activeTab === 'response'}
               onClick={() => setActiveTab('response')}
-              label="Response Body"
+              label="Nội dung phản hồi"
               dotColor="bg-emerald-500"
               hasContent={!resEmptyInfo.isMarker}
             />
@@ -926,7 +1046,7 @@ function BodyView({
           <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 flex items-start gap-2">
             <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
             <span>
-              Body này đã bị <strong>cắt ngắn</strong> khi ghi log (giới hạn để tránh DB phình).
+              Nội dung này đã bị <strong>cắt ngắn</strong> khi ghi log (giới hạn để tránh cơ sở dữ liệu phình).
               Xem đầy đủ trong log file hoặc APM tool.
             </span>
           </div>
@@ -943,36 +1063,36 @@ function BodyView({
   const bodylessMethod = ['GET', 'HEAD', 'DELETE', 'OPTIONS'].includes(upperMethod)
 
   let title = 'Không có nội dung'
-  let hint: React.ReactNode = 'Log này không ghi lại body.'
+  let hint: React.ReactNode = 'Log này không ghi lại nội dung.'
   let tone: 'info' | 'warning' = 'info'
 
   if (kind === 'request') {
     if (bodylessMethod) {
-      title = `${upperMethod} request không có body`
-      hint = 'Tham số được truyền qua URL / query string (xem tab "Query Params" nếu có).'
+      title = `${upperMethod} không có nội dung`
+      hint = 'Tham số được truyền qua URL / chuỗi truy vấn (xem tab "Tham số truy vấn" nếu có).'
     } else if (emptyInfo.reason === 'empty body') {
-      title = 'Body rỗng'
-      hint = 'Client gửi request KHÔNG kèm body (Content-Length: 0).'
+      title = 'Nội dung rỗng'
+      hint = 'Máy khách gửi yêu cầu không kèm nội dung (Content-Length: 0).'
     } else if (emptyInfo.reason?.startsWith('multipart')) {
-      title = 'Upload multipart'
-      hint = 'File upload đã được bỏ qua khi log để không tốn RAM. Kiểm tra qua storage / audit riêng.'
+      title = 'Tải lên nhiều phần'
+      hint = 'Tệp tải lên đã được bỏ qua khi ghi log để không tốn bộ nhớ. Kiểm tra qua kho lưu trữ hoặc nhật ký riêng.'
       tone = 'warning'
     } else {
-      title = 'Không log được request body'
-      hint = 'Có thể do request bị chặn ở tầng filter/security trước khi tới controller. Đã fix ở phiên bản mới — restart BE nếu log cũ.'
+      title = 'Không ghi được nội dung yêu cầu'
+      hint = 'Có thể yêu cầu bị chặn ở tầng lọc/bảo mật trước khi tới bộ điều khiển. Đã sửa ở phiên bản mới — khởi động lại máy chủ nếu xem log cũ.'
       tone = 'warning'
     }
   } else {
     // response
     if (statusCode && [204, 205, 304].includes(statusCode)) {
-      title = `${statusCode} No Content`
-      hint = 'Endpoint trả về status không có body theo chuẩn HTTP.'
+      title = `${statusCode} — không có nội dung`
+      hint = 'Điểm cuối trả về mã trạng thái không kèm nội dung theo chuẩn HTTP.'
     } else if (bodylessMethod && !statusCode) {
-      title = 'Response body rỗng'
-      hint = `${upperMethod} thường trả body rỗng hoặc chỉ status.`
+      title = 'Nội dung phản hồi rỗng'
+      hint = `${upperMethod} thường trả nội dung rỗng hoặc chỉ mã trạng thái.`
     } else {
-      title = 'Response body rỗng'
-      hint = 'Server không trả body (có thể do redirect, file download, hoặc streaming).'
+      title = 'Nội dung phản hồi rỗng'
+      hint = 'Máy chủ không trả nội dung (có thể do chuyển hướng, tải tệp, hoặc luồng dữ liệu liên tục).'
     }
   }
 
@@ -1056,7 +1176,7 @@ function DeleteLogsModal({
         isOpen={isOpen && !confirmOpen}
         onClose={onClose}
         title="Dọn dẹp log cũ"
-        description="Xoá tất cả API log tạo trước khoảng thời gian bạn chọn."
+        description="Xoá tất cả nhật ký API tạo trước khoảng thời gian bạn chọn."
         maxWidth="md"
       >
         <div className="space-y-4">
@@ -1107,7 +1227,7 @@ function DeleteLogsModal({
           <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 flex items-start gap-2">
             <Trash2 size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="text-xs text-amber-900 leading-relaxed">
-              Hành động này <strong>không thể hoàn tác</strong>. Toàn bộ log cũ hơn <strong>{days} ngày</strong> sẽ bị xoá vĩnh viễn khỏi database.
+              Hành động này <strong>không thể hoàn tác</strong>. Toàn bộ log cũ hơn <strong>{days} ngày</strong> sẽ bị xoá vĩnh viễn khỏi cơ sở dữ liệu.
             </div>
           </div>
 
@@ -1134,7 +1254,7 @@ function DeleteLogsModal({
         title={`Xoá tất cả log cũ hơn ${days} ngày?`}
         message={
           <span>
-            Xác nhận lần cuối: <strong>không thể hoàn tác</strong>. Nếu cần audit trail dài hạn, hãy backup DB trước khi tiếp tục.
+            Xác nhận lần cuối: thao tác này <strong>không thể hoàn tác</strong>. Nếu cần lưu nhật ký lâu dài, hãy sao lưu cơ sở dữ liệu trước khi tiếp tục.
           </span>
         }
         confirmText="Xoá vĩnh viễn"

@@ -73,14 +73,14 @@ export function OnboardingPage() {
   return (
     <div className="p-6 space-y-6 animate-fade-in">
       <PageHeader
-        title="Onboarding"
-        description="Wizard chào đón NV mới — template → gán Person → theo dõi tiến độ."
+        title="Tiếp nhận nhân sự mới"
+        description="Quy trình chào đón nhân viên mới — tạo mẫu → gán nhân viên → theo dõi tiến độ."
         actions={
           <>
             <PageGuideButton guide={ONBOARDING_GUIDE} />
             {step === 1 ? (
               <Button className="gap-1.5" onClick={() => setTplOpen(true)}>
-                <Plus size={14} /> Template mới
+                <Plus size={14} /> Mẫu mới
               </Button>
             ) : null}
           </>
@@ -150,7 +150,7 @@ export function OnboardingPage() {
           <h2 className="text-sm font-semibold text-neutral-700">Bước 1 — Chọn template</h2>
           {errT ? (
             <div className="border rounded-xl bg-white">
-              <ErrorState title="Không tải được template" onRetry={() => refetchT()} isRetrying={fetchingT} />
+              <ErrorState title="Không tải được mẫu" onRetry={() => refetchT()} isRetrying={fetchingT} />
             </div>
           ) : loadingT ? (
             <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
@@ -158,7 +158,7 @@ export function OnboardingPage() {
             <div className="border rounded-xl bg-white">
               <EmptyState
                 icon={ClipboardList}
-                title="Chưa có template"
+                title="Chưa có mẫu"
                 description="Tạo checklist mẫu cho nhân viên mới."
                 action={{ label: 'Template mới', onClick: () => setTplOpen(true) }}
               />
@@ -218,8 +218,8 @@ export function OnboardingPage() {
             <div className="border rounded-xl bg-white">
               <EmptyState
                 icon={UserPlus}
-                title="Chưa có template để gán"
-                description="Quay lại bước 1 tạo template trước."
+                title="Chưa có mẫu để gán"
+                description="Quay lại bước 1 tạo mẫu trước."
                 action={{ label: 'Về Template', onClick: () => setStep(1) }}
               />
             </div>
@@ -227,7 +227,7 @@ export function OnboardingPage() {
             <div className="bg-white border rounded-xl p-4 space-y-3">
               <Select
                 options={[
-                  { value: '', label: '— Template —' },
+                  { value: '', label: '— Mẫu —' },
                   ...templates.map((t) => ({ value: t.id, label: t.name })),
                 ]}
                 value={assignForm.templateId || selectedTplId}
@@ -235,13 +235,13 @@ export function OnboardingPage() {
                   setSelectedTplId(v)
                   setAssignForm({ ...assignForm, templateId: v })
                 }}
-                placeholder="— Template —"
-                aria-label="Chọn template onboarding"
+                placeholder="— Mẫu —"
+                aria-label="Chọn mẫu tiếp nhận nhân sự"
                 showSearch={templates.length > 8}
               />
               <input
                 className="w-full border rounded-md px-3 py-2 text-sm font-mono"
-                placeholder="Person ID"
+                placeholder="Mã nhân viên"
                 value={assignForm.personId}
                 onChange={(e) => setAssignForm({ ...assignForm, personId: e.target.value })}
               />
@@ -295,8 +295,8 @@ export function OnboardingPage() {
               <EmptyState
                 icon={ClipboardList}
                 title="Chưa gán checklist"
-                description="Gán template cho Person ở bước 2."
-                action={{ label: 'Gán Person', onClick: () => setStep(2) }}
+                description="Gán mẫu cho nhân viên ở bước 2."
+                action={{ label: 'Gán nhân viên', onClick: () => setStep(2) }}
               />
             </div>
           ) : (
@@ -359,11 +359,11 @@ export function OnboardingPage() {
         </section>
       )}
 
-      <AppModal isOpen={tplOpen} onClose={() => setTplOpen(false)} title="Tạo template">
+      <AppModal isOpen={tplOpen} onClose={() => setTplOpen(false)} title="Tạo mẫu">
         <div className="space-y-3">
           <input
             className="w-full border rounded-md px-3 py-2 text-sm"
-            placeholder="Tên template"
+            placeholder="Tên mẫu"
             value={tplName}
             onChange={(e) => setTplName(e.target.value)}
           />

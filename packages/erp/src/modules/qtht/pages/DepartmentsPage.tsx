@@ -42,7 +42,7 @@ import { depSchema } from '../constants/schema'
 const DEPARTMENTS_GUIDE: PageGuideConfig = {
   title: 'Sơ đồ Tổ chức',
   subtitle:
-    'Cấu trúc phòng ban, quản lý trưởng/phó phòng và phân bổ nhân sự theo hierarchy.',
+    'Cấu trúc phòng ban, quản lý trưởng/phó phòng và phân bổ nhân sự theo cây tổ chức.',
   sections: [
     {
       heading: 'Thao tác cơ bản',
@@ -51,7 +51,7 @@ const DEPARTMENTS_GUIDE: PageGuideConfig = {
         {
           title: 'Chuyển chế độ xem',
           description:
-            'Cây phòng ban — hierarchy rõ connector. Sơ đồ nhân sự — xem người theo phòng. Danh sách — tìm kiếm, lọc.',
+            'Cây phòng ban — cấu trúc rõ ràng. Sơ đồ nhân sự — xem người theo phòng. Danh sách — tìm kiếm, lọc.',
         },
         {
           title: 'Thêm phòng ban',
@@ -61,7 +61,7 @@ const DEPARTMENTS_GUIDE: PageGuideConfig = {
         {
           title: 'Chuyển nhân sự',
           description:
-            'Ở chế độ "Nhân sự", kéo-thả (hoặc chỉnh trực tiếp trong hồ sơ nhân viên) để đổi phòng ban. Lịch sử chuyển phòng được ghi audit.',
+            'Ở chế độ "Nhân sự", kéo-thả (hoặc chỉnh trực tiếp trong hồ sơ nhân viên) để đổi phòng ban. Lịch sử chuyển phòng được ghi nhật ký.',
         },
       ],
     },
@@ -531,7 +531,7 @@ export function DepartmentsPage() {
             title={dataList.length === 0 ? 'Chưa có phòng ban nào' : 'Không có bản ghi phù hợp bộ lọc'}
             description={
               dataList.length === 0
-                ? 'Tạo phòng ban đầu tiên để dựng hierarchy tổ chức.'
+                ? 'Tạo phòng ban đầu tiên để dựng cây tổ chức.'
                 : 'Thử đổi bộ lọc hoặc xoá lọc.'
             }
             action={
@@ -564,7 +564,7 @@ export function DepartmentsPage() {
             )}
           </div>
 
-          <div role="tree" aria-label="Cây phòng ban">
+          <div>
             {treeData.map((node: any, idx: number) => (
               <DeptTreeNode
                 key={node.id}
@@ -615,7 +615,7 @@ export function DepartmentsPage() {
             <EmptyState
               icon={Users}
               title="Chưa có nhân sự trên sơ đồ"
-              description="Gán nhân viên vào phòng ban (và trưởng phòng nếu có) để hiển thị hierarchy."
+              description="Gán nhân viên vào phòng ban (và trưởng phòng nếu có) để hiển thị trên sơ đồ."
             />
           ) : (
             <div
@@ -764,7 +764,7 @@ export function DepartmentsPage() {
           })
         }}
         title={`Xóa phòng ban "${deleteTarget?.name || ''}"?`}
-        message="Phòng ban sẽ bị xóa. Không nên xóa nếu còn nhân viên hoặc dữ liệu liên quan — cân nhắc deactivate thay thế."
+        message="Phòng ban sẽ bị xóa. Không nên xóa nếu còn nhân viên hoặc dữ liệu liên quan — cân nhắc ngừng hoạt động thay thế."
         confirmText="Xóa"
         cancelText="Huỷ"
         variant="danger"
@@ -815,10 +815,11 @@ function DeptTreeNode({
   ].filter(Boolean).join(' · ')
 
   return (
-    <div role="treeitem" aria-expanded={hasChildren ? expanded : undefined}>
+    <div>
       <div
         role="button"
         tabIndex={0}
+        aria-label={`Xem chi tiết ${node.name}`}
         onClick={() => onView(node)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -949,7 +950,7 @@ function DeptTreeNode({
       </div>
 
       {hasChildren && expanded && (
-        <div role="group">
+        <div>
           {node.children.map((child: any, idx: number) => (
             <DeptTreeNode
               key={child.id}

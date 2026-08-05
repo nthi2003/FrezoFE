@@ -341,7 +341,7 @@ export function RecognitionPage({ embedded }: { embedded?: boolean } = {}) {
       {!embedded && (
         <PageHeader
           title="Ghi nhận"
-          description="Tặng token ghi nhận đóng góp · đổi thưởng · nghiệm thu kế toán."
+          description="Tặng điểm ghi nhận đóng góp · đổi thưởng · nghiệm thu kế toán."
           actions={toolbar}
         />
       )}
@@ -399,7 +399,7 @@ export function RecognitionPage({ embedded }: { embedded?: boolean } = {}) {
 
       {tab === 'wallet' && !walletError && (
         wallets.length === 0 && !myWallet && !walletLoading ? (
-          <EmptyState title="Chưa có ví token" description="Ví được tạo khi bạn mở module hoặc nhận token." />
+          <EmptyState title="Chưa có ví điểm ghi nhận" description="Ví được tạo khi bạn mở phân hệ hoặc nhận điểm ghi nhận." />
         ) : (
           <AppTable
             columns={walletColumns}
@@ -598,7 +598,7 @@ export function RecognitionPage({ embedded }: { embedded?: boolean } = {}) {
           ) : pendingRedeems.length === 0 && !redeemLoading ? (
             <EmptyState
               title="Không có yêu cầu chờ duyệt"
-              description="Khi EU gửi Đổi thưởng, yêu cầu PENDING sẽ hiện ở đây."
+              description="Khi nhân viên gửi Đổi thưởng, yêu cầu chờ duyệt sẽ hiện ở đây."
             />
           ) : (
             <AppTable
@@ -665,7 +665,7 @@ export function RecognitionPage({ embedded }: { embedded?: boolean } = {}) {
             tone="amber"
             illustration={<CoinsStackIllustration aria-hidden />}
             title="Đổi thưởng"
-            description="Token tạm giữ khi gửi yêu cầu. Kế toán duyệt xong xếp vào kỳ lương hiện tại."
+            description="Điểm tạm giữ khi gửi yêu cầu. Kế toán duyệt xong xếp vào kỳ lương hiện tại."
             footer={
               <div className="flex justify-end gap-2 pt-1">
                 <Button variant="outline" onClick={() => setRedeemOpen(false)}>

@@ -131,8 +131,8 @@ export function LeaveRequestModal({ open, onClose }: Props) {
     }
     if (personId && !contractId && !contractLoading) {
       e.contractId = isSelf
-        ? 'Bạn chưa có hợp đồng đang hiệu lực (activated + ACTIVE)'
-        : 'Nhân viên này chưa có hợp đồng đang hiệu lực (activated + ACTIVE)'
+        ? 'Bạn chưa có hợp đồng đang hiệu lực'
+        : 'Nhân viên này chưa có hợp đồng đang hiệu lực'
     }
     if (!startDate) e.startDate = 'Nhập ngày bắt đầu'
     if (!endDate) e.endDate = 'Nhập ngày kết thúc'
@@ -325,7 +325,7 @@ export function LeaveRequestModal({ open, onClose }: Props) {
                 type="url"
                 value={attachmentUrl}
                 onChange={(e) => setAttachmentUrl(e.target.value)}
-                placeholder="URL file đã upload (dán link Google Drive, Dropbox, ...)"
+                placeholder="Đường dẫn file đã tải lên (dán liên kết Google Drive, Dropbox, …)"
                 className="w-full h-10 px-3 rounded-lg border border-neutral-200 bg-white text-sm focus:border-primary-300 focus:ring-2 focus:ring-primary-100 outline-none"
               />
             </FormField>

@@ -355,7 +355,7 @@ export function DealsPage({ embedded }: { embedded?: boolean } = {}) {
   const onCreate = () => {
     if (!pipelineId || !form.title.trim() || !form.stageId) return
     if (!form.customerId) {
-      setCreateError('Chọn khách hàng — mỗi cơ hội phải gắn 1 KH (deal id mới, không dùng chung).')
+      setCreateError('Chọn khách hàng — mỗi cơ hội phải gắn 1 khách hàng (mã cơ hội mới, không dùng chung).')
       return
     }
     setCreateError('')
@@ -436,7 +436,7 @@ export function DealsPage({ embedded }: { embedded?: boolean } = {}) {
       {embedded ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-neutral-600">
-            Kanban phễu — kéo thẻ đổi giai đoạn.
+            Bảng phễu — kéo thẻ đổi giai đoạn.
             <span className="ml-2 text-xs text-neutral-400 tabular-nums">
               {openDeals.length} cơ hội · {formatCurrency(totalValue)}
             </span>
@@ -454,7 +454,7 @@ export function DealsPage({ embedded }: { embedded?: boolean } = {}) {
       <FilterBar
         hasActiveFilters={hasCustomerFilter}
         onClear={() => setCustomerFilter('')}
-        countLabel={`${openDeals.length} cơ hội đang mở${hasCustomerFilter ? ' (theo KH)' : ''}`}
+        countLabel={`${openDeals.length} cơ hội đang mở${hasCustomerFilter ? ' (theo khách hàng)' : ''}`}
       >
         <div className="w-56 space-y-1">
           <Label htmlFor="crm-pipeline-select" className="text-xs text-neutral-500">Phễu bán hàng</Label>
@@ -512,12 +512,12 @@ export function DealsPage({ embedded }: { embedded?: boolean } = {}) {
             title={isFilteredEmpty ? 'Khách hàng này chưa có cơ hội trên phễu' : 'Phễu bán hàng trống'}
             description={
               isFilteredEmpty
-                ? 'Mỗi cơ hội gắn 1 khách hàng (deal id riêng). Thêm cơ hội cho KH này hoặc xoá lọc để xem tất cả.'
+                ? 'Mỗi cơ hội gắn 1 khách hàng (mã cơ hội riêng). Thêm cơ hội cho khách hàng này hoặc xoá lọc để xem tất cả.'
                 : 'Chưa có cơ hội đang mở — thêm cơ hội gắn khách hàng, hoặc chuyển khách tiềm năng thành cơ hội.'
             }
             action={
               isFilteredEmpty
-                ? { label: 'Thêm cơ hội cho KH này', onClick: openCreate }
+                ? { label: 'Thêm cơ hội cho khách hàng này', onClick: openCreate }
                 : { label: 'Thêm cơ hội', onClick: openCreate }
             }
           />
@@ -575,7 +575,7 @@ export function DealsPage({ embedded }: { embedded?: boolean } = {}) {
                   onDropCard(stage.id)
                 }}
               >
-                {/* Column header: grip + title + count + Σ VND */}
+                {/* Column header: grip + title + count + tổng giá trị */}
                 <div
                   className={`px-3 py-2.5 border-b rounded-t-xl ${
                     isColumnDropTarget || isCardDropTarget
@@ -630,7 +630,7 @@ export function DealsPage({ embedded }: { embedded?: boolean } = {}) {
                   </div>
                   <div className="flex items-center justify-between gap-2 text-xs tabular-nums">
                     <span className="text-neutral-500">
-                      Σ {formatCurrency(totalStage)}
+                      Tổng: {formatCurrency(totalStage)}
                     </span>
                     {stage.probability != null && (
                       <span className={`border rounded-md px-1.5 py-0.5 shrink-0 ${tone.badge}`}>
@@ -795,7 +795,7 @@ export function DealsPage({ embedded }: { embedded?: boolean } = {}) {
         isOpen={showCreate}
         onClose={() => { setShowCreate(false); setCreateError('') }}
         title="Thêm cơ hội mới"
-        description="Mỗi lần tạo = 1 deal id mới, bắt buộc gắn 1 khách hàng — không dùng chung cơ hội giữa các KH."
+        description="Mỗi lần tạo là một cơ hội mới, bắt buộc gắn một khách hàng — không dùng chung cơ hội giữa nhiều khách."
       >
         <div className="space-y-3">
           <div>

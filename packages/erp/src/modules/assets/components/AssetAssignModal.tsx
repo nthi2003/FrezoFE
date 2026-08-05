@@ -201,14 +201,14 @@ export function AssetAssignModal({ open, asset, onClose }: Props) {
               )}
               <WorkflowStepper steps={previewSteps} currentIndex={0} />
               <div className="text-[11px] text-neutral-600 leading-relaxed">
-                Sau khi gửi, ticket ở trạng thái <b>Chờ duyệt</b>. Người duyệt theo cấu hình workflow;
-                chỉ khi đủ bước và <b>xác nhận bàn giao</b>, tài sản mới chuyển <b>IN_USE</b>.
+                Sau khi gửi, yêu cầu ở trạng thái <b>Chờ duyệt</b>. Người duyệt theo cấu hình quy trình;
+                chỉ khi đủ bước và <b>xác nhận bàn giao</b>, tài sản mới chuyển <b>Đang dùng</b>.
                 {' '}
                 <Link
                   to="/approval/flows?tab=templates"
                   className="inline-flex items-center gap-0.5 text-primary-700 hover:text-primary-900 font-medium"
                 >
-                  Cấu hình tại Luồng duyệt → Mẫu / Designer <ExternalLink size={10} />
+                  Cấu hình tại Luồng duyệt → Mẫu quy trình <ExternalLink size={10} />
                 </Link>
               </div>
             </>

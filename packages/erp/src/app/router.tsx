@@ -27,6 +27,7 @@ const PermissionsPage   = lazy(() => import('@/modules/qtht/pages/PermissionsPag
 const SecurityPage      = lazy(() => import('@/modules/qtht/pages/SecurityPage').then(m => ({ default: m.SecurityPage })))
 const SettingsPage      = lazy(() => import('@/modules/qtht/pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const ApiLogsPage       = lazy(() => import('@/modules/qtht/pages/ApiLogsPage').then(m => ({ default: m.ApiLogsPage })))
+const JobsPage          = lazy(() => import('@/modules/qtht/pages/JobsPage').then(m => ({ default: m.JobsPage })))
 const UsageAnalyticsPage = lazy(() => import('@/modules/qtht/pages/UsageAnalyticsPage').then(m => ({ default: m.UsageAnalyticsPage })))
 const WebsiteManagementPage = lazy(() => import('@/modules/qtht/pages/WebsiteManagementPage').then(m => ({ default: m.WebsiteManagementPage })))
 // Assets (QLTS)
@@ -352,6 +353,7 @@ export const router = createBrowserRouter([
       { path: 'qtht/security',      element: <Suspense fallback={<PageLoader />}><SecurityPage /></Suspense> },
       { path: 'qtht/settings',      element: <Suspense fallback={<PageLoader />}><SettingsPage /></Suspense> },
       { path: 'qtht/apilogs',       element: <Suspense fallback={<PageLoader />}><ApiLogsPage /></Suspense> },
+      { path: 'qtht/jobs',          element: <Suspense fallback={<PageLoader />}><JobsPage /></Suspense> },
       { path: 'qtht/usage',         element: <Suspense fallback={<PageLoader />}><UsageAnalyticsPage /></Suspense> },
       { path: 'qtht/workflows',     element: <Navigate to="/approval/flows?tab=templates" replace /> },
       { path: 'qtht/workflows/templates', element: <Suspense fallback={<PageLoader />}><WorkflowTemplateGalleryPage /></Suspense> },

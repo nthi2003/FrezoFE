@@ -42,7 +42,7 @@ const ACTIONS: QuickAction[] = [
     permissions: ['PAYROLL.VIEW', 'QLNS_PAYROLL_VIEW', 'PAYROLL.APPROVE'],
   },
   {
-    label: 'Thêm lead',
+    label: 'Thêm khách tiềm năng',
     icon: UserPlus,
     tone: 'emerald',
     to: '/crm/leads',

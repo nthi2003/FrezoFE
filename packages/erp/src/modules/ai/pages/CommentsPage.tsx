@@ -102,14 +102,14 @@ export function CommentsPage() {
   return (
     <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
-        title="Quản lý Comment"
-        description="Quét và trả lời comment tự động bằng AI."
+        title="Quản lý bình luận"
+        description="Quét và trả lời bình luận tự động bằng AI."
         actions={
           <Button
             onClick={() => scanReq.mutate(20)}
             disabled={scanReq.isPending}
             className="bg-primary-600 hover:bg-primary-700 text-white whitespace-nowrap gap-1.5"
-            title="Quét tối đa 20 comment mới"
+            title="Quét tối đa 20 bình luận mới"
           >
             {scanReq.isPending
               ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -123,7 +123,7 @@ export function CommentsPage() {
         <div className="space-y-2">
           <h2 className="font-semibold text-neutral-800 text-sm inline-flex items-center gap-1">
             Kết quả quét
-            <span title="Chỉ hiện comment không bị bỏ qua">
+            <span title="Chỉ hiện bình luận không bị bỏ qua">
               <HelpCircle size={12} className="text-neutral-400" />
             </span>
           </h2>
@@ -155,7 +155,7 @@ export function CommentsPage() {
       <FilterBar
         hasActiveFilters={hasFilter}
         onClear={() => { setSearch(''); setIntentFilter('ALL'); setRepliedFilter('ALL') }}
-        countLabel={`${filtered.length} comment${hasFilter ? ' (đã lọc)' : ''}`}
+        countLabel={`${filtered.length} bình luận${hasFilter ? ' (đã lọc)' : ''}`}
       >
         <div className="min-w-[150px]">
           <Select
@@ -191,7 +191,7 @@ export function CommentsPage() {
             placeholder="Tìm tác giả hoặc nội dung…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            aria-label="Tìm comment"
+            aria-label="Tìm bình luận"
           />
         </div>
       </FilterBar>
@@ -199,7 +199,7 @@ export function CommentsPage() {
       {isError ? (
         <div className="border rounded-xl bg-white">
           <ErrorState
-            title="Không tải được comment"
+            title="Không tải được bình luận"
             message="Kiểm tra kết nối AI service rồi thử lại."
             onRetry={() => void refetch()}
             isRetrying={isFetching}

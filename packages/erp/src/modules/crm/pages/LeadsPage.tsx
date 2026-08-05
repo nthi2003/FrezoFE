@@ -196,7 +196,7 @@ export function LeadsPage({ embedded }: { embedded?: boolean } = {}) {
           <p className="text-sm text-neutral-600">
             Khách tiềm năng — chuyển thành cơ hội bán.
             <span className="ml-2 text-xs text-neutral-400 tabular-nums">
-              {filtered.length} lead{hasFilter ? ' (đã lọc)' : ''}
+              {filtered.length} khách tiềm năng{hasFilter ? ' (đã lọc)' : ''}
             </span>
           </p>
           {headerActions}

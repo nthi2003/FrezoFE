@@ -48,7 +48,7 @@ export function PeopleHubPage() {
   return (
     <QlnsHubLayout
       title="Hồ sơ & tổ chức"
-      description="Quản lý nhân viên, hợp đồng, onboarding, offboarding và tuyển dụng."
+      description="Quản lý nhân viên, hợp đồng, tiếp nhận nhân sự mới, nghỉ việc và tuyển dụng."
       tabs={tabs}
       tab={tab}
       visibleTabKeys={visibleTabKeys}

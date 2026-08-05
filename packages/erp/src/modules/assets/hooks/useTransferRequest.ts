@@ -90,7 +90,7 @@ export function useHandoverTransfer() {
   return useMutation({
     mutationFn: ({ reqId, note }: { reqId: string; note?: string }) => transferApi.handover(reqId, note),
     onSuccess: () => {
-      toast.success('Đã xác nhận bàn giao — tài sản chuyển sang IN_USE')
+      toast.success('Đã xác nhận bàn giao — tài sản chuyển sang Đang dùng')
       invalidate(qc)
     },
     onError: (e: any) => toast.error(e?.response?.data?.message || 'Không xác nhận được'),

@@ -254,7 +254,7 @@ export function WorkflowsPage({ embedded }: { embedded?: boolean } = {}) {
     <div className={pageRootClass(embedded)}>
       {!embedded && (
         <PageHeader
-          title="Thiết kế template quy trình"
+          title="Thiết kế mẫu quy trình"
           description={
             <>
               Cấu hình bước duyệt cho từng module.
@@ -371,7 +371,7 @@ export function WorkflowsPage({ embedded }: { embedded?: boolean } = {}) {
         onClear={clearFilters}
         onExport={handleExportCsv}
         exportDisabled={filtered.length === 0}
-        description="Lọc, sắp xếp danh sách template hoặc xuất CSV — không tách trang riêng."
+        description="Lọc, sắp xếp danh sách mẫu hoặc xuất CSV — không tách trang riêng."
       >
         <section className="space-y-3">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Lọc</h3>

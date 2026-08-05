@@ -15,10 +15,10 @@ export function CrmSequencesDrawer({ isOpen, onClose }: Props) {
       title={
         <span className="inline-flex items-center gap-2">
           <Mail size={16} className="text-primary-600" />
-          Email sequence
+          Chuỗi email tự động
         </span>
       }
-      description="Chuỗi nurture — đăng ký lead khi cấu hình email đã kích hoạt."
+      description="Chuỗi email chăm sóc — thêm khách tiềm năng vào chuỗi khi cấu hình email đã bật."
       size="xl"
     >
       <EmailSequencesPage embedded />

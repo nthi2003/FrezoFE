@@ -29,9 +29,9 @@ export const CRM_PIPELINE_TABS: {
   hint?: string
   menuUrls: readonly string[]
 }[] = [
-  { key: 'leads', label: 'Leads', hint: 'Khách tiềm năng — trước cơ hội bán', menuUrls: ['/crm/leads'] },
-  { key: 'deals', label: 'Cơ hội bán', hint: 'Kanban phễu bán hàng', menuUrls: ['/crm/deals'] },
-  { key: 'meetings', label: 'Cuộc họp', hint: 'Lịch họp gắn deal/KH', menuUrls: ['/crm/meetings'] },
+  { key: 'leads', label: 'Khách tiềm năng', hint: 'Trước khi thành cơ hội bán', menuUrls: ['/crm/leads'] },
+  { key: 'deals', label: 'Cơ hội bán', hint: 'Bảng phễu — kéo thẻ đổi giai đoạn', menuUrls: ['/crm/deals'] },
+  { key: 'meetings', label: 'Cuộc họp', hint: 'Lịch họp gắn cơ hội bán / khách hàng', menuUrls: ['/crm/meetings'] },
 ]
 
 export const CRM_SALES_TABS: {

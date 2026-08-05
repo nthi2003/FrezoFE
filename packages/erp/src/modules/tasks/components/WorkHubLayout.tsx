@@ -79,7 +79,7 @@ export function WorkHubLayout({
     <div className="p-6 space-y-4 animate-fade-in bg-neutral-50/50 min-h-[calc(100vh-64px)]">
       <PageHeader
         title="Công việc"
-        description="Giao việc, theo dõi tiến độ và quản lý task nội bộ — tất cả tại một nơi."
+        description="Giao việc, theo dõi tiến độ và quản lý công việc nội bộ — tất cả tại một nơi."
       />
 
       <div className="flex flex-wrap gap-1 border-b border-neutral-200 bg-white/80 backdrop-blur rounded-t-xl px-2 pt-1 overflow-x-auto">

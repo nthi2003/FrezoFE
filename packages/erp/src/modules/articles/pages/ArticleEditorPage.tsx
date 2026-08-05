@@ -115,7 +115,7 @@ const EDITOR_GUIDE: PageGuideConfig = {
         {
           title: 'Lưu nháp → Gửi duyệt → Duyệt → Xuất bản',
           description:
-            'DRAFT → WAITING_APPROVAL → APPROVED → PUBLISHED. Từ chối về REJECTED (sửa rồi gửi lại).',
+            'Bản nháp → Chờ duyệt → Đã duyệt → Đã xuất bản. Từ chối thì sửa rồi gửi lại.',
         },
       ],
     },
@@ -559,7 +559,7 @@ export function ArticleEditorPage() {
               <textarea
                 {...register('summary')}
                 rows={2}
-                placeholder="Mô tả ngắn ≤ 200 ký tự — dùng cho card danh sách, share preview, SEO description…"
+                placeholder="Mô tả ngắn ≤ 200 ký tự — dùng cho thẻ danh sách, xem trước khi chia sẻ, mô tả SEO…"
                 className="mt-1.5 w-full text-sm text-neutral-700 placeholder-neutral-400 border-0 outline-none focus:ring-0 bg-transparent resize-none leading-relaxed"
                 disabled={!canEditContent}
               />

@@ -358,24 +358,24 @@ export function SettingsPage() {
                 id="general"
                 icon={Sparkles}
                 title="Tính năng chung"
-                description="Bật/tắt các module chính. Tắt module sẽ ẩn menu và chức năng liên quan cho tất cả user thuộc tổ chức này."
+                description="Bật/tắt các phân hệ chính. Tắt phân hệ sẽ ẩn menu và chức năng liên quan cho tất cả người dùng thuộc tổ chức này."
                 sectionRefs={sectionRefs}
               >
                 <SwitchList>
                   <SwitchRow label="Chấm công"
-                    description="Cho phép nhân viên check-in/check-out qua web/app"
+                    description="Cho phép nhân viên chấm công vào/ra qua web hoặc ứng dụng"
                     checked={form.isAttendance} onChange={(v) => updateField('isAttendance', v)} />
                   <SwitchRow label="Email hệ thống"
-                    description="Bật notification/marketing email từ Frezo"
+                    description="Bật thông báo và email marketing từ Frezo"
                     checked={form.isEmail} onChange={(v) => updateField('isEmail', v)} />
                   <SwitchRow label="Đổi ca làm việc"
                     description="Nhân viên có thể tự xin đổi ca với đồng nghiệp"
                     checked={form.isSwap} onChange={(v) => updateField('isSwap', v)} />
                   <SwitchRow label="Tuỳ biến màu sắc"
-                    description="Cho user chọn theme màu riêng"
+                    description="Cho phép người dùng chọn giao diện màu riêng"
                     checked={form.isColor} onChange={(v) => updateField('isColor', v)} />
                   <SwitchRow label="Cho phép đi muộn"
-                    description="Không tính vi phạm khi check-in sau giờ bắt đầu"
+                    description="Không tính vi phạm khi chấm công vào sau giờ bắt đầu"
                     checked={form.allowLate} onChange={(v) => updateField('allowLate', v)} />
                 </SwitchList>
               </Section>
@@ -419,7 +419,7 @@ export function SettingsPage() {
                   <Field label="Ngưỡng nửa ngày (giờ)">
                     <NumberInput step={0.5} value={form.details.attendance.halfDayThreshold} onChange={(v) => updateDetailsField('attendance', 'halfDayThreshold', v)} />
                   </Field>
-                  <Field label="Trễ chấp nhận (phút)" hint="Ví dụ 5 → check-in trong 5 phút không tính muộn">
+                  <Field label="Trễ chấp nhận (phút)" hint="Ví dụ 5 → chấm công vào trong 5 phút không tính muộn">
                     <NumberInput value={form.details.attendance.lateThreshold} onChange={(v) => updateDetailsField('attendance', 'lateThreshold', v)} />
                   </Field>
                   <Field label="Về sớm chấp nhận (phút)">
@@ -445,7 +445,7 @@ export function SettingsPage() {
                 id="geo"
                 icon={MapPin}
                 title="Định vị chấm công"
-                description="Giới hạn địa lý — nhân viên phải trong bán kính hoặc kết nối WiFi công ty để check-in hợp lệ. Chỉ Admin cấu hình."
+                description="Giới hạn địa lý — nhân viên phải trong bán kính hoặc kết nối WiFi công ty để chấm công hợp lệ. Chỉ quản trị viên cấu hình."
                 sectionRefs={sectionRefs}
               >
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -542,11 +542,11 @@ export function SettingsPage() {
                 <div className="mt-4">
                   <SwitchList compact>
                     <SwitchRow label="Tự động tạo bảng lương"
-                      description="Tự động khởi tạo payroll draft khi hết chu kỳ"
+                      description="Tự động khởi tạo bảng lương bản nháp khi hết chu kỳ"
                       checked={form.details.payroll.isAutoGeneratePayroll}
                       onChange={(v) => updateDetailsField('payroll', 'isAutoGeneratePayroll', v)} />
                     <SwitchRow label="Tự động cập nhật khi có thay đổi chấm công"
-                      description="Recompute payroll khi có adjustment"
+                      description="Tính lại bảng lương khi có điều chỉnh"
                       checked={form.details.payroll.isAutoUpdatePayroll}
                       onChange={(v) => updateDetailsField('payroll', 'isAutoUpdatePayroll', v)} />
                   </SwitchList>
@@ -563,16 +563,16 @@ export function SettingsPage() {
               >
                 <SwitchList>
                   <SwitchRow label="Ảnh đại diện"
-                    description="Bắt buộc upload avatar khi tạo hồ sơ"
+                    description="Bắt buộc tải lên ảnh đại diện khi tạo hồ sơ"
                     checked={form.requireAvatar} onChange={(v) => updateField('requireAvatar', v)} />
                   <SwitchRow label="CV / Sơ yếu lý lịch"
-                    description="Bắt buộc upload file CV (PDF/DOCX)"
+                    description="Bắt buộc tải lên file CV (PDF/DOCX)"
                     checked={form.requireCV} onChange={(v) => updateField('requireCV', v)} />
                   <SwitchRow label="Giấy khám sức khoẻ"
                     description="Bắt buộc chứng nhận y tế"
                     checked={form.requireHealthCert} onChange={(v) => updateField('requireHealthCert', v)} />
                   <SwitchRow label="Yêu cầu quản lý duyệt"
-                    description="Một số thao tác nhạy cảm cần manager approve"
+                    description="Một số thao tác nhạy cảm cần quản lý phê duyệt"
                     checked={form.requireManager} onChange={(v) => updateField('requireManager', v)} />
                 </SwitchList>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 mt-4">
@@ -595,12 +595,12 @@ export function SettingsPage() {
               >
                 <SwitchList>
                   <SwitchRow label="Tự động duyệt bài viết"
-                    description="Bài viết được publish ngay, không cần approval"
+                    description="Bài viết được đăng ngay, không cần phê duyệt"
                     checked={form.autoApproveArticle} onChange={(v) => updateField('autoApproveArticle', v)} />
                 </SwitchList>
                 <div className="mt-3">
-                  <Field label="Người duyệt bài mặc định" hint="ID hoặc username của user có quyền duyệt">
-                    <Input value={form.articleApprover} onChange={(e) => updateField('articleApprover', e.target.value)} placeholder="username hoặc user ID" className="h-9 text-sm" />
+                  <Field label="Người duyệt bài mặc định" hint="ID hoặc tên đăng nhập của người có quyền duyệt">
+                    <Input value={form.articleApprover} onChange={(e) => updateField('articleApprover', e.target.value)} placeholder="Tên đăng nhập hoặc ID người dùng" className="h-9 text-sm" />
                   </Field>
                 </div>
               </Section>
@@ -656,7 +656,7 @@ export function SettingsPage() {
           }
         }}
         title="Bạn có thay đổi chưa lưu"
-        message="Chuyển tổ chức sẽ mất thay đổi geo/settings chưa lưu. Tiếp tục?"
+        message="Chuyển tổ chức sẽ mất thay đổi định vị và cài đặt chưa lưu. Tiếp tục?"
         confirmText="Bỏ thay đổi & chuyển"
         variant="warning"
       />

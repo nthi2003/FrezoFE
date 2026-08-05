@@ -74,13 +74,13 @@ function GpsCell({ row }: { row: AttendanceDailyRow }) {
   return (
     <div className="flex flex-col gap-1 min-w-[140px]">
       {inCoords && (
-        <span className="inline-flex items-center gap-1 text-xs text-neutral-700 font-mono" title="Tọa độ check-in">
+        <span className="inline-flex items-center gap-1 text-xs text-neutral-700 font-mono" title="Tọa độ chấm công vào">
           <MapPin size={12} className="text-emerald-600 shrink-0" />
           Vào: {inCoords}
         </span>
       )}
       {outCoords && (
-        <span className="inline-flex items-center gap-1 text-xs text-neutral-700 font-mono" title="Tọa độ check-out">
+        <span className="inline-flex items-center gap-1 text-xs text-neutral-700 font-mono" title="Tọa độ chấm công ra">
           <MapPin size={12} className="text-rose-500 shrink-0" />
           Ra: {outCoords}
         </span>

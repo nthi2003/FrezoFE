@@ -18,7 +18,7 @@ export function FbDashboardPage() {
       to: '/fb/accounts',
     },
     {
-      title: 'Groups',
+      title: 'Nhóm',
       value: summary?.totalGroups || 0,
       sub: `${summary?.approvedGroups || 0} đã tham gia`,
       icon: Users,
@@ -26,7 +26,7 @@ export function FbDashboardPage() {
       to: '/fb/groups',
     },
     {
-      title: 'Lead tiềm năng',
+      title: 'Khách tiềm năng',
       value: summary?.totalLeads || 0,
       sub: `${summary?.pendingLeads || 0} chờ xử lý`,
       icon: UserCheck,
@@ -34,7 +34,7 @@ export function FbDashboardPage() {
       to: '/fb/leads',
     },
     {
-      title: 'Đã import',
+      title: 'Đã nhập CRM',
       value: summary?.importedLeads || 0,
       sub: 'vào danh sách khách hàng',
       icon: Send,
@@ -52,7 +52,7 @@ export function FbDashboardPage() {
             Facebook Automation
           </span>
         }
-        description="Tổng quan tài khoản, group và lead thu thập từ Facebook."
+        description="Tổng quan tài khoản, nhóm và khách tiềm năng thu thập từ Facebook."
       />
 
       {isError ? (
@@ -99,13 +99,13 @@ export function FbDashboardPage() {
               Quản lý tài khoản
             </Link>
             <Link to="/fb/scan-groups" className="p-3 bg-emerald-50 rounded-lg text-emerald-700 font-medium text-sm hover:bg-emerald-100 transition-colors text-center">
-              Quét Groups
+              Quét nhóm
             </Link>
             <Link to="/fb/leads" className="p-3 bg-orange-50 rounded-lg text-orange-700 font-medium text-sm hover:bg-orange-100 transition-colors text-center">
-              Lead tiềm năng
+              Khách tiềm năng
             </Link>
             <Link to="/fb/groups" className="p-3 bg-violet-50 rounded-lg text-violet-700 font-medium text-sm hover:bg-violet-100 transition-colors text-center">
-              Danh sách Groups
+              Danh sách nhóm
             </Link>
           </div>
         </div>
@@ -114,10 +114,10 @@ export function FbDashboardPage() {
           <h2 className="text-base font-semibold text-neutral-800 mb-3">Hướng dẫn</h2>
           <ol className="space-y-2 text-sm text-neutral-600 list-decimal list-inside">
             <li>Thêm tài khoản Facebook (kèm proxy nếu có)</li>
-            <li>Chọn tài khoản và nhập từ khoá để quét group</li>
-            <li>Duyệt group phù hợp, tham gia tự động</li>
-            <li>Thu thập lead từ các group</li>
-            <li>Import lead vào danh sách khách hàng CRM</li>
+            <li>Chọn tài khoản và nhập từ khoá để quét nhóm</li>
+            <li>Duyệt nhóm phù hợp, tham gia tự động</li>
+            <li>Thu thập khách tiềm năng từ các nhóm</li>
+            <li>Nhập khách tiềm năng vào danh sách khách hàng CRM</li>
           </ol>
         </div>
       </div>

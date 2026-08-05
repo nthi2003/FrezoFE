@@ -30,10 +30,10 @@ const GUIDE: PageGuideConfig = {
       heading: 'Chỉ số',
       type: 'steps',
       steps: [
-        { title: 'Đăng nhập hôm nay', description: 'Số lần login SUCCESS trong ngày (một người có thể login nhiều lần).' },
-        { title: 'User unique', description: 'Số tài khoản khác nhau đã login thành công hôm nay.' },
-        { title: 'Online', description: 'User có tab ERP đang mở và gửi heartbeat trong ~90 giây gần nhất.' },
-        { title: 'Pageview', description: 'Mỗi lần đổi màn hình trong ERP được ghi (không lưu nội dung form).' },
+        { title: 'Đăng nhập hôm nay', description: 'Số lần đăng nhập thành công trong ngày (một người có thể đăng nhập nhiều lần).' },
+        { title: 'Người dùng khác nhau', description: 'Số tài khoản khác nhau đã đăng nhập thành công hôm nay.' },
+        { title: 'Đang trực tuyến', description: 'Người dùng có tab ERP đang mở và gửi tín hiệu trong khoảng 90 giây gần nhất.' },
+        { title: 'Lượt xem trang', description: 'Mỗi lần đổi màn hình trong ERP được ghi (không lưu nội dung biểu mẫu).' },
       ],
     },
     {
@@ -90,7 +90,7 @@ export function UsageAnalyticsPage() {
   const sessionColumns: AppTableColumn<UserSessionRow>[] = [
     {
       key: 'username',
-      title: 'User',
+      title: 'Người dùng',
       render: (_, row) => (
         <div>
           <div className="text-sm font-semibold text-neutral-800">{row.username}</div>
@@ -137,14 +137,14 @@ export function UsageAnalyticsPage() {
   const isError = summary.isError && !s
   const onlineWindowSec = s?.onlineWindowSeconds
     ?? (s?.onlineWindowMinutes ? s.onlineWindowMinutes * 60 : 90)
-  const onlineHint = `Online trong ${onlineWindowSec} giây gần nhất`
+  const onlineHint = `Trực tuyến trong ${onlineWindowSec} giây gần nhất`
   const asOfLabel = formatAsOf(s?.asOf)
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Sử dụng hệ thống"
-        description="Login · online · pageview · phiên đang mở"
+        description="Đăng nhập · trực tuyến · lượt xem trang · phiên đang mở"
         actions={
           <div className="flex items-center gap-2">
             <PageGuideButton guide={GUIDE} />
@@ -184,15 +184,15 @@ export function UsageAnalyticsPage() {
             />
             <KpiCard
               icon={Users}
-              label="User unique hôm nay"
+              label="Người dùng khác nhau hôm nay"
               value={s?.uniqueUsersToday ?? '—'}
               tone="blue"
             />
             <KpiCard
               icon={Activity}
-              label="Đang online"
+              label="Đang trực tuyến"
               value={s?.onlineUsers ?? '—'}
-              emptyLabel={s?.onlineUsers === 0 ? '0 người online' : undefined}
+              emptyLabel={s?.onlineUsers === 0 ? '0 người trực tuyến' : undefined}
               hint={onlineHint}
               subHint={asOfLabel ? `Cập nhật lúc ${asOfLabel}` : undefined}
               tone="amber"
@@ -200,7 +200,7 @@ export function UsageAnalyticsPage() {
             />
             <KpiCard
               icon={Monitor}
-              label="Phiên active"
+              label="Phiên đang mở"
               value={s?.activeSessions ?? '—'}
               tone="violet"
             />
@@ -239,7 +239,7 @@ export function UsageAnalyticsPage() {
               {/* Pageview tops */}
               <section className="rounded-xl border border-neutral-200 bg-white p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-bold text-neutral-800">Pageview ERP</h2>
+                  <h2 className="text-sm font-bold text-neutral-800">Lượt xem trang ERP</h2>
                   <div className="flex gap-1">
                     {[1, 7, 30].map((d) => (
                       <button
@@ -262,7 +262,7 @@ export function UsageAnalyticsPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <TopList
-                    title="Top module"
+                    title="Module nhiều nhất"
                     icon={Eye}
                     items={(pageViews.data?.topModules || []).map((m) => ({
                       label: m.code,
@@ -271,7 +271,7 @@ export function UsageAnalyticsPage() {
                     empty="Chưa có pageview — duyệt vài màn để ghi nhận."
                   />
                   <TopList
-                    title="Top route"
+                    title="Đường dẫn nhiều nhất"
                     icon={Route}
                     items={(pageViews.data?.topRoutes || []).map((r) => ({
                       label: r.route,
@@ -311,7 +311,7 @@ export function UsageAnalyticsPage() {
         isOpen={!!revokeId}
         onClose={() => setRevokeId(null)}
         title="Thu hồi phiên?"
-        message="User trên thiết bị đó sẽ phải đăng nhập lại."
+        message="Người dùng trên thiết bị đó sẽ phải đăng nhập lại."
         confirmText="Thu hồi"
         variant="danger"
         isLoading={revoke.isPending}

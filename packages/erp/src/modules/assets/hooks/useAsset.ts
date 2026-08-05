@@ -85,7 +85,7 @@ export function useDeleteAsset() {
       toast.success('Đã xoá tài sản')
       invalidateAll(qc)
     },
-    onError: (e: any) => toast.error(e?.response?.data?.message || 'Không xoá được (kiểm tra tài sản còn IN_USE?)'),
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Không xoá được (kiểm tra tài sản còn đang dùng?)'),
   })
 }
 

@@ -878,7 +878,7 @@ export function PayrollsPage({
         isOpen={bonusModalOpen}
         onClose={() => setBonusModalOpen(false)}
         title="Thêm khoản Thưởng / Phụ cấp"
-        description="Chỉ áp dụng cho bảng lương DRAFT. Ghi rõ lý do để audit trail."
+        description="Chỉ áp dụng cho bảng lương bản nháp. Ghi rõ lý do để lưu nhật ký."
       >
         <AppForm
           schema={bonusSchema}

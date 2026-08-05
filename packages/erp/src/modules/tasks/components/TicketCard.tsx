@@ -156,7 +156,7 @@ export function TicketCard({
           <div className="relative shrink-0" ref={menuRef}>
             <button
               type="button"
-              aria-label="Menu ticket"
+              aria-label="Menu yêu cầu hỗ trợ"
               className="p-1 rounded-md text-neutral-500 opacity-70 hover:opacity-100 hover:bg-neutral-900/5 hover:text-neutral-800 transition"
               onClick={(e) => {
                 e.stopPropagation()

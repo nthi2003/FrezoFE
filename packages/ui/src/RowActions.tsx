@@ -56,6 +56,8 @@ export interface RowAction {
   tooltip?: string
   /** Override tone của preset. */
   tone?: IconActionTone
+  /** Class riêng cho nút — dùng khi cụm nằm trên nền ảnh / overlay tối. */
+  className?: string
   /** Không nhận event khi chạy qua `confirm` (dialog đã ngắt khỏi click gốc). */
   onClick: (event?: React.MouseEvent<HTMLButtonElement>) => void
   disabled?: boolean
@@ -130,6 +132,7 @@ export function RowActions({
               tooltip={tooltip}
               tone={action.tone ?? preset?.tone ?? 'neutral'}
               size={size}
+              className={action.className}
               disabled={action.disabled}
               onClick={(event) => {
                 if (action.confirm) {

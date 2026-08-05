@@ -26,8 +26,8 @@ export function InsightsPage() {
   return (
     <div className="p-6 space-y-4 animate-fade-in">
       <PageHeader
-        title="Insights Fanpage"
-        description="Tổng hợp lead, nội dung, affiliate và Ads từ dữ liệu Frezo. Meta Graph Insights sẽ bổ sung khi có Page Token."
+        title="Phân tích Fanpage"
+        description="Tổng hợp khách tiềm năng, nội dung, tiếp thị liên kết và quảng cáo từ dữ liệu Frezo. Phân tích Meta Graph sẽ bổ sung khi có mã trang."
         actions={
           <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw size={16} className={isFetching ? 'animate-spin mr-2' : 'mr-2'} />
@@ -37,11 +37,11 @@ export function InsightsPage() {
       />
 
       {isError ? (
-        <ErrorState title="Không tải được Insights" onRetry={() => refetch()} />
+        <ErrorState title="Không tải được phân tích" onRetry={() => refetch()} />
       ) : isEmpty ? (
         <EmptyState
           title="Chưa có dữ liệu marketing"
-          description="Khi có lead, bài đăng, affiliate hoặc chiến dịch Ads, dashboard sẽ hiện tại đây."
+          description="Khi có khách tiềm năng, bài đăng, tiếp thị liên kết hoặc chiến dịch quảng cáo, bảng điều khiển sẽ hiện tại đây."
         />
       ) : (
         <>
@@ -52,19 +52,19 @@ export function InsightsPage() {
           ) : null}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Kpi icon={Users} label="Lead" value={d.totalLeads ?? 0} />
+            <Kpi icon={Users} label="Khách tiềm năng" value={d.totalLeads ?? 0} />
             <Kpi icon={FileText} label="Bài đăng" value={d.totalPosts ?? 0} sub={`${d.postsPublished ?? 0} đã đăng`} />
-            <Kpi icon={Link2} label="Affiliate click" value={d.affiliateClicks ?? 0} sub={`CR ${formatPct(d.affiliateConversionRate)}`} />
-            <Kpi icon={Megaphone} label="Ads spend" value={formatVND(d.adSpend)} sub={`${d.adLeads ?? 0} lead ads`} />
-            <Kpi icon={MousePointerClick} label="Ads CTR" value={formatPct(d.adCtr)} sub={`${(d.adClicks ?? 0).toLocaleString('vi-VN')} click`} />
-            <Kpi icon={TrendingUp} label="Impression ads" value={(d.adImpressions ?? 0).toLocaleString('vi-VN')} />
-            <Kpi icon={Star} label="Đánh giá TB" value={d.averageRating ?? 0} sub={`${d.lowRatingReviews ?? 0} ≤2★`} />
-            <Kpi icon={Users} label="TK / Nhóm FB" value={`${d.fbAccounts ?? 0} / ${d.fbGroups ?? 0}`} />
+            <Kpi icon={Link2} label="Click tiếp thị liên kết" value={d.affiliateClicks ?? 0} sub={`Tỷ lệ chuyển đổi ${formatPct(d.affiliateConversionRate)}`} />
+            <Kpi icon={Megaphone} label="Chi phí quảng cáo" value={formatVND(d.adSpend)} sub={`${d.adLeads ?? 0} khách từ ads`} />
+            <Kpi icon={MousePointerClick} label="CTR quảng cáo" value={formatPct(d.adCtr)} sub={`${(d.adClicks ?? 0).toLocaleString('vi-VN')} click`} />
+            <Kpi icon={TrendingUp} label="Lượt hiển thị ads" value={(d.adImpressions ?? 0).toLocaleString('vi-VN')} />
+            <Kpi icon={Star} label="Đánh giá trung bình" value={d.averageRating ?? 0} sub={`${d.lowRatingReviews ?? 0} ≤2★`} />
+            <Kpi icon={Users} label="Tài khoản / Nhóm FB" value={`${d.fbAccounts ?? 0} / ${d.fbGroups ?? 0}`} />
           </div>
 
           <div className="grid md:grid-cols-3 gap-4">
-            <Breakdown title="Lead theo nguồn" rows={breakdown(d.leadsBySource)} />
-            <Breakdown title="Lead theo trạng thái" rows={breakdown(d.leadsByStatus)} />
+            <Breakdown title="Khách tiềm năng theo nguồn" rows={breakdown(d.leadsBySource)} />
+            <Breakdown title="Khách tiềm năng theo trạng thái" rows={breakdown(d.leadsByStatus)} />
             <Breakdown title="Bài theo kênh" rows={breakdown(d.postsByChannel)} />
           </div>
         </>

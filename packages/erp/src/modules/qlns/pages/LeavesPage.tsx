@@ -463,7 +463,7 @@ export function LeavesPage({
             }
             description={
               myContract.hasPerson
-                ? 'Đơn nghỉ gắn với hợp đồng lao động. Hợp đồng của bạn chưa được kích hoạt (activated + ACTIVE) nên chưa tra được đơn — liên hệ HR để kiểm tra.'
+                ? 'Đơn nghỉ gắn với hợp đồng lao động. Hợp đồng của bạn chưa được kích hoạt nên chưa tra được đơn — liên hệ HR để kiểm tra.'
                 : 'Tài khoản của bạn chưa gắn với hồ sơ nhân sự nào nên không có hợp đồng để tra đơn nghỉ. Liên hệ HR để được liên kết.'
             }
           />

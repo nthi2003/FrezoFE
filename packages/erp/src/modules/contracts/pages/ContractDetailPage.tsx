@@ -285,7 +285,7 @@ export function ContractDetailPage() {
                 <div>
                   <div className="font-semibold">Hợp đồng chưa kích hoạt</div>
                   <div className="text-orange-800/80 text-xs mt-0.5">
-                    Trường <code className="text-[11px]">activated</code> = false — phân biệt với trạng thái DRAFT.
+                    Hợp đồng đã tạo nhưng chưa kích hoạt — khác với trạng thái bản nháp.
                   </div>
                 </div>
               </div>

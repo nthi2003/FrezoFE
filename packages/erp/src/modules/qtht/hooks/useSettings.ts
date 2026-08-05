@@ -25,7 +25,7 @@ export function useUpdateSetting() {
 export function useBackupSystem() {
   return useMutation({
     mutationFn: settingApi.backupSystem,
-    onSuccess: (msg) => toast.success(msg || 'Đã gửi yêu cầu Backup Database thành công'),
+    onSuccess: (msg) => toast.success(msg || 'Đã gửi yêu cầu sao lưu cơ sở dữ liệu thành công'),
     onError: () => toast.error('Lỗi khi sao lưu hệ thống')
   })
 }

@@ -302,7 +302,7 @@ export function DepartmentDetailDrawer({
           <EmptyBlock
             icon={GitBranch}
             title="Chưa có phòng ban con"
-            description="Thêm phòng/ban trực thuộc để phản ánh hierarchy tổ chức."
+            description="Thêm phòng/ban trực thuộc để phản ánh cấu trúc tổ chức."
             ctaLabel="Thêm phòng ban con"
             onCta={() => onAddChild?.(dept)}
             ctaDisabled={!onAddChild}

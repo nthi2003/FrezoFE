@@ -36,7 +36,7 @@ const STATUS_META: Record<string, { label: string; tone: string }> = {
 }
 
 const SCOPE_TABS: Array<{ key: OkrScope; label: string; icon: LucideIcon; hint: string }> = [
-  { key: 'mine', label: 'OKR của tôi', icon: User, hint: 'Mục tiêu cá nhân — check-in tiến độ' },
+  { key: 'mine', label: 'OKR của tôi', icon: User, hint: 'Mục tiêu cá nhân — cập nhật tiến độ' },
   { key: 'team', label: 'OKR team', icon: Users, hint: 'Theo dõi cấp dưới trực tiếp' },
   { key: 'all', label: 'Toàn công ty', icon: Building2, hint: 'Admin — mọi nhân viên' },
 ]
@@ -526,7 +526,7 @@ export function OkrsPage() {
       <AppModal
         isOpen={!!checkInTarget}
         onClose={() => setCheckInTarget(null)}
-        title={`Check-in — ${checkInTarget?.title || ''}`}
+        title={`Cập nhật tiến độ — ${checkInTarget?.title || ''}`}
         maxWidth="lg"
       >
         {checkInTarget && (
@@ -653,7 +653,7 @@ function OkrCard({
 
       {canCheckIn && onCheckIn && krs.length > 0 && (
         <Button size="sm" variant="outline" className="mt-auto w-full gap-1" onClick={onCheckIn}>
-          <RefreshCw size={12} /> Check-in tiến độ
+          <RefreshCw size={12} /> Cập nhật tiến độ
         </Button>
       )}
     </article>

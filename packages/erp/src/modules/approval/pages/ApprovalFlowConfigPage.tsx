@@ -272,7 +272,7 @@ export function ApprovalFlowConfigPage({ embedded }: { embedded?: boolean } = {}
           <EmptyState
             icon={Workflow}
             title="Chưa có luồng duyệt"
-            description="Tạo template đầu tiên để gắn vào đơn nghỉ, bảng lương…"
+            description="Tạo mẫu đầu tiên để gắn vào đơn nghỉ, bảng lương…"
             action={canCreate ? { label: 'Tạo luồng mới', onClick: openCreate } : undefined}
           />
         </div>

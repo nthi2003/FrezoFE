@@ -5,8 +5,6 @@ import {
   FileText,
   Image as ImageIcon,
   Plus,
-  Pencil,
-  Trash2,
   Loader2,
   Eye,
   EyeOff,
@@ -1291,32 +1289,45 @@ function BannersTab() {
                           </button>
 
                           {/* Hover actions */}
-                          <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-end px-2 pb-2 gap-1">
-                            <IconActionButton tooltip="Lên" size="sm" className="w-7 h-7 bg-white/95 text-neutral-700 hover:bg-white disabled:opacity-30" onClick={() => moveOrder(banner, -1)} disabled={idx === 0}>
-                              <ArrowUp size={12} />
-                            </IconActionButton>
-                            <IconActionButton tooltip="Xuống" size="sm" className="w-7 h-7 bg-white/95 text-neutral-700 hover:bg-white disabled:opacity-30" onClick={() => moveOrder(banner, +1)} disabled={idx === list.length - 1}>
-                              <ArrowDown size={12} />
-                            </IconActionButton>
-                            <IconActionButton tooltip="Chỉnh sửa" tone="primary" size="sm" className="w-7 h-7 bg-white/95 hover:bg-white" onClick={() => openEdit(banner)}>
-                              <Pencil size={12} />
-                            </IconActionButton>
-                            <IconActionButton
-                              tooltip="Xoá"
-                              tone="red"
-                              size="sm"
-                              className="w-7 h-7 bg-white/95 hover:bg-white"
-                              onClick={() =>
-                                askConfirm({
-                                  title: 'Xoá banner?',
-                                  message: `Banner "${banner.title}" sẽ bị xoá.`,
-                                  confirmText: 'Xoá',
-                                  onConfirm: () => deleteReq.mutate(banner.id),
-                                })
-                              }
-                            >
-                              <Trash2 size={12} />
-                            </IconActionButton>
+                          <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-end px-2 pb-2">
+                            <RowActions
+                              align="end"
+                              actions={[
+                                {
+                                  key: 'move-up',
+                                  icon: ArrowUp,
+                                  tooltip: 'Lên',
+                                  className: 'bg-white/95 text-neutral-700 hover:bg-white',
+                                  disabled: idx === 0,
+                                  onClick: () => moveOrder(banner, -1),
+                                },
+                                {
+                                  key: 'move-down',
+                                  icon: ArrowDown,
+                                  tooltip: 'Xuống',
+                                  className: 'bg-white/95 text-neutral-700 hover:bg-white',
+                                  disabled: idx === list.length - 1,
+                                  onClick: () => moveOrder(banner, +1),
+                                },
+                                {
+                                  kind: 'edit',
+                                  tooltip: 'Chỉnh sửa',
+                                  className: 'bg-white/95 hover:bg-white',
+                                  onClick: () => openEdit(banner),
+                                },
+                                {
+                                  kind: 'delete',
+                                  className: 'bg-white/95 hover:bg-white',
+                                  onClick: () =>
+                                    askConfirm({
+                                      title: 'Xoá banner?',
+                                      message: `Banner "${banner.title}" sẽ bị xoá.`,
+                                      confirmText: 'Xoá',
+                                      onConfirm: () => deleteReq.mutate(banner.id),
+                                    }),
+                                },
+                              ]}
+                            />
                           </div>
                         </div>
 
@@ -1546,7 +1557,7 @@ export function WebsiteManagementPage() {
         />
         <KpiCard
           icon={Sparkles}
-          label="Landing config"
+          label="Cấu hình trang đích"
           value={config ? 'Đã cấu hình' : 'Chưa có'}
           hint={
             kpis.lastUpdated

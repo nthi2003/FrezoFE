@@ -134,14 +134,14 @@ export function BankStatementImportPage() {
   return (
     <div className="p-6 space-y-4 animate-fade-in max-w-4xl">
       <PageHeader
-        title="Import sao kê ngân hàng"
+        title="Nhập sao kê ngân hàng"
         description="Quy trình 3 bước — CSV, khớp theo số tiền và ngày giao dịch."
         actions={(
           <div className="flex items-center gap-2">
             <span
               className="inline-flex items-center text-neutral-400 hover:text-primary-600 cursor-help"
-              title="Import CSV sao kê ngân hàng vào TK 112x để đối chiếu với sổ cái."
-              aria-label="Giải thích import sao kê"
+              title="Nhập CSV sao kê ngân hàng vào TK 112x để đối chiếu với sổ cái."
+              aria-label="Giải thích nhập sao kê"
             >
               <HelpCircle size={16} strokeWidth={2} />
             </span>

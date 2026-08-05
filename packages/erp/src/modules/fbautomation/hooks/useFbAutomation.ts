@@ -75,7 +75,7 @@ export function useDeleteFbLead() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: fbApi.leads.delete,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: FB_KEYS.leads }); toast.success('Đã xóa lead') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: FB_KEYS.leads }); toast.success('Đã xoá khách tiềm năng') },
   })
 }
 
