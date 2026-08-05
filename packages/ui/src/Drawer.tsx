@@ -3,6 +3,8 @@ import { useEffect } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@frezo/utils'
 
+import { Portal } from './Portal'
+
 export interface DrawerProps {
   isOpen: boolean
   onClose: () => void
