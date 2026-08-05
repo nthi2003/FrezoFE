@@ -4,6 +4,7 @@ import {
   Search, Plus, List, Users,
   ZoomIn, ZoomOut, Maximize2, ChevronRight, ChevronsDownUp, ChevronsUpDown, GitBranch,
   Building2,
+  type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@frezo/utils'
 import { AppTable } from '@/components/ui/AppTable'
@@ -95,7 +96,18 @@ const STATUS_CONFIG: Record<string, StatusConfig> = {
 
 type DeptViewMode = 'tree' | 'table' | 'personnel'
 
-const VIEW_MODES: DeptViewMode[] = ['tree', 'table', 'personnel']
+const VIEW_OPTIONS = [
+  { value: 'tree', label: 'Cây phòng ban', ariaLabel: 'Chế độ cây phòng ban', icon: GitBranch },
+  { value: 'personnel', label: 'Nhân sự', ariaLabel: 'Chế độ sơ đồ nhân sự', icon: Users },
+  { value: 'table', label: 'Danh sách', ariaLabel: 'Chế độ danh sách', icon: List },
+] as const satisfies ReadonlyArray<{
+  value: DeptViewMode
+  label: string
+  ariaLabel: string
+  icon: LucideIcon
+}>
+
+const VIEW_MODES: DeptViewMode[] = VIEW_OPTIONS.map((o) => o.value)
 
 /** Chế độ xem + trạng thái thu gọn của cây được nhớ giữa các lần vào trang. */
 const VIEW_STORAGE_KEY = 'frezo.qtht.departments.view'
@@ -112,7 +124,14 @@ export function DepartmentsPage() {
   const [createPrefill, setCreatePrefill] = useState<Partial<typeof defaultFormValues> | null>(null)
   const [detailDept, setDetailDept] = useState<any | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
-  const [viewMode, setViewMode] = useState<'tree' | 'table' | 'personnel'>('tree')
+  const [viewMode, setViewMode] = useState<DeptViewMode>(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_STORAGE_KEY) as DeptViewMode | null
+      return saved && VIEW_MODES.includes(saved) ? saved : 'tree'
+    } catch {
+      return 'tree'
+    }
+  })
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'ACTIVE' | 'INACTIVE'>('all')
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => {
@@ -143,6 +162,15 @@ export function DepartmentsPage() {
     el.addEventListener('wheel', handler, { passive: false })
     return () => el.removeEventListener('wheel', handler)
   }, [viewMode])
+
+  const handleChangeView = useCallback((mode: DeptViewMode) => {
+    setViewMode(mode)
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, mode)
+    } catch {
+      /* localStorage bị chặn — chấp nhận không nhớ chế độ xem */
+    }
+  }, [])
 
   useEffect(() => {
     try {
@@ -465,36 +493,23 @@ export function DepartmentsPage() {
             </div>
 
             <div className="inline-flex items-center bg-white border border-neutral-200 rounded-md p-0.5">
-              <button
-                type="button"
-                onClick={() => setViewMode('tree')}
-                className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
-                  viewMode === 'tree' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
-                }`}
-                aria-label="Chế độ cây phòng ban"
-              >
-                <GitBranch size={13} /> Cây phòng ban
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('personnel')}
-                className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
-                  viewMode === 'personnel' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
-                }`}
-                aria-label="Chế độ sơ đồ nhân sự"
-              >
-                <Users size={13} /> Nhân sự
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('table')}
-                className={`px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition ${
-                  viewMode === 'table' ? 'bg-primary-50 text-primary-700' : 'text-neutral-500'
-                }`}
-                aria-label="Chế độ danh sách"
-              >
-                <List size={13} /> Danh sách
-              </button>
+              {VIEW_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handleChangeView(opt.value)}
+                  className={cn(
+                    'px-2.5 h-8 rounded text-xs font-semibold inline-flex items-center gap-1 transition',
+                    viewMode === opt.value
+                      ? 'bg-primary-50 text-primary-700'
+                      : 'text-neutral-500 hover:text-neutral-700',
+                  )}
+                  aria-label={opt.ariaLabel}
+                  aria-pressed={viewMode === opt.value}
+                >
+                  <opt.icon size={13} /> {opt.label}
+                </button>
+              ))}
             </div>
           </>
         }

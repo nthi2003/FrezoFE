@@ -18,6 +18,11 @@ export interface ApiLogItem {
   requestBody?: string
   responseBody?: string
   createdDate?: string
+  userAgent?: string
+  queryString?: string
+  module?: string
+  errorMessage?: string
+  traceId?: string
 }
 
 export interface ApiLogListResponse {
@@ -36,6 +41,8 @@ export interface ApiLogStats {
   failedTrend: number
 }
 
+export type StatusGroup = 'all' | '2xx' | '3xx' | '4xx' | '5xx'
+
 export interface ApiLogFilter {
   /** 1-based — BE ApiLogServiceImpl uses ServiceHelper.createPageable (page - 1). */
   pageNumber?: number
@@ -43,9 +50,13 @@ export interface ApiLogFilter {
   search?: string
   method?: string
   statusCode?: number
+  /** Server-side status group filter */
+  statusGroup?: StatusGroup
+  errorsOnly?: boolean
   ipAddress?: string
   username?: string
   uri?: string
+  module?: string
   durationMin?: number
   durationMax?: number
   /** ISO-8601 datetime (VD: 2026-07-01T00:00:00) */
