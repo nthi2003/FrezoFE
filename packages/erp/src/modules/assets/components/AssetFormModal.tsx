@@ -16,12 +16,19 @@ interface Props {
   onClose: () => void
 }
 
+interface AssetCategoryOption {
+  code: string
+  name: string
+}
+
 export function AssetFormModal({ open, editing, onClose }: Props) {
   const isEdit = !!editing
   const create = useCreateAsset()
   const update = useUpdateAsset()
   const { data: categoriesRaw } = useCategories('LoaiTaiSan')
-  const categories = (Array.isArray(categoriesRaw) ? categoriesRaw : []) as any[]
+  const categories = (
+    Array.isArray(categoriesRaw) ? categoriesRaw : []
+  ) as AssetCategoryOption[]
 
   const [form, setForm] = useState<AssetSavePayload>(defaultForm())
   const [dirty, setDirty] = useState(false)

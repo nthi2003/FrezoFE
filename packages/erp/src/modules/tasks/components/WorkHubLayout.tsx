@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { AppTooltip, PageHeader } from '@frezo/ui'

@@ -118,6 +118,26 @@ function canExportInvoice(inv: Invoice) {
   return inv.status === 'ISSUED' || inv.status === 'PARTIALLY_PAID' || inv.status === 'PAID'
 }
 
+type PostInvoiceResult = {
+  id?: string
+  journalEntryId?: string
+  glJournalEntryId?: string
+  skipped?: boolean
+  alreadyPosted?: boolean
+  message?: string
+}
+
+const POST_INVOICE_ERROR_FALLBACK =
+  'Hạch toán thất bại. Kiểm tra kỳ kế toán / ánh xạ tài khoản.'
+
+function getPostErrorMessage(err: unknown): string {
+  if (typeof err === 'object' && err !== null) {
+    const axiosLike = err as { response?: { data?: { message?: string } }; message?: string }
+    return axiosLike.response?.data?.message || axiosLike.message || POST_INVOICE_ERROR_FALLBACK
+  }
+  return POST_INVOICE_ERROR_FALLBACK
+}
+
 const INVOICE_EXPORT_COLUMNS: CsvColumn<Invoice>[] = [
   { header: 'Mã hoá đơn', accessor: 'code' },
   { header: 'Khách hàng', accessor: (r) => r.customerName || '' },
