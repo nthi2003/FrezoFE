@@ -2,8 +2,6 @@ import { useState, useMemo } from 'react'
 import {
   Plus, Building2, GitBranch,
   ChevronRight, ChevronDown, List, Search,
-  CheckCircle, AlertCircle, Power,
-  type LucideIcon,
 } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -11,13 +9,17 @@ import {
   AppModal, Button, ConfirmDialog, PageHeader, PageGuideButton,
   EmptyState, ErrorState, Select,
   RowActions, AppTooltip, StatusBadge,
-  type PageGuideConfig, type StatusConfig,
+  type PageGuideConfig,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import {
   useOrganizations, useCreateOrganization, useUpdateOrganization, useDeleteOrganization,
 } from '../hooks/useQtht'
 import { orgSchema } from '../constants/schema'
+import {
+  ORGANIZATION_STATUS_FILTER_OPTIONS,
+  resolveOrganizationStatus,
+} from '../constants/organizationStatus'
 import { OrganizationDetailDrawer } from '../components/OrganizationDetailDrawer'
 
 // ============================================================
@@ -94,25 +96,6 @@ const SCALE_OPTIONS = [
   { value: 'LARGE', label: 'Lớn' },
   { value: 'ENTERPRISE', label: 'Doanh nghiệp' },
   { value: 'CORPORATION', label: 'Tập đoàn' },
-]
-
-const STATUS_CONFIG: Record<string, StatusConfig & { icon?: LucideIcon }> = {
-  ACTIVE:     { label: 'Hoạt động',       color: 'success', icon: CheckCircle },
-  INACTIVE:   { label: 'Ngừng hoạt động', color: 'neutral', icon: Power },
-  SUSPENDED:  { label: 'Tạm ngưng',       color: 'warning', icon: AlertCircle },
-  MERGED:     { label: 'Đã sáp nhập',     color: 'info',    icon: GitBranch },
-  ACQUIRED:   { label: 'Đã mua lại',      color: 'info',    icon: GitBranch },
-  DISSOLVED:  { label: 'Đã giải thể',     color: 'danger',  icon: AlertCircle },
-  LIQUIDATED: { label: 'Đã thanh lý',     color: 'danger',  icon: AlertCircle },
-}
-
-const STATUS_FILTER_OPTIONS = [
-  { value: 'all', label: 'Tất cả trạng thái' },
-  { value: 'ACTIVE', label: 'Hoạt động' },
-  { value: 'INACTIVE', label: 'Ngừng hoạt động' },
-  { value: 'SUSPENDED', label: 'Tạm ngưng' },
-  { value: 'MERGED', label: 'Đã sáp nhập' },
-  { value: 'DISSOLVED', label: 'Đã giải thể' },
 ]
 
 const defaultFormValues = {
@@ -289,10 +272,7 @@ export function OrganizationsPage() {
       key: 'status',
       title: 'Trạng thái',
       dataIndex: 'status',
-      render: (v: string) => {
-        const cfg = STATUS_CONFIG[v] || STATUS_CONFIG.INACTIVE
-        return <StatusBadge {...cfg} />
-      },
+      render: (v: string) => <StatusBadge {...resolveOrganizationStatus(v)} />,
     },
     {
       key: 'actions',
@@ -396,7 +376,7 @@ export function OrganizationsPage() {
 
         <div className="min-w-[140px]">
           <Select
-            options={STATUS_FILTER_OPTIONS}
+            options={ORGANIZATION_STATUS_FILTER_OPTIONS}
             value={statusFilter}
             onChange={setStatusFilter}
             placeholder="Trạng thái"
@@ -549,7 +529,7 @@ function OrgTreeNode({
 }: OrgTreeNodeProps) {
   const [expanded, setExpanded] = useState(depth === 0)
   const hasChildren = Array.isArray(node.children) && node.children.length > 0
-  const statusCfg = STATUS_CONFIG[node.status || 'ACTIVE'] || STATUS_CONFIG.ACTIVE
+  const statusCfg = resolveOrganizationStatus(node.status)
   const typeLabel = TYPE_OPTIONS.find((t) => t.value === node.type)?.label || node.type
   const isRoot = depth === 0
 

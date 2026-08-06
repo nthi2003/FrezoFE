@@ -20,9 +20,11 @@ import {
   EmptyState,
   ErrorState,
   RowActions,
+  StatusBadge,
   type PageGuideConfig,
 } from '@frezo/ui'
 import { unwrapList } from '@frezo/utils'
+import { resolveUserStatus, USER_STATUS_CONFIG, USER_STATUS_FILTER_OPTIONS } from '../constants/userStatus'
 
 const USERS_GUIDE: PageGuideConfig = {
   title: 'Quản lý Người dùng',
@@ -241,16 +243,13 @@ export function UsersPage() {
       key: 'status', title: 'Trạng thái', dataIndex: 'status', align: 'center',
       filterType: 'select',
       filterOptions: [
-        { value: '1', label: 'Hoạt động' },
-        { value: '0', label: 'Khóa' },
+        { value: '1', label: USER_STATUS_CONFIG[1].label },
+        { value: '0', label: USER_STATUS_CONFIG[0].label },
       ],
-      render: (_, record) => (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-          record.status === 1 ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
-        }`}>
-          {record.status === 1 ? 'Hoạt động' : 'Khóa'}
-        </span>
-      ),
+      render: (_, record) => {
+        const cfg = resolveUserStatus(record.status)
+        return <StatusBadge label={cfg.label} color={cfg.color} />
+      },
     },
     {
       key: 'actions', title: 'Thao tác', align: 'center', width: 140,
@@ -328,11 +327,7 @@ export function UsersPage() {
       >
         <div className="min-w-[140px]">
           <Select
-            options={[
-              { value: 'all', label: 'Tất cả trạng thái' },
-              { value: '1', label: 'Hoạt động' },
-              { value: '0', label: 'Khóa' },
-            ]}
+            options={USER_STATUS_FILTER_OPTIONS}
             value={statusFilter}
             onChange={(v) => setStatusFilter(v as 'all' | '1' | '0')}
             placeholder="Trạng thái"

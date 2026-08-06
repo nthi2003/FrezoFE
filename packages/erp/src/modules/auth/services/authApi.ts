@@ -42,11 +42,23 @@ export const authApi = {
       .post<ApiResponse<void>>(API.AUTH.FORGOT_PW, null, { params: { email } })
       .then((res) => res.data),
 
-  /** Đặt lại mật khẩu bằng OTP (param key = mã OTP 6 số) */
-  resetPassword: (data: { key: string; newPassword: string }) =>
+  /** Xác thực OTP quên mật khẩu → trả resetToken dùng 1 lần cho bước đặt mật khẩu mới */
+  verifyResetOtp: (data: { email: string; otp: string }) =>
+    axiosClient
+      .post<ApiResponse<string>>(API.AUTH.VERIFY_RESET_OTP, null, {
+        params: { email: data.email, otp: data.otp },
+      })
+      .then((res) => res.data.data),
+
+  /** Đặt lại mật khẩu bằng resetToken lấy từ verifyResetOtp */
+  resetPassword: (data: { email: string; resetToken: string; newPassword: string }) =>
     axiosClient
       .post<ApiResponse<void>>(API.AUTH.RESET_PW, null, {
-        params: { key: data.key, newPassword: data.newPassword },
+        params: {
+          email: data.email,
+          resetToken: data.resetToken,
+          newPassword: data.newPassword,
+        },
       })
       .then((res) => res.data),
 

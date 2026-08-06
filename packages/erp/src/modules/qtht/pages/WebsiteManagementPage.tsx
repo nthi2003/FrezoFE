@@ -49,6 +49,7 @@ import {
   IconActionButton,
   RowActions,
   AppTooltip,
+  StatusBadge,
 } from '@frezo/ui'
 import { AppTable } from '@/components/ui/AppTable'
 import { AppForm } from '@/components/shared/AppForm'
@@ -66,6 +67,7 @@ import {
   useDeleteBanner,
 } from '../hooks/useBanner'
 import { bannerFormSchema, type BannerFormValues } from '../constants/banner.schema'
+import { resolvePublishStatus } from '../constants/publishStatus'
 import { makeImageUploader } from '@/lib/upload'
 import { LandingPreview, type PreviewDevice, type LandingConfigLite } from '../components/LandingPreview'
 import { usePermission } from '@/lib/hooks/usePermission'
@@ -240,16 +242,6 @@ const ALL_FIELD_NAMES = FORM_SECTIONS.flatMap((s) => s.fields.map((f) => f.name)
 // ============================================================
 // Small UI helpers
 // ============================================================
-
-function StatusPill({ value }: { value?: string }) {
-  const map: Record<string, { cls: string; label: string }> = {
-    DRAFT:     { cls: 'bg-neutral-100 text-neutral-600',   label: 'Bản nháp' },
-    PUBLISHED: { cls: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100', label: 'Đã xuất bản' },
-    ARCHIVED:  { cls: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',       label: 'Lưu trữ' },
-  }
-  const cfg = map[value || ''] || { cls: 'bg-neutral-100 text-neutral-500', label: value || '—' }
-  return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}>{cfg.label}</span>
-}
 
 function KpiCard({
   icon: Icon,
@@ -936,7 +928,7 @@ function ArticlesTab() {
     {
       title: 'Trạng thái',
       dataIndex: 'status',
-      render: (val: string) => <StatusPill value={val} />,
+      render: (val: string) => <StatusBadge {...resolvePublishStatus(val)} />,
     },
     {
       title: 'Ngày tạo',

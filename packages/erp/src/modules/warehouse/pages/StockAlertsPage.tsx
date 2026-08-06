@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, BellOff, PackagePlus } from 'lucide-react'
-import { Button, ConfirmDialog, RowActions } from '@frezo/ui'
+import { Button, ConfirmDialog, RowActions, StatusBadge } from '@frezo/ui'
 import { toast } from 'sonner'
 import type { AppTableColumn, BulkAction } from '@/components/ui/AppTable'
 import {
@@ -16,6 +16,11 @@ import { useCreatePrFromAlerts } from '../hooks/usePurchaseRequest'
 import { useWarehouseFilters } from '../hooks/useWarehouseFilters'
 import { STOCK_ALERTS_GUIDE } from '../constants/stock-alerts.guide'
 import {
+  resolveStockAlertLevel,
+  STOCK_ALERT_TYPE_CONFIG,
+  STOCK_ALERT_TYPE_FILTER_OPTIONS,
+} from '../constants/warehouseStatus'
+import {
   formatProductLabel,
   formatSupplierLabel,
   formatWarehouseLabel,
@@ -23,25 +28,7 @@ import {
 } from '../utils/displayUtils'
 import { WarehouseListShell } from '../components/WarehouseListShell'
 import { WarehouseFilterBar } from '../components/WarehouseFilterBar'
-import type { StockAlertDto, StockAlertSeverity } from '../types'
-
-const SEVERITY_META: Record<
-  StockAlertSeverity,
-  { label: string; tone: string }
-> = {
-  CRITICAL: {
-    label: 'Hết hàng',
-    tone: 'bg-rose-50 text-rose-700 border-rose-200',
-  },
-  WARNING: {
-    label: 'Dưới min',
-    tone: 'bg-amber-50 text-amber-700 border-amber-200',
-  },
-  INFO: {
-    label: 'Theo dõi',
-    tone: 'bg-blue-50 text-blue-700 border-blue-200',
-  },
-}
+import type { StockAlertDto } from '../types'
 
 export function StockAlertsPage() {
   const nav = useNavigate()
@@ -91,7 +78,10 @@ export function StockAlertsPage() {
         value: rows.filter((r) => r.status === 'OPEN').length,
       },
       { label: 'Hết hàng', value: openCritical },
-      { label: 'Cận hạn (lô)', value: expiryOpen },
+      {
+        label: `${STOCK_ALERT_TYPE_CONFIG.EXPIRY_SOON.label} (lô)`,
+        value: expiryOpen,
+      },
     ],
     [rows, openCritical, expiryOpen],
   )
@@ -174,16 +164,8 @@ export function StockAlertsPage() {
       key: 'severity',
       title: 'Mức',
       render: (_, row) => {
-        const meta = SEVERITY_META[row.severity] || SEVERITY_META.INFO
-        const label =
-          row.alertType === 'EXPIRY_SOON' ? 'Cận hạn' : meta.label
-        return (
-          <span
-            className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${meta.tone}`}
-          >
-            {label}
-          </span>
-        )
+        const cfg = resolveStockAlertLevel(row.severity, row.alertType)
+        return <StatusBadge label={cfg.label} color={cfg.color} />
       },
     },
     {
@@ -251,11 +233,7 @@ export function StockAlertsPage() {
               value: alertTypeTab,
               onChange: (v) =>
                 setAlertTypeTab(v as 'all' | 'LOW_STOCK' | 'EXPIRY_SOON'),
-              options: [
-                { value: 'all', label: 'Tất cả loại' },
-                { value: 'LOW_STOCK', label: 'Dưới min' },
-                { value: 'EXPIRY_SOON', label: 'Cận hạn' },
-              ],
+              options: STOCK_ALERT_TYPE_FILTER_OPTIONS,
             },
             {
               id: 'warehouse',

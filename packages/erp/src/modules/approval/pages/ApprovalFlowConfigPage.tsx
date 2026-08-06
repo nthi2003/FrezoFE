@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import {
   Button, PageHeader, AppModal, EmptyState, ErrorState, PageGuideButton, Select,
-  IconActionButton, actionIconTone, RowActions,
+  IconActionButton, actionIconTone, RowActions, StatusBadge,
 } from '@frezo/ui'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import {
@@ -26,6 +26,11 @@ import {
 } from '../types'
 import { usePermission } from '@/lib/hooks/usePermission'
 import { APPROVAL_FLOWS_GUIDE } from '../constants/approvals.guide'
+import {
+  FLOW_ACTIVE_FILTER_OPTIONS,
+  resolveFlowActiveStatus,
+  resolveFlowRuntimeBadge,
+} from '../constants/flowStatus'
 import { pageRootClass } from '../utils/pageEmbed'
 
 const SUBJECT_OPTIONS = Object.values(SubjectType).map((v) => ({
@@ -149,26 +154,12 @@ export function ApprovalFlowConfigPage({ embedded }: { embedded?: boolean } = {}
       render: (_, row) => {
         const subjectLabel = SUBJECT_TYPE_LABEL[row.subjectType] || row.subjectType
         const isRuntime = activeBySubject.get(row.subjectType)?.id === row.id
+        const activeCfg = resolveFlowActiveStatus(row.active)
+        const runtimeCfg = resolveFlowRuntimeBadge(isRuntime, subjectLabel)
         return (
           <div className="flex flex-wrap gap-1">
-            <span
-              className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${
-                row.active
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-neutral-100 text-neutral-500 border-neutral-200'
-              }`}
-            >
-              {row.active ? 'Đang kích hoạt' : 'Tắt'}
-            </span>
-            {isRuntime ? (
-              <span className="text-[10px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
-                Áp dụng: {subjectLabel}
-              </span>
-            ) : (
-              <span className="text-[10px] font-medium text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-                Chưa gắn — không tự chạy
-              </span>
-            )}
+            <StatusBadge label={activeCfg.label} color={activeCfg.color} />
+            <StatusBadge label={runtimeCfg.label} color={runtimeCfg.color} />
           </div>
         )
       },
@@ -228,11 +219,7 @@ export function ApprovalFlowConfigPage({ embedded }: { embedded?: boolean } = {}
           </div>
           <div className="min-w-[140px]">
             <Select
-              options={[
-                { value: '', label: 'Tất cả trạng thái' },
-                { value: 'active', label: 'Đang kích hoạt' },
-                { value: 'inactive', label: 'Tắt' },
-              ]}
+              options={FLOW_ACTIVE_FILTER_OPTIONS}
               value={statusFilter}
               onChange={setStatusFilter}
               placeholder="Trạng thái"

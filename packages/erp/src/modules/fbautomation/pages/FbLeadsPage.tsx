@@ -12,7 +12,7 @@ import {
   Globe, User, Sparkles, Search, RefreshCw, ExternalLink,
   Phone, Mail, Clock, MapPin, X, HelpCircle,
 } from 'lucide-react'
-import { Button, PageHeader, EmptyState, ErrorState, Select, IconActionButton, AppTooltip, RowActions } from '@frezo/ui'
+import { Button, PageHeader, EmptyState, ErrorState, Select, IconActionButton, AppTooltip, Portal, RowActions } from '@frezo/ui'
 import { toast } from 'sonner'
 import { AppTable } from '@/components/ui/AppTable'
 import type { AppTableColumn, BulkAction } from '@/components/ui/AppTable'
@@ -547,7 +547,7 @@ function LeadDetailDrawer({
   const SrcIcon = srcMeta.icon
   const disabled = lead.status === 'IMPORTED'
   return (
-    <>
+    <Portal>
       <div className="fixed inset-0 z-40 bg-neutral-900/40 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-white shadow-2xl overflow-y-auto animate-slide-in-right">
         <div className={`p-5 border-b border-neutral-100 ${srcMeta.bg}`}>
@@ -620,7 +620,7 @@ function LeadDetailDrawer({
           )}
         </div>
       </div>
-    </>
+    </Portal>
   )
 }
 

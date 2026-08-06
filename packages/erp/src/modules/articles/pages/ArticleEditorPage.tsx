@@ -18,6 +18,7 @@ import {
   RichTextEditor,
   ImageUploader,
   PageGuideButton,
+  Portal,
   type PageGuideConfig,
   type StatusConfig,
 } from '@frezo/ui'
@@ -829,6 +830,7 @@ export function ArticleEditorPage() {
       />
 
       {rejectOpen && (
+        <Portal>
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-xl bg-white shadow-xl border border-neutral-200 p-5 space-y-4">
             <div>
@@ -874,6 +876,7 @@ export function ArticleEditorPage() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
     </div>
   )

@@ -14,6 +14,7 @@ import {
   TableRow,
   BulkSelectionBar,
   AppTooltip,
+  Portal,
 } from '@frezo/ui'
 import { Skeleton } from '@frezo/ui'
 import notDataImg from '@/img/mas-cost-not-data.png'
@@ -543,7 +544,7 @@ export function AppTable<T>({
 
       {/* Sidebar Drawer */}
       {sidebarItems.length > 0 && (
-        <>
+        <Portal>
           {/* Backdrop Overlay */}
           <div
             className={`fixed inset-0 bg-black/40 backdrop-blur-xs z-[9999] transition-opacity duration-300 ${
@@ -603,7 +604,7 @@ export function AppTable<T>({
               </Button>
             </div>
           </div>
-        </>
+        </Portal>
       )}
 
 

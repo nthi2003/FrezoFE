@@ -3,6 +3,7 @@
 // ============================================================
 
 import { X, MessageSquare } from 'lucide-react'
+import { Portal } from '@frezo/ui'
 import { CommentThread } from './CommentThread'
 
 interface Props {
@@ -24,7 +25,7 @@ export function CommentDrawer({
 }: Props) {
   if (!open) return null
   return (
-    <>
+    <Portal>
       <div
         className="fixed inset-0 z-40 bg-neutral-900/30 backdrop-blur-sm"
         onClick={onClose}
@@ -52,6 +53,6 @@ export function CommentDrawer({
           <CommentThread subjectType={subjectType} subjectId={subjectId} />
         </div>
       </aside>
-    </>
+    </Portal>
   )
 }

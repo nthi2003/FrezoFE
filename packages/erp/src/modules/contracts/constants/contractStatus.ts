@@ -21,6 +21,7 @@ import {
   UserCheck,
   RotateCcw,
   ThumbsDown,
+  AlertTriangle,
 } from 'lucide-react'
 import type { StatusConfig } from '@frezo/ui'
 
@@ -68,6 +69,13 @@ export const CONTRACT_STATUS_CONFIG = {
   RV_REJECTED:      { label: 'RV từ chối',        color: 'danger',  icon: ThumbsDown },
   OP_REWORK:        { label: 'OP làm lại',        color: 'warning', icon: RotateCcw },
 } as const satisfies Record<ContractStatus, StatusConfig>
+
+/** Badge phụ — ACTIVE sắp hết hạn (≤30 ngày), không phải lifecycle status. */
+export const CONTRACT_EXPIRING_SOON_BADGE: StatusConfig = {
+  label: 'Sắp hết hạn',
+  color: 'warning',
+  icon: AlertTriangle,
+}
 
 /**
  * Options cho <Select /> filter status trong AppTable.

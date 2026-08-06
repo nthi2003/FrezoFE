@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Drawer, Button, StatusBadge, IconActionButton } from '@frezo/ui'
+import { resolveDepartmentStatus } from '../constants/departmentStatus'
 
 interface Props {
   isOpen: boolean
@@ -72,7 +73,7 @@ export function DepartmentDetailDrawer({
     return <Drawer isOpen={isOpen} onClose={onClose} size="md" title="Chi tiết phòng ban" />
   }
 
-  const isActive = dept.status === 'ACTIVE'
+  const statusCfg = resolveDepartmentStatus(dept.status)
 
   return (
     <Drawer
@@ -124,10 +125,7 @@ export function DepartmentDetailDrawer({
               </div>
             )}
             <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-              <StatusBadge
-                label={isActive ? 'Hoạt động' : 'Ngừng hoạt động'}
-                color={isActive ? 'success' : 'neutral'}
-              />
+              <StatusBadge {...statusCfg} />
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-primary-50 text-primary-700 border border-primary-200 rounded">
                 <Users size={9} /> {deptMembers.length} thành viên
               </span>
@@ -325,13 +323,7 @@ export function DepartmentDetailDrawer({
                   </div>
                   <div className="text-[11px] text-neutral-500 font-mono">{d.code}</div>
                 </div>
-                <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold uppercase rounded border shrink-0 ${
-                  d.status === 'ACTIVE'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-neutral-100 text-neutral-500 border-neutral-200'
-                }`}>
-                  {d.status === 'ACTIVE' ? 'Hoạt động' : 'Ngừng'}
-                </span>
+                <StatusBadge {...resolveDepartmentStatus(d.status)} compact />
                 <ChevronRight size={13} className="text-neutral-300 group-hover:text-primary-500 shrink-0" />
               </button>
             ))}

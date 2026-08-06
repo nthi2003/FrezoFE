@@ -7,6 +7,7 @@ export const API = {
     PROFILE:       '/auth/profile',
     VERIFY_OTP:    '/auth/verify-otp',
     FORGOT_PW:     '/auth/forgot-password',
+    VERIFY_RESET_OTP: '/auth/verify-reset-otp',
     RESET_PW:      '/auth/reset-password',
     LOGIN_HISTORY: '/auth/login-history',
     AVATAR_UPLOAD: '/auth/avatar',

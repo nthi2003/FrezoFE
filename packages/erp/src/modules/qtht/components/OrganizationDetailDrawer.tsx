@@ -6,11 +6,12 @@
 import { useMemo } from 'react'
 import {
   Building2, Mail, Phone, Globe, MapPin, CreditCard, Users,
-  Pencil, Power, Copy, GitBranch, ChevronRight, Layers, Plus,
-  type LucideIcon, CheckCircle, AlertCircle,
+  Pencil, Copy, GitBranch, ChevronRight, Layers, Plus,
+  type LucideIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Drawer, Button, StatusBadge, IconActionButton } from '@frezo/ui'
+import { resolveOrganizationStatus } from '../constants/organizationStatus'
 
 interface Props {
   isOpen: boolean
@@ -46,16 +47,6 @@ const SCALE_LABEL: Record<string, string> = {
   CORPORATION: 'Tập đoàn',
 }
 
-const STATUS_CFG: Record<string, { label: string; color: any; icon: LucideIcon }> = {
-  ACTIVE:     { label: 'Hoạt động',   color: 'success', icon: CheckCircle },
-  INACTIVE:   { label: 'Ngừng hoạt động', color: 'neutral', icon: Power },
-  SUSPENDED:  { label: 'Tạm ngưng',   color: 'warning', icon: AlertCircle },
-  MERGED:     { label: 'Đã sáp nhập', color: 'info',    icon: GitBranch },
-  ACQUIRED:   { label: 'Đã mua lại',  color: 'info',    icon: GitBranch },
-  DISSOLVED:  { label: 'Đã giải thể', color: 'danger',  icon: AlertCircle },
-  LIQUIDATED: { label: 'Đã thanh lý', color: 'danger',  icon: AlertCircle },
-}
-
 // ============================================================
 // Component
 // ============================================================
@@ -86,7 +77,7 @@ export function OrganizationDetailDrawer({
     return <Drawer isOpen={isOpen} onClose={onClose} size="md" title="Chi tiết tổ chức" />
   }
 
-  const statusCfg = STATUS_CFG[org.status || 'ACTIVE'] || STATUS_CFG.ACTIVE
+  const statusCfg = resolveOrganizationStatus(org.status)
   const typeLabel = TYPE_LABEL[org.type] || org.type
   const scaleLabel = org.scale ? SCALE_LABEL[org.scale] || org.scale : null
   const initials = getInitials(org.shortName || org.name)
@@ -148,7 +139,7 @@ export function OrganizationDetailDrawer({
 
             {/* Tầng 1: trạng thái (semantic) + cờ chủ quản nếu có */}
             <div className="flex items-center gap-2 flex-wrap">
-              <StatusBadge label={statusCfg.label} color={statusCfg.color} icon={statusCfg.icon} />
+              <StatusBadge {...statusCfg} />
               {Number(org.level) === 1 && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-md">
                   ★ Chủ quản
@@ -307,7 +298,7 @@ export function OrganizationDetailDrawer({
         ) : (
           <div className="space-y-1">
             {children.map((c) => {
-              const cStatus = STATUS_CFG[c.status || 'ACTIVE'] || STATUS_CFG.ACTIVE
+              const cStatus = resolveOrganizationStatus(c.status)
               return (
                 <button
                   key={c.id}
@@ -328,13 +319,7 @@ export function OrganizationDetailDrawer({
                       <span>{TYPE_LABEL[c.type] || c.type}</span>
                     </div>
                   </div>
-                  <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold uppercase rounded border ${
-                    cStatus.color === 'success'
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-neutral-100 text-neutral-500 border-neutral-200'
-                  }`}>
-                    {cStatus.label}
-                  </span>
+                  <StatusBadge {...cStatus} compact />
                   <ChevronRight size={13} className="text-neutral-300 group-hover:text-primary-500 shrink-0" />
                 </button>
               )

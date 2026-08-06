@@ -8,7 +8,7 @@ import {
   Edit, UserPlus, UserMinus, Wrench, Ban, CheckCircle2, XCircle, Loader2,
   ArrowRight, Trash2, FileText, ArrowDownCircle, ArrowUpCircle, AlertTriangle,
 } from 'lucide-react'
-import { Button } from '@frezo/ui'
+import { Button, Portal } from '@frezo/ui'
 import type { AssetItem, AssetAssignmentItem } from '../services/assetApi'
 import {
   useAssetHistory, useUnassignAsset, useStartMaintenance, useEndMaintenance,
@@ -60,7 +60,7 @@ export function AssetDetailDrawer({ asset, onClose, onEdit, onAssign }: Props) {
   const pending = unassign.isPending || dispose.isPending || endMaint.isPending || del.isPending
 
   return (
-    <>
+    <Portal>
       <div className="fixed inset-0 z-40 bg-neutral-900/40 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-lg bg-white shadow-2xl overflow-y-auto animate-slide-in-right flex flex-col">
         {/* Header */}
@@ -281,7 +281,7 @@ export function AssetDetailDrawer({ asset, onClose, onEdit, onAssign }: Props) {
           )}
         </div>
       </div>
-    </>
+    </Portal>
   )
 }
 

@@ -23,7 +23,6 @@ import {
   IconActionButton,
   RowActions,
   type PageGuideConfig,
-  type StatusConfig,
 } from '@frezo/ui'
 import { AppForm } from '@/components/shared/AppForm'
 import { DepartmentDetailDrawer } from '../components/DepartmentDetailDrawer'
@@ -38,6 +37,7 @@ import {
   useDeactivateDepartment,
 } from '../hooks/useQtht'
 import { depSchema } from '../constants/schema'
+import { resolveDepartmentStatus } from '../constants/departmentStatus'
 
 const DEPARTMENTS_GUIDE: PageGuideConfig = {
   title: 'Sơ đồ Tổ chức',
@@ -87,11 +87,6 @@ const defaultFormValues = {
   organizationId: '',
   parentId: '',
   status: true,
-}
-
-const STATUS_CONFIG: Record<string, StatusConfig> = {
-  ACTIVE: { label: 'Hoạt động', color: 'success' },
-  INACTIVE: { label: 'Ngừng', color: 'neutral' },
 }
 
 type DeptViewMode = 'tree' | 'table' | 'personnel'
@@ -804,7 +799,7 @@ function DeptTreeNode({
 }: DeptTreeNodeProps) {
   const hasChildren = Array.isArray(node.children) && node.children.length > 0
   const expanded = hasChildren && (forceExpand || !collapsedIds.has(node.id))
-  const statusCfg = STATUS_CONFIG[node.status || 'ACTIVE'] || STATUS_CONFIG.INACTIVE
+  const statusCfg = resolveDepartmentStatus(node.status)
   const isActive = activeId === node.id
   const memberCount = (personsByDept.get(node.id) || []).length
 

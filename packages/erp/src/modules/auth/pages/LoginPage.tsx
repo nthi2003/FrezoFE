@@ -10,6 +10,9 @@ import {
   Globe, Server, Database, Monitor, Lock, WifiOff, ShieldAlert, ServerCrash,
   KeyRound, ArrowRight,
 } from 'lucide-react'
+import { Portal } from '@frezo/ui'
+import { toast } from 'sonner'
+import { SESSION_REVOKED_KEY } from '@/lib/axios/axiosClient'
 import { useLogin } from '../hooks/useLogin'
 import { parseAuthError, type AuthError } from '../utils/parseAuthError'
 import logoSrc from '@/img/logo.png'
@@ -70,6 +73,18 @@ export function LoginPage() {
       usernameRef.current?.focus()
     }, 50)
     return () => clearTimeout(t)
+  }, [])
+
+  // Phiên bị thu hồi / hết hạn — toast một lần sau redirect từ axios interceptor
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(SESSION_REVOKED_KEY)) {
+        sessionStorage.removeItem(SESSION_REVOKED_KEY)
+        toast.info('Phiên đăng nhập đã hết hạn hoặc bị thu hồi. Vui lòng đăng nhập lại.')
+      }
+    } catch {
+      /* ignore */
+    }
   }, [])
 
   // ---- Parse error thành typed object (memo tránh re-parse mỗi render) ----
@@ -164,6 +179,7 @@ export function LoginPage() {
       </button>
 
       {/* ============ ADVANCED SIDEBAR (slide from left) ============ */}
+      <Portal>
       {/* Backdrop */}
       <div
         className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-300
@@ -307,6 +323,7 @@ export function LoginPage() {
           </div>
         </div>
       </div>
+      </Portal>
 
       {/* ============ LEFT PANEL — Branding (Xanh đậm/tối để hiện logo màu trắng) ============ */}
       <div className="hidden lg:flex lg:w-[50%] xl:w-[55%] relative items-center justify-center p-12 overflow-hidden bg-[#060d09] shrink-0">

@@ -32,6 +32,8 @@ export {
   DialogTitle,
   DialogDescription,
 } from './dialog'
+export { Portal } from './Portal'
+export type { PortalProps } from './Portal'
 export { FormModal, AppModal } from './FormModal'
 export type {
   FormModalProps,

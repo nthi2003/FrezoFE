@@ -43,7 +43,21 @@ function isAuthPublicEndpoint(url?: string): boolean {
   return AUTH_PUBLIC_ENDPOINTS.some((ep) => url.endsWith(ep))
 }
 
-// Create main axios instance
+/** Session bị thu hồi / refresh thất bại — hiện toast trên màn login sau redirect. */
+export const SESSION_REVOKED_KEY = 'frezo_session_revoked'
+
+function forceLogout(sessionRevoked = false) {
+  if (sessionRevoked) {
+    try {
+      sessionStorage.setItem(SESSION_REVOKED_KEY, '1')
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }
+  storage.clear()
+  window.location.href = '/login'
+}
+
 const axiosClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
@@ -103,13 +117,17 @@ axiosClient.interceptors.response.use(
     const shouldSkipAuthRefresh =
       originalRequest?.skipAuthRefresh || isAuthPublicEndpoint(originalRequest?.url)
 
-    if (status === 401 && !originalRequest._retry && !shouldSkipAuthRefresh) {
+    if (status === 401 && !shouldSkipAuthRefresh) {
+      // Retry vẫn 401 (session bị thu hồi / refresh thất bại) → logout ngay
+      if (originalRequest._retry) {
+        forceLogout(true)
+        return Promise.reject(error)
+      }
+
       const refreshToken = storage.get<string>(STORAGE_KEYS.REFRESH_TOKEN)
 
       if (!refreshToken) {
-        // No refresh token → redirect to login
-        storage.clear()
-        window.location.href = '/login'
+        forceLogout(true)
         return Promise.reject(error)
       }
 
@@ -142,8 +160,7 @@ axiosClient.interceptors.response.use(
         return axiosClient(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        storage.clear()
-        window.location.href = '/login'
+        forceLogout(true)
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

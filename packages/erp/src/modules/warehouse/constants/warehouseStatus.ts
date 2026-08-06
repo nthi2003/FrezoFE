@@ -54,6 +54,31 @@ export const BATCH_STATUS_CONFIG: Record<string, StatusConfig> = {
   EXPIRED: { label: 'Hết hạn', color: 'danger' },
 }
 
+/** Stock alert severity (cột Mức — LOW_STOCK) */
+export const STOCK_ALERT_SEVERITY_CONFIG: Record<string, StatusConfig> = {
+  CRITICAL: { label: 'Hết hàng', color: 'danger' },
+  WARNING: { label: 'Dưới min', color: 'warning' },
+  INFO: { label: 'Theo dõi', color: 'info' },
+}
+
+/** Stock alert type — EXPIRY_SOON dùng badge riêng (không hijack severity tone) */
+export const STOCK_ALERT_TYPE_CONFIG: Record<string, StatusConfig> = {
+  LOW_STOCK: { label: 'Dưới min', color: 'warning' },
+  EXPIRY_SOON: { label: 'Cận hạn', color: 'warning' },
+}
+
+/** Badge cột Mức: loại EXPIRY_SOON → type config; còn lại → severity. */
+export function resolveStockAlertLevel(
+  severity?: string,
+  alertType?: string,
+): StatusConfig {
+  if ((alertType || '').toUpperCase() === 'EXPIRY_SOON') {
+    return STOCK_ALERT_TYPE_CONFIG.EXPIRY_SOON
+  }
+  const key = (severity || '').toUpperCase()
+  return STOCK_ALERT_SEVERITY_CONFIG[key] || STOCK_ALERT_SEVERITY_CONFIG.INFO
+}
+
 export type WarehouseStatusKind = 'doc' | 'pr' | 'po' | 'stockTake' | 'batch'
 
 const CONFIG_BY_KIND: Record<WarehouseStatusKind, Record<string, StatusConfig>> = {
@@ -157,4 +182,10 @@ export const BATCH_STATUS_FILTER_OPTIONS = [
   { value: 'ACTIVE', label: 'Còn hàng' },
   { value: 'DEPLETED', label: 'Đã hết' },
   { value: 'EXPIRED', label: 'Hết hạn' },
+]
+
+export const STOCK_ALERT_TYPE_FILTER_OPTIONS = [
+  { value: 'all', label: 'Tất cả loại' },
+  { value: 'LOW_STOCK', label: STOCK_ALERT_TYPE_CONFIG.LOW_STOCK.label },
+  { value: 'EXPIRY_SOON', label: STOCK_ALERT_TYPE_CONFIG.EXPIRY_SOON.label },
 ]

@@ -6,8 +6,9 @@ import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import {
   AppModal, Button, ConfirmDialog, EmptyState, ErrorState,
-  PageHeader, PageGuideButton, Select, IconActionButton, RowActions, type PageGuideConfig,
+  PageHeader, PageGuideButton, Select, IconActionButton, RowActions, StatusBadge, type PageGuideConfig,
 } from '@frezo/ui'
+import { resolveActiveStatus } from '../constants/activeStatus'
 import { AppForm } from '@/components/shared/AppForm'
 import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from '../hooks/useCategory'
 import { categoryFormSchema, GROUP_CODE_OPTIONS, GROUP_CODE_LABEL } from '../constants/category.schema'
@@ -136,11 +137,10 @@ export function CategoriesPage() {
       key: 'active',
       title: 'Trạng thái',
       dataIndex: 'active',
-      render: (_, row) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${row.active !== false ? 'bg-green-50 text-green-700' : 'bg-neutral-100 text-neutral-500'}`}>
-          {row.active !== false ? 'Kích hoạt' : 'Tắt'}
-        </span>
-      ),
+      render: (_, row) => {
+        const cfg = resolveActiveStatus(row.active)
+        return <StatusBadge label={cfg.label} color={cfg.color} />
+      },
     },
     {
       key: 'actions',

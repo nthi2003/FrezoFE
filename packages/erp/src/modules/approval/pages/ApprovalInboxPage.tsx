@@ -8,7 +8,7 @@ import {
   Inbox, CheckCircle2, XCircle, ChevronDown, ChevronRight,
   Loader2, ClipboardCheck,
 } from 'lucide-react'
-import { PageHeader, EmptyState, ErrorState, PageGuideButton, ConfirmDialog, BulkSelectionBar } from '@frezo/ui'
+import { PageHeader, EmptyState, ErrorState, PageGuideButton, ConfirmDialog, BulkSelectionBar, StatusBadge } from '@frezo/ui'
 import { toast } from 'sonner'
 import {
   useMyApprovals, useApproveRequest, useRejectRequest,
@@ -17,29 +17,15 @@ import { approvalApi } from '../services/approvalApi'
 import {
   SUBJECT_TYPE_LABEL,
   type ApprovalRequestDto,
-  type ApprovalStatus,
 } from '../types'
 import { usePermission } from '@/lib/hooks/usePermission'
 import { Can, PermissionButton } from '@/lib/permissions'
 import { APPROVAL_INBOX_GUIDE } from '../constants/approvals.guide'
+import { resolveApprovalRequestStatus } from '../constants/approvalRequestStatus'
 import { useQueryClient } from '@tanstack/react-query'
 
 type FilterTab = 'pending' | 'all'
 type BulkMode = 'approve' | 'reject' | null
-
-const STATUS_TONE: Record<ApprovalStatus, string> = {
-  PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
-  APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
-  CANCELLED: 'bg-neutral-100 text-neutral-500 border-neutral-200',
-}
-
-const STATUS_LABEL: Record<ApprovalStatus, string> = {
-  PENDING: 'Chờ duyệt',
-  APPROVED: 'Đã duyệt',
-  REJECTED: 'Từ chối',
-  CANCELLED: 'Đã huỷ',
-}
 
 export function ApprovalInboxPage() {
   const queryClient = useQueryClient()
@@ -367,6 +353,7 @@ function InboxRow({
   busy: boolean
 }) {
   const isPending = row.status === 'PENDING'
+  const statusCfg = resolveApprovalRequestStatus(row.status)
   return (
     <li className={selected ? 'bg-primary-50/40' : undefined}>
       <div className="flex items-start gap-2 px-3 py-3">
@@ -393,11 +380,7 @@ function InboxRow({
               <span className="text-sm font-semibold text-neutral-900 truncate">
                 {row.subjectSummary}
               </span>
-              <span
-                className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold border ${STATUS_TONE[row.status]}`}
-              >
-                {STATUS_LABEL[row.status]}
-              </span>
+              <StatusBadge label={statusCfg.label} color={statusCfg.color} />
             </div>
             <div className="text-xs text-neutral-500 mt-0.5 flex items-center gap-2 flex-wrap">
               <span>

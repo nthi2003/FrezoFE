@@ -10,6 +10,7 @@ import {
   Compass, Zap, Clock, Plus, User, LogOut, LayoutDashboard, type LucideIcon,
   Settings, FolderOpen, X, Database,
 } from 'lucide-react'
+import { Portal } from '@frezo/ui'
 import { useMenus } from '@/modules/menus/hooks/useMenus'
 import { useAuthStore } from '@/stores/authStore'
 import type { MenuTreeNode } from '@/modules/menus/types/menu.types'
@@ -296,12 +297,13 @@ export function CommandPalette({ isOpen, onClose }: Props) {
   if (!isOpen) return null
 
   return (
+    <Portal>
     <div
-      className="fixed inset-0 z-[1000] flex items-start justify-center pt-[10vh] px-4"
+      className="fixed inset-0 z-[10030] flex items-start justify-center pt-[10vh] px-4"
       onClick={onClose}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm animate-fade-in" />
+      <div className="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm animate-fade-in" />
 
       {/* Palette */}
       <div
@@ -413,6 +415,7 @@ export function CommandPalette({ isOpen, onClose }: Props) {
         }
       `}</style>
     </div>
+    </Portal>
   )
 }
 

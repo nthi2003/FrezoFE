@@ -9,11 +9,12 @@ import {
   X, Calendar, User, Paperclip, MessageSquare, Send,
   CheckCircle2, XCircle, Ban, Clock, Loader2, ExternalLink, Inbox,
 } from 'lucide-react'
-import { Button, ConfirmDialog } from '@frezo/ui'
+import { Button, ConfirmDialog, Portal, StatusBadge } from '@frezo/ui'
 import { toast } from 'sonner'
 import { useCancelLeaveRequest } from '../hooks/useLeave'
 import type { LeaveRequestItem, LeaveStatus } from '../services/leaveApi'
 import { LEAVE_TYPES } from '../constants/schema'
+import { resolveLeaveStatus } from '../constants/leaveStatus'
 import { ApprovalTimeline } from '@/modules/approval/components/ApprovalTimeline'
 import {
   useApproveRequest,
@@ -46,6 +47,7 @@ export function LeaveDetailDrawer({ lead, currentUsername, isAdmin, onClose }: P
 
   const status = (lead.status || 'PENDING_MANAGER') as LeaveStatus
   const type = LEAVE_TYPES.find((t) => t.value === lead.leaveType)
+  const statusCfg = resolveLeaveStatus(status)
   const isMyRequest = lead.createdBy === currentUsername
   const canCancel =
     (status === 'PENDING_MANAGER' || status === 'PENDING_HR' || status === 'PENDING') &&
@@ -87,7 +89,7 @@ export function LeaveDetailDrawer({ lead, currentUsername, isAdmin, onClose }: P
   const handleCancel = () => setCancelConfirmOpen(true)
 
   return (
-    <>
+    <Portal>
       <div className="fixed inset-0 z-40 bg-neutral-900/40 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-lg bg-white shadow-2xl overflow-y-auto animate-slide-in-right flex flex-col">
         <div className="p-5 border-b border-neutral-100 bg-gradient-to-br from-primary-50/50 to-white">
@@ -112,7 +114,11 @@ export function LeaveDetailDrawer({ lead, currentUsername, isAdmin, onClose }: P
                       {type.label}
                     </span>
                   )}
-                  <StatusPill status={status} />
+                  <StatusBadge
+                    label={statusCfg.label}
+                    color={statusCfg.color}
+                    icon={statusCfg.icon}
+                  />
                 </div>
               </div>
             </div>
@@ -292,7 +298,7 @@ export function LeaveDetailDrawer({ lead, currentUsername, isAdmin, onClose }: P
         variant="warning"
         isLoading={cancel.isPending}
       />
-    </>
+    </Portal>
   )
 }
 
@@ -321,50 +327,6 @@ function InfoRow({
         {value || <span className="text-neutral-400">—</span>}
       </span>
     </div>
-  )
-}
-
-function StatusPill({ status }: { status: LeaveStatus }) {
-  const map: Record<string, { label: string; tone: string; dot: string }> = {
-    PENDING_MANAGER: {
-      label: 'Chờ Approval',
-      tone: 'bg-amber-50 text-amber-700 border-amber-200',
-      dot: 'bg-amber-500',
-    },
-    PENDING_HR: {
-      label: 'Chờ Approval',
-      tone: 'bg-blue-50 text-blue-700 border-blue-200',
-      dot: 'bg-blue-500',
-    },
-    PENDING: {
-      label: 'Chờ Approval',
-      tone: 'bg-amber-50 text-amber-700 border-amber-200',
-      dot: 'bg-amber-500',
-    },
-    APPROVED: {
-      label: 'Đã duyệt',
-      tone: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      dot: 'bg-emerald-500',
-    },
-    REJECTED: {
-      label: 'Từ chối',
-      tone: 'bg-rose-50 text-rose-700 border-rose-200',
-      dot: 'bg-rose-500',
-    },
-    CANCELLED: {
-      label: 'Đã huỷ',
-      tone: 'bg-neutral-100 text-neutral-600 border-neutral-200',
-      dot: 'bg-neutral-400',
-    },
-  }
-  const s = map[status] || map.PENDING
-  return (
-    <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${s.tone}`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-      {s.label}
-    </span>
   )
 }
 

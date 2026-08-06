@@ -8,7 +8,7 @@ import {
   Plus, Upload, Download, Trash2, FileDown, Package,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button, AppModal, ConfirmDialog } from '@frezo/ui'
+import { Button, AppModal, ConfirmDialog, Switch } from '@frezo/ui'
 import { downloadCsv } from '@/lib/export/toCsv'
 import type { AppTableColumn, BulkAction } from '@/components/ui/AppTable'
 import {
@@ -204,18 +204,15 @@ export function ReorderRulesPage() {
     },
     {
       key: 'active',
-      title: 'Trạng thái',
+      title: 'Bật',
       align: 'center',
+      width: 72,
       render: (_, row) => (
-        <span
-          className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${
-            row.active
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-              : 'bg-neutral-100 text-neutral-500 border-neutral-200'
-          }`}
-        >
-          {row.active ? 'Bật' : 'Tắt'}
-        </span>
+        <Switch
+          checked={row.active}
+          disabled={update.isPending}
+          onChange={(active) => update.mutate({ id: row.id, body: { active } })}
+        />
       ),
     },
   ]

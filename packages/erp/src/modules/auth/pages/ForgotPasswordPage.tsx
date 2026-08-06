@@ -1,16 +1,17 @@
 // ============================================================
-// ForgotPasswordPage — 3 bước: email → OTP + mật khẩu mới → xong
+// ForgotPasswordPage — 4 bước: email → OTP (verify ở BE) → mật khẩu mới → xong
 // ============================================================
 
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Loader2, Mail, KeyRound, Lock, Eye, EyeOff, ArrowLeft, CheckCircle2, AlertCircle,
+  ShieldCheck,
 } from 'lucide-react'
 import { authApi } from '../services/authApi'
 import logoSrc from '@/img/logo.png'
 
-type Step = 'email' | 'otp' | 'done'
+type Step = 'email' | 'otp' | 'password' | 'done'
 
 function extractErrorMessage(err: unknown): string {
   const anyErr = err as { response?: { data?: { message?: string } }; message?: string }
@@ -25,6 +26,7 @@ export function ForgotPasswordPage() {
   const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
+  const [resetToken, setResetToken] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [showPw, setShowPw] = useState(false)
@@ -35,6 +37,7 @@ export function ForgotPasswordPage() {
 
   const emailRef = useRef<HTMLInputElement>(null)
   const otpRef = useRef<HTMLInputElement>(null)
+  const pwRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -63,6 +66,8 @@ export function ForgotPasswordPage() {
     try {
       const res = await authApi.forgotPassword(trimmed)
       setInfo(res?.message || 'Nếu email tồn tại, mã OTP đã được gửi. Kiểm tra hộp thư.')
+      setOtp('')
+      setResetToken('')
       setStep('otp')
       setResendCooldown(60)
       setTimeout(() => otpRef.current?.focus(), 100)
@@ -73,11 +78,40 @@ export function ForgotPasswordPage() {
     }
   }
 
+  /** Bước 2: BE xác thực OTP theo email, chỉ khi đúng mới sang ô mật khẩu mới. */
+  const submitOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    const code = otp.trim()
+    if (!/^\d{6}$/.test(code)) {
+      setError('Mã OTP phải gồm 6 chữ số.')
+      return
+    }
+    setLoading(true)
+    try {
+      const token = await authApi.verifyResetOtp({ email: email.trim(), otp: code })
+      if (!token) {
+        setError('Không xác thực được mã OTP. Vui lòng thử lại.')
+        return
+      }
+      setResetToken(token)
+      setInfo(null)
+      setStep('password')
+      setTimeout(() => pwRef.current?.focus(), 100)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  /** Bước 3: đặt mật khẩu mới bằng resetToken đã cấp sau khi verify OTP. */
   const submitReset = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    if (!/^\d{6}$/.test(otp.trim())) {
-      setError('Mã OTP phải gồm 6 chữ số.')
+    if (!resetToken) {
+      setError('Phiên đặt lại mật khẩu đã hết. Vui lòng xác thực OTP lại.')
+      setStep('otp')
       return
     }
     if (password.length < 6) {
@@ -90,7 +124,8 @@ export function ForgotPasswordPage() {
     }
     setLoading(true)
     try {
-      await authApi.resetPassword({ key: otp.trim(), newPassword: password })
+      await authApi.resetPassword({ email: email.trim(), resetToken, newPassword: password })
+      setResetToken('')
       setStep('done')
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -131,7 +166,8 @@ export function ForgotPasswordPage() {
               </h1>
               <p className="text-sm text-neutral-400 mt-1.5">
                 {step === 'email' && 'Nhập email tài khoản để nhận mã OTP'}
-                {step === 'otp' && 'Nhập mã OTP gửi về email và mật khẩu mới'}
+                {step === 'otp' && 'Nhập mã OTP 6 số vừa gửi về email của bạn'}
+                {step === 'password' && 'OTP hợp lệ — đặt mật khẩu mới cho tài khoản'}
                 {step === 'done' && 'Bạn có thể đăng nhập bằng mật khẩu mới'}
               </p>
             </div>
@@ -141,7 +177,11 @@ export function ForgotPasswordPage() {
               <div className="px-8 pb-2 flex items-center gap-2 justify-center text-[11px] font-semibold text-neutral-400">
                 <span className={step === 'email' ? 'text-emerald-600' : 'text-emerald-500'}>1. Email</span>
                 <span>→</span>
-                <span className={step === 'otp' ? 'text-emerald-600' : ''}>2. OTP & mật khẩu</span>
+                <span className={step === 'otp' ? 'text-emerald-600' : step === 'password' ? 'text-emerald-500' : ''}>
+                  2. Xác thực OTP
+                </span>
+                <span>→</span>
+                <span className={step === 'password' ? 'text-emerald-600' : ''}>3. Mật khẩu mới</span>
               </div>
             )}
 
@@ -194,7 +234,7 @@ export function ForgotPasswordPage() {
               )}
 
               {step === 'otp' && (
-                <form onSubmit={submitReset} className="space-y-4" noValidate>
+                <form onSubmit={submitOtp} className="space-y-4" noValidate>
                   <div className="space-y-1.5">
                     <label htmlFor="fp-otp" className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                       Mã OTP (6 số)
@@ -216,6 +256,44 @@ export function ForgotPasswordPage() {
                     </div>
                   </div>
 
+                  <button
+                    type="submit"
+                    disabled={loading || otp.trim().length !== 6}
+                    className="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-sm font-semibold
+                      flex items-center justify-center gap-2 shadow-[0_4px_18px_rgba(16,185,129,0.2)]
+                      hover:from-emerald-400 hover:to-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {loading ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={16} />}
+                    {loading ? 'Đang xác thực...' : 'Xác thực OTP'}
+                  </button>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <button
+                      type="button"
+                      className="text-neutral-500 hover:text-neutral-700"
+                      onClick={() => { setStep('email'); setError(null); setInfo(null) }}
+                    >
+                      Đổi email
+                    </button>
+                    <button
+                      type="button"
+                      disabled={loading || resendCooldown > 0}
+                      onClick={() => requestOtp()}
+                      className="font-semibold text-emerald-600 hover:text-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {resendCooldown > 0 ? `Gửi lại sau ${resendCooldown}s` : 'Gửi lại OTP'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {step === 'password' && (
+                <form onSubmit={submitReset} className="space-y-4" noValidate>
+                  <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">
+                    <ShieldCheck size={16} className="mt-0.5 shrink-0" />
+                    <span>Đã xác thực OTP cho <strong className="font-semibold">{email.trim()}</strong></span>
+                  </div>
+
                   <div className="space-y-1.5">
                     <label htmlFor="fp-pw" className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                       Mật khẩu mới
@@ -223,6 +301,7 @@ export function ForgotPasswordPage() {
                     <div className="relative">
                       <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
                       <input
+                        ref={pwRef}
                         id="fp-pw"
                         type={showPw ? 'text' : 'password'}
                         autoComplete="new-password"
@@ -273,23 +352,21 @@ export function ForgotPasswordPage() {
                     {loading ? 'Đang đặt lại...' : 'Đặt lại mật khẩu'}
                   </button>
 
-                  <div className="flex items-center justify-between text-xs">
-                    <button
-                      type="button"
-                      className="text-neutral-500 hover:text-neutral-700"
-                      onClick={() => { setStep('email'); setError(null); setInfo(null) }}
-                    >
-                      Đổi email
-                    </button>
-                    <button
-                      type="button"
-                      disabled={loading || resendCooldown > 0}
-                      onClick={() => requestOtp()}
-                      className="font-semibold text-emerald-600 hover:text-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      {resendCooldown > 0 ? `Gửi lại sau ${resendCooldown}s` : 'Gửi lại OTP'}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="text-xs text-neutral-500 hover:text-neutral-700"
+                    onClick={() => {
+                      setStep('otp')
+                      setResetToken('')
+                      setOtp('')
+                      setPassword('')
+                      setConfirm('')
+                      setError(null)
+                      setTimeout(() => otpRef.current?.focus(), 100)
+                    }}
+                  >
+                    Nhập lại mã OTP
+                  </button>
                 </form>
               )}
 

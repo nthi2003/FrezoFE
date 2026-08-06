@@ -12,6 +12,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@frezo/utils'
 
+import { Portal } from './Portal'
+
 
 export interface GuideStep {
   /** Icon lucide (optional). Nếu không truyền dùng số thứ tự. */
@@ -201,7 +203,7 @@ function PageGuideDrawer({ open, onClose, guide }: PageGuideDrawerProps) {
   const preferCms = Boolean(cmsBody && cmsBody.trim())
 
   return (
-    <>
+    <Portal>
       {/* Backdrop */}
       <div
         onClick={onClose}
@@ -297,7 +299,7 @@ function PageGuideDrawer({ open, onClose, guide }: PageGuideDrawerProps) {
           </footer>
         )}
       </aside>
-    </>
+    </Portal>
   )
 }
 

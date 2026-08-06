@@ -15,12 +15,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
-  Plus, Search, RefreshCw, CalendarDays, Filter, CheckCircle2, XCircle,
-  Clock, User, Ban, ArrowRight, Bell, FileWarning, type LucideIcon,
+  Plus, Search, RefreshCw, CalendarDays, Filter, Bell, FileWarning,
+  ArrowRight, User, CheckCircle2, XCircle, Clock, type LucideIcon,
 } from 'lucide-react'
 import {
   Button, PageHeader, EmptyState, ErrorState, PageGuideButton, Select,
-  StatusBadge, RowActions, type StatusColor,
+  StatusBadge, RowActions,
 } from '@frezo/ui'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -33,41 +33,12 @@ import { LeaveRequestModal } from '../components/LeaveRequestModal'
 import { LeaveDetailDrawer } from '../components/LeaveDetailDrawer'
 import { usePermission } from '@/lib/hooks/usePermission'
 import { LEAVES_GUIDE } from '../constants/leaves.guide'
+import { LEAVE_STATUS_CONFIG } from '../constants/leaveStatus'
 import { pageRootClass } from '../utils/pageEmbed'
 
 // ============================================================
-// Config maps — status → label + màu semantic StatusBadge
+// Config maps — leave type tone (display-only chips)
 // ============================================================
-
-const STATUS_META: Record<
-  LeaveStatus,
-  { label: string; short: string; color: StatusColor; icon: typeof CheckCircle2 }
-> = {
-  PENDING_MANAGER: {
-    label: 'Chờ QL trực tiếp duyệt', short: 'Chờ QL',
-    color: 'warning', icon: Clock,
-  },
-  PENDING_HR: {
-    label: 'Chờ HR chốt', short: 'Chờ HR',
-    color: 'info', icon: Clock,
-  },
-  APPROVED: {
-    label: 'Đã duyệt', short: 'Duyệt',
-    color: 'success', icon: CheckCircle2,
-  },
-  REJECTED: {
-    label: 'Từ chối', short: 'Từ chối',
-    color: 'danger', icon: XCircle,
-  },
-  CANCELLED: {
-    label: 'Đã huỷ', short: 'Huỷ',
-    color: 'neutral', icon: Ban,
-  },
-  PENDING: {
-    label: 'Chờ duyệt (legacy)', short: 'Chờ duyệt',
-    color: 'warning', icon: Clock,
-  },
-}
 
 const TYPE_META: Record<string, { label: string; tone: string }> = LEAVE_TYPES.reduce(
   (acc, t) => {
@@ -129,9 +100,17 @@ export function LeavesPage({
   const mine = useMyLeaveRequests(myContract.contractId || undefined)
   const source = isMineTab ? mine : pending
 
+  /**
+   * Một pattern loading duy nhất cho cả trang: skeleton của AppTable.
+   * Tab "Đơn của tôi" phải chờ cả profile/HĐ lẫn query đơn — query bị disable khi
+   * chưa có contractId nên `isLoading` = false, dễ chớp empty state trước khi có data.
+   */
+  const listLoading = isMineTab
+    ? myContract.isLoading || (myContract.hasContract && mine.isPending)
+    : pending.isLoading
+
   /** Chưa liên kết nhân sự / chưa có HĐ hiệu lực → không gọi API, hiện empty state riêng. */
-  const mineBlocked = isMineTab && !myContract.isLoading && !myContract.hasContract
-  const listLoading = source.isLoading || (isMineTab && myContract.isLoading)
+  const mineBlocked = isMineTab && !listLoading && !myContract.hasContract
   const rawList = useMemo<LeaveRequestItem[]>(
     () => (Array.isArray(source.data) ? source.data : []),
     [source.data],
@@ -263,7 +242,7 @@ export function LeavesPage({
       title: 'Trạng thái',
       align: 'right',
       render: (_, l) => {
-        const st = STATUS_META[(l.status || 'PENDING_MANAGER') as LeaveStatus]
+        const st = LEAVE_STATUS_CONFIG[(l.status || 'PENDING_MANAGER') as LeaveStatus]
         return (
           <StatusBadge
             label={st.short}
@@ -348,23 +327,17 @@ export function LeavesPage({
             <span className="text-neutral-300">·</span>
             <span className="tabular-nums text-rose-600">{stats.rejected} từ chối/huỷ</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void source.refetch()}
-              disabled={source.isFetching}
-              className="gap-1.5 h-9"
-            >
-              <RefreshCw size={14} className={source.isFetching ? 'animate-spin' : ''} />
-              Làm mới
-            </Button>
-            {canCreateLeave && (
-              <Button size="sm" onClick={openCreate} className="gap-1.5 h-9">
-                <Plus size={14} /> Tạo đơn nghỉ phép
-              </Button>
-            )}
-          </div>
+          {/* Nút tạo đơn do hub header sở hữu — không lặp lại ở đây. */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void source.refetch()}
+            disabled={source.isFetching}
+            className="gap-1.5 h-9"
+          >
+            <RefreshCw size={14} className={source.isFetching ? 'animate-spin' : ''} />
+            Làm mới
+          </Button>
         </div>
       )}
 
@@ -401,13 +374,6 @@ export function LeavesPage({
         hasActiveFilters={!!hasFilter}
         onClear={clearFilters}
         countLabel={`${list.length} đơn${hasFilter ? ' (đã lọc)' : ''}`}
-        extra={(
-          canCreateLeave && !embedded ? (
-            <Button size="sm" onClick={openCreate} className="gap-1.5 h-9">
-              <Plus size={14} /> Tạo đơn
-            </Button>
-          ) : undefined
-        )}
       >
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -424,9 +390,9 @@ export function LeavesPage({
           <Select
             options={[
               { value: 'all', label: 'Tất cả trạng thái' },
-              ...(Object.keys(STATUS_META) as LeaveStatus[]).map((k) => ({
+              ...(Object.keys(LEAVE_STATUS_CONFIG) as LeaveStatus[]).map((k) => ({
                 value: k,
-                label: STATUS_META[k].label,
+                label: LEAVE_STATUS_CONFIG[k].label,
               })),
             ]}
             value={statusFilter}
@@ -468,7 +434,7 @@ export function LeavesPage({
             }
           />
         </div>
-      ) : source.isError ? (
+      ) : !listLoading && source.isError ? (
         <div className="border rounded-xl bg-white">
           <ErrorState
             title="Không tải được đơn nghỉ"

@@ -14,7 +14,7 @@ import { contractApi } from '@/modules/qlns/services/contractApi'
 import { personApi } from '@/modules/qlns/services/personApi'
 import { contractRejectSchema } from '@/modules/qlns/constants/schema'
 import { toast } from 'sonner'
-import { CONTRACT_STATUS_CONFIG, CONTRACT_STATUS_OPTIONS, type ContractStatus } from '../constants/contractStatus'
+import { CONTRACT_STATUS_CONFIG, CONTRACT_STATUS_OPTIONS, CONTRACT_EXPIRING_SOON_BADGE, type ContractStatus } from '../constants/contractStatus'
 import { CONTRACT_TYPES } from '../constants/templates'
 import { CONTRACTS_GUIDE } from '../constants/contracts.guide'
 import { DIGITAL_CONTRACT_GUIDE } from '../constants/digitalContract.guide'
@@ -182,12 +182,11 @@ export function ContractPage() {
         <div className="flex items-center gap-1.5">
           <span className="text-neutral-600 tabular-nums">{formatDate(val || row.endDate)}</span>
           {row.isExpiringSoon && (
-            <span
-              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-bold text-orange-700 bg-orange-50 rounded-md border border-orange-200"
-              title="Hết hạn trong 30 ngày"
-            >
-              <AlertTriangle size={9} /> Sắp hết
-            </span>
+            <StatusBadge
+              label={CONTRACT_EXPIRING_SOON_BADGE.label}
+              color={CONTRACT_EXPIRING_SOON_BADGE.color}
+              icon={CONTRACT_EXPIRING_SOON_BADGE.icon}
+            />
           )}
         </div>
       ),

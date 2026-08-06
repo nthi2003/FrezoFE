@@ -6,8 +6,9 @@ import type { AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import {
   Button, ConfirmDialog, EmptyState, ErrorState,
-  PageHeader, PageGuideButton, Select, RowActions, type PageGuideConfig,
+  PageHeader, PageGuideButton, Select, RowActions, StatusBadge, type PageGuideConfig,
 } from '@frezo/ui'
+import { resolvePublishStatus } from '../constants/publishStatus'
 import { useArticles, useDeleteArticle } from '@/modules/articles/hooks/useArticle'
 import { usePermission } from '@/lib/hooks/usePermission'
 
@@ -33,12 +34,6 @@ const TYPE_LABEL: Record<string, string> = {
   blog: 'Bài viết',
   promotion: 'Khuyến mãi',
   recruitment: 'Tuyển dụng',
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: 'Bản nháp',
-  PUBLISHED: 'Đã xuất bản',
-  ARCHIVED: 'Lưu trữ',
 }
 
 const NEWS_GUIDE: PageGuideConfig = {
@@ -121,17 +116,8 @@ export function NewsPage() {
       title: 'Trạng thái',
       dataIndex: 'status',
       render: (_, row) => {
-        const val = row.status || 'DRAFT'
-        const colorMap: Record<string, string> = {
-          DRAFT: 'bg-neutral-100 text-neutral-600',
-          PUBLISHED: 'bg-green-50 text-green-700',
-          ARCHIVED: 'bg-yellow-50 text-yellow-700',
-        }
-        return (
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colorMap[val] || 'bg-neutral-100 text-neutral-500'}`}>
-            {STATUS_LABEL[val] || val}
-          </span>
-        )
+        const cfg = resolvePublishStatus(row.status)
+        return <StatusBadge label={cfg.label} color={cfg.color} />
       },
     },
     {
