@@ -30,6 +30,7 @@ const ApiLogsPage       = lazy(() => import('@/modules/qtht/pages/ApiLogsPage').
 const JobsPage          = lazy(() => import('@/modules/qtht/pages/JobsPage').then(m => ({ default: m.JobsPage })))
 const UsageAnalyticsPage = lazy(() => import('@/modules/qtht/pages/UsageAnalyticsPage').then(m => ({ default: m.UsageAnalyticsPage })))
 const WebsiteManagementPage = lazy(() => import('@/modules/qtht/pages/WebsiteManagementPage').then(m => ({ default: m.WebsiteManagementPage })))
+const NewsUtilitiesPage     = lazy(() => import('@/modules/news/pages/NewsUtilitiesPage').then(m => ({ default: m.NewsUtilitiesPage })))
 // Assets (QLTS)
 const AssetsPage = lazy(() => import('@/modules/assets/pages/AssetsPage').then(m => ({ default: m.AssetsPage })))
 const DepreciationPostPage = lazy(() => import('@/modules/assets/pages/DepreciationPostPage').then(m => ({ default: m.DepreciationPostPage })))
@@ -55,6 +56,7 @@ const SalaryBandsPage = lazy(() => import('@/modules/qlns/pages/SalaryBandsPage'
 const RequisitionsPage      = lazy(() => import('@/modules/qlns/pages/RequisitionsPage').then(m => ({ default: m.RequisitionsPage })))
 const RecruitmentBoardPage  = lazy(() => import('@/modules/qlns/pages/RecruitmentBoardPage').then(m => ({ default: m.RecruitmentBoardPage })))
 const OkrsPage                  = lazy(() => import('@/modules/qlns/pages/OkrsPage').then(m => ({ default: m.OkrsPage })))
+const OkrWorkspacePage          = lazy(() => import('@/modules/qlns/pages/OkrWorkspacePage').then(m => ({ default: m.OkrWorkspacePage })))
 const PerformanceReviewsPage    = lazy(() => import('@/modules/qlns/pages/PerformanceReviewsPage').then(m => ({ default: m.PerformanceReviewsPage })))
 const RecognitionPage           = lazy(() => import('@/modules/qlns/pages/RecognitionPage').then(m => ({ default: m.RecognitionPage })))
 const OnboardingPage            = lazy(() => import('@/modules/qlns/pages/OnboardingPage').then(m => ({ default: m.OnboardingPage })))
@@ -80,6 +82,7 @@ const AttendancePage  = lazy(() => import('@/modules/qlns/pages/AttendancePage')
 const TimeHubPage     = lazy(() => import('@/modules/qlns/pages/TimeHubPage').then(m => ({ default: m.TimeHubPage })))
 const PayrollHubPage  = lazy(() => import('@/modules/qlns/pages/PayrollHubPage').then(m => ({ default: m.PayrollHubPage })))
 const PeopleHubPage   = lazy(() => import('@/modules/qlns/pages/PeopleHubPage').then(m => ({ default: m.PeopleHubPage })))
+const HrSetupHubPage  = lazy(() => import('@/modules/qlns/pages/HrSetupHubPage').then(m => ({ default: m.HrSetupHubPage })))
 const PerformanceHubPage = lazy(() => import('@/modules/qlns/pages/PerformanceHubPage').then(m => ({ default: m.PerformanceHubPage })))
 const QlnsLegacyRedirect = lazy(() => import('@/modules/qlns/components/QlnsLegacyRedirect').then(m => ({ default: m.QlnsLegacyRedirect })))
 
@@ -359,6 +362,7 @@ export const router = createBrowserRouter([
       { path: 'qtht/workflows/templates', element: <Suspense fallback={<PageLoader />}><WorkflowTemplateGalleryPage /></Suspense> },
       { path: 'qtht/workflows/:id/designer', element: <Suspense fallback={<PageLoader />}><WorkflowDesignerPage /></Suspense> },
       { path: 'qtht/website',        element: <Suspense fallback={<PageLoader />}><WebsiteManagementPage /></Suspense> },
+      { path: 'qtht/tien-ich',       element: <Suspense fallback={<PageLoader />}><NewsUtilitiesPage /></Suspense> },
       { path: 'qtht/tin-tuc',        element: <Navigate to="/admin/article-management" replace /> },
       { path: 'qtht/tin-tuc/tao-moi', element: <Navigate to="/admin/article-management/new" replace /> },
 
@@ -366,6 +370,7 @@ export const router = createBrowserRouter([
       { path: 'qlns/time',        element: <Suspense fallback={<PageLoader />}><TimeHubPage /></Suspense> },
       { path: 'qlns/payroll',     element: <Suspense fallback={<PageLoader />}><PayrollHubPage /></Suspense> },
       { path: 'qlns/people',      element: <Suspense fallback={<PageLoader />}><PeopleHubPage /></Suspense> },
+      { path: 'qlns/settings',    element: <Suspense fallback={<PageLoader />}><HrSetupHubPage /></Suspense> },
       { path: 'qlns/performance', element: <Suspense fallback={<PageLoader />}><PerformanceHubPage /></Suspense> },
       { path: 'qlns/recognition', element: <Suspense fallback={<PageLoader />}><RecognitionPage /></Suspense> },
       { path: 'qlns/persons',     element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/people" tab="persons" /></Suspense> },
@@ -380,6 +385,7 @@ export const router = createBrowserRouter([
       { path: 'qlns/recruitment/requisitions', element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/people" tab="recruitment" /></Suspense> },
       { path: 'qlns/recruitment/board',        element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/people" tab="recruitment" /></Suspense> },
       { path: 'qlns/okrs', element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/performance" tab="okrs" /></Suspense> },
+      { path: 'qlns/okr-settings', element: <Suspense fallback={<PageLoader />}><OkrWorkspacePage initialTab="settings" /></Suspense> },
       { path: 'qlns/performance-reviews', element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/performance" tab="reviews" /></Suspense> },
       { path: 'qlns/onboarding', element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/people" tab="onboarding" /></Suspense> },
       { path: 'qlns/offboarding', element: <Suspense fallback={<PageLoader />}><QlnsLegacyRedirect hubPath="/qlns/people" tab="offboarding" /></Suspense> },

@@ -7,12 +7,13 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Mail, Phone, MapPin, CreditCard, Cake, User as UserIcon, Building2,
-  Briefcase, Calendar, Pencil, FileText, Power, Copy, Sparkles,
+  Briefcase, Calendar, Pencil, FileText, Power, Copy, Sparkles, Wallet,
   type LucideIcon, CheckCircle, Clock,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Drawer, Button, StatusBadge } from '@frezo/ui'
 import { contractApi } from '@/modules/qlns/services/contractApi'
+import { PersonWorkHistoryModal } from './PersonWorkHistoryModal'
 import { unwrapList } from '@frezo/utils'
 
 interface Props {
@@ -72,6 +73,7 @@ export function PersonDetailDrawer({
 
   const footer = (
     <>
+      <PersonWorkHistoryModal personId={person.id} personName={person.name} />
       <Button variant="outline" onClick={onClose}>Đóng</Button>
       {onToggleActive && (
         <Button
@@ -239,6 +241,30 @@ export function PersonDetailDrawer({
             {person.jobTitle && (
               <InfoRow icon={Briefcase} label="Chức danh">
                 <span>{person.jobTitle}</span>
+              </InfoRow>
+            )}
+            {(person.bankAccount || person.bankName) && (
+              <InfoRow icon={Wallet} label="Ngân hàng">
+                <span>
+                  {[person.bankName, person.bankAccount, person.bankBranch].filter(Boolean).join(' · ') || '—'}
+                </span>
+              </InfoRow>
+            )}
+            {person.socialInsuranceNumber && (
+              <InfoRow icon={CreditCard} label="BHXH">
+                <span className="font-mono">{person.socialInsuranceNumber}</span>
+              </InfoRow>
+            )}
+            {(person.idCardFrontUrl || person.idCardBackUrl) && (
+              <InfoRow icon={CreditCard} label="Ảnh CCCD">
+                <span className="flex gap-2">
+                  {person.idCardFrontUrl && (
+                    <a href={person.idCardFrontUrl} target="_blank" rel="noreferrer" className="text-primary-600 text-xs">Mặt trước</a>
+                  )}
+                  {person.idCardBackUrl && (
+                    <a href={person.idCardBackUrl} target="_blank" rel="noreferrer" className="text-primary-600 text-xs">Mặt sau</a>
+                  )}
+                </span>
               </InfoRow>
             )}
             {seniority && (

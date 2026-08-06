@@ -49,7 +49,7 @@ const STATUS_META: Record<string, { label: string; color: StatusColor }> = {
 const EMPTY_FORM: PerformanceReviewRequest = {
   cycleId: CYCLES[0],
   personId: '',
-  selfScore: 3,
+  selfScore: 50,
   selfComment: '',
 }
 
@@ -81,7 +81,7 @@ export function PerformanceReviewsPage({ embedded }: { embedded?: boolean } = {}
 
   const [open, setOpen] = useState(false)
   const [scoreTarget, setScoreTarget] = useState<PerformanceReviewDto | null>(null)
-  const [score, setScore] = useState(3)
+  const [score, setScore] = useState(50)
   const [comments, setComments] = useState('')
   const [submitTarget, setSubmitTarget] = useState<PerformanceReviewDto | null>(null)
   const [search, setSearch] = useState('')
@@ -198,7 +198,7 @@ export function PerformanceReviewsPage({ embedded }: { embedded?: boolean } = {}
                   tone: 'blue',
                   onClick: () => {
                     setScoreTarget(r)
-                    setScore(r.managerScore ?? 3)
+                    setScore(r.managerScore ?? 50)
                     setComments(r.managerComment || '')
                   },
                   hidden: !(canManagerScore && ['SUBMITTED', 'SCORED'].includes(st)),
@@ -356,12 +356,12 @@ export function PerformanceReviewsPage({ embedded }: { embedded?: boolean } = {}
               aria-label="Nhân sự"
             />
           </div>
-          <Field label="Điểm tự đánh giá">
+          <Field label="Điểm tự đánh giá (%)">
             <input
               type="number"
-              min={1}
-              max={5}
-              step={0.5}
+              min={0}
+              max={100}
+              step={1}
               className="w-full border rounded-md px-3 py-2 text-sm"
               value={form.selfScore ?? ''}
               onChange={(e) =>
@@ -369,6 +369,15 @@ export function PerformanceReviewsPage({ embedded }: { embedded?: boolean } = {}
               }
             />
           </Field>
+          <div>
+            <Label className="mb-1">Người đánh giá *</Label>
+            <Select
+              options={[{ value: '', label: '— Chọn quản lý —' }, ...(personOptions ?? [])]}
+              value={form.managerPersonId || ''}
+              onChange={(v) => setForm({ ...form, managerPersonId: v || undefined })}
+              aria-label="Người đánh giá"
+            />
+          </div>
           <Field label="Nhận xét tự đánh giá">
             <textarea
               rows={2}
@@ -385,7 +394,7 @@ export function PerformanceReviewsPage({ embedded }: { embedded?: boolean } = {}
             </Button>
             <Button
               disabled={
-                create.isPending || !form.personId.trim() || !form.cycleId.trim()
+                create.isPending || !form.personId.trim() || !form.cycleId.trim() || !form.managerPersonId
               }
               onClick={() =>
                 create.mutate(form, {
@@ -412,12 +421,12 @@ export function PerformanceReviewsPage({ embedded }: { embedded?: boolean } = {}
         }`}
       >
         <div className="space-y-3">
-          <Field label="Điểm (1–5)">
+          <Field label="Điểm quản lý (%)">
             <input
               type="number"
-              min={1}
-              max={5}
-              step={0.5}
+              min={0}
+              max={100}
+              step={1}
               className="w-full border rounded-md px-3 py-2 text-sm"
               value={score}
               onChange={(e) => setScore(Number(e.target.value))}

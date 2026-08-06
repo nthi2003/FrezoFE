@@ -20,6 +20,8 @@ export interface FilterBarProps {
   countLabel?: string
   /** Phần phụ bên phải trước count (VD nút làm mới). */
   extra?: ReactNode
+  /** Hub embedded — không dùng -mx-6 (parent không có p-6). */
+  inset?: boolean
   className?: string
 }
 
@@ -35,12 +37,15 @@ export function FilterBar({
   onClear,
   countLabel,
   extra,
+  inset = false,
   className = '',
 }: FilterBarProps) {
+  const shellClass = inset
+    ? 'sticky top-0 z-10 rounded-lg border border-neutral-200/80 bg-neutral-50/95 backdrop-blur px-3 py-2'
+    : 'sticky top-0 z-10 -mx-6 px-6 py-2 bg-neutral-50/95 backdrop-blur border-y border-neutral-200/80'
+
   return (
-    <div
-      className={`sticky top-0 z-10 -mx-6 px-6 py-2 bg-neutral-50/95 backdrop-blur border-y border-neutral-200/80 ${className}`}
-    >
+    <div className={`${shellClass} ${className}`}>
       <div className="flex flex-wrap gap-2 items-center">
         {selects?.map((sel) => (
           <div

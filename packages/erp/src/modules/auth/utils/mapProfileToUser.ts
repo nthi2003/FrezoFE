@@ -32,6 +32,12 @@ export function mapProfileToUser(
       ? String(personIdRaw)
       : undefined
 
+  const orgIdRaw = raw?.orgId ?? prev?.orgId
+  const orgId =
+    orgIdRaw != null && String(orgIdRaw).trim() !== ''
+      ? String(orgIdRaw)
+      : undefined
+
   return {
     id: String(raw?.id ?? prev?.id ?? ''),
     username: String(raw?.username ?? raw?.userName ?? prev?.username ?? ''),
@@ -39,6 +45,7 @@ export function mapProfileToUser(
     fullName: String(raw?.fullName ?? raw?.name ?? prev?.fullName ?? ''),
     avatar,
     personId,
+    orgId,
     roles: Array.isArray(raw?.roles)
       ? (raw!.roles as string[])
       : (prev?.roles ?? []),

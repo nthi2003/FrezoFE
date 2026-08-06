@@ -19,6 +19,7 @@ import {
   ImageUploader,
   PageGuideButton,
   Portal,
+  Switch,
   type PageGuideConfig,
   type StatusConfig,
 } from '@frezo/ui'
@@ -47,6 +48,7 @@ import { Can, PermissionButton } from '@/lib/permissions'
 import { useAuthStore } from '@/stores/authStore'
 import { personApi } from '@/modules/qlns/services/personApi'
 import { organizationApi } from '@/modules/qtht/services/qthtApi'
+import { useNewsCategories, useCreateNewsCategory } from '@/modules/news/hooks/useNews'
 import { toast } from 'sonner'
 
 // ============================================================
@@ -203,6 +205,10 @@ export function ArticleEditorPage() {
       status: 'DRAFT',
       tags: '',
       thumbnailUrl: '',
+      categoryId: '',
+      contentType: 'ARTICLE',
+      externalUrl: '',
+      displayOnNews: true,
       authorId: '',
       organizationId: '',
       managerId: '',
@@ -234,6 +240,15 @@ export function ArticleEditorPage() {
   const organizationId = (useWatch({ control, name: 'organizationId' }) as string) || ''
   const managerId = (useWatch({ control, name: 'managerId' }) as string) || ''
   const publishScope = (useWatch({ control, name: 'publishScope' }) as string) || 'INTERNAL'
+  const categoryId = (useWatch({ control, name: 'categoryId' }) as string) || ''
+  const contentType = (useWatch({ control, name: 'contentType' }) as string) || 'ARTICLE'
+  const displayOnNews = useWatch({ control, name: 'displayOnNews' }) as boolean
+  const externalUrl = (useWatch({ control, name: 'externalUrl' }) as string) || ''
+
+  const { data: newsCategories = [] } = useNewsCategories(organizationId || undefined)
+  const createCategoryReq = useCreateNewsCategory()
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [newCategoryColor, setNewCategoryColor] = useState('#16a34a')
 
   useEffect(() => {
     if (isEdit && initial) {
@@ -245,6 +260,10 @@ export function ArticleEditorPage() {
         status: initial.status || 'DRAFT',
         tags: initial.tags || '',
         thumbnailUrl: initial.thumbnailUrl || '',
+        categoryId: initial.categoryId || '',
+        contentType: initial.contentType || 'ARTICLE',
+        externalUrl: initial.externalUrl || '',
+        displayOnNews: initial.displayOnNews !== false,
         authorId: initial.authorId || '',
         organizationId: initial.organizationId || initial.orgId || '',
         managerId: initial.managerId || '',
@@ -717,6 +736,111 @@ export function ArticleEditorPage() {
                     }}
                     placeholder="-- Chọn loại --"
                   />
+                </SidebarField>
+                <SidebarField label="Danh mục tin tức">
+                  <Select
+                    options={newsCategories.map((c: any) => ({
+                      value: c.id,
+                      label: c.name,
+                    }))}
+                    value={categoryId}
+                    onChange={(v) => {
+                      if (!canEditContent) return
+                      setValue('categoryId', v, { shouldValidate: true, shouldDirty: true })
+                    }}
+                    placeholder="-- Chọn danh mục --"
+                    showSearch
+                    showClear
+                  />
+                  {canEditContent && (
+                    <div className="mt-2 flex gap-2">
+                      <Input
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder="Tên danh mục mới"
+                        className="h-8 text-xs flex-1"
+                      />
+                      <input
+                        type="color"
+                        value={newCategoryColor}
+                        onChange={(e) => setNewCategoryColor(e.target.value)}
+                        className="h-8 w-10 rounded border border-neutral-200"
+                        title="Màu danh mục"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2"
+                        disabled={!newCategoryName.trim() || createCategoryReq.isPending}
+                        onClick={() => {
+                          createCategoryReq.mutate(
+                            {
+                              name: newCategoryName.trim(),
+                              color: newCategoryColor,
+                              organizationId: organizationId || undefined,
+                            },
+                            {
+                              onSuccess: (res: any) => {
+                                const id = res?.data?.id ?? res?.id
+                                if (id) {
+                                  setValue('categoryId', id, { shouldDirty: true })
+                                }
+                                setNewCategoryName('')
+                                toast.success('Đã thêm danh mục')
+                              },
+                            },
+                          )
+                        }}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  )}
+                </SidebarField>
+                <SidebarField label="Kiểu hiển thị">
+                  <Select
+                    options={[
+                      { value: 'ARTICLE', label: 'Bài viết (nội dung đầy đủ)' },
+                      { value: 'LINK', label: 'Liên kết ngoài' },
+                    ]}
+                    value={contentType}
+                    onChange={(v) => {
+                      if (!canEditContent) return
+                      setValue('contentType', (v || 'ARTICLE') as 'ARTICLE' | 'LINK', {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      })
+                    }}
+                  />
+                </SidebarField>
+                {contentType === 'LINK' && (
+                  <SidebarField label="URL liên kết">
+                    <Input
+                      value={externalUrl}
+                      onChange={(e) =>
+                        setValue('externalUrl', e.target.value, {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        })
+                      }
+                      placeholder="https://..."
+                      className="h-9"
+                      disabled={!canEditContent}
+                    />
+                  </SidebarField>
+                )}
+                <SidebarField label="Hiển thị trang Tin tức">
+                  <div className="flex items-center justify-between rounded-lg border border-neutral-100 px-3 py-2">
+                    <span className="text-xs text-neutral-600">Hiện trên /bai-viet</span>
+                    <Switch
+                      checked={displayOnNews !== false}
+                      onCheckedChange={(v) =>
+                        setValue('displayOnNews', v, { shouldDirty: true })
+                      }
+                      disabled={!canEditContent}
+                    />
+                  </div>
                 </SidebarField>
                 <SidebarField
                   label="Thẻ (tags)"

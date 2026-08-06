@@ -59,11 +59,27 @@ export const ACCOUNTING_OPS_TABS: {
 export const ACCOUNTING_REPORTS_TABS: {
   key: ReportsTab
   label: string
+  hint?: string
   menuUrls: readonly string[]
 }[] = [
-  { key: 'trial-balance', label: 'Cân đối thử', menuUrls: ['/accounting/trial-balance'] },
-  { key: 'financial', label: 'BC tài chính', menuUrls: ['/accounting/financial-statements'] },
-  { key: 'tax', label: 'Tờ khai GTGT', menuUrls: ['/accounting/tax'] },
+  {
+    key: 'trial-balance',
+    label: 'Cân đối thử',
+    hint: 'Tổng hợp số dư & phát sinh theo tài khoản — kiểm tra Nợ = Có trong kỳ',
+    menuUrls: ['/accounting/trial-balance'],
+  },
+  {
+    key: 'financial',
+    label: 'BC tài chính',
+    hint: 'Bảng cân đối kế toán (BCĐKT) và Kết quả kinh doanh (KQKD)',
+    menuUrls: ['/accounting/financial-statements'],
+  },
+  {
+    key: 'tax',
+    label: 'Tờ khai GTGT',
+    hint: 'Tổng hợp thuế GTGT đầu vào / đầu ra theo tháng',
+    menuUrls: ['/accounting/tax'],
+  },
 ]
 
 /** All legacy accounting leaf URLs (for menu consolidation detection). */

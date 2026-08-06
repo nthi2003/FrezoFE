@@ -31,11 +31,17 @@ export const personApi = {
     axiosClient.delete<ApiResponse<any>>(`/qlns/person/${id}`).then((res) => res.data),
 
   uploadAvatarTemp: (userName: string, file: File) => {
-    const formData = new FormData();
-    formData.append('userName', userName);
-    formData.append('file', file);
+    const formData = new FormData()
+    formData.append('userName', userName)
+    formData.append('file', file)
     return axiosClient.post<ApiResponse<any>>('/qlns/person/upload-avatar-temp', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-    }).then((res) => res.data);
-  }
+    }).then((res) => res.data)
+  },
+
+  import: (data: { rows: any[] }) =>
+    axiosClient.post<ApiResponse<any>>('/qlns/person/import', data).then((res) => res.data),
+
+  export: (params?: any) =>
+    axiosClient.get<ApiResponse<any>>('/qlns/person/export', { params }).then((res) => res.data),
 }

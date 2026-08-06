@@ -4,6 +4,7 @@ export const QLNS_TIME_HUB_PATH = '/qlns/time'
 export const QLNS_PAYROLL_HUB_PATH = '/qlns/payroll'
 export const QLNS_PEOPLE_HUB_PATH = '/qlns/people'
 export const QLNS_PERFORMANCE_HUB_PATH = '/qlns/performance'
+export const QLNS_HR_SETUP_HUB_PATH = '/qlns/settings'
 
 /** All legacy BE menu URLs under MENU_HRM. */
 export const QLNS_ALL_LEGACY_URLS = [
@@ -37,13 +38,15 @@ export const QLNS_PERFORMANCE_MENU_URLS = ['/qlns/okrs', '/qlns/performance-revi
 
 export type TimeTab = 'overview' | 'daily' | 'records' | 'leaves'
 export type PayrollTab = 'payrolls' | 'bands'
-export type PeopleTab = 'persons' | 'contracts' | 'onboarding' | 'offboarding' | 'recruitment'
+export type PeopleTab = 'persons' | 'contracts' | 'onboarding' | 'offboarding' | 'recruitment' | 'stats'
 export type PerformanceTab = 'okrs' | 'reviews' | 'recognition'
+export type HrSetupTab = 'categories' | 'positions' | 'allowances'
 
 export const DEFAULT_TIME_TAB: TimeTab = 'daily'
 export const DEFAULT_PAYROLL_TAB: PayrollTab = 'payrolls'
 export const DEFAULT_PEOPLE_TAB: PeopleTab = 'persons'
 export const DEFAULT_PERFORMANCE_TAB: PerformanceTab = 'okrs'
+export const DEFAULT_HR_SETUP_TAB: HrSetupTab = 'categories'
 
 export const TIME_TABS: {
   key: TimeTab
@@ -78,6 +81,18 @@ export const PEOPLE_TABS: {
   { key: 'onboarding', label: 'Onboarding', menuUrls: ['/qlns/onboarding'], hint: 'Tiếp nhận nhân viên mới' },
   { key: 'offboarding', label: 'Nghỉ việc', menuUrls: ['/qlns/persons', '/qlns/offboarding'], hint: 'Quy trình nghỉ việc' },
   { key: 'recruitment', label: 'Tuyển dụng', menuUrls: ['/qlns/recruitment/requisitions', '/qlns/recruitment/board'], hint: 'Yêu cầu & Kanban tuyển dụng' },
+  { key: 'stats', label: 'Thống kê', menuUrls: ['/qlns/persons', '/qlns/settings'], hint: 'KPI & tab biến động nhân sự' },
+]
+
+export const HR_SETUP_TABS: {
+  key: HrSetupTab
+  label: string
+  menuUrls: readonly string[]
+  hint?: string
+}[] = [
+  { key: 'categories', label: 'Hạng mục', menuUrls: ['/qlns/settings', '/qlns/persons'], hint: 'Chức danh, cấp bậc, trình độ…' },
+  { key: 'positions', label: 'Vị trí công việc', menuUrls: ['/qlns/settings'], hint: 'Gắn cấp bậc + chức danh' },
+  { key: 'allowances', label: 'Phụ cấp / khấu trừ', menuUrls: ['/qlns/settings', '/qlns/payrolls'], hint: 'Khoản tính lương' },
 ]
 
 export const PERFORMANCE_TABS: {
@@ -119,6 +134,10 @@ export function canAccessPayrollHub(menuUrls: Set<string>): boolean {
 
 export function canAccessPeopleHub(menuUrls: Set<string>): boolean {
   return hasAnyExactMenuUrl(menuUrls, QLNS_PEOPLE_MENU_URLS)
+}
+
+export function canAccessHrSetupHub(menuUrls: Set<string>): boolean {
+  return hasAnyExactMenuUrl(menuUrls, ['/qlns/settings', '/qlns/persons'])
 }
 
 export function canAccessPerformanceHub(menuUrls: Set<string>): boolean {
@@ -184,6 +203,11 @@ export function getVisiblePerformanceTabs(menuUrls: Set<string>): PerformanceTab
   return PERFORMANCE_TABS.filter((t) => canAccessPerformanceTab(t.key, menuUrls)).map((t) => t.key)
 }
 
+export function getVisibleHrSetupTabs(menuUrls: Set<string>): HrSetupTab[] {
+  if (!canAccessHrSetupHub(menuUrls)) return []
+  return HR_SETUP_TABS.map((t) => t.key)
+}
+
 export function resolveTimeTab(raw: string | null, menuUrls: Set<string>): TimeTab {
   return resolveTab(raw, TIME_TABS, canAccessTimeTab, DEFAULT_TIME_TAB, menuUrls)
 }
@@ -198,6 +222,10 @@ export function resolvePeopleTab(raw: string | null, menuUrls: Set<string>): Peo
 
 export function resolvePerformanceTab(raw: string | null, menuUrls: Set<string>): PerformanceTab {
   return resolveTab(raw, PERFORMANCE_TABS, canAccessPerformanceTab, DEFAULT_PERFORMANCE_TAB, menuUrls)
+}
+
+export function resolveHrSetupTab(raw: string | null, menuUrls: Set<string>): HrSetupTab {
+  return resolveTab(raw, HR_SETUP_TABS, () => canAccessHrSetupHub(menuUrls), DEFAULT_HR_SETUP_TAB, menuUrls)
 }
 
 export function timeHubUrl(params?: { tab?: TimeTab }): string {
@@ -248,6 +276,9 @@ export function canAccessQlnsHubPathname(pathname: string, menuFeUrls: string[])
     || path.startsWith('/qlns/recruitment/')
   ) {
     return canAccessPeopleHub(menuUrls)
+  }
+  if (path === QLNS_HR_SETUP_HUB_PATH || path === '/qlns/settings') {
+    return canAccessHrSetupHub(menuUrls)
   }
   if (
     path === QLNS_PERFORMANCE_HUB_PATH

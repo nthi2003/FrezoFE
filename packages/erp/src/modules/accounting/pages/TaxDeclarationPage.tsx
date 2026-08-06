@@ -13,7 +13,8 @@ import { TAX_PIPELINE, taxStepIndex } from '../constants/accountingWorkflow'
 import { TAX_GUIDE } from '../constants/tax.guide'
 import { useVatReport } from '../hooks/useAccounting'
 
-import { pageRootClass } from '../utils/pageEmbed'
+import { pageRootClass, embeddedFilterBarProps } from '../utils/pageEmbed'
+import { ReportToolbarActions } from '../components/ReportToolbarActions'
 
 export function TaxDeclarationPage({ embedded }: { embedded?: boolean } = {}) {
   const now = new Date()
@@ -68,6 +69,7 @@ export function TaxDeclarationPage({ embedded }: { embedded?: boolean } = {}) {
       <StatusPipelineStepper steps={TAX_PIPELINE} currentIndex={pipelineIndex} />
 
       <FilterBar
+        {...embeddedFilterBarProps(embedded)}
         hasActiveFilters={hasActiveFilters}
         onClear={clearFilters}
         countLabel={
@@ -75,6 +77,9 @@ export function TaxDeclarationPage({ embedded }: { embedded?: boolean } = {}) {
             ? `Tháng ${String(applied.month).padStart(2, '0')}/${applied.year}`
             : 'Chưa tổng hợp'
         }
+        extra={embedded ? (
+          <ReportToolbarActions guide={TAX_GUIDE} />
+        ) : undefined}
       >
         <div className="min-w-[100px]">
           <Select

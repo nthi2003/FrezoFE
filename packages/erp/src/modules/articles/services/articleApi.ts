@@ -22,6 +22,10 @@ export const articleApi = {
     axiosClient.post<ApiResponse<any>>('/qtbv/articles', data).then(res => res.data),
   update: (id: string, data: any) =>
     axiosClient.put<ApiResponse<any>>(`/qtbv/articles/${id}`, data).then(res => res.data),
+  updateDisplayOnNews: (id: string, displayOnNews: boolean) =>
+    axiosClient
+      .patch<ApiResponse<any>>(`/qtbv/articles/${id}/display-on-news`, { displayOnNews })
+      .then(res => res.data),
   delete: (id: string) =>
     axiosClient.delete<ApiResponse<any>>(`/qtbv/articles/${id}`).then(res => res.data),
   submit: (id: string) =>

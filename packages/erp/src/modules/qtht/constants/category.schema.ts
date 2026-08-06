@@ -15,8 +15,10 @@ export type CategoryFormValues = z.infer<typeof categoryFormSchema>
 
 // Các group code dùng cho trang Category management. QLTS đã bị deprecate → gộp vào
 // `LoaiTaiSan` (module Asset seeder cũng đã migrate tự động khi khởi động).
+import { HR_CATEGORY_GROUPS } from '@/modules/qlns/constants/hrCategories'
+
 export const GROUP_CODE_OPTIONS = [
-  { value: 'ChucDanh', label: 'Chức Danh' },
+  ...HR_CATEGORY_GROUPS.map((g) => ({ value: g.value, label: g.label })),
   { value: 'DanhMucSP', label: 'Danh Mục Sản Phẩm' },
   { value: 'DonVi', label: 'Đơn Vị' },
   { value: 'LoaiTaiSan', label: 'Loại Tài Sản' },
@@ -24,7 +26,7 @@ export const GROUP_CODE_OPTIONS = [
 ]
 
 export const GROUP_CODE_LABEL: Record<string, string> = {
-  ChucDanh: 'Chức Danh',
+  ...Object.fromEntries(HR_CATEGORY_GROUPS.map((g) => [g.value, g.label])),
   DanhMucSP: 'Danh Mục Sản Phẩm',
   DonVi: 'Đơn Vị',
   LoaiTaiSan: 'Loại Tài Sản',

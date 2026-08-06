@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle, Download, HelpCircle, Printer, RefreshCw, Scale,
-  Search, TrendingDown, TrendingUp, Wallet,
+  TrendingDown, TrendingUp, Wallet,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  Button, EmptyState, ErrorState, PageGuideButton, PageHeader, Select, AppTooltip,
+  Button, EmptyState, ErrorState, PageGuideButton, PageHeader, AppTooltip,
 } from '@frezo/ui'
 import { formatCurrency } from '@frezo/utils'
 import { AppTable } from '@/components/ui/AppTable'
@@ -17,7 +17,9 @@ import { usePeriods, useTrialBalance } from '../hooks/useAccounting'
 import type { FiscalPeriod, TrialBalanceRow } from '../services/accountingApi'
 import { TRIAL_BALANCE_GUIDE } from '../constants/trial-balance.guide'
 
-import { pageRootClass } from '../utils/pageEmbed'
+import { pageRootClass, embeddedFilterBarProps } from '../utils/pageEmbed'
+import { ReportToolbarActions } from '../components/ReportToolbarActions'
+import { PeriodFilterControls } from '../components/PeriodFilterControls'
 
 function toDateKey(iso?: string | null) {
   if (!iso) return ''
@@ -242,7 +244,7 @@ export function TrialBalancePage({ embedded }: { embedded?: boolean } = {}) {
       />
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 ${embedded ? 'md:grid-cols-2 xl:grid-cols-4' : ''}`}>
         <TbKpi
           icon={Wallet}
           label="Số tài khoản"
@@ -273,6 +275,7 @@ export function TrialBalancePage({ embedded }: { embedded?: boolean } = {}) {
         />
       </div>
 
+      {!embedded && (
       <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
         <span className="inline-flex items-center gap-1">
           <HintIcon label="Nợ đầu / Có đầu: số dư đầu kỳ của tài khoản." />
@@ -287,69 +290,47 @@ export function TrialBalancePage({ embedded }: { embedded?: boolean } = {}) {
           Nợ/Có cuối
         </span>
       </div>
+      )}
 
       <FilterBar
+        {...embeddedFilterBarProps(embedded)}
         hasActiveFilters={hasFilter}
         onClear={clearFilters}
         countLabel={`${filtered.length} tài khoản${hasFilter ? ' (đã lọc)' : ''}`}
         extra={(
-          <AppTooltip content="Làm mới dữ liệu kỳ hiện tại">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void refetch()}
-              className="gap-2 h-9"
-              disabled={isFetching || !from || !to}
-              aria-label="Làm mới"
-            >
-              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
-              Làm mới
-            </Button>
-          </AppTooltip>
+          <ReportToolbarActions
+            guide={embedded ? TRIAL_BALANCE_GUIDE : undefined}
+            onExport={embedded ? exportCsv : undefined}
+            exportDisabled={filtered.length === 0}
+            onPrint={embedded ? () => window.print() : undefined}
+          >
+            <AppTooltip content="Làm mới dữ liệu kỳ hiện tại">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void refetch()}
+                className="gap-2 h-9"
+                disabled={isFetching || !from || !to}
+                aria-label="Làm mới"
+              >
+                <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+                Làm mới
+              </Button>
+            </AppTooltip>
+          </ReportToolbarActions>
         )}
       >
-        <div className="min-w-[100px]">
-          <Select
-            options={[year - 1, year, year + 1].map((y) => ({
-              value: String(y),
-              label: `Năm ${y}`,
-            }))}
-            value={String(year)}
-            onChange={(v) => { setYear(Number(v)); setSelectedPeriodId(null) }}
-            showSearch={false}
-            aria-label="Năm kỳ kế toán"
-          />
-        </div>
-        <div className="flex gap-1 border rounded-md p-0.5 bg-white overflow-x-auto max-w-full">
-          {periodList.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setSelectedPeriodId(p.id)}
-              className={`px-3 py-1.5 text-sm rounded whitespace-nowrap ${
-                selectedPeriodId === p.id
-                  ? 'bg-neutral-900 text-white'
-                  : p.status === 'CLOSED' || p.status === 'LOCKED'
-                    ? 'text-neutral-400'
-                    : 'text-neutral-700 hover:bg-neutral-100'
-              }`}
-              title={`Tháng ${p.month}: ${toDateKey(p.startDate)} → ${toDateKey(p.endDate)}`}
-              aria-label={`Tháng ${p.month}`}
-            >
-              Tháng {p.month}
-            </button>
-          ))}
-        </div>
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
-            placeholder="Tìm mã / tên tài khoản…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Tìm tài khoản"
-          />
-        </div>
+        <PeriodFilterControls
+          year={year}
+          onYearChange={(y) => { setYear(y); setSelectedPeriodId(null) }}
+          periodList={periodList}
+          selectedPeriodId={selectedPeriodId}
+          onPeriodChange={setSelectedPeriodId}
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Tìm mã / tên tài khoản…"
+          compact={embedded}
+        />
       </FilterBar>
 
       {isError ? (

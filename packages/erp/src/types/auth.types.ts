@@ -22,6 +22,8 @@ export interface UserProfile {
   avatar?: string
   /** Person.id — khớp QTBV article.managerId khi duyệt/xuất bản. */
   personId?: string
+  /** Organization.id từ Person — ghim tin / lọc theo đơn vị. */
+  orgId?: string
   roles: string[]
   permissions: string[]
   isAdmin: boolean

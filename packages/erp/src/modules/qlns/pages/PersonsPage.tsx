@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, AlertTriangle, RefreshCw, Search } from 'lucide-react'
+import { Plus, AlertTriangle, RefreshCw, Search, Upload, Download } from 'lucide-react'
 import { AppTable, type AppTableColumn } from '@/components/ui/AppTable'
 import { FilterBar } from '@/components/ui/FilterBar'
 import {
@@ -69,6 +69,10 @@ import {
   useDeactivatePerson
 } from '../hooks/usePerson'
 import { personFormSchema, type PersonFormValues } from '../constants/schema'
+import { personApi } from '../services/personApi'
+import { pageRootClass } from '../utils/pageEmbed'
+import { downloadExcel } from '@/lib/export'
+import { toast } from 'sonner'
 
 const GENDER_OPTIONS = [
   { value: 'MALE', label: 'Nam' },
@@ -91,7 +95,7 @@ const defaultFormValues = {
   activated: true,
 }
 
-export function PersonsPage() {
+export function PersonsPage({ embedded }: { embedded?: boolean } = {}) {
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedId = searchParams.get('selected') || ''
 
@@ -108,6 +112,8 @@ export function PersonsPage() {
   const [keyword, setKeyword] = useState('')
   const [filters, setFilters] = useState<Record<string, any>>({})
   const [filterEpoch, setFilterEpoch] = useState(0)
+  const [importOpen, setImportOpen] = useState(false)
+  const [importRows, setImportRows] = useState<any[]>([])
 
   const hasActiveFilters =
     !!keyword.trim() ||
@@ -261,6 +267,81 @@ export function PersonsPage() {
     }
   }
 
+  const handleExport = async () => {
+    try {
+      const res = await personApi.export(filterParams)
+      const rows = Array.isArray(res?.data) ? res.data : []
+      downloadExcel(`nhan-su-${new Date().toISOString().slice(0, 10)}`, rows, [
+        { header: 'Mã NV', accessor: 'code' },
+        { header: 'Họ tên', accessor: 'name' },
+        { header: 'Email', accessor: 'email' },
+        { header: 'SĐT', accessor: 'phone' },
+        { header: 'Giới tính', accessor: 'gender' },
+        { header: 'CCCD', accessor: 'identityNumber' },
+        { header: 'BHXH', accessor: 'socialInsuranceNumber' },
+        { header: 'Chức danh', accessor: 'jobTitle' },
+        { header: 'Phòng ban', accessor: 'departmentName' },
+      ])
+      toast.success(`Đã xuất ${rows.length} nhân viên`)
+    } catch {
+      toast.error('Xuất Excel thất bại')
+    }
+  }
+
+  const parseCsvText = (text: string) => {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim())
+    if (lines.length < 2) return []
+    const headers = lines[0].split(',').map((h) => h.trim().replace(/^\ufeff/, ''))
+    return lines.slice(1).map((line) => {
+      const cols = line.split(',')
+      const row: Record<string, string> = {}
+      headers.forEach((h, i) => { row[h] = (cols[i] || '').trim() })
+      return row
+    })
+  }
+
+  const handleImportFile = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const rows = parseCsvText(String(reader.result || ''))
+      setImportRows(rows)
+      setImportOpen(true)
+    }
+    reader.readAsText(file, 'UTF-8')
+  }
+
+  const submitImport = async () => {
+    try {
+      const res = await personApi.import({ rows: importRows })
+      const result = res?.data
+      toast.success(`Import: ${result?.success ?? 0}/${result?.total ?? 0} thành công`)
+      if (result?.errors?.length) toast.error(result.errors.slice(0, 3).join('; '))
+      setImportOpen(false)
+      setImportRows([])
+      queryClient.invalidateQueries({ queryKey: ['persons'] })
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Import thất bại')
+    }
+  }
+
+  const downloadTemplate = () => {
+    downloadExcel('mau-nhan-su', [], [
+      { header: 'code', accessor: 'code' },
+      { header: 'name', accessor: 'name' },
+      { header: 'email', accessor: 'email' },
+      { header: 'phone', accessor: 'phone' },
+      { header: 'gender', accessor: 'gender' },
+      { header: 'birthDate', accessor: 'birthDate' },
+      { header: 'identityNumber', accessor: 'identityNumber' },
+      { header: 'socialInsuranceNumber', accessor: 'socialInsuranceNumber' },
+      { header: 'address', accessor: 'address' },
+      { header: 'jobTitle', accessor: 'jobTitle' },
+      { header: 'bankAccount', accessor: 'bankAccount' },
+      { header: 'bankName', accessor: 'bankName' },
+      { header: 'joinDate', accessor: 'joinDate' },
+    ])
+  }
+
   const isPending = createPerson.isPending || updatePerson.isPending
 
   const columns: AppTableColumn<any>[] = [
@@ -334,7 +415,8 @@ export function PersonsPage() {
   ]
 
   return (
-    <div className="space-y-4 animate-fade-in p-6">
+    <div className={pageRootClass(embedded)}>
+      {!embedded && (
       <PageHeader
         title="Quản lý Nhân viên"
         description="Hồ sơ nhân sự — nguồn dữ liệu chuẩn cho tài khoản, chấm công, hợp đồng và bảng lương."
@@ -342,6 +424,22 @@ export function PersonsPage() {
           <>
             <PageGuideButton guide={PERSONS_GUIDE} />
             <PageGuideButton guide={OFFBOARDING_GUIDE} label="Nghỉ việc" />
+            <Button variant="outline" className="h-9 gap-1.5" onClick={downloadTemplate}>
+              <Download size={15} /> Mẫu CSV
+            </Button>
+            <label className="inline-flex cursor-pointer">
+              <input type="file" accept=".csv,.txt" className="hidden" onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) handleImportFile(f)
+                e.target.value = ''
+              }} />
+              <Button variant="outline" className="h-9 gap-1.5 pointer-events-none">
+                <Upload size={15} /> Nhập CSV
+              </Button>
+            </label>
+            <Button variant="outline" className="h-9 gap-1.5" onClick={() => void handleExport()}>
+              <Download size={15} /> Xuất Excel
+            </Button>
             <Button
               onClick={handleOpenCreate}
               className="gap-2 bg-primary-600 hover:bg-primary-700 text-white h-9"
@@ -351,12 +449,15 @@ export function PersonsPage() {
           </>
         }
       />
+      )}
 
+      {!embedded && (
       <StatusPipelineStepper
         steps={OFFBOARDING_PIPELINE}
         currentIndex={0}
         nextCta={{ label: 'Bảng lương quyết toán', href: '/qlns/payroll?tab=payrolls' }}
       />
+      )}
 
       <FilterBar
         hasActiveFilters={hasActiveFilters}
@@ -487,6 +588,10 @@ export function PersonsPage() {
             },
             { name: 'orgId', label: 'Tổ chức', type: 'select', options: orgOptions },
             { name: 'departmentId', label: 'Phòng ban', type: 'select', options: departmentOptions },
+            { name: 'socialInsuranceNumber', label: 'Số BHXH', placeholder: 'Mã số BHXH' },
+            { name: 'bankName', label: 'Ngân hàng', placeholder: 'Vietcombank…' },
+            { name: 'bankAccount', label: 'Số tài khoản', placeholder: '0123456789' },
+            { name: 'joinDate', label: 'Ngày vào làm', type: 'date' },
             { name: 'activated', label: 'Trạng thái', type: 'switch' },
             { name: 'address', label: 'Địa chỉ', placeholder: 'Số nhà, đường, quận, thành phố...', colSpan: 2 },
           ]}
@@ -503,6 +608,18 @@ export function PersonsPage() {
         confirmText="Xác nhận"
         cancelText="Hủy"
       />
+
+      <AppModal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Nhập nhân sự từ CSV"
+        description={`${importRows.length} dòng — email bắt buộc.`}
+      >
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(false)}>Hủy</Button>
+          <Button className="bg-primary-600 text-white" onClick={() => void submitImport()}>Import</Button>
+        </div>
+      </AppModal>
 
     </div>
   )

@@ -21,6 +21,14 @@ export interface OkrDto {
   description?: string
   ownerPersonId?: string
   periodLabel?: string
+  cycleId?: string
+  departmentId?: string
+  orgId?: string
+  parentOkrId?: string
+  scopeType?: 'PERSONAL' | 'TEAM' | 'DEPARTMENT' | 'COMPANY'
+  objectiveType?: 'COMMITTED' | 'STRETCH'
+  crossLinkIds?: string[]
+  published?: boolean
   startDate?: string
   endDate?: string
   status?: string
@@ -50,6 +58,14 @@ export interface OkrRequest {
   description?: string
   ownerPersonId?: string
   periodLabel?: string
+  cycleId?: string
+  departmentId?: string
+  orgId?: string
+  parentOkrId?: string
+  scopeType?: 'PERSONAL' | 'TEAM' | 'DEPARTMENT' | 'COMPANY'
+  objectiveType?: 'COMMITTED' | 'STRETCH'
+  crossLinkIds?: string[]
+  published?: boolean
   startDate?: string
   endDate?: string
   status?: string
@@ -59,6 +75,71 @@ export interface OkrRequest {
 export interface OkrCheckInRequest {
   note?: string
   keyResults?: Array<{ id: string; currentValue: number }>
+}
+
+export interface OkrCycle {
+  id: string
+  name: string
+  status: 'OPEN' | 'CLOSED'
+  startDate: string
+  endDate: string
+}
+
+export interface OkrTimelineStep {
+  id: string
+  stepName: string
+  departmentName?: string
+  timeLabel?: string
+  detail?: string
+  result?: string
+  sortOrder?: number
+}
+
+export interface OkrFeedbackType {
+  id: string
+  name: string
+}
+
+export interface OkrFeedback {
+  id: string
+  objectiveId?: string
+  targetScope: 'COMPANY' | 'DEPARTMENT'
+  targetDepartmentId?: string
+  feedbackTypeId: string
+  feedbackTypeName?: string
+  content: string
+  senderPersonId?: string
+  createdDate?: string
+}
+
+export interface OkrAction {
+  id: string
+  keyResultId: string
+  title: string
+  planUrl?: string
+  startDate?: string
+  endDate?: string
+  result?: string
+  status: 'TODO' | 'DOING' | 'DONE'
+  relatedPersonIds?: string[]
+}
+
+export interface OkrCheckInSession {
+  id: string
+  okrId: string
+  employeePersonId: string
+  managerPersonId: string
+  progress?: string
+  delayedWork?: string
+  blockers?: string
+  solutions?: string
+  confidenceLevel: number
+  status: 'DRAFT' | 'CONFIRMED' | 'COMPLETED'
+  officialUpdate?: string
+  managerFeedback?: string
+  nextCheckInDate?: string
+  completeOkrs?: boolean
+  feedback?: Array<{ id: string; parentFeedbackId?: string; authorPersonId: string; content: string }>
 }
 
 export interface PerformanceReviewDto {
@@ -144,6 +225,54 @@ export const performanceApi = {
     axiosClient
       .post<ApiResponse<OkrDto>>(`/qlns/okrs/${id}/check-in`, body)
       .then((r) => normalizeOkr(r.data.data)),
+
+  publishOkr: (id: string) =>
+    axiosClient.post<ApiResponse<OkrDto>>(`/qlns/okrs/${id}/publish`).then((r) => normalizeOkr(r.data.data)),
+
+  listCycles: () =>
+    axiosClient.get<ApiResponse<OkrCycle[]>>('/qlns/okr-workflow/cycles').then((r) => r.data.data ?? []),
+  createCycle: (body: Omit<OkrCycle, 'id'>) =>
+    axiosClient.post<ApiResponse<OkrCycle>>('/qlns/okr-workflow/cycles', body).then((r) => r.data.data),
+  updateCycle: (id: string, body: Omit<OkrCycle, 'id'>) =>
+    axiosClient.put<ApiResponse<OkrCycle>>(`/qlns/okr-workflow/cycles/${id}`, body).then((r) => r.data.data),
+  deleteCycle: (id: string) => axiosClient.delete(`/qlns/okr-workflow/cycles/${id}`),
+
+  listTimeline: () =>
+    axiosClient.get<ApiResponse<OkrTimelineStep[]>>('/qlns/okr-workflow/timeline').then((r) => r.data.data ?? []),
+  createTimeline: (body: Omit<OkrTimelineStep, 'id'>) =>
+    axiosClient.post<ApiResponse<OkrTimelineStep>>('/qlns/okr-workflow/timeline', body).then((r) => r.data.data),
+  updateTimeline: (id: string, body: Omit<OkrTimelineStep, 'id'>) =>
+    axiosClient.put<ApiResponse<OkrTimelineStep>>(`/qlns/okr-workflow/timeline/${id}`, body).then((r) => r.data.data),
+  deleteTimeline: (id: string) => axiosClient.delete(`/qlns/okr-workflow/timeline/${id}`),
+
+  listFeedbackTypes: () =>
+    axiosClient.get<ApiResponse<OkrFeedbackType[]>>('/qlns/okr-workflow/feedback-types').then((r) => r.data.data ?? []),
+  createFeedbackType: (name: string) =>
+    axiosClient.post<ApiResponse<OkrFeedbackType>>('/qlns/okr-workflow/feedback-types', { name }).then((r) => r.data.data),
+  updateFeedbackType: (id: string, name: string) =>
+    axiosClient.put<ApiResponse<OkrFeedbackType>>(`/qlns/okr-workflow/feedback-types/${id}`, { name }).then((r) => r.data.data),
+  deleteFeedbackType: (id: string) => axiosClient.delete(`/qlns/okr-workflow/feedback-types/${id}`),
+  listFeedback: () =>
+    axiosClient.get<ApiResponse<OkrFeedback[]>>('/qlns/okr-workflow/feedback').then((r) => r.data.data ?? []),
+  createFeedback: (body: Omit<OkrFeedback, 'id' | 'feedbackTypeName' | 'senderPersonId' | 'createdDate'>) =>
+    axiosClient.post<ApiResponse<OkrFeedback>>('/qlns/okr-workflow/feedback', body).then((r) => r.data.data),
+
+  listActions: (keyResultId: string) =>
+    axiosClient.get<ApiResponse<OkrAction[]>>(`/qlns/okr-workflow/key-results/${keyResultId}/actions`).then((r) => r.data.data ?? []),
+  createAction: (keyResultId: string, body: Omit<OkrAction, 'id' | 'keyResultId'>) =>
+    axiosClient.post<ApiResponse<OkrAction>>(`/qlns/okr-workflow/key-results/${keyResultId}/actions`, body).then((r) => r.data.data),
+  updateAction: (id: string, body: Omit<OkrAction, 'id' | 'keyResultId'>) =>
+    axiosClient.put<ApiResponse<OkrAction>>(`/qlns/okr-workflow/actions/${id}`, body).then((r) => r.data.data),
+  deleteAction: (id: string) => axiosClient.delete(`/qlns/okr-workflow/actions/${id}`),
+
+  listCheckIns: (okrId: string) =>
+    axiosClient.get<ApiResponse<OkrCheckInSession[]>>(`/qlns/okr-workflow/okrs/${okrId}/check-ins`).then((r) => r.data.data ?? []),
+  createCheckIn: (okrId: string, body: Partial<OkrCheckInSession>) =>
+    axiosClient.post<ApiResponse<OkrCheckInSession>>(`/qlns/okr-workflow/okrs/${okrId}/check-ins`, body).then((r) => r.data.data),
+  confirmCheckIn: (id: string, body: Partial<OkrCheckInSession>) =>
+    axiosClient.post<ApiResponse<OkrCheckInSession>>(`/qlns/okr-workflow/check-ins/${id}/confirm`, body).then((r) => r.data.data),
+  addCheckInFeedback: (id: string, body: { parentFeedbackId?: string; content: string }) =>
+    axiosClient.post(`/qlns/okr-workflow/check-ins/${id}/feedback`, body),
 
   listReviews: (params?: { cycleId?: string; personId?: string }) =>
     axiosClient

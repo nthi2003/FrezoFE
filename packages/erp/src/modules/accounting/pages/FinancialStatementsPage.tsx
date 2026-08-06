@@ -5,11 +5,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Download, FileSpreadsheet, HelpCircle, Landmark, Printer, RefreshCw, Search,
+  Download, FileSpreadsheet, HelpCircle, Landmark, Printer, RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  Button, EmptyState, ErrorState, PageGuideButton, PageHeader, Select, AppTooltip,
+  Button, EmptyState, ErrorState, PageGuideButton, PageHeader, AppTooltip,
 } from '@frezo/ui'
 import { formatCurrency } from '@frezo/utils'
 import { AppTable } from '@/components/ui/AppTable'
@@ -25,7 +25,9 @@ import type { FiscalPeriod } from '../services/accountingApi'
 import type { ReportLineDto } from '../services/financialReportsApi'
 import { FINANCIAL_STATEMENTS_GUIDE } from '../constants/financial-statements.guide'
 
-import { pageRootClass } from '../utils/pageEmbed'
+import { pageRootClass, embeddedFilterBarProps } from '../utils/pageEmbed'
+import { ReportToolbarActions } from '../components/ReportToolbarActions'
+import { PeriodFilterControls } from '../components/PeriodFilterControls'
 
 type Tab = 'bs' | 'is'
 
@@ -209,6 +211,7 @@ export function FinancialStatementsPage({ embedded }: { embedded?: boolean } = {
       />
       )}
 
+      {!embedded && (
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <div className="rounded-xl border border-neutral-200/60 p-3 flex items-center gap-3 bg-blue-50 text-blue-700">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-blue-100 text-blue-600">
@@ -260,7 +263,9 @@ export function FinancialStatementsPage({ embedded }: { embedded?: boolean } = {
           </div>
         </div>
       </div>
+      )}
 
+      {!embedded && (
       <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
         <span className="inline-flex items-center gap-1">
           <HintIcon label="BCĐKT = Bảng cân đối kế toán: tài sản và nguồn vốn tại thời điểm cuối kỳ." />
@@ -275,6 +280,7 @@ export function FinancialStatementsPage({ embedded }: { embedded?: boolean } = {
           Cấp chỉ tiêu
         </span>
       </div>
+      )}
 
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Loại báo cáo tài chính">
         {(
@@ -313,68 +319,60 @@ export function FinancialStatementsPage({ embedded }: { embedded?: boolean } = {
         ))}
       </div>
 
+      {embedded && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-200/80 bg-neutral-50/60 px-3 py-2">
+          <div className="text-sm text-neutral-700">
+            <span className="font-semibold">{tabLabel}</span>
+            <span className="text-neutral-500 mx-2">·</span>
+            <span className="tabular-nums">{from && to ? `${from} → ${to}` : 'Chọn kỳ'}</span>
+            {typeof reportTotal === 'number' && (
+              <span className="text-neutral-500 ml-2">
+                · Tổng {formatCurrency(reportTotal)}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       <FilterBar
+        {...embeddedFilterBarProps(embedded)}
         hasActiveFilters={hasFilter}
         onClear={clearFilters}
         countLabel={`${filtered.length} chỉ tiêu${hasFilter ? ' (đã lọc)' : ''}`}
         extra={(
-          <AppTooltip content="Làm mới dữ liệu kỳ hiện tại">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void active.refetch()}
-              className="gap-2 h-9"
-              disabled={active.isFetching || !from || !to}
-              aria-label="Làm mới"
-            >
-              <RefreshCw size={14} className={active.isFetching ? 'animate-spin' : ''} />
-              Làm mới
-            </Button>
-          </AppTooltip>
+          <ReportToolbarActions
+            guide={embedded ? FINANCIAL_STATEMENTS_GUIDE : undefined}
+            onExport={embedded ? exportCsv : undefined}
+            exportDisabled={filtered.length === 0}
+            onPrint={embedded ? () => window.print() : undefined}
+          >
+            <AppTooltip content="Làm mới dữ liệu kỳ hiện tại">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void active.refetch()}
+                className="gap-2 h-9"
+                disabled={active.isFetching || !from || !to}
+                aria-label="Làm mới"
+              >
+                <RefreshCw size={14} className={active.isFetching ? 'animate-spin' : ''} />
+                Làm mới
+              </Button>
+            </AppTooltip>
+          </ReportToolbarActions>
         )}
       >
-        <div className="min-w-[100px]">
-          <Select
-            options={[year - 1, year, year + 1].map((y) => ({
-              value: String(y),
-              label: `Năm ${y}`,
-            }))}
-            value={String(year)}
-            onChange={(v) => { setYear(Number(v)); setSelectedPeriodId(null) }}
-            showSearch={false}
-            aria-label="Năm kỳ kế toán"
-          />
-        </div>
-        <div className="flex gap-1 border rounded-md p-0.5 bg-white overflow-x-auto max-w-full">
-          {periodList.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setSelectedPeriodId(p.id)}
-              className={`px-3 py-1.5 text-sm rounded whitespace-nowrap ${
-                selectedPeriodId === p.id
-                  ? 'bg-neutral-900 text-white'
-                  : p.status === 'CLOSED' || p.status === 'LOCKED'
-                    ? 'text-neutral-400'
-                    : 'text-neutral-700 hover:bg-neutral-100'
-              }`}
-              title={`Tháng ${p.month}: ${toDateKey(p.startDate)} → ${toDateKey(p.endDate)}`}
-              aria-label={`Tháng ${p.month}`}
-            >
-              Tháng {p.month}
-            </button>
-          ))}
-        </div>
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            className="w-full h-9 pl-9 pr-3 border rounded-md text-sm bg-white"
-            placeholder="Tìm mã / chỉ tiêu…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Tìm chỉ tiêu"
-          />
-        </div>
+        <PeriodFilterControls
+          year={year}
+          onYearChange={(y) => { setYear(y); setSelectedPeriodId(null) }}
+          periodList={periodList}
+          selectedPeriodId={selectedPeriodId}
+          onPeriodChange={setSelectedPeriodId}
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Tìm mã / chỉ tiêu…"
+          compact={embedded}
+        />
       </FilterBar>
 
       {active.isError ? (

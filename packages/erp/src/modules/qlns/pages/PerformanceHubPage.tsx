@@ -9,7 +9,7 @@ import {
   getVisiblePerformanceTabs,
   resolvePerformanceTab,
 } from '../utils/qlnsRoutes'
-import { OkrsPage } from './OkrsPage'
+import { OkrWorkspacePage } from './OkrWorkspacePage'
 import { PerformanceReviewsPage } from './PerformanceReviewsPage'
 import { RecognitionPage } from './RecognitionPage'
 
@@ -52,7 +52,7 @@ export function PerformanceHubPage() {
       syncKey={flatMenuFeUrls}
       onResolveTab={(raw) => resolvePerformanceTab(raw, flatMenuFeUrls)}
     >
-      {tab === 'okrs' && <OkrsPage embedded />}
+      {tab === 'okrs' && <OkrWorkspacePage />}
       {tab === 'reviews' && <PerformanceReviewsPage embedded />}
       {tab === 'recognition' && <RecognitionPage embedded />}
     </QlnsHubLayout>

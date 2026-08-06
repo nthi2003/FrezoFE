@@ -2,7 +2,7 @@ import * as z from 'zod'
 
 /** Form schema — create/update; `code` is server-generated (never required from user). */
 export const articleFormSchema = z.object({
-  title: z.string().min(1, 'Tiêu đề không được để trống'),
+  title: z.string().min(1, 'Tiêu đề không được để trống').max(100, 'Tiêu đề tối đa 100 ký tự'),
   summary: z.string().optional().nullable(),
   content: z
     .string()
@@ -14,6 +14,10 @@ export const articleFormSchema = z.object({
   status: z.string().optional().nullable(),
   tags: z.string().optional().nullable(),
   thumbnailUrl: z.string().optional().nullable(),
+  categoryId: z.string().optional().nullable(),
+  contentType: z.enum(['ARTICLE', 'LINK']).optional().nullable(),
+  externalUrl: z.string().optional().nullable(),
+  displayOnNews: z.boolean().optional().nullable(),
   authorId: z.string().optional().nullable(),
   /** Maps to BE `organizationId` on create/update */
   organizationId: z.string().optional().nullable(),
@@ -31,6 +35,13 @@ export function toArticleCreatePayload(values: ArticleFormValues) {
   return {
     title: values.title.trim(),
     content: values.content,
+    summary: values.summary || undefined,
+    thumbnailUrl: values.thumbnailUrl || undefined,
+    type: values.type || undefined,
+    categoryId: values.categoryId || undefined,
+    contentType: values.contentType || 'ARTICLE',
+    externalUrl: values.externalUrl || undefined,
+    displayOnNews: values.displayOnNews !== false,
     organizationId: values.organizationId || undefined,
     managerId: values.managerId || undefined,
     publishScope,
@@ -44,6 +55,13 @@ export function toArticleUpdatePayload(values: ArticleFormValues) {
   return {
     title: values.title.trim(),
     content: values.content,
+    summary: values.summary || undefined,
+    thumbnailUrl: values.thumbnailUrl || undefined,
+    type: values.type || undefined,
+    categoryId: values.categoryId || undefined,
+    contentType: values.contentType || 'ARTICLE',
+    externalUrl: values.externalUrl || undefined,
+    displayOnNews: values.displayOnNews !== false,
     organizationId: values.organizationId || undefined,
     managerId: values.managerId || undefined,
     publishScope,

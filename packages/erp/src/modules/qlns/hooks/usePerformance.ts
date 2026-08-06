@@ -42,6 +42,18 @@ export function useCheckInOkr() {
   })
 }
 
+export function usePublishOkr() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => performanceApi.publishOkr(id),
+    onSuccess: () => {
+      toast.success('Đã công bố mục tiêu')
+      qc.invalidateQueries({ queryKey: ['qlns', 'okrs'] })
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Không có quyền công bố mục tiêu'),
+  })
+}
+
 export function usePerformanceReviews(params?: {
   cycleId?: string
   personId?: string

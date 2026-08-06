@@ -12,6 +12,11 @@ export const personFormSchema = z.object({
   orgId: z.string().optional().nullable(),
   departmentId: z.string().optional().nullable(),
   jobTitle: z.string().optional().nullable(),
+  socialInsuranceNumber: z.string().optional().nullable(),
+  bankAccount: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  bankBranch: z.string().optional().nullable(),
+  joinDate: z.string().optional().nullable(),
   activated: z.boolean().default(true),
 })
 
@@ -51,8 +56,8 @@ export const leaveRequestFullSchema = z
     personId: z.string().min(1, 'Vui lòng chọn nhân viên'),
     contractId: z.string().min(1, 'Nhân viên chưa có hợp đồng active'),
     leaveType: z.enum(
-      LEAVE_TYPES.map((t) => t.value) as [LeaveTypeCode, ...LeaveTypeCode[]],
-      { errorMap: () => ({ message: 'Vui lòng chọn loại nghỉ phép' }) },
+      ['ANNUAL', 'SICK', 'UNPAID', 'MARRIAGE', 'BEREAVEMENT', 'MATERNITY', 'PATERNITY', 'OTHER'],
+      { message: 'Vui lòng chọn loại nghỉ phép' },
     ),
     startDate: z.string().min(1, 'Ngày bắt đầu bắt buộc'),
     endDate: z.string().min(1, 'Ngày kết thúc bắt buộc'),

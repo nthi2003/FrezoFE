@@ -8,6 +8,8 @@ export const bannerFormSchema = z.object({
   position: z.string().optional().nullable(),
   status: z.string().optional().nullable(),
   orderIndex: z.coerce.number().optional(),
+  organizationId: z.string().optional().nullable(),
+  pinForNewsPage: z.boolean().optional().nullable(),
 })
 
 export type BannerFormValues = z.infer<typeof bannerFormSchema>

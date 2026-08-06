@@ -33,7 +33,9 @@ export function AccountingReportsHubPage() {
   )
 
   const tabs = ACCOUNTING_REPORTS_TABS.map((t) => ({
-    ...t,
+    key: t.key,
+    label: t.label,
+    hint: t.hint,
     icon: TAB_ICONS[t.key],
   }))
 

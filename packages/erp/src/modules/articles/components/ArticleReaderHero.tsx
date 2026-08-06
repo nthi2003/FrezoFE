@@ -40,7 +40,7 @@ export function ArticleReaderBanner({ article }: { article: HomeArticle }) {
           tone.chipOnCover,
         )}
       >
-        {tone.label}
+        {(article as any).categoryName || tone.label}
       </span>
     </div>
   )

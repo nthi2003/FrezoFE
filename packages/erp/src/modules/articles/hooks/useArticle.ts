@@ -137,6 +137,21 @@ export function useDeleteArticle() {
   })
 }
 
+export function useToggleArticleDisplayOnNews() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, displayOnNews }: { id: string; displayOnNews: boolean }) =>
+      articleApi.updateDisplayOnNews(id, displayOnNews),
+    onSuccess: () => {
+      toast.success('Đã cập nhật hiển thị tin tức')
+      qc.invalidateQueries({ queryKey: ['articles'] })
+      qc.invalidateQueries({ queryKey: ['news', 'page-data'] })
+      qc.invalidateQueries({ queryKey: ['articles', 'home-feed'] })
+    },
+    onError: () => toast.error('Không cập nhật được trạng thái hiển thị'),
+  })
+}
+
 export function useSubmitArticle() {
   const qc = useQueryClient()
   return useMutation({

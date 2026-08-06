@@ -14,6 +14,12 @@ export interface HomeArticle {
   tags?: string | null
   thumbnailUrl?: string | null
   authorName?: string | null
+  categoryId?: string | null
+  categoryName?: string | null
+  categoryColor?: string | null
+  contentType?: string | null
+  externalUrl?: string | null
+  displayOnNews?: boolean | null
   publishedAt?: string | null
   publishedDate?: string | null
   createdAt?: string | null

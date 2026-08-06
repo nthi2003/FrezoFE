@@ -89,11 +89,14 @@ export function ArticleDetailPage() {
     status === 403 ||
     (!isLoading && !isError && !article?.id && !article?.title)
 
-  const crumbs = (current: string) => (
+  const crumbs = (current: string, categoryName?: string) => (
     <Breadcrumb
       items={[
         { label: 'Trang chủ', onClick: () => nav('/') },
         { label: 'Tin & bài viết', onClick: () => nav(LIST_PATH) },
+        ...(categoryName
+          ? [{ label: categoryName, onClick: () => nav(LIST_PATH) }]
+          : []),
         { label: current },
       ]}
     />
@@ -164,10 +167,11 @@ export function ArticleDetailPage() {
   const body = article.content || article.summary || ''
   const bodyHtml = body.includes('<') ? body : body.replace(/\n/g, '<br/>')
   const hasSummaryLead = !!article.summary && !!article.content
+  const categoryName = (article as any).categoryName as string | undefined
 
   return (
     <ReaderShell>
-      {crumbs(article.title || 'Bài viết')}
+      {crumbs(article.title || 'Bài viết', categoryName)}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button variant="ghost" size="sm" onClick={() => nav(-1)} className="-ml-2 gap-1.5">
