@@ -81,10 +81,11 @@ export function Drawer({
   const enterAnim = side === 'right' ? 'drawer-in-right' : 'drawer-in-left'
 
   return (
-    <div className="fixed inset-0 z-[900]">
-      {/* Backdrop */}
+    <Portal>
+      {/* Backdrop — `fixed` + portal để luôn phủ kín viewport, kể cả khi trang
+          có tổ tiên transform/filter (sẽ neo `fixed` vào tổ tiên đó). */}
       <div
-        className="absolute inset-0 bg-neutral-900/40 backdrop-blur-[2px] animate-fade-in"
+        className="fixed inset-0 z-[900] bg-neutral-900/40 backdrop-blur-[2px] animate-fade-in"
         onClick={closeOnBackdrop ? onClose : undefined}
       />
 
@@ -93,7 +94,7 @@ export function Drawer({
         role="dialog"
         aria-modal="true"
         className={cn(
-          'absolute top-0 bottom-0 max-w-[calc(100vw-24px)] bg-white shadow-2xl border-neutral-200 flex flex-col',
+          'fixed top-0 bottom-0 z-[901] max-w-[calc(100vw-24px)] bg-white shadow-2xl border-neutral-200 flex flex-col',
           side === 'right' ? 'border-l' : 'border-r',
           sideClass,
           sizeClass,
